@@ -37,12 +37,14 @@ import {
   Side,
   TileInstance,
   TurnLog,
+  aggregatePendingExchangeReturns,
   boardWithPending,
   calculateTotals,
   createNewGame,
   createPlaceDetail,
   deepClone,
   formatSeconds,
+  getPendingExchangeReturnBySide,
   getAssignmentOptions,
   getRack,
   isRackReady,
@@ -419,10 +421,8 @@ function App() {
   const activeRack = game ? getRack(game, game.activeSide) : [];
   const effectiveTilebag = useMemo(() => {
     if (!game) return [];
-    if (actionMode !== "exchange") return game.tilebag;
-    const incomingIds = new Set(exchangeDraft.incomingTiles.map((tile) => tile.id));
-    return game.tilebag.filter((tile) => !incomingIds.has(tile.id));
-  }, [actionMode, exchangeDraft.incomingTiles, game]);
+    return game.tilebag;
+  }, [game]);
 
   const validation = useMemo(() => {
     if (!game || actionMode !== "place_equation") {
@@ -723,26 +723,26 @@ function App() {
 
   function refillFromBag(tile: TileInstance) {
     if (!game || readOnly || reviewing || game.status !== "playing") return;
-    pendingSessionEventRef.current = "state";
-    if (actionMode === "exchange") {
-      if (exchangeDraft.incomingTiles.length >= exchangeDraft.outgoingIds.length) return;
-      if (exchangeDraft.incomingTiles.some((incoming) => incoming.id === tile.id)) return;
-      setExchangeDraft((current) => ({
-        ...current,
-        incomingTiles: [...current.incomingTiles, tile],
-      }));
-      return;
-    }
     if (actionMode !== "none") return;
+    pendingSessionEventRef.current = "state";
     const rack = getRack(game, game.activeSide);
     if (rack.length >= 8) return;
     const nextRack = [...rack, tile];
     const nextTilebag = game.tilebag.filter((candidate) => candidate.id !== tile.id);
+    const rackReady = nextRack.length >= 8 || nextTilebag.length === 0;
+    const pendingBySide = getPendingExchangeReturnBySide(game);
+    const pendingReturn = rackReady ? pendingBySide[game.activeSide] : [];
+    const nextPendingBySide = rackReady
+      ? { ...pendingBySide, [game.activeSide]: [] }
+      : pendingBySide;
+    const finalTilebag = pendingReturn.length > 0 ? [...nextTilebag, ...pendingReturn] : nextTilebag;
     const nextGame = setRack(
       {
         ...game,
-        tilebag: nextTilebag,
-        phase: nextRack.length >= 8 || nextTilebag.length === 0 ? "choose_action" : "refill",
+        tilebag: finalTilebag,
+        pendingExchangeReturn: aggregatePendingExchangeReturns(nextPendingBySide),
+        pendingExchangeReturnBySide: nextPendingBySide,
+        phase: rackReady ? "choose_action" : "refill",
         lastSavedAt: new Date().toISOString(),
       },
       game.activeSide,
@@ -888,6 +888,20 @@ function App() {
       return;
     }
     if (actionMode === "none") {
+      if (game.phase === "refill") {
+        const refillBaseline = refillBaselineRef.current;
+        const baselineIds =
+          refillBaseline &&
+          refillBaseline.gameId === game.gameId &&
+          refillBaseline.side === game.activeSide &&
+          refillBaseline.turnNumber === game.turnNumber
+            ? refillBaseline.ids
+            : [];
+        if (!baselineIds.includes(tile.id)) {
+          returnRackTileToBag(tile);
+          return;
+        }
+      }
       if (selectedRackTileId && selectedRackTileId !== tile.id) {
         const rack = getRack(game, game.activeSide);
         const selectedIndex = rack.findIndex((candidate) => candidate.id === selectedRackTileId);
@@ -910,7 +924,6 @@ function App() {
         }
       }
       if (selectedRackTileId === tile.id) {
-        // Clicking the already-selected tile = swap with itself = unselect.
         setSelectedRackTileId(null);
         return;
       }
@@ -1034,16 +1047,22 @@ function App() {
     setAssignmentRequest(null);
   }
 
-  function commitLog(log: TurnLog, boardAfter: BoardSnapshot, rackAfter: TileInstance[], tilebagAfter: TileInstance[]) {
+  function commitLog(log: TurnLog, boardAfter: BoardSnapshot, rackAfter: TileInstance[], tilebagAfter: TileInstance[], floatingTiles?: TileInstance[]) {
     if (!game || readOnly) return;
     pendingSessionEventRef.current = "submit_action";
     const nextSide = otherSide(game.activeSide);
     const logs = [...game.logs, log];
+    const pendingBySide = getPendingExchangeReturnBySide(game);
+    const nextPendingBySide = floatingTiles
+      ? { ...pendingBySide, [game.activeSide]: floatingTiles }
+      : pendingBySide;
     const switchedBase = setRack(
       {
         ...game,
         board: boardAfter,
         tilebag: tilebagAfter,
+        pendingExchangeReturn: aggregatePendingExchangeReturns(nextPendingBySide),
+        pendingExchangeReturnBySide: nextPendingBySide,
         logs,
         scores: calculateTotals(logs),
         activeSide: nextSide,
@@ -1092,21 +1111,14 @@ function App() {
   function confirmExchange() {
     if (readOnly || !game || !actionStart || actionMode !== "exchange") return;
     if (exchangeDraft.outgoingIds.length === 0) return;
-    if (exchangeDraft.outgoingIds.length !== exchangeDraft.incomingTiles.length) return;
     const outgoingSet = new Set(exchangeDraft.outgoingIds);
     const outgoingTiles = getRack(game, game.activeSide).filter((tile) => outgoingSet.has(tile.id));
-    const incomingIds = new Set(exchangeDraft.incomingTiles.map((tile) => tile.id));
-    const rackAfter = [
-      ...getRack(game, game.activeSide).filter((tile) => !outgoingSet.has(tile.id)),
-      ...exchangeDraft.incomingTiles,
-    ];
-    const tilebagAfter = [
-      ...game.tilebag.filter((tile) => !incomingIds.has(tile.id)),
-      ...outgoingTiles.map((tile) => ({ ...tile, assignedToken: undefined })),
-    ];
+    const rackAfter = getRack(game, game.activeSide).filter((tile) => !outgoingSet.has(tile.id));
+    const tilebagAfter = game.tilebag;
+    const floatingTiles = outgoingTiles.map((tile) => ({ ...tile, assignedToken: undefined }));
     const detail: ExchangeDetail = {
       outgoingTiles,
-      incomingTiles: exchangeDraft.incomingTiles,
+      incomingTiles: [],
     };
     const log = createTurnLog({
       game,
@@ -1119,7 +1131,7 @@ function App() {
       detail,
       calculatedScore: 0,
     });
-    commitLog(log, game.board, rackAfter, tilebagAfter);
+    commitLog(log, game.board, rackAfter, tilebagAfter, floatingTiles);
   }
 
   function confirmPass() {
@@ -1303,14 +1315,13 @@ function App() {
   const refillNeeded = game.phase === "refill" && game.status === "playing";
   const exchangeReady =
     actionMode === "exchange" &&
-    exchangeDraft.outgoingIds.length > 0 &&
-    exchangeDraft.outgoingIds.length === exchangeDraft.incomingTiles.length;
+    exchangeDraft.outgoingIds.length > 0;
   const canPickFromTilebag =
     canPlayActiveRoom &&
     game.status === "playing" &&
     !reviewing &&
-    ((actionMode === "none" && activeRack.length < 8) ||
-      (actionMode === "exchange" && exchangeDraft.incomingTiles.length < exchangeDraft.outgoingIds.length));
+    actionMode === "none" &&
+    activeRack.length < 8;
   const selectedRackTile =
     activeRack.find((tile) => tile.id === selectedRackTileId) ??
     pendingPlacements.find((placement) => placement.tile.id === selectedPendingTileId)?.tile;
@@ -1466,6 +1477,7 @@ function App() {
               {readOnly && <span className="pc-spectator">● Live</span>}
             </div>
             <Rack
+              actionMode={actionMode}
               active={rackConfigs[0].active}
               exchangeOutgoingIds={rackConfigs[0].exchangeOutgoingIds}
               label={rackConfigs[0].label}
@@ -1574,13 +1586,14 @@ function App() {
 
                 {actionMode === "place_equation" && (
                   <>
-                    <div className={`action-status ${validation.isValid ? "valid" : "invalid"}`}>
-                      <span>Place Status</span>
-                      <strong>
-                        {validation.isValid
-                          ? `Valid equation · ${validation.score} pts${validation.bingoBonus ? " · bingo +40" : ""}`
-                          : validation.errors[0] ?? "Select a rack tile, then click a board cell."}
-                      </strong>
+                    <div className={`action-status action-status-compact ${validation.isValid ? "valid" : "invalid"}`}>
+                      <span>Place</span>
+                      <div className="action-metrics">
+                        <strong>{validation.isValid ? "Valid" : "Draft"}</strong>
+                        <em>{pendingPlacements.length}/8 tiles</em>
+                        <em>{validation.isValid ? `${validation.score} pts` : "No score"}</em>
+                        {validation.bingoBonus > 0 && <em>Bingo +40</em>}
+                      </div>
                     </div>
                     <div className="place-workspace">
                       <div className="pending-strip">
@@ -1588,11 +1601,16 @@ function App() {
                         {pendingPlacements.length > 0 ? (
                           <div className="pending-list">
                             {pendingPlacements.map((placement) => (
-                              <div className="pending-item" key={placement.tile.id}>
-                                <Tile tile={{ ...placement.tile, assignedToken: placement.assignedToken }} />
-                                <span>
+                              <div
+                                className={`pending-item ${
+                                  tileNeedsAssignment(placement.tile.token) ? "assignable" : "fixed"
+                                }`}
+                                key={placement.tile.id}
+                              >
+                                <span className="pending-cell-badge">
                                   R{placement.row + 1} C{placement.col + 1}
                                 </span>
+                                <Tile tile={{ ...placement.tile, assignedToken: placement.assignedToken }} />
                                 {tileNeedsAssignment(placement.tile.token) &&
                                 getAssignmentOptions(placement.tile.token).length <= 4 ? (
                                   <div
@@ -1612,20 +1630,23 @@ function App() {
                                     ))}
                                   </div>
                                 ) : tileNeedsAssignment(placement.tile.token) ? (
-                                  <select
-                                    aria-label={`Assign ${placement.tile.token}`}
-                                    value={placement.assignedToken ?? ""}
-                                    onChange={(event) =>
-                                      updatePendingAssignment(placement.tile.id, event.target.value)
-                                    }
-                                    disabled={readOnly}
-                                  >
-                                    {getAssignmentOptions(placement.tile.token).map((option) => (
-                                      <option key={option} value={option}>
-                                        {option}
-                                      </option>
-                                    ))}
-                                  </select>
+                                  <label className="pending-select-wrap">
+                                    <span>{placement.assignedToken ?? "Set"}</span>
+                                    <select
+                                      aria-label={`Assign ${placement.tile.token}`}
+                                      value={placement.assignedToken ?? ""}
+                                      onChange={(event) =>
+                                        updatePendingAssignment(placement.tile.id, event.target.value)
+                                      }
+                                      disabled={readOnly}
+                                    >
+                                      {getAssignmentOptions(placement.tile.token).map((option) => (
+                                        <option key={option} value={option}>
+                                          {option}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </label>
                                 ) : (
                                   <em>Fixed</em>
                                 )}
@@ -1637,7 +1658,11 @@ function App() {
                         )}
                       </div>
                       <div className="action-equation-preview">
-                        <span>Equation Preview</span>
+                        <span>
+                          {validation.isValid
+                            ? `${validation.equations.length} equation(s) detected`
+                            : validation.errors[0] ?? "Equation Preview"}
+                        </span>
                         {validation.equations.length > 0 ? (
                           <EquationPreview validation={validation} />
                         ) : (
@@ -1660,29 +1685,18 @@ function App() {
 
                 {actionMode === "exchange" && (
                   <>
-                    <div className={`action-status ${exchangeReady ? "valid" : "invalid"}`}>
-                      <span>Exchange Status</span>
-                      <strong>
-                        {exchangeReady
-                          ? "Ready to exchange"
-                          : `Return ${exchangeDraft.outgoingIds.length}, receive ${exchangeDraft.incomingTiles.length}`}
-                      </strong>
+                    <div className={`action-status action-status-compact ${exchangeReady ? "valid" : "invalid"}`}>
+                      <span>Exchange</span>
+                      <div className="action-metrics">
+                        <strong>{exchangeReady ? "Ready" : "Draft"}</strong>
+                        <em>{exchangeDraft.outgoingIds.length}/8 tiles</em>
+                        <em>0 pts</em>
+                      </div>
                     </div>
                     <div className="exchange-workspace">
                       <DraftTiles
-                        title="Return"
+                        title="Outgoing Tiles"
                         tiles={activeRack.filter((tile) => exchangeDraft.outgoingIds.includes(tile.id))}
-                      />
-                      <DraftTiles
-                        removable
-                        title="Receive"
-                        tiles={exchangeDraft.incomingTiles}
-                        onRemove={(tileId) =>
-                          setExchangeDraft((current) => ({
-                            ...current,
-                            incomingTiles: current.incomingTiles.filter((tile) => tile.id !== tileId),
-                          }))
-                        }
                       />
                     </div>
                     <button
@@ -1923,6 +1937,7 @@ function hasDuplicateTileIds(game: GameState): boolean {
   const ids = new Set<string>();
   const tiles: TileInstance[] = [
     ...game.tilebag,
+    ...aggregatePendingExchangeReturns(getPendingExchangeReturnBySide(game)),
     ...game.rackA,
     ...game.rackB,
     ...game.board.flat().flatMap((cell) => (cell ? [cell.tile] : [])),
@@ -1943,6 +1958,8 @@ function makeRemoteStateKey(game: GameState): string {
     name: game.name,
     phase: game.phase,
     players: game.players,
+    pendingExchangeReturn: aggregatePendingExchangeReturns(getPendingExchangeReturnBySide(game)),
+    pendingExchangeReturnBySide: getPendingExchangeReturnBySide(game),
     rackA: game.rackA,
     rackB: game.rackB,
     scores: game.scores,

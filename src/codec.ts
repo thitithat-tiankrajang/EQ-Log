@@ -22,10 +22,12 @@ import type {
   BoardSnapshot,
   GameSnapshot,
   GameState,
+  PendingExchangeReturnBySide,
   Side,
   TileInstance,
   TurnLog,
 } from "./game";
+import { aggregatePendingExchangeReturns, getPendingExchangeReturnBySide } from "./game";
 
 export const STORAGE_PREFIX = "c1:";
 
@@ -130,15 +132,23 @@ function decodeLog(log: EncodedLog, nextId: IdFactory): TurnLog {
 }
 
 // ── Snapshot ────────────────────────────────────────────────────────────────────
-type EncodedSnapshot = Omit<GameSnapshot, "board" | "rackA" | "rackB" | "tilebag" | "logs"> & {
+type EncodedPendingExchangeReturnBySide = Partial<Record<Side, TileCode[]>>;
+
+type EncodedSnapshot = Omit<
+  GameSnapshot,
+  "board" | "rackA" | "rackB" | "tilebag" | "pendingExchangeReturn" | "pendingExchangeReturnBySide" | "logs"
+> & {
   board: CellCode[];
   rackA: TileCode[];
   rackB: TileCode[];
   tilebag: TileCode[];
+  pendingExchangeReturn?: TileCode[];
+  pendingExchangeReturnBySide?: EncodedPendingExchangeReturnBySide;
   logs: EncodedLog[];
 };
 
 function encodeSnapshot(snapshot: GameSnapshot): EncodedSnapshot {
+  const pendingBySide = getPendingExchangeReturnBySide(snapshot);
   return {
     commitId: snapshot.commitId,
     gameId: snapshot.gameId,
@@ -157,11 +167,16 @@ function encodeSnapshot(snapshot: GameSnapshot): EncodedSnapshot {
     rackA: encodeTiles(snapshot.rackA),
     rackB: encodeTiles(snapshot.rackB),
     tilebag: encodeTiles(snapshot.tilebag),
+    pendingExchangeReturn: aggregatePendingExchangeReturns(pendingBySide).length > 0
+      ? encodeTiles(aggregatePendingExchangeReturns(pendingBySide))
+      : undefined,
+    pendingExchangeReturnBySide: encodePendingExchangeReturnBySide(pendingBySide),
     logs: snapshot.logs.map(encodeLog),
   };
 }
 
 function decodeSnapshot(snapshot: EncodedSnapshot, nextId: IdFactory): GameSnapshot {
+  const pendingBySide = decodePendingExchangeReturnBySide(snapshot, nextId);
   return {
     commitId: snapshot.commitId,
     gameId: snapshot.gameId,
@@ -180,8 +195,44 @@ function decodeSnapshot(snapshot: EncodedSnapshot, nextId: IdFactory): GameSnaps
     rackA: decodeTiles(snapshot.rackA, nextId),
     rackB: decodeTiles(snapshot.rackB, nextId),
     tilebag: decodeTiles(snapshot.tilebag, nextId),
+    pendingExchangeReturn: aggregatePendingExchangeReturns(pendingBySide),
+    pendingExchangeReturnBySide: pendingBySide,
     logs: snapshot.logs.map((log) => decodeLog(log, nextId)),
   };
+}
+
+function encodePendingExchangeReturnBySide(
+  pendingBySide: Record<Side, TileInstance[]>,
+): EncodedPendingExchangeReturnBySide | undefined {
+  const encoded: EncodedPendingExchangeReturnBySide = {};
+  if (pendingBySide.A.length > 0) encoded.A = encodeTiles(pendingBySide.A);
+  if (pendingBySide.B.length > 0) encoded.B = encodeTiles(pendingBySide.B);
+  return encoded.A || encoded.B ? encoded : undefined;
+}
+
+function decodePendingExchangeReturnBySide(
+  snapshot: EncodedSnapshot,
+  nextId: IdFactory,
+): Record<Side, TileInstance[]> {
+  if (snapshot.pendingExchangeReturnBySide) {
+    const bySide: PendingExchangeReturnBySide = {
+      A: snapshot.pendingExchangeReturnBySide.A
+        ? decodeTiles(snapshot.pendingExchangeReturnBySide.A, nextId)
+        : [],
+      B: snapshot.pendingExchangeReturnBySide.B
+        ? decodeTiles(snapshot.pendingExchangeReturnBySide.B, nextId)
+        : [],
+    };
+    return { A: bySide.A ?? [], B: bySide.B ?? [] };
+  }
+
+  const legacyPending = snapshot.pendingExchangeReturn
+    ? decodeTiles(snapshot.pendingExchangeReturn, nextId)
+    : [];
+  if (legacyPending.length === 0) return { A: [], B: [] };
+
+  const legacySide = snapshot.activeSide === "A" ? "B" : "A";
+  return legacySide === "A" ? { A: legacyPending, B: [] } : { A: [], B: legacyPending };
 }
 
 // ── Game ────────────────────────────────────────────────────────────────────────

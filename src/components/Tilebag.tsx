@@ -1,7 +1,14 @@
 import { useMemo, useState } from "react";
-import { displayToken, groupedTilebag, type TileInstance, type TokenType } from "../game";
+import {
+  AMATH_TOKENS,
+  displayToken,
+  getTileType,
+  tilePoint,
+  type AmathToken,
+  type TileInstance,
+  type TokenType,
+} from "../game";
 import { TILE_GROUP_LABELS } from "../uiText";
-import { Tile } from "./Tile";
 
 const TILEBAG_FILTERS: Array<"all" | TokenType> = [
   "all",
@@ -13,6 +20,16 @@ const TILEBAG_FILTERS: Array<"all" | TokenType> = [
   "Blank",
 ];
 
+type TileStack = {
+  token: AmathToken;
+  display: string;
+  type: TokenType;
+  point: number;
+  tiles: TileInstance[];
+};
+
+const TOKEN_ORDER = new Map((Object.keys(AMATH_TOKENS) as AmathToken[]).map((token, index) => [token, index]));
+
 export function Tilebag({
   tilebag,
   disabled,
@@ -23,14 +40,34 @@ export function Tilebag({
   onPick: (tile: TileInstance) => void;
 }) {
   const [selectedFilter, setSelectedFilter] = useState<"all" | TokenType>("all");
-  const groups = groupedTilebag(tilebag);
-  const visibleGroups = useMemo(
-    () =>
-      TILEBAG_FILTERS.filter((filter) => filter !== "all")
-        .filter((group) => selectedFilter === "all" || selectedFilter === group)
-        .map((group) => [group, groups[group]] as const),
-    [groups, selectedFilter],
-  );
+
+  const stacks = useMemo(() => {
+    const seen = new Map<AmathToken, TileStack>();
+
+    for (const tile of tilebag) {
+      const type = getTileType(tile);
+      if (selectedFilter !== "all" && selectedFilter !== type) continue;
+
+      const existing = seen.get(tile.token);
+      if (existing) {
+        existing.tiles.push(tile);
+      } else {
+        seen.set(tile.token, {
+          token: tile.token,
+          display: displayToken(tile),
+          type,
+          point: tilePoint(tile),
+          tiles: [tile],
+        });
+      }
+    }
+
+    return Array.from(seen.values()).sort((a, b) => {
+      return (TOKEN_ORDER.get(a.token) ?? Number.MAX_SAFE_INTEGER) - (TOKEN_ORDER.get(b.token) ?? Number.MAX_SAFE_INTEGER);
+    });
+  }, [selectedFilter, tilebag]);
+
+  const visibleTileCount = stacks.reduce((count, stack) => count + stack.tiles.length, 0);
 
   return (
     <>
@@ -46,31 +83,30 @@ export function Tilebag({
           </button>
         ))}
       </div>
-      <div className="tilebag-groups">
-        {visibleGroups.map(([group, tiles]) => {
-          if (tiles.length === 0) return null;
-          return (
-            <section className={`tilebag-group tilebag-group-${group}`} key={group}>
-              <h3>
-                {TILE_GROUP_LABELS[group]} <span>{tiles.length}</span>
-              </h3>
-              <div className="tile-list">
-                {tiles.map((tile) => (
-                  <button
-                    className="tile-button"
-                    disabled={disabled}
-                    key={tile.id}
-                    title={`Pick ${displayToken(tile)}`}
-                    type="button"
-                    onClick={() => onPick(tile)}
-                  >
-                    <Tile tile={tile} />
-                  </button>
-                ))}
-              </div>
-            </section>
-          );
-        })}
+      <div
+        aria-label={`${selectedFilter === "all" ? "All tiles" : TILE_GROUP_LABELS[selectedFilter]} · ${visibleTileCount} tiles`}
+        className="tilebag-groups tilebag-stacks"
+      >
+        {stacks.length === 0 ? (
+          <p className="tilebag-empty">No tiles in this filter.</p>
+        ) : (
+          stacks.map((stack) => (
+            <button
+              className={`tile-button tile-stack tile-stack-${stack.type}`}
+              disabled={disabled}
+              key={stack.token}
+              title={`Pick ${stack.display} (${stack.tiles.length} left)`}
+              type="button"
+              onClick={() => onPick(stack.tiles[0])}
+            >
+              <span className={`tile tile-${stack.type}`}>
+                <b>{stack.display}</b>
+                <small>{stack.point}</small>
+              </span>
+              <span className="tile-stack-count">{stack.tiles.length}</span>
+            </button>
+          ))
+        )}
       </div>
     </>
   );

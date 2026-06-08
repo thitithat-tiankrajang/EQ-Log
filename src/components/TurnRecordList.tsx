@@ -32,7 +32,7 @@ export function TurnRecordList({
   return (
     <div className="turn-record-list">
       {showCurrentRack && (
-        <section className="turn-record-group live">
+        <section className={`turn-record-group live side-${game.activeSide.toLowerCase()}`}>
           <div className="turn-record-heading">
             <span>
               T{game.turnNumber} · {game.players[game.activeSide]}
@@ -78,8 +78,11 @@ function CompletedTurnRecord({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const isBingo = log.rackBefore.length >= 8;
+  const isPlace = log.action === "place_equation";
+  const placedAll = isPlace && (log.actionDetail as PlaceEquationDetail).placedTiles.length >= 8;
   return (
-    <section className={`turn-record-group ${selected ? "selected" : ""}`}>
+    <section className={`turn-record-group side-${log.side.toLowerCase()} ${selected ? "selected" : ""}`}>
       <button className="turn-record-heading" type="button" onClick={onSelect}>
         <span>
           T{log.turnNumber} · {game.players[log.side]}
@@ -91,6 +94,7 @@ function CompletedTurnRecord({
         index="1"
         title="Rack filled"
         meta={`${log.rackBefore.length}/8`}
+        bingo={isBingo}
         onClick={onSelect}
       >
         <TileStrip tiles={log.rackBefore} />
@@ -101,6 +105,7 @@ function CompletedTurnRecord({
         index="2"
         title={ACTION_LABELS[log.action]}
         meta="Action"
+        bingo={placedAll}
         onClick={onSelect}
       />
 
@@ -121,6 +126,7 @@ function TurnRecordButton({
   title,
   meta,
   description,
+  bingo = false,
   children,
   onClick,
 }: {
@@ -128,11 +134,12 @@ function TurnRecordButton({
   title: string;
   meta?: string;
   description?: string;
+  bingo?: boolean;
   children?: ReactNode;
   onClick: () => void;
 }) {
   return (
-    <button className="turn-record" type="button" onClick={onClick}>
+    <button className={`turn-record ${bingo ? "bingo" : ""}`} type="button" onClick={onClick}>
       <span className="turn-record-index">{index}</span>
       <div className="turn-record-body">
         <span className="turn-record-title">
@@ -172,7 +179,7 @@ function actionDescription(log: TurnLog): string {
 
   if (log.action === "exchange") {
     const detail = log.actionDetail as ExchangeDetail;
-    return `${tileText(detail.outgoingTiles)} out -> ${tileText(detail.incomingTiles)} in`;
+    return `${tileText(detail.outgoingTiles)} out`;
   }
 
   return "Passed without changing the board";

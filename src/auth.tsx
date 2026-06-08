@@ -130,7 +130,7 @@ function AuthShell({ children }: { children: ReactNode }) {
   return (
     <main className="auth-shell">
       <section className="auth-card">
-        <p className="eyebrow">A-math Lab Board</p>
+        <p className="eyebrow">EQuation Math Lab</p>
         {children}
       </section>
     </main>

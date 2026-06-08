@@ -55,12 +55,10 @@ export function LiveMoveAid({
         <span>Status</span>
         <strong>{status}</strong>
       </div>
-      {selectedTile && (
-        <div className="selected-tile-line">
-          <span>Selected</span>
-          <Tile tile={selectedTile} />
-        </div>
-      )}
+      <div className={`selected-tile-line ${selectedTile ? "" : "empty"}`}>
+        <span>Selected</span>
+        {selectedTile ? <Tile tile={selectedTile} /> : <strong>None</strong>}
+      </div>
     </section>
   );
 }

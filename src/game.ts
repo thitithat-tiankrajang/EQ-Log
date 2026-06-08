@@ -84,6 +84,8 @@ export type TileInstance = {
   assignedToken?: string;
 };
 
+export type PendingExchangeReturnBySide = Partial<Record<Side, TileInstance[]>>;
+
 export type BoardCell = {
   tile: TileInstance;
   placedTurn: number;
@@ -163,6 +165,31 @@ export type TurnLog = {
   stars?: number; // self-review rating 0–5 (does not affect the game score)
 };
 
+export function aggregatePendingExchangeReturns(pending: PendingExchangeReturnBySide | undefined): TileInstance[] {
+  return [...(pending?.A ?? []), ...(pending?.B ?? [])];
+}
+
+export function getPendingExchangeReturnBySide(game: {
+  activeSide: Side;
+  pendingExchangeReturn?: TileInstance[];
+  pendingExchangeReturnBySide?: PendingExchangeReturnBySide;
+}): Record<Side, TileInstance[]> {
+  if (game.pendingExchangeReturnBySide) {
+    return {
+      A: game.pendingExchangeReturnBySide.A ?? [],
+      B: game.pendingExchangeReturnBySide.B ?? [],
+    };
+  }
+
+  const legacyPending = game.pendingExchangeReturn ?? [];
+  if (legacyPending.length === 0) return { A: [], B: [] };
+
+  // Legacy saves only had one shared pending bucket, created by the side that
+  // just exchanged before the turn switched.
+  const legacySide = otherSide(game.activeSide);
+  return legacySide === "A" ? { A: legacyPending, B: [] } : { A: [], B: legacyPending };
+}
+
 export type GameSnapshot = {
   commitId: string;
   gameId: string;
@@ -177,6 +204,8 @@ export type GameSnapshot = {
   rackA: TileInstance[];
   rackB: TileInstance[];
   tilebag: TileInstance[];
+  pendingExchangeReturn: TileInstance[];
+  pendingExchangeReturnBySide?: PendingExchangeReturnBySide;
   timers: {
     A: number;
     B: number;
@@ -336,7 +365,7 @@ export function createNewGame(settings: NewGameSettings): GameState {
   const base: Omit<GameState, "history" | "historyIndex" | "lastSavedAt"> = {
     commitId: crypto.randomUUID(),
     gameId: crypto.randomUUID(),
-    name: settings.name.trim() || "A-math Lab",
+    name: settings.name.trim() || "EQuation Math",
     players: {
       A: settings.playerA.trim() || "A",
       B: settings.playerB.trim() || "B",
@@ -350,6 +379,8 @@ export function createNewGame(settings: NewGameSettings): GameState {
     rackA: [],
     rackB: [],
     tilebag: createInitialTilebag(),
+    pendingExchangeReturn: [],
+    pendingExchangeReturnBySide: { A: [], B: [] },
     timers: {
       A: seconds,
       B: seconds,
@@ -389,6 +420,8 @@ export function makeSnapshot(game: GameState | Omit<GameState, "history" | "hist
     rackA: game.rackA,
     rackB: game.rackB,
     tilebag: game.tilebag,
+    pendingExchangeReturn: aggregatePendingExchangeReturns(getPendingExchangeReturnBySide(game)),
+    pendingExchangeReturnBySide: getPendingExchangeReturnBySide(game),
     timers: game.timers,
     scores: game.scores,
     logs: game.logs,

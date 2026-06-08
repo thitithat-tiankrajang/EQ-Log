@@ -36,7 +36,7 @@ export function Lobby({
 }) {
   const [showCreate, setShowCreate] = useState(rooms.length === 0);
   const [settings, setSettings] = useState<NewGameSettings>({
-    name: "A-math Lab",
+    name: "Equation Lab",
     playerA: "A",
     playerB: "B",
     minutes: 22,
@@ -55,7 +55,7 @@ export function Lobby({
         if (!parsed.gameId || !Array.isArray(parsed.history)) throw new Error("invalid");
         onImport(parsed);
       })
-      .catch(() => window.alert("This file is not an A-math Lab Board export."));
+      .catch(() => window.alert("This file is not an Equation Lab Board export."));
     event.target.value = "";
   }
 
@@ -64,7 +64,7 @@ export function Lobby({
       <div className="lobby-inner">
         <header className="lobby-head">
           <div>
-            <p className="eyebrow">A-math Lab Board</p>
+            <p className="eyebrow">Equation Board</p>
             <h1>Rooms</h1>
           </div>
           <div className="lobby-head-actions">
