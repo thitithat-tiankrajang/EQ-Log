@@ -1524,3 +1524,37 @@
       minmax(270px, 1fr) !important;
   }
 }
+
+/* Tilebag stack count sits below the tile, not on top of it. */
+.tilebag-panel .tilebag-groups.tilebag-stacks {
+  row-gap: clamp(5px, 0.6vw, 8px) !important;
+}
+
+.tilebag-panel .tilebag-groups.tilebag-stacks .tile-stack {
+  aspect-ratio: auto !important;
+  grid-template-rows: minmax(0, 1fr) 12px !important;
+  gap: 2px !important;
+}
+
+.tilebag-panel .tilebag-groups.tilebag-stacks .tile-stack .tile {
+  align-self: start;
+  height: auto !important;
+}
+
+.tilebag-panel .tilebag-groups.tilebag-stacks .tile-stack-count {
+  position: static !important;
+  display: grid !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 12px !important;
+  transform: none !important;
+  place-items: center !important;
+  border: 0 !important;
+  border-radius: 3px !important;
+  background: var(--surface-2, #eef3ef) !important;
+  color: var(--muted, #5a675f) !important;
+  font-size: clamp(7px, 0.62vw, 9px) !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  padding: 0 !important;
+}
