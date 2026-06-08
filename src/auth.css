@@ -1,0 +1,279 @@
+/* Auth screens + account chip (isolated from styles.css). */
+.auth-shell {
+  display: grid;
+  min-height: 100dvh;
+  place-items: center;
+  padding: 24px;
+}
+
+.auth-card {
+  width: min(420px, 100%);
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--border, #d6ddd5);
+  border-radius: 16px;
+  background: var(--surface-solid, #fff);
+  box-shadow: 0 24px 60px rgba(19, 26, 22, 0.14);
+  padding: 28px;
+}
+
+.auth-card h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.auth-sub {
+  margin: 0;
+  color: var(--muted, #5a675f);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.auth-field {
+  display: grid;
+  gap: 6px;
+  color: var(--muted, #5a675f);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.auth-field input {
+  width: 100%;
+  border: 1px solid var(--border, #d6ddd5);
+  border-radius: 8px;
+  background: var(--surface-solid, #fff);
+  color: var(--text, #18211d);
+  padding: 11px 12px;
+  font-size: 15px;
+}
+
+.auth-field input:focus {
+  outline: 2px solid var(--accent, #15604e);
+  outline-offset: -1px;
+  border-color: var(--accent, #15604e);
+}
+
+.auth-error {
+  margin: 0;
+  color: var(--danger, #b23b30);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.auth-splash {
+  color: var(--muted, #5a675f);
+  font-weight: 700;
+}
+
+.auth-text-button {
+  justify-self: center;
+  border: 0;
+  background: none;
+  padding: 6px;
+  color: var(--muted, #5a675f);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.auth-text-button:hover {
+  color: var(--text, #18211d);
+  text-decoration: underline;
+}
+
+.google-button {
+  background: #fff;
+  color: #3c4043;
+  border: 1px solid #dadce0;
+}
+
+.google-button:hover:not(:disabled) {
+  background: #f7f8f8;
+  filter: none;
+}
+
+/* Account chip in the lobby header */
+.account-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border, #d6ddd5);
+  border-radius: 999px;
+  background: var(--surface-solid, #fff);
+  padding: 4px 6px 4px 4px;
+}
+
+.account-avatar {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--accent, #15604e);
+  color: #fff;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.account-name {
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text, #18211d);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.account-name em {
+  color: var(--accent, #15604e);
+  font-style: normal;
+  font-weight: 800;
+}
+
+.account-signout {
+  min-height: 28px;
+  padding: 4px;
+  border-radius: 999px;
+}
+
+/* Admin approvals panel */
+.admin-badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  margin-left: 2px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--danger, #b23b30);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.admin-head-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.admin-modal {
+  width: min(620px, calc(100vw - 36px));
+  max-height: min(80vh, 720px);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  border: 1px solid var(--border, #d6ddd5);
+  border-radius: 12px;
+  background: var(--surface-solid, #fff);
+  box-shadow: 0 30px 80px rgba(19, 26, 22, 0.3);
+}
+
+.admin-body {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  overflow: auto;
+  padding: 14px 16px;
+}
+
+.admin-section {
+  margin: 8px 0 2px;
+  color: var(--muted, #5a675f);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.admin-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  align-items: center;
+  border: 1px solid var(--border, #d6ddd5);
+  border-radius: 8px;
+  background: var(--surface-2, #f1f4f0);
+  padding: 10px 12px;
+}
+
+.admin-id {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.admin-id strong {
+  font-weight: 800;
+}
+
+.admin-id strong em {
+  color: var(--accent, #15604e);
+  font-style: normal;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.admin-id span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--muted, #5a675f);
+  font-size: 12px;
+}
+
+.admin-status {
+  justify-self: end;
+  border-radius: 999px;
+  padding: 2px 9px;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: capitalize;
+}
+
+.admin-status-pending {
+  background: var(--gold-soft, #f2e6c4);
+  color: #674c11;
+}
+
+.admin-status-approved {
+  background: var(--accent-soft, #dceee6);
+  color: var(--accent-strong, #0d4738);
+}
+
+.admin-status-blocked {
+  background: var(--danger-soft, #f7e1dc);
+  color: #8c2b22;
+}
+
+.admin-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 30px;
+  border: 1px solid var(--border, #d6ddd5);
+  border-radius: 6px;
+  background: var(--surface-solid, #fff);
+  color: var(--text, #18211d);
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-actions button:hover:not(:disabled) {
+  border-color: var(--accent, #15604e);
+  color: var(--accent, #15604e);
+}
+
+.admin-actions button.danger:hover:not(:disabled) {
+  border-color: var(--danger, #b23b30);
+  color: var(--danger, #b23b30);
+}
