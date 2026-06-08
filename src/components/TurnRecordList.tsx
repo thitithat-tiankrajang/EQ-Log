@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import {
   displayToken,
   getRack,
@@ -33,20 +32,11 @@ export function TurnRecordList({
     <div className="turn-record-list">
       {showCurrentRack && (
         <section className={`turn-record-group live side-${game.activeSide.toLowerCase()}`}>
-          <div className="turn-record-heading">
-            <span>
-              T{game.turnNumber} · {game.players[game.activeSide]}
-            </span>
-            <strong>Live</strong>
-          </div>
-          <div className="turn-record">
-            <span className="turn-record-index">1</span>
-            <div className="turn-record-body">
-              <span className="turn-record-title">
-                Rack ready <em>{activeRack.length}/8</em>
-              </span>
-              <TileStrip tiles={activeRack} />
-            </div>
+          <div className="turn-record-summary">
+            <span className="trs-turn">T{game.turnNumber}</span>
+            <span className={`trs-side side-${game.activeSide.toLowerCase()}`}>{game.players[game.activeSide]}</span>
+            <span className="trs-action">Ready · {activeRack.length}/8</span>
+            <span className="trs-live">Live</span>
           </div>
         </section>
       )}
@@ -78,78 +68,31 @@ function CompletedTurnRecord({
   selected: boolean;
   onSelect: () => void;
 }) {
-  const isBingo = log.rackBefore.length >= 8;
   const isPlace = log.action === "place_equation";
-  const placedAll = isPlace && (log.actionDetail as PlaceEquationDetail).placedTiles.length >= 8;
+  const placedTiles = isPlace ? (log.actionDetail as PlaceEquationDetail).placedTiles : [];
+  const placedAll = isPlace && placedTiles.length >= 8;
+  const sideClass = `side-${log.side.toLowerCase()}`;
   return (
-    <section className={`turn-record-group side-${log.side.toLowerCase()} ${selected ? "selected" : ""}`}>
-      <button className="turn-record-heading" type="button" onClick={onSelect}>
-        <span>
-          T{log.turnNumber} · {game.players[log.side]}
-        </span>
-        <strong>{log.finalScore} pts</strong>
+    <section className={`turn-record-group ${sideClass} ${selected ? "selected" : ""} ${placedAll ? "bingo" : ""}`}>
+      <button className="turn-record-summary" type="button" onClick={onSelect}>
+        <span className="trs-turn">T{log.turnNumber}</span>
+        <span className={`trs-side ${sideClass}`}>{game.players[log.side]}</span>
+        <span className="trs-action">{summaryText(log)}</span>
+        <span className="trs-score">{log.finalScore} pts</span>
       </button>
-
-      <TurnRecordButton
-        index="1"
-        title="Rack filled"
-        meta={`${log.rackBefore.length}/8`}
-        bingo={isBingo}
-        onClick={onSelect}
-      >
-        <TileStrip tiles={log.rackBefore} />
-      </TurnRecordButton>
-
-      <TurnRecordButton
-        description={actionDescription(log)}
-        index="2"
-        title={ACTION_LABELS[log.action]}
-        meta="Action"
-        bingo={placedAll}
-        onClick={onSelect}
-      />
-
-      <TurnRecordButton
-        index="3"
-        title="Rack after action"
-        meta={`${log.rackAfter.length}/8`}
-        onClick={onSelect}
-      >
-        <TileStrip muted tiles={log.rackAfter} />
-      </TurnRecordButton>
+      {selected && (
+        <div className="turn-record-detail">
+          <div className="trd-tiles">
+            <span>Before</span>
+            <TileStrip tiles={log.rackBefore} />
+          </div>
+          <div className="trd-tiles">
+            <span>After</span>
+            <TileStrip muted tiles={log.rackAfter} />
+          </div>
+        </div>
+      )}
     </section>
-  );
-}
-
-function TurnRecordButton({
-  index,
-  title,
-  meta,
-  description,
-  bingo = false,
-  children,
-  onClick,
-}: {
-  index: string;
-  title: string;
-  meta?: string;
-  description?: string;
-  bingo?: boolean;
-  children?: ReactNode;
-  onClick: () => void;
-}) {
-  return (
-    <button className={`turn-record ${bingo ? "bingo" : ""}`} type="button" onClick={onClick}>
-      <span className="turn-record-index">{index}</span>
-      <div className="turn-record-body">
-        <span className="turn-record-title">
-          {title}
-          {meta && <em>{meta}</em>}
-        </span>
-        {description && <span className="turn-record-desc">{description}</span>}
-        {children}
-      </div>
-    </button>
   );
 }
 
@@ -169,23 +112,19 @@ function TileStrip({ tiles, muted = false }: { tiles: TileInstance[]; muted?: bo
   );
 }
 
-function actionDescription(log: TurnLog): string {
+function summaryText(log: TurnLog): string {
+  const label = ACTION_LABELS[log.action];
   if (log.action === "place_equation") {
     const detail = log.actionDetail as PlaceEquationDetail;
-    const equations = detail.equationsDetected.map((equation) => equation.expressionText).join(" / ");
-    const status = detail.isMoveValid ? "Valid" : "Invalid";
-    return `${detail.placedTiles.length} placed · ${equations || "No equation"} · ${status}`;
+    const equation = detail.equationsDetected[0]?.expressionText;
+    const placed = detail.placedTiles.length;
+    if (equation) return `${label} · ${equation}`;
+    return `${label} · ${placed} tiles`;
   }
-
   if (log.action === "exchange") {
     const detail = log.actionDetail as ExchangeDetail;
-    return `${tileText(detail.outgoingTiles)} out`;
+    const list = detail.outgoingTiles.map((tile) => displayToken(tile)).join(" ");
+    return `${label} · ${list || "0 tiles"}`;
   }
-
-  return "Passed without changing the board";
-}
-
-function tileText(tiles: TileInstance[]): string {
-  if (tiles.length === 0) return "None";
-  return tiles.map((tile) => displayToken(tile)).join(" ");
+  return label;
 }

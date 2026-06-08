@@ -1,27 +1,22 @@
 import {
-  Check,
   Download,
   Flag,
   List,
   LayoutGrid,
-  Pause,
   Play,
   Redo2,
-  Save,
   Undo2,
   X,
 } from "lucide-react";
 import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { ActionPanel } from "./components/ActionPanel";
 import { Board } from "./components/Board";
-import { DraftTiles } from "./components/DraftTiles";
-import { EquationPreview } from "./components/EquationPreview";
 import { Lobby } from "./components/Lobby";
 import { LogModal } from "./components/LogModal";
 import { LogPanel } from "./components/LogPanel";
-import { PanelHeading } from "./components/PanelHeading";
 import { PlayRail } from "./components/PlayRail";
 import { Rack } from "./components/Rack";
-import { ReplayDock } from "./components/ReplayDock";
+import { Scoreboard } from "./components/Scoreboard";
 import { Tile } from "./components/Tile";
 import { useAuth } from "./auth";
 import {
@@ -43,7 +38,6 @@ import {
   createNewGame,
   createPlaceDetail,
   deepClone,
-  formatSeconds,
   getPendingExchangeReturnBySide,
   getAssignmentOptions,
   getRack,
@@ -60,6 +54,7 @@ import * as roomStore from "./rooms";
 import type { RoomMeta } from "./rooms";
 import * as remoteRooms from "./remoteRooms";
 import type { LiveRoomSession, RoomSessionEvent } from "./remoteRooms";
+import { navigate, useRoute } from "./router";
 import { isSupabaseConfigured } from "./supabaseClient";
 import { ACTION_LABELS } from "./uiText";
 
@@ -112,23 +107,21 @@ function App() {
   const [rooms, setRooms] = useState<RoomMeta[]>(() => (remoteEnabled ? [] : roomStore.listRooms()));
   const [roomsLoading, setRoomsLoading] = useState(remoteEnabled);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const route = useRoute();
   const [game, setGame] = useState<GameState | null>(() => {
     if (remoteEnabled) return null;
-    const id = roomStore.getActiveRoomId();
+    const id = route.kind === "room" ? route.roomId : roomStore.getActiveRoomId();
     if (!id) return null;
     const saved = roomStore.readRoom(id);
     return saved && !hasDuplicateTileIds(saved) ? saved : null;
   });
   const [activeRoomId, setActiveRoomId] = useState<string | null>(() => {
+    if (route.kind === "room") return route.roomId;
     if (remoteEnabled) return null;
     const id = roomStore.getActiveRoomId();
     return id && roomStore.readRoom(id) ? id : null;
   });
-  const [view, setView] = useState<"lobby" | "game">(() => {
-    if (remoteEnabled) return "lobby";
-    const id = roomStore.getActiveRoomId();
-    return id && roomStore.readRoom(id) ? "game" : "lobby";
-  });
+  const view: "lobby" | "game" = route.kind === "room" ? "game" : "lobby";
   const [actionMode, setActionMode] = useState<ActionMode>("none");
   const [actionStart, setActionStart] = useState<ActionStart | null>(null);
   const [selectedRackTileId, setSelectedRackTileId] = useState<string | null>(null);
@@ -217,6 +210,38 @@ function App() {
     isOwnerRef.current = canPlayActiveRoom;
   }, [activeRoomId, canPlayActiveRoom]);
 
+  // Reconcile route changes (browser back/forward, manual hash edit) with state.
+  // Owner-initiated openRoom/createAndOpenRoom already sync everything *before*
+  // calling navigate(), so this effect mostly handles external hash changes.
+  useEffect(() => {
+    if (route.kind === "lobby") return;
+    if (route.roomId === activeRoomId && game) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const remotePayload = remoteEnabled ? await remoteRooms.readRoom(route.roomId) : null;
+        const saved = remotePayload?.game ?? roomStore.readRoom(route.roomId);
+        if (cancelled) return;
+        if (!saved || hasDuplicateTileIds(saved)) {
+          navigate({ kind: "lobby" }, true);
+          return;
+        }
+        if (!remoteEnabled) roomStore.setActiveRoomId(route.roomId);
+        setActiveRoomId(route.roomId);
+        setGame(saved);
+        lastAppliedStateKeyRef.current = makeRemoteStateKey(saved);
+        if (remotePayload) applyRemoteSession(remotePayload.session);
+        setShowResult(saved.status === "finished");
+      } catch (error) {
+        if (!cancelled) setSyncError(error instanceof Error ? error.message : "Unable to open this room.");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [route.kind === "room" ? route.roomId : null]);
+
   useEffect(() => {
     if (!remoteEnabled) return;
     let active = true;
@@ -255,7 +280,7 @@ function App() {
       if (payload.eventType === "DELETE") {
         setActiveRoomId(null);
         setGame(null);
-        setView("lobby");
+        navigate({ kind: "lobby" });
         cancelDraftOnly();
         return;
       }
@@ -361,6 +386,7 @@ function App() {
   // Size the board from the whole board zone so the bottom rack stays in the
   // same viewport while the board remains as large as the available height allows.
   useEffect(() => {
+    if (view !== "game") return;
     const el = boardZoneRef.current;
     if (!el) return;
     const measure = () => {
@@ -372,14 +398,19 @@ function App() {
       const labelGutter = 22; // room for the R / C number gutters around the board
       const sizeByWidth = (w - 4 - labelGutter) / 15;
       const sizeByHeight = (h - rackChrome - labelGutter) / (15 + rackHeightRatio);
-      const size = Math.max(16, Math.min(58, Math.floor(Math.min(sizeByWidth, sizeByHeight))));
-      setBoardCell(size);
+      const size = Math.max(16, Math.min(72, Math.floor(Math.min(sizeByWidth, sizeByHeight))));
+      setBoardCell((prev) => (prev === size ? prev : size));
     };
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     measure();
-    return () => observer.disconnect();
-  }, [view]);
+    // Layout may not be stable on the first paint — measure again next frame.
+    const rafId = window.requestAnimationFrame(measure);
+    return () => {
+      observer.disconnect();
+      window.cancelAnimationFrame(rafId);
+    };
+  }, [view, game?.gameId]);
 
   // Reset the undo timeline whenever a different game is opened/created/closed.
   // Declared BEFORE the capture effect so it clears state before capture runs.
@@ -471,7 +502,7 @@ function App() {
       setGame(saved);
       lastAppliedStateKeyRef.current = makeRemoteStateKey(saved);
       if (remotePayload) applyRemoteSession(remotePayload.session);
-      setView("game");
+      navigate({ kind: "room", roomId: id });
       setShowResult(saved.status === "finished");
       setSyncError(null);
     } catch (error) {
@@ -495,7 +526,7 @@ function App() {
         cancelDraftOnly();
         setSelectedLogId(null);
         setGame(created);
-        setView("game");
+        navigate({ kind: "room", roomId: id });
         setSyncError(null);
         return;
       }
@@ -506,7 +537,7 @@ function App() {
       cancelDraftOnly();
       setSelectedLogId(null);
       setGame(created);
-      setView("game");
+      navigate({ kind: "room", roomId: id });
     } catch (error) {
       setSyncError(error instanceof Error ? error.message : "Unable to create this room.");
     }
@@ -524,7 +555,7 @@ function App() {
     } else {
       setRooms(roomStore.listRooms());
     }
-    setView("lobby");
+    navigate({ kind: "lobby" });
   }
 
   async function renameRoomById(id: string, name: string) {
@@ -580,7 +611,7 @@ function App() {
       if (id === activeRoomId) {
         setActiveRoomId(null);
         setGame(null);
-        setView("lobby");
+        navigate({ kind: "lobby" });
       }
       return;
     }
@@ -589,7 +620,7 @@ function App() {
     if (id === activeRoomId) {
       setActiveRoomId(null);
       setGame(null);
-      setView("lobby");
+      navigate({ kind: "lobby" });
     }
   }
 
@@ -1378,49 +1409,23 @@ function App() {
             <List size={18} />
             Log
           </button>
+          {game.status === "playing" ? (
+            <button className="danger-button top-end-game" disabled={readOnly} type="button" onClick={endGame}>
+              <Flag size={18} />
+              End Game
+            </button>
+          ) : (
+            <button className="resume-button top-end-game" disabled={readOnly} type="button" onClick={resumeGame}>
+              <Play size={18} />
+              Resume Game
+            </button>
+          )}
         </div>
       </header>
 
-      <section className="timer-strip">
-        {(["A", "B"] as Side[]).map((side) => (
-          <div
-            className={`timer-panel side-${side.toLowerCase()} ${
-              game.activeSide === side && game.status === "playing" ? "active" : ""
-            } ${
-              !game.timers.untimed && game.timers[side] < 0 ? "negative" : ""
-            }`}
-            key={side}
-          >
-            <span className="timer-player">{game.players[side]}</span>
-            <strong className="timer-clock">{game.timers.untimed ? "∞" : formatSeconds(game.timers[side])}</strong>
-            <small className="timer-score">{game.scores[side]} pts</small>
-          </div>
-        ))}
-	        <button
-	          className={`clock-button ${game.timers.paused ? "paused" : ""} ${game.timers.untimed ? "hidden-control" : ""}`}
-	          disabled={readOnly || game.status !== "playing"}
-          title={readOnly ? "Only the room owner can control the clock." : undefined}
-          type="button"
-          onClick={toggleTimer}
-        >
-          {game.timers.paused ? <Play size={18} /> : <Pause size={18} />}
-          {game.timers.paused ? "Resume Time" : "Stop Time"}
-        </button>
-        {game.status === "playing" ? (
-          <button className="danger-button" disabled={readOnly} type="button" onClick={endGame}>
-            <Flag size={18} />
-            End Game
-          </button>
-        ) : (
-          <button className="resume-button" disabled={readOnly} type="button" onClick={resumeGame}>
-            <Play size={18} />
-            Resume Game
-          </button>
-        )}
-      </section>
-
       <div className="workspace">
         <aside className="log-rail">
+          <Scoreboard game={game} readOnly={readOnly} onToggleTimer={toggleTimer} />
           <LogPanel
             game={game}
             selectedLogId={selectedLogId}
@@ -1474,7 +1479,6 @@ function App() {
                       : ACTION_LABELS[actionMode]}
                 </span>
               )}
-              {readOnly && <span className="pc-spectator">● Live</span>}
             </div>
             <Rack
               actionMode={actionMode}
@@ -1491,243 +1495,37 @@ function App() {
 
         <aside className="right-rail">
           <PlayRail
-            actionMode={actionMode}
-            activeRackCount={activeRack.length}
-            exchangeCounts={{
-              incoming: exchangeDraft.incomingTiles.length,
-              outgoing: exchangeDraft.outgoingIds.length,
-            }}
             game={game}
-            onPickTile={refillFromBag}
-            onRackTileClick={handleRackTileClick}
-            pendingPlacements={pendingPlacements}
-            rackConfigs={rackConfigs}
-            refillNeeded={refillNeeded}
-            reviewing={reviewing}
-            selectedRackTileId={selectedRackTileId}
-            selectedTile={selectedRackTile}
             tilebag={effectiveTilebag}
             tilebagDisabled={!canPickFromTilebag}
-            validation={validation}
+            onPickTile={refillFromBag}
           />
 
-          <section className="control-panel">
-            <PanelHeading
-              title={showViewPanel ? (reviewing ? "Replay" : "Live View") : "Actions"}
-              detail={
-                reviewing
-                  ? game.logs.length > 0
-                    ? `${Math.max(1, replayIndex + 1)} / ${game.logs.length}`
-                    : "No turns"
-                  : readOnly
-                  ? "Watching"
-                  : game.status === "finished"
-                  ? "Finished"
-                  : actionMode === "none"
-                    ? refillNeeded
-                      ? "Refill Rack"
-                      : "Choose Action"
-                    : ACTION_LABELS[actionMode]
-              }
-            />
-            {showViewPanel ? (
-              <ReplayDock
-                game={game}
-                index={reviewing ? replayIndex : Math.max(0, game.logs.length - 1)}
-                log={viewPanelLog}
-                mode={reviewing ? "replay" : "live"}
-                total={game.logs.length}
-                onPrev={() => replayStep(-1)}
-                onNext={() => replayStep(1)}
-                onExit={() => setSelectedLogId(null)}
-              />
-            ) : actionMode === "none" ? (
-              refillNeeded ? (
-                <div className="refill-lock">
-                  <strong>Refill rack first</strong>
-                  <span>
-                    Pick {Math.max(0, 8 - activeRack.length)} tile(s) from the tilebag to unlock actions.
-                  </span>
-                </div>
-              ) : (
-                <div className="action-buttons">
-                  <button
-                    disabled={!canChooseAction}
-                    type="button"
-                    onClick={() => startAction("place_equation")}
-                  >
-                    Place
-                  </button>
-                  <button
-                    disabled={!canChooseAction}
-                    type="button"
-                    onClick={() => startAction("exchange")}
-                  >
-                    Exchange
-                  </button>
-                  <button
-                    disabled={!canChooseAction}
-                    type="button"
-                    onClick={() => startAction("pass")}
-                  >
-                    Pass
-                  </button>
-                </div>
-              )
-            ) : (
-              <div className="draft-panel">
-                <div className="draft-header">
-                  <strong>Action Details</strong>
-                  <button type="button" disabled={readOnly} onClick={cancelAction}>
-                    <X size={16} />
-                    Cancel
-                  </button>
-                </div>
-
-                {actionMode === "place_equation" && (
-                  <>
-                    <div className={`action-status action-status-compact ${validation.isValid ? "valid" : "invalid"}`}>
-                      <span>Place</span>
-                      <div className="action-metrics">
-                        <strong>{validation.isValid ? "Valid" : "Draft"}</strong>
-                        <em>{pendingPlacements.length}/8 tiles</em>
-                        <em>{validation.isValid ? `${validation.score} pts` : "No score"}</em>
-                        {validation.bingoBonus > 0 && <em>Bingo +40</em>}
-                      </div>
-                    </div>
-                    <div className="place-workspace">
-                      <div className="pending-strip">
-                        <span>Placed Tiles</span>
-                        {pendingPlacements.length > 0 ? (
-                          <div className="pending-list">
-                            {pendingPlacements.map((placement) => (
-                              <div
-                                className={`pending-item ${
-                                  tileNeedsAssignment(placement.tile.token) ? "assignable" : "fixed"
-                                }`}
-                                key={placement.tile.id}
-                              >
-                                <span className="pending-cell-badge">
-                                  R{placement.row + 1} C{placement.col + 1}
-                                </span>
-                                <Tile tile={{ ...placement.tile, assignedToken: placement.assignedToken }} />
-                                {tileNeedsAssignment(placement.tile.token) &&
-                                getAssignmentOptions(placement.tile.token).length <= 4 ? (
-                                  <div
-                                    aria-label={`Assign ${placement.tile.token}`}
-                                    className="pending-choice-options"
-                                  >
-                                    {getAssignmentOptions(placement.tile.token).map((option) => (
-                                      <button
-                                        className={placement.assignedToken === option ? "active" : ""}
-                                        disabled={readOnly}
-                                        key={option}
-                                        type="button"
-                                        onClick={() => updatePendingAssignment(placement.tile.id, option)}
-                                      >
-                                        {option}
-                                      </button>
-                                    ))}
-                                  </div>
-                                ) : tileNeedsAssignment(placement.tile.token) ? (
-                                  <label className="pending-select-wrap">
-                                    <span>{placement.assignedToken ?? "Set"}</span>
-                                    <select
-                                      aria-label={`Assign ${placement.tile.token}`}
-                                      value={placement.assignedToken ?? ""}
-                                      onChange={(event) =>
-                                        updatePendingAssignment(placement.tile.id, event.target.value)
-                                      }
-                                      disabled={readOnly}
-                                    >
-                                      {getAssignmentOptions(placement.tile.token).map((option) => (
-                                        <option key={option} value={option}>
-                                          {option}
-                                        </option>
-                                      ))}
-                                    </select>
-                                  </label>
-                                ) : (
-                                  <em>Fixed</em>
-                                )}
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <p className="empty-text">Place at least one tile.</p>
-                        )}
-                      </div>
-                      <div className="action-equation-preview">
-                        <span>
-                          {validation.isValid
-                            ? `${validation.equations.length} equation(s) detected`
-                            : validation.errors[0] ?? "Equation Preview"}
-                        </span>
-                        {validation.equations.length > 0 ? (
-                          <EquationPreview validation={validation} />
-                        ) : (
-                          <p className="empty-text">No equation draft yet.</p>
-                        )}
-                      </div>
-                    </div>
-                    <button
-                      className="primary-action"
-                      disabled={readOnly || !validation.isValid}
-                      title={readOnly ? "Only the room owner can submit actions." : undefined}
-                      type="button"
-                      onClick={confirmPlace}
-                    >
-                      <Check size={18} />
-                      Submit Action
-                    </button>
-                  </>
-                )}
-
-                {actionMode === "exchange" && (
-                  <>
-                    <div className={`action-status action-status-compact ${exchangeReady ? "valid" : "invalid"}`}>
-                      <span>Exchange</span>
-                      <div className="action-metrics">
-                        <strong>{exchangeReady ? "Ready" : "Draft"}</strong>
-                        <em>{exchangeDraft.outgoingIds.length}/8 tiles</em>
-                        <em>0 pts</em>
-                      </div>
-                    </div>
-                    <div className="exchange-workspace">
-                      <DraftTiles
-                        title="Outgoing Tiles"
-                        tiles={activeRack.filter((tile) => exchangeDraft.outgoingIds.includes(tile.id))}
-                      />
-                    </div>
-                    <button
-                      className="primary-action"
-                      disabled={readOnly || !exchangeReady}
-                      title={readOnly ? "Only the room owner can submit actions." : undefined}
-                      type="button"
-                      onClick={confirmExchange}
-                    >
-                      <Save size={18} />
-                      Submit Exchange
-                    </button>
-                  </>
-                )}
-
-                {actionMode === "pass" && (
-                  <>
-                    <div className="action-status valid">
-                      <span>Pass Status</span>
-                      <strong>Ready to pass this turn</strong>
-                    </div>
-                    <button className="primary-action" disabled={readOnly} type="button" onClick={confirmPass}>
-                      <Check size={18} />
-                      Submit Pass
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-
-          </section>
+          <ActionPanel
+            activeRack={activeRack}
+            actionMode={actionMode}
+            canChooseAction={canChooseAction}
+            exchangeDraft={exchangeDraft}
+            exchangeReady={exchangeReady}
+            game={game}
+            pendingPlacements={pendingPlacements}
+            readOnly={readOnly}
+            refillNeeded={refillNeeded}
+            replayIndex={replayIndex}
+            reviewing={reviewing}
+            showViewPanel={showViewPanel}
+            validation={validation}
+            viewPanelLog={viewPanelLog}
+            onCancelAction={cancelAction}
+            onConfirmExchange={confirmExchange}
+            onConfirmPass={confirmPass}
+            onConfirmPlace={confirmPlace}
+            onReplayExit={() => setSelectedLogId(null)}
+            onReplayNext={() => replayStep(1)}
+            onReplayPrev={() => replayStep(-1)}
+            onStartAction={startAction}
+            onUpdatePendingAssignment={updatePendingAssignment}
+          />
         </aside>
       </div>
 
