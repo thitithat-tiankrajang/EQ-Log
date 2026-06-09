@@ -2907,3 +2907,89 @@ button.tilebag-stat.active .ts-count {
     line-height: 1 !important;
   }
 }
+
+/* ============================================================================
+   Final pass v13 — Two-state replay body:
+   • "before" half-step: compact "rack ready, waiting for action" preview
+   • "after" half-step: full TurnDetail (existing styling)
+   ============================================================================ */
+.replay-before {
+  display: grid;
+  gap: 12px;
+  padding: 8px 2px 4px;
+}
+
+.rb-head {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 10px;
+}
+
+.rb-eyebrow {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted, #5a675f);
+}
+
+.rb-player {
+  font-size: 14px;
+  font-weight: 900;
+  letter-spacing: -0.005em;
+  color: var(--text, #18211d);
+}
+
+.rb-status {
+  justify-self: end;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent, #15604e);
+  letter-spacing: 0.02em;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rb-rack {
+  display: grid;
+  grid-template-rows: auto auto;
+  gap: 6px;
+  padding: 10px;
+  border: 1px dashed var(--border-soft, rgba(214, 221, 213, 0.65));
+  border-radius: 10px;
+  background: var(--accent-soft, rgba(15, 96, 78, 0.05));
+}
+
+.rb-rack > span {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted, #5a675f);
+}
+
+.rb-rack-tiles {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.rb-tile {
+  display: inline-grid;
+  place-items: center;
+  aspect-ratio: 0.92;
+  border: 1px solid var(--border-soft, rgba(214, 221, 213, 0.65));
+  border-radius: 6px;
+  background: var(--surface, #fff);
+  font-variant-numeric: tabular-nums;
+  container-type: inline-size;
+}
+
+.rb-tile b {
+  font-size: clamp(14px, 42cqi, 22px);
+  font-weight: 900;
+  line-height: 1;
+}

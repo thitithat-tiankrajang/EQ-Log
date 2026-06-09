@@ -133,7 +133,11 @@ function App() {
     outgoingIds: [],
     incomingTiles: [],
   });
-  const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
+  // Replay cursor: null = not replaying, otherwise an integer in [0, 2N-1]
+  // where every log contributes two steps:
+  //   step 2i   → "rack ready, waiting for action" (log[i].boardBefore, rackBefore)
+  //   step 2i+1 → "action applied"                 (log[i].boardAfter,  rackAfter)
+  const [replayCursor, setReplayCursor] = useState<number | null>(null);
   const [logModalOpen, setLogModalOpen] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [assignmentRequest, setAssignmentRequest] = useState<AssignmentRequest | null>(null);
@@ -465,10 +469,30 @@ function App() {
     return validateMove(game.board, pendingPlacements);
   }, [actionMode, game, pendingPlacements]);
 
+  // Derived replay state from the cursor.
+  const replayPhase: "before" | "after" =
+    replayCursor !== null && replayCursor % 2 === 0 ? "before" : "after";
   const selectedLog = useMemo(() => {
-    if (!game || !selectedLogId) return null;
-    return game.logs.find((log) => log.id === selectedLogId) ?? null;
-  }, [game, selectedLogId]);
+    if (!game || replayCursor === null) return null;
+    const idx = Math.floor(replayCursor / 2);
+    return game.logs[idx] ?? null;
+  }, [game, replayCursor]);
+  const selectedLogId = selectedLog?.id ?? null;
+
+  // Set the selection from a log id (called by TurnRecordList / LogPanel).
+  // Selecting a log opens the "action applied" view of that log.
+  function selectLog(logId: string | null) {
+    if (logId === null || !game) {
+      setReplayCursor(null);
+      return;
+    }
+    const idx = game.logs.findIndex((log) => log.id === logId);
+    if (idx < 0) {
+      setReplayCursor(null);
+      return;
+    }
+    setReplayCursor(idx * 2 + 1);
+  }
 
   if (view !== "game" || !game) {
     return (
@@ -499,7 +523,7 @@ function App() {
         return;
       }
       cancelDraftOnly();
-      setSelectedLogId(null);
+      setReplayCursor(null);
       if (!remoteEnabled) roomStore.setActiveRoomId(id);
       setActiveRoomId(id);
       setGame(saved);
@@ -527,7 +551,7 @@ function App() {
         setRooms((current) => [meta, ...current.filter((room) => room.id !== id)]);
         setActiveRoomId(id);
         cancelDraftOnly();
-        setSelectedLogId(null);
+        setReplayCursor(null);
         setGame(created);
         navigate({ kind: "room", roomId: id });
         setSyncError(null);
@@ -538,7 +562,7 @@ function App() {
       roomStore.setActiveRoomId(id);
       setActiveRoomId(id);
       cancelDraftOnly();
-      setSelectedLogId(null);
+      setReplayCursor(null);
       setGame(created);
       navigate({ kind: "room", roomId: id });
     } catch (error) {
@@ -548,7 +572,7 @@ function App() {
 
   function goToLobby() {
     cancelDraftOnly();
-    setSelectedLogId(null);
+    setReplayCursor(null);
     setShowResult(false);
     if (remoteEnabled) {
       void remoteRooms
@@ -690,7 +714,11 @@ function App() {
     setActionStart(null);
   }
 
-  const reviewBoard = selectedLog?.boardAfter;
+  const reviewBoard = selectedLog
+    ? replayPhase === "before"
+      ? selectedLog.boardBefore
+      : selectedLog.boardAfter
+    : undefined;
   const boardToRender =
     reviewBoard ??
     (actionMode === "place_equation"
@@ -711,7 +739,7 @@ function App() {
     setSelectedRackTileId(null);
     setSelectedPendingTileId(null);
     setAssignmentRequest(null);
-    setSelectedLogId(null);
+    setReplayCursor(null);
     setActionStart({
       startedAt: game.currentTurnStartedAt,
       rackBefore: deepClone(getRack(game, game.activeSide)),
@@ -1195,7 +1223,7 @@ function App() {
     setSelectedRackTileId(null);
     setSelectedPendingTileId(null);
     setAssignmentRequest(null);
-    setSelectedLogId(null);
+    setReplayCursor(null);
     setShowResult(false);
     // Keep the live clock — undo rewinds the play, not the timer.
     setGame(game ? { ...snap.game, timers: game.timers, lastSavedAt: new Date().toISOString() } : snap.game);
@@ -1289,7 +1317,7 @@ function App() {
     const confirmed = window.confirm("End this game? You can reopen and continue it later.");
     if (!confirmed) return;
     cancelDraftOnly();
-    setSelectedLogId(null);
+    setReplayCursor(null);
     // Snapshot the finish so undo/redo can step across it.
     setGame(
       pushActionSnapshot({
@@ -1307,7 +1335,7 @@ function App() {
     if (!game || readOnly) return;
     pendingSessionEventRef.current = "resume_game";
     setShowResult(false);
-    setSelectedLogId(null);
+    setReplayCursor(null);
     cancelDraftOnly();
     setGame(
       pushActionSnapshot({
@@ -1325,24 +1353,23 @@ function App() {
   function startReplay() {
     if (!game || game.logs.length === 0) return;
     setShowResult(false);
-    setSelectedLogId(game.logs[0].id);
+    // Start at the very first step: turn 1, rack ready, before action.
+    setReplayCursor(0);
   }
 
-  // Step the replay across the turn log (board renders the selected log's boardAfter).
+  // Step the replay forward/back by ONE half-step. We clamp at both ends —
+  // we do NOT auto-exit at the last step, so the user can still undo while
+  // viewing it.
   function replayStep(delta: number) {
-    if (!game) return;
-    const ids = game.logs.map((log) => log.id);
-    const idx = selectedLogId ? ids.indexOf(selectedLogId) : -1;
-    const next = idx + delta;
-    if (next < 0) return;
-    if (next >= ids.length) {
-      setSelectedLogId(null); // past the last move → back to the final/live board
-      return;
-    }
-    setSelectedLogId(ids[next]);
+    if (!game || replayCursor === null) return;
+    const total = game.logs.length * 2;
+    if (total === 0) return;
+    const next = Math.max(0, Math.min(total - 1, replayCursor + delta));
+    setReplayCursor(next);
   }
 
-  const replayIndex = selectedLogId ? game.logs.findIndex((log) => log.id === selectedLogId) : -1;
+  const replayTotalSteps = game.logs.length * 2;
+  const replayIndex = replayCursor ?? -1;
   const latestLog = game.logs.at(-1) ?? null;
   const showViewPanel = reviewing || readOnly;
   const viewPanelLog = reviewing ? selectedLog : latestLog;
@@ -1367,7 +1394,12 @@ function App() {
       active: canPlayActiveRoom && !reviewing && game.status === "playing" && game.activeSide === rackSide,
       exchangeOutgoingIds: rackSide === game.activeSide ? exchangeDraft.outgoingIds : [],
       label: game.players[rackSide],
-      rack: reviewing && selectedLog ? selectedLog.rackAfter : getRack(game, rackSide),
+      rack:
+        reviewing && selectedLog
+          ? replayPhase === "before"
+            ? selectedLog.rackBefore
+            : selectedLog.rackAfter
+          : getRack(game, rackSide),
       side: rackSide,
     },
   ];
@@ -1450,7 +1482,7 @@ function App() {
           <LogPanel
             game={game}
             selectedLogId={selectedLogId}
-            onSelectLog={setSelectedLogId}
+            onSelectLog={selectLog}
             onStarsChange={updateLogStars}
             onNoteChange={updateNote}
             currentTurnRack={currentTurnLogRack}
@@ -1535,6 +1567,8 @@ function App() {
             readOnly={readOnly}
             refillNeeded={refillNeeded}
             replayIndex={replayIndex}
+            replayPhase={replayPhase}
+            replayTotalSteps={replayTotalSteps}
             reviewing={reviewing}
             showViewPanel={showViewPanel}
             validation={validation}
@@ -1543,7 +1577,7 @@ function App() {
             onConfirmExchange={confirmExchange}
             onConfirmPass={confirmPass}
             onConfirmPlace={confirmPlace}
-            onReplayExit={() => setSelectedLogId(null)}
+            onReplayExit={() => setReplayCursor(null)}
             onReplayNext={() => replayStep(1)}
             onReplayPrev={() => replayStep(-1)}
             onStartAction={startAction}
@@ -1561,7 +1595,7 @@ function App() {
         currentTurnRack={currentTurnLogRack}
         onNoteChange={updateNote}
         readOnly={readOnly}
-        onSelectLog={setSelectedLogId}
+        onSelectLog={selectLog}
       />
 
       {assignmentRequest && (

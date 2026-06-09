@@ -34,6 +34,8 @@ type ActionPanelProps = {
   readOnly: boolean;
   refillNeeded: boolean;
   replayIndex: number;
+  replayPhase: "before" | "after";
+  replayTotalSteps: number;
   reviewing: boolean;
   showViewPanel: boolean;
   validation: MoveValidation;
@@ -60,6 +62,8 @@ export function ActionPanel({
   readOnly,
   refillNeeded,
   replayIndex,
+  replayPhase,
+  replayTotalSteps,
   reviewing,
   showViewPanel,
   validation,
@@ -84,16 +88,19 @@ export function ActionPanel({
           readOnly,
           refillNeeded,
           replayIndex,
+          replayPhase,
+          replayTotalSteps,
           reviewing,
         })}
       />
       {showViewPanel ? (
         <ReplayDock
           game={game}
-          index={reviewing ? replayIndex : Math.max(0, game.logs.length - 1)}
+          index={reviewing ? replayIndex : Math.max(0, replayTotalSteps - 1)}
           log={viewPanelLog}
           mode={reviewing ? "replay" : "live"}
-          total={game.logs.length}
+          phase={replayPhase}
+          total={replayTotalSteps}
           onPrev={onReplayPrev}
           onNext={onReplayNext}
           onExit={onReplayExit}
@@ -131,6 +138,8 @@ function getPanelDetail({
   readOnly,
   refillNeeded,
   replayIndex,
+  replayPhase,
+  replayTotalSteps,
   reviewing,
 }: {
   actionMode: ActionMode;
@@ -138,9 +147,15 @@ function getPanelDetail({
   readOnly: boolean;
   refillNeeded: boolean;
   replayIndex: number;
+  replayPhase: "before" | "after";
+  replayTotalSteps: number;
   reviewing: boolean;
 }) {
-  if (reviewing) return game.logs.length > 0 ? `${Math.max(1, replayIndex + 1)} / ${game.logs.length}` : "No turns";
+  if (reviewing) {
+    if (replayTotalSteps === 0) return "No turns";
+    const phaseLabel = replayPhase === "before" ? "Rack" : "Action";
+    return `${Math.max(1, replayIndex + 1)} / ${replayTotalSteps} · ${phaseLabel}`;
+  }
   if (readOnly) return "Watching";
   if (game.status === "finished") return "Finished";
   if (actionMode === "none") return refillNeeded ? "Refill Rack" : "Choose Action";
