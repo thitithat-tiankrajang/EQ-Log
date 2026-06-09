@@ -27,6 +27,7 @@ type ActionPanelProps = {
   activeRack: TileInstance[];
   actionMode: ActionMode;
   canChooseAction: boolean;
+  canEditRefill: boolean;
   exchangeDraft: ExchangeDraft;
   exchangeReady: boolean;
   game: GameState;
@@ -44,6 +45,7 @@ type ActionPanelProps = {
   onConfirmExchange: () => void;
   onConfirmPass: () => void;
   onConfirmPlace: () => void;
+  onEditRefill: () => void;
   onReplayExit: () => void;
   onReplayNext: () => void;
   onReplayPrev: () => void;
@@ -55,6 +57,7 @@ export function ActionPanel({
   activeRack,
   actionMode,
   canChooseAction,
+  canEditRefill,
   exchangeDraft,
   exchangeReady,
   game,
@@ -72,6 +75,7 @@ export function ActionPanel({
   onConfirmExchange,
   onConfirmPass,
   onConfirmPlace,
+  onEditRefill,
   onReplayExit,
   onReplayNext,
   onReplayPrev,
@@ -109,7 +113,9 @@ export function ActionPanel({
         <ActionPicker
           activeRackCount={activeRack.length}
           canChooseAction={canChooseAction}
+          canEditRefill={canEditRefill}
           refillNeeded={refillNeeded}
+          onEditRefill={onEditRefill}
           onStartAction={onStartAction}
         />
       ) : (
@@ -165,12 +171,16 @@ function getPanelDetail({
 function ActionPicker({
   activeRackCount,
   canChooseAction,
+  canEditRefill,
   refillNeeded,
+  onEditRefill,
   onStartAction,
 }: {
   activeRackCount: number;
   canChooseAction: boolean;
+  canEditRefill: boolean;
   refillNeeded: boolean;
+  onEditRefill: () => void;
   onStartAction: (action: ActionType) => void;
 }) {
   if (refillNeeded) {
@@ -183,16 +193,23 @@ function ActionPicker({
   }
 
   return (
-    <div className="action-buttons">
-      <button disabled={!canChooseAction} type="button" onClick={() => onStartAction("place_equation")}>
-        Place
-      </button>
-      <button disabled={!canChooseAction} type="button" onClick={() => onStartAction("exchange")}>
-        Exchange
-      </button>
-      <button disabled={!canChooseAction} type="button" onClick={() => onStartAction("pass")}>
-        Pass
-      </button>
+    <div className="action-picker-ready">
+      <div className="action-buttons">
+        <button disabled={!canChooseAction} type="button" onClick={() => onStartAction("place_equation")}>
+          Place
+        </button>
+        <button disabled={!canChooseAction} type="button" onClick={() => onStartAction("exchange")}>
+          Exchange
+        </button>
+        <button disabled={!canChooseAction} type="button" onClick={() => onStartAction("pass")}>
+          Pass
+        </button>
+      </div>
+      {canEditRefill && (
+        <button className="edit-refill-button" type="button" onClick={onEditRefill}>
+          Edit Refill
+        </button>
+      )}
     </div>
   );
 }

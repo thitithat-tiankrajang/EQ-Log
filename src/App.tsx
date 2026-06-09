@@ -91,7 +91,10 @@ type AssignmentRequest =
 type RefillBaseline = {
   gameId: string;
   ids: string[];
+  pendingExchangeReturnBySide: ReturnType<typeof getPendingExchangeReturnBySide>;
+  rack: TileInstance[];
   side: Side;
+  tilebag: TileInstance[];
   turnNumber: number;
 };
 
@@ -369,7 +372,12 @@ function App() {
   }, [remoteEnabled, activeRoomId, game?.name, game?.turnNumber, game?.scores.A, game?.scores.B, game?.status]);
 
   useEffect(() => {
-    if (!game || view !== "game" || game.status !== "playing" || game.phase !== "refill") {
+    if (
+      !game ||
+      view !== "game" ||
+      game.status !== "playing" ||
+      (game.phase !== "refill" && game.phase !== "choose_action")
+    ) {
       refillBaselineRef.current = null;
       return;
     }
@@ -382,10 +390,14 @@ function App() {
     ) {
       return;
     }
+    if (game.phase !== "refill") return;
     refillBaselineRef.current = {
       gameId: game.gameId,
       ids: getRack(game, game.activeSide).map((tile) => tile.id),
+      pendingExchangeReturnBySide: deepClone(getPendingExchangeReturnBySide(game)),
+      rack: deepClone(getRack(game, game.activeSide)),
       side: game.activeSide,
+      tilebag: deepClone(game.tilebag),
       turnNumber: game.turnNumber,
     };
   }, [game, view]);
@@ -731,6 +743,17 @@ function App() {
     !reviewing &&
     actionMode === "none" &&
     (game.phase === "choose_action" || isRackReady(game));
+  const refillBaseline = refillBaselineRef.current;
+  const canEditRefill =
+    canChooseAction &&
+    game.phase === "choose_action" &&
+    Boolean(
+      refillBaseline &&
+        refillBaseline.gameId === game.gameId &&
+        refillBaseline.side === game.activeSide &&
+        refillBaseline.turnNumber === game.turnNumber &&
+        activeRack.some((tile) => !refillBaseline.ids.includes(tile.id)),
+    );
 
   function startAction(action: ActionType) {
     if (!game || !canChooseAction || readOnly) return;
@@ -789,6 +812,23 @@ function App() {
     pendingSessionEventRef.current = "state";
     const rack = getRack(game, game.activeSide);
     if (rack.length >= 8) return;
+    const currentBaseline = refillBaselineRef.current;
+    if (
+      !currentBaseline ||
+      currentBaseline.gameId !== game.gameId ||
+      currentBaseline.side !== game.activeSide ||
+      currentBaseline.turnNumber !== game.turnNumber
+    ) {
+      refillBaselineRef.current = {
+        gameId: game.gameId,
+        ids: rack.map((rackTile) => rackTile.id),
+        pendingExchangeReturnBySide: deepClone(getPendingExchangeReturnBySide(game)),
+        rack: deepClone(rack),
+        side: game.activeSide,
+        tilebag: deepClone(game.tilebag),
+        turnNumber: game.turnNumber,
+      };
+    }
     const nextRack = [...rack, tile];
     const nextTilebag = game.tilebag.filter((candidate) => candidate.id !== tile.id);
     const rackReady = nextRack.length >= 8 || nextTilebag.length === 0;
@@ -811,6 +851,41 @@ function App() {
       nextRack,
     );
     setGame(nextGame);
+  }
+
+  function editRefill() {
+    if (!game || readOnly || reviewing || actionMode !== "none") return;
+    if (game.phase !== "choose_action") return;
+    const baseline = refillBaselineRef.current;
+    if (
+      !baseline ||
+      baseline.gameId !== game.gameId ||
+      baseline.side !== game.activeSide ||
+      baseline.turnNumber !== game.turnNumber
+    ) {
+      return;
+    }
+    pendingSessionEventRef.current = "state";
+    const pendingBySide = deepClone(baseline.pendingExchangeReturnBySide);
+    setGame(
+      setRack(
+        {
+          ...game,
+          tilebag: deepClone(baseline.tilebag),
+          pendingExchangeReturn: aggregatePendingExchangeReturns(pendingBySide),
+          pendingExchangeReturnBySide: pendingBySide,
+          phase: "refill",
+          lastSavedAt: new Date().toISOString(),
+        },
+        game.activeSide,
+        deepClone(baseline.rack),
+      ),
+    );
+    setSelectedRackTileId(null);
+    setSelectedPendingTileId(null);
+    setAssignmentRequest(null);
+    setPendingPlacements([]);
+    setExchangeDraft({ outgoingIds: [], incomingTiles: [] });
   }
 
   function returnRackTileToBag(tile: TileInstance) {
@@ -1560,6 +1635,7 @@ function App() {
             activeRack={activeRack}
             actionMode={actionMode}
             canChooseAction={canChooseAction}
+            canEditRefill={canEditRefill}
             exchangeDraft={exchangeDraft}
             exchangeReady={exchangeReady}
             game={game}
@@ -1577,6 +1653,7 @@ function App() {
             onConfirmExchange={confirmExchange}
             onConfirmPass={confirmPass}
             onConfirmPlace={confirmPlace}
+            onEditRefill={editRefill}
             onReplayExit={() => setReplayCursor(null)}
             onReplayNext={() => replayStep(1)}
             onReplayPrev={() => replayStep(-1)}

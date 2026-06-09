@@ -799,7 +799,10 @@ function conditionReason(seq: string[], display: string[]): string | null {
     if (TENS_SET.has(a) && TENS_SET.has(b)) return `${text}: 10-20 tiles cannot touch each other.`;
     if (UNIT_SET.has(a) && TENS_SET.has(b)) return `${text}: 10-20 tiles cannot touch single-digit tiles.`;
     if (TENS_SET.has(a) && UNIT_SET.has(b)) return `${text}: 10-20 tiles cannot touch single-digit tiles.`;
-    if ((a === "/" || a === "-") && b === "0") return `${text}: this position cannot divide or subtract by 0.`;
+    if (a === "/" && b === "0") return `${text}: this position cannot divide by 0.`;
+    if (a === "-" && b === "0" && (i === 0 || seq[i - 1] === "=")) {
+      return `${text}: 0 cannot be marked as negative.`;
+    }
   }
 
   // No 4+ digit number (max 3 consecutive single digits).
