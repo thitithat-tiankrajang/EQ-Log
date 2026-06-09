@@ -1,3 +1,4 @@
+import { ArrowDown, ArrowRight } from "lucide-react";
 import {
   slotTypeAt,
   type BoardSnapshot,
@@ -6,15 +7,21 @@ import {
 import { SLOT_LABELS } from "../../uiText";
 import { Tile } from "./Tile";
 
+type PlacementCursor = { row: number; col: number; dir: "right" | "down" } | null;
+
 export function Board({
   board,
   pendingPlacements,
+  placementCursor = null,
+  scoringKeys,
   selectedRackTileId,
   selectedPendingTileId,
   onCellClick,
 }: {
   board: BoardSnapshot;
   pendingPlacements: PendingPlacement[];
+  placementCursor?: PlacementCursor;
+  scoringKeys?: Set<string>;
   selectedRackTileId: string | null;
   selectedPendingTileId: string | null;
   onCellClick: (row: number, col: number) => void;
@@ -41,11 +48,13 @@ export function Board({
             const label = SLOT_LABELS[slot];
             const pending = pendingByKey.get(key);
             const isCenter = slot === "px3star";
+            const isCursor = placementCursor && placementCursor.row === rowIndex && placementCursor.col === colIndex;
+            const isScoring = scoringKeys?.has(key) ?? false;
             return (
               <button
                 className={`board-cell slot-${slot} ${cell ? "filled" : ""} ${pending ? "pending" : ""} ${
                   pending?.tile.id === selectedPendingTileId ? "pending-selected" : ""
-                }`}
+                } ${isCursor ? `cursor cursor-${placementCursor!.dir}` : ""} ${isScoring ? "scoring" : ""}`}
                 key={key}
                 type="button"
                 onClick={() => onCellClick(rowIndex, colIndex)}
@@ -59,6 +68,11 @@ export function Board({
                       {isCenter ? "★" : label}
                     </span>
                   )
+                )}
+                {isCursor && !cell && (
+                  <span className="board-cell-cursor" aria-hidden="true">
+                    {placementCursor!.dir === "right" ? <ArrowRight size={20} /> : <ArrowDown size={20} />}
+                  </span>
                 )}
               </button>
             );

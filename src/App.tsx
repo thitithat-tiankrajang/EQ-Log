@@ -132,6 +132,12 @@ function App() {
   const [selectedRackTileId, setSelectedRackTileId] = useState<string | null>(null);
   const [selectedPendingTileId, setSelectedPendingTileId] = useState<string | null>(null);
   const [pendingPlacements, setPendingPlacements] = useState<PendingPlacement[]>([]);
+  // Directional placement cursor. Clicking an empty cell cycles right → down →
+  // cancel. Pressing 1–8 (or clicking a rack tile) places that tile at the
+  // cursor and advances over any filled / pending cells in the direction.
+  const [placementCursor, setPlacementCursor] = useState<
+    { row: number; col: number; dir: "right" | "down" } | null
+  >(null);
   const [exchangeDraft, setExchangeDraft] = useState<ExchangeDraft>({
     outgoingIds: [],
     incomingTiles: [],
@@ -431,6 +437,28 @@ function App() {
     };
   }, [view, game?.gameId]);
 
+  // Keyboard 1–8 places that rack tile at the active cursor (if any), or
+  // simply selects it. Only fires when the user isn't typing in a field.
+  useEffect(() => {
+    if (view !== "game" || !game || readOnly || replayCursor !== null) return;
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (target?.isContentEditable ?? false)) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const digit = parseInt(event.key, 10);
+      if (!Number.isFinite(digit) || digit < 1 || digit > 8) return;
+      const rack = getRack(game, game.activeSide);
+      const tile = rack[digit - 1];
+      if (!tile) return;
+      event.preventDefault();
+      handleRackTileClick(tile, game.activeSide);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, game, readOnly, replayCursor, actionMode, placementCursor, pendingPlacements, selectedRackTileId]);
+
   // Reset the undo timeline whenever a different game is opened/created/closed.
   // Declared BEFORE the capture effect so it clears state before capture runs.
   useEffect(() => {
@@ -490,6 +518,37 @@ function App() {
     return game.logs[idx] ?? null;
   }, [game, replayCursor]);
   const selectedLogId = selectedLog?.id ?? null;
+  const reviewing = Boolean(selectedLog);
+
+  // Replay-time score / tilebag overrides. This hook must stay before the
+  // lobby/loading return so App calls the same hooks in every render.
+  const replayOverrides = useMemo(() => {
+    if (!game || !selectedLog) return null;
+    const logIdx = game.logs.findIndex((log) => log.id === selectedLog.id);
+    if (logIdx < 0) return null;
+    // "before" phase: state right after refill, BEFORE the action.
+    // Equivalent to the AFTER state of the previous log (or initial if none).
+    // "after" phase: state right after the action (this log's after).
+    const useThis = replayPhase === "after";
+    const ref = useThis ? selectedLog : game.logs[logIdx - 1] ?? null;
+    const tilebag = useThis ? selectedLog.tilebagAfter : ref ? ref.tilebagAfter : game.history[0]?.tilebag ?? game.tilebag;
+    // Sum finalScore per side over all logs whose state is "included" at this point.
+    const upTo = useThis ? logIdx : logIdx - 1;
+    const scores: Record<Side, number> = { A: 0, B: 0 };
+    for (let i = 0; i <= upTo; i += 1) {
+      const entry = game.logs[i];
+      if (!entry) break;
+      scores[entry.side] += entry.finalScore;
+    }
+    // Timers: snapshot of each side's clock at this half-step. "after" uses
+    // this log's timerAfter; "before" uses prior log's timerAfter (or initial).
+    const initialSeconds = game.timers.initialSeconds;
+    const initialTimers: Record<Side, number> = { A: initialSeconds, B: initialSeconds };
+    const timers: Record<Side, number> = useThis
+      ? selectedLog.timerAfter
+      : ref?.timerAfter ?? initialTimers;
+    return { tilebag, scores, timers };
+  }, [game, selectedLog, replayPhase]);
 
   // Set the selection from a log id (called by TurnRecordList / LogPanel).
   // Selecting a log opens the "action applied" view of that log.
@@ -736,7 +795,7 @@ function App() {
     (actionMode === "place_equation"
       ? boardWithPending(game.board, pendingPlacements, game.turnNumber, game.activeSide)
       : game.board);
-  const reviewing = Boolean(selectedLog);
+
   const canChooseAction =
     canPlayActiveRoom &&
     game.status === "playing" &&
@@ -804,6 +863,7 @@ function App() {
     setAssignmentRequest(null);
     setPendingPlacements([]);
     setExchangeDraft({ outgoingIds: [], incomingTiles: [] });
+    setPlacementCursor(null);
   }
 
   function refillFromBag(tile: TileInstance) {
@@ -988,6 +1048,25 @@ function App() {
   function handleRackTileClick(tile: TileInstance, side: Side) {
     if (!game || readOnly || reviewing || game.status !== "playing") return;
     if (side !== game.activeSide) return;
+    // Placement cursor active: place the tile at the cursor and advance.
+    if (placementCursor && (actionMode === "none" ? canChooseAction : actionMode === "place_equation")) {
+      if (actionMode === "none") startAction("place_equation");
+      const target = placementCursor;
+      const assigned = tile.assignedToken;
+      const placement: PendingPlacement = { row: target.row, col: target.col, tile, assignedToken: assigned };
+      const next = [...pendingPlacements, placement];
+      if (tileNeedsAssignment(tile.token) && !assigned) {
+        setAssignmentRequest({ kind: "place", tile, row: target.row, col: target.col });
+        // Defer the actual placement until the user picks a value — but place
+        // the tile first (assignedToken filled in later) so the cursor still advances.
+      }
+      setPendingPlacements(next);
+      setSelectedRackTileId(null);
+      setSelectedPendingTileId(null);
+      const advanced = advanceCursor(target, next);
+      setPlacementCursor(advanced);
+      return;
+    }
     if (actionMode === "place_equation") {
       if (selectedPendingTileId) {
         const pending = pendingPlacements.find((placement) => placement.tile.id === selectedPendingTileId);
@@ -1084,8 +1163,49 @@ function App() {
     returnRackTileToBag(tile);
   }
 
+  // Advance the directional cursor one cell, skipping cells already filled
+  // (board) or already pending. Returns null if the cursor falls off the board.
+  function advanceCursor(
+    cursor: { row: number; col: number; dir: "right" | "down" },
+    extraPending: PendingPlacement[],
+  ): { row: number; col: number; dir: "right" | "down" } | null {
+    if (!game) return null;
+    let { row, col } = cursor;
+    const dir = cursor.dir;
+    const pendingKeys = new Set(extraPending.map((p) => `${p.row}:${p.col}`));
+    while (true) {
+      if (dir === "right") col += 1;
+      else row += 1;
+      if (row >= 15 || col >= 15) return null;
+      const cellTaken = Boolean(game.board[row][col]) || pendingKeys.has(`${row}:${col}`);
+      if (!cellTaken) return { row, col, dir };
+    }
+  }
+
   function handleBoardCellClick(row: number, col: number) {
-    if (!game || readOnly || reviewing || actionMode !== "place_equation") return;
+    if (!game || readOnly || reviewing) return;
+    const occupied = Boolean(game.board[row][col]) ||
+      pendingPlacements.some((p) => p.row === row && p.col === col);
+    // Empty cell with no selected rack tile → cursor cycling.
+    if (!selectedRackTileId && !occupied && (actionMode === "none" ? canChooseAction : actionMode === "place_equation")) {
+      // Cycle: nothing → right → down → cancel
+      if (!placementCursor || placementCursor.row !== row || placementCursor.col !== col) {
+        setPlacementCursor({ row, col, dir: "right" });
+      } else if (placementCursor.dir === "right") {
+        setPlacementCursor({ row, col, dir: "down" });
+      } else {
+        setPlacementCursor(null);
+      }
+      return;
+    }
+    // Auto-start Place mode the first time the user interacts with the board.
+    if (actionMode === "none") {
+      if (!canChooseAction) return;
+      if (!selectedRackTileId) return;
+      startAction("place_equation");
+    } else if (actionMode !== "place_equation") {
+      return;
+    }
     const pending = pendingPlacements.find((item) => item.row === row && item.col === col);
     if (pending) {
       if (selectedRackTileId) {
@@ -1339,6 +1459,7 @@ function App() {
     setAssignmentRequest(null);
     setPendingPlacements([]);
     setExchangeDraft({ outgoingIds: [], incomingTiles: [] });
+    setPlacementCursor(null);
   }
 
 
@@ -1553,7 +1674,11 @@ function App() {
 
       <div className="workspace">
         <aside className="log-rail">
-          <Scoreboard game={game} />
+          <Scoreboard
+            game={game}
+            scoresOverride={replayOverrides?.scores}
+            timersOverride={replayOverrides?.timers}
+          />
           <LogPanel
             game={game}
             selectedLogId={selectedLogId}
@@ -1574,6 +1699,16 @@ function App() {
             <Board
               board={boardToRender}
               pendingPlacements={reviewing ? [] : pendingPlacements}
+              placementCursor={reviewing ? null : placementCursor}
+              scoringKeys={
+                reviewing
+                  ? undefined
+                  : new Set(
+                      validation.equations
+                        .filter((eq) => eq.isValid)
+                        .flatMap((eq) => eq.cells.map((c) => `${c.row}:${c.col}`)),
+                    )
+              }
               selectedPendingTileId={selectedPendingTileId}
               selectedRackTileId={selectedRackTileId}
               onCellClick={handleBoardCellClick}
@@ -1624,7 +1759,7 @@ function App() {
         <aside className="right-rail" ref={rightRailRef}>
           <PlayRail
             game={game}
-            tilebag={effectiveTilebag}
+            tilebag={replayOverrides?.tilebag ?? effectiveTilebag}
             tilebagDisabled={!canPickFromTilebag}
             onPickTile={refillFromBag}
           />

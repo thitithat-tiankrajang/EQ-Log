@@ -194,10 +194,10 @@ function ActionPicker({
 
   return (
     <div className="action-picker-ready">
-      <div className="action-buttons">
-        <button disabled={!canChooseAction} type="button" onClick={() => onStartAction("place_equation")}>
-          Place
-        </button>
+      <p className="action-picker-hint">
+        Drop a tile on the board to start playing. Or:
+      </p>
+      <div className="action-buttons two">
         <button disabled={!canChooseAction} type="button" onClick={() => onStartAction("exchange")}>
           Exchange
         </button>

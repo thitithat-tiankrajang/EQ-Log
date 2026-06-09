@@ -2993,3 +2993,178 @@ button.tilebag-stat.active .ts-count {
   font-weight: 900;
   line-height: 1;
 }
+
+/* ============================================================================
+   Final pass v14 — Visual distinction between pending tiles (placed this turn)
+   and tiles already locked on the board from previous turns.
+   ============================================================================ */
+
+/* Tiles already on the board: deep navy (the existing default look). */
+/* Pending tiles: a high-contrast warm tone (amber/gold) tinted with side
+   color, so the user can see at a glance which tiles are still draftable. */
+.board-cell.pending {
+  background: var(--accent-soft, rgba(15, 96, 78, 0.08)) !important;
+  position: relative;
+  box-shadow: inset 0 0 0 1px var(--accent, #15604e) !important;
+}
+
+.board-cell.pending::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--accent, #15604e);
+  border: 1.5px solid var(--surface, #fff);
+  z-index: 2;
+  pointer-events: none;
+  box-shadow: 0 1px 2px rgba(15, 23, 31, 0.25);
+}
+
+.board-cell.pending .tile {
+  background: linear-gradient(145deg, #fef3c7, #f59e0b) !important;
+  color: #422006 !important;
+  box-shadow:
+    0 2px 6px rgba(180, 83, 9, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.5) !important;
+}
+
+.board-cell.pending .tile b {
+  color: #422006 !important;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+}
+
+.board-cell.pending .tile small {
+  color: rgba(66, 32, 6, 0.8) !important;
+}
+
+/* Selected-pending: keep the warm tile look but darken slightly + outline. */
+.board-cell.pending.pending-selected .tile {
+  filter: brightness(0.92) !important;
+}
+
+.board-cell.pending.pending-selected {
+  box-shadow:
+    inset 0 0 0 2px var(--accent, #15604e),
+    0 0 0 1px var(--accent-strong, #0d4738) !important;
+}
+
+/* Cells that contribute to a scored equation get a soft halo so the user
+   can see what is being counted. */
+.board-cell.scoring {
+  background: rgba(36, 123, 111, 0.16) !important;
+  box-shadow: inset 0 0 0 1px rgba(36, 123, 111, 0.42) !important;
+}
+
+.board-cell.scoring.pending {
+  /* When a cell is both pending and scoring, keep the warm tile but add a
+     teal outer ring so it's distinct from a "just pending" cell. */
+  background: rgba(36, 123, 111, 0.18) !important;
+  box-shadow:
+    inset 0 0 0 1px var(--accent-strong, #0d4738),
+    0 0 0 1px rgba(36, 123, 111, 0.34) !important;
+}
+
+/* Score badge floating on the board at the leftmost (or topmost) cell of
+   the played line. Positioned with CSS variables set inline from React. */
+.board-score-badge {
+  position: absolute;
+  z-index: 5;
+  display: inline-grid;
+  place-items: center;
+  min-width: 38px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #15604e, #0d4738);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  box-shadow:
+    0 2px 6px rgba(15, 23, 31, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  pointer-events: none;
+  white-space: nowrap;
+  transform: translate(var(--badge-dx, -100%), var(--badge-dy, 0)) translate(-6px, 0);
+}
+
+.board-score-badge.vertical {
+  /* For vertical plays the badge sits above the top of the line. */
+  transform: translate(var(--badge-dx, 0), var(--badge-dy, -100%)) translate(0, -6px);
+}
+
+.board-score-badge.invalid {
+  background: linear-gradient(180deg, #b6402f, #8c2c20);
+}
+
+/* ============================================================================
+   Final pass v15 — Placement cursor arrow + action picker hint.
+   ============================================================================ */
+
+/* Directional placement cursor — the icon floats inside the cell. */
+.board-cell.cursor {
+  background: rgba(36, 123, 111, 0.18) !important;
+  box-shadow: inset 0 0 0 2px var(--accent, #15604e) !important;
+  z-index: 1;
+}
+
+.board-cell-cursor {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--accent-strong, #0d4738);
+  pointer-events: none;
+  animation: cursor-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes cursor-pulse {
+  0%, 100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+/* Action picker now has an inline hint above the Exchange/Pass buttons. */
+.action-picker-hint {
+  margin: 0 0 6px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--accent-soft, rgba(15, 96, 78, 0.08));
+  color: var(--text, #18211d);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  border: 1px dashed rgba(15, 96, 78, 0.35);
+}
+
+.action-picker-hint::before {
+  content: "TIP · ";
+  color: var(--accent, #15604e);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+}
+
+/* Action picker buttons now a 2-column row (Exchange + Pass) instead of 3. */
+.action-buttons.two {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+}
+
+.action-buttons.two button:nth-child(1) {
+  /* Exchange = amber */
+  background: #f3c64e !important;
+  color: #302b1d !important;
+}
+
+.action-buttons.two button:nth-child(2) {
+  /* Pass = red */
+  background: #b6402f !important;
+  color: #fff !important;
+}
