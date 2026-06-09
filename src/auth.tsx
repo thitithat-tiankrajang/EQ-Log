@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { Session } from "@supabase/supabase-js";
 import { LogOut } from "lucide-react";
 import { isSupabaseConfigured, supabase } from "./supabaseClient";
-import "./auth.css";
+import "./styles/pages/auth.css";
 
 export type ProfileStatus = "pending" | "approved" | "blocked";
 

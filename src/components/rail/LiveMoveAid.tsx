@@ -1,6 +1,6 @@
-import type { ActionType, GameState, MoveValidation, PendingPlacement, TileInstance } from "../game";
-import { ACTION_LABELS } from "../uiText";
-import { Tile } from "./Tile";
+import type { ActionType, GameState, MoveValidation, PendingPlacement, TileInstance } from "../../game";
+import { ACTION_LABELS } from "../../uiText";
+import { Tile } from "../board/Tile";
 
 type ActionMode = "none" | ActionType;
 

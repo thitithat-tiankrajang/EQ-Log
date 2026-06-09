@@ -1,4 +1,4 @@
-import type { MoveValidation } from "../game";
+import type { MoveValidation } from "../../game";
 
 export function EquationPreview({ validation }: { validation: MoveValidation }) {
   if (validation.equations.length === 0) return null;

@@ -8,13 +8,13 @@ import {
   type TurnLog,
   getAssignmentOptions,
   tileNeedsAssignment,
-} from "../game";
-import { ACTION_LABELS } from "../uiText";
-import { DraftTiles } from "./DraftTiles";
-import { EquationPreview } from "./EquationPreview";
-import { PanelHeading } from "./PanelHeading";
-import { ReplayDock } from "./ReplayDock";
-import { Tile } from "./Tile";
+} from "../../game";
+import { ACTION_LABELS } from "../../uiText";
+import { DraftTiles } from "../game/DraftTiles";
+import { EquationPreview } from "../game/EquationPreview";
+import { PanelHeading } from "../layout/PanelHeading";
+import { ReplayDock } from "../replay/ReplayDock";
+import { Tile } from "../board/Tile";
 
 type ActionMode = "none" | ActionType;
 
@@ -328,7 +328,7 @@ function PendingPlacementTile({
   return (
     <div className={`pending-item ${needsAssignment ? "assignable" : "fixed"}`}>
       <span className="pending-cell-badge">
-        R{placement.row + 1} C{placement.col + 1}
+        R{placement.row + 1}·C{placement.col + 1}
       </span>
       <Tile tile={{ ...placement.tile, assignedToken: placement.assignedToken }} />
       {needsAssignment && assignmentOptions.length <= 4 ? (

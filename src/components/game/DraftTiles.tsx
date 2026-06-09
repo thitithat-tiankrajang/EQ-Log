@@ -1,5 +1,5 @@
-import type { TileInstance } from "../game";
-import { Tile } from "./Tile";
+import type { TileInstance } from "../../game";
+import { Tile } from "../board/Tile";
 
 export function DraftTiles({
   title,

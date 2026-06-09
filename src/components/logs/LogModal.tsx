@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import { X } from "lucide-react";
-import { type GameState, type TileInstance } from "../game";
-import { ACTION_LABELS } from "../uiText";
-import { TurnDetail } from "./TurnDetail";
+import { type GameState, type TileInstance } from "../../game";
+import { ACTION_LABELS } from "../../uiText";
+import { TurnDetail } from "../replay/TurnDetail";
 import { TurnRecordList } from "./TurnRecordList";
 
 export function LogModal({

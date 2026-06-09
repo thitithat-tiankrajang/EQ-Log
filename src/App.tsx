@@ -3,21 +3,23 @@ import {
   Flag,
   List,
   LayoutGrid,
+  Pause,
   Play,
   Redo2,
   Undo2,
   X,
 } from "lucide-react";
 import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
-import { ActionPanel } from "./components/ActionPanel";
-import { Board } from "./components/Board";
-import { Lobby } from "./components/Lobby";
-import { LogModal } from "./components/LogModal";
-import { LogPanel } from "./components/LogPanel";
-import { PlayRail } from "./components/PlayRail";
-import { Rack } from "./components/Rack";
-import { Scoreboard } from "./components/Scoreboard";
-import { Tile } from "./components/Tile";
+import { ActionPanel } from "./components/actions/ActionPanel";
+import { Board } from "./components/board/Board";
+import { Lobby } from "./components/pages/Lobby";
+import { LogModal } from "./components/logs/LogModal";
+import { LogPanel } from "./components/logs/LogPanel";
+import { PlayRail } from "./components/rail/PlayRail";
+import { RailDivider } from "./components/rail/RailDivider";
+import { Rack } from "./components/board/Rack";
+import { Scoreboard } from "./components/game/Scoreboard";
+import { Tile } from "./components/board/Tile";
 import { useAuth } from "./auth";
 import {
   ActionType,
@@ -138,6 +140,7 @@ function App() {
   const [boardCell, setBoardCell] = useState(34);
   const refillBaselineRef = useRef<RefillBaseline | null>(null);
   const boardZoneRef = useRef<HTMLElement | null>(null);
+  const rightRailRef = useRef<HTMLElement | null>(null);
   const activeRoomIdRef = useRef<string | null>(activeRoomId);
   const isOwnerRef = useRef(false);
   const pendingSessionEventRef = useRef<RoomSessionEvent | null>(null);
@@ -1409,6 +1412,24 @@ function App() {
             <List size={18} />
             Log
           </button>
+          {!game.timers.untimed && (
+            <button
+              className={`icon-button top-stop-time ${game.timers.paused ? "paused" : "running"}`}
+              disabled={readOnly || game.status !== "playing"}
+              title={
+                readOnly
+                  ? "Only the room owner can control the clock."
+                  : game.timers.paused
+                    ? "Resume the clock"
+                    : "Stop the clock"
+              }
+              type="button"
+              onClick={toggleTimer}
+            >
+              {game.timers.paused ? <Play size={18} /> : <Pause size={18} />}
+              {game.timers.paused ? "Resume" : "Stop"}
+            </button>
+          )}
           {game.status === "playing" ? (
             <button className="danger-button top-end-game" disabled={readOnly} type="button" onClick={endGame}>
               <Flag size={18} />
@@ -1425,7 +1446,7 @@ function App() {
 
       <div className="workspace">
         <aside className="log-rail">
-          <Scoreboard game={game} readOnly={readOnly} onToggleTimer={toggleTimer} />
+          <Scoreboard game={game} />
           <LogPanel
             game={game}
             selectedLogId={selectedLogId}
@@ -1493,13 +1514,15 @@ function App() {
           </div>
         </section>
 
-        <aside className="right-rail">
+        <aside className="right-rail" ref={rightRailRef}>
           <PlayRail
             game={game}
             tilebag={effectiveTilebag}
             tilebagDisabled={!canPickFromTilebag}
             onPickTile={refillFromBag}
           />
+
+          <RailDivider railRef={rightRailRef} />
 
           <ActionPanel
             activeRack={activeRack}

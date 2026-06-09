@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import type { GameState, TurnLog } from "../game";
+import type { GameState, TurnLog } from "../../game";
 import { TurnDetail } from "./TurnDetail";
 
 // Embedded replay/live-view panel. The board area shows the selected replay

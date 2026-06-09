@@ -2,8 +2,8 @@ import {
   slotTypeAt,
   type BoardSnapshot,
   type PendingPlacement,
-} from "../game";
-import { SLOT_LABELS } from "../uiText";
+} from "../../game";
+import { SLOT_LABELS } from "../../uiText";
 import { Tile } from "./Tile";
 
 export function Board({

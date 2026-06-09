@@ -1,6 +1,6 @@
-import type { GameState, TileInstance } from "../game";
-import { PanelHeading } from "./PanelHeading";
-import { Tilebag } from "./Tilebag";
+import type { GameState, TileInstance } from "../../game";
+import { PanelHeading } from "../layout/PanelHeading";
+import { Tilebag } from "../board/Tilebag";
 
 export function PlayRail({
   tilebag,

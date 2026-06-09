@@ -5,10 +5,9 @@ import {
   type PlaceEquationDetail,
   type TileInstance,
   type TurnLog,
-} from "../game";
-import { ACTION_LABELS } from "../uiText";
-import { Tile } from "./Tile";
-import "./replay.css";
+} from "../../game";
+import { ACTION_LABELS } from "../../uiText";
+import { Tile } from "../board/Tile";
 
 // Everything about a turn is derivable from the logs:
 //  • the rack at turn start (log.rackBefore = the 8 after refilling),

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import {
   displayToken,
   getRack,
@@ -6,9 +7,9 @@ import {
   type PlaceEquationDetail,
   type TileInstance,
   type TurnLog,
-} from "../game";
-import { ACTION_LABELS } from "../uiText";
-import { Tile } from "./Tile";
+} from "../../game";
+import { ACTION_LABELS } from "../../uiText";
+import { Tile } from "../board/Tile";
 
 type TurnRecordListProps = {
   game: GameState;
@@ -28,8 +29,35 @@ export function TurnRecordList({
   const activeRack = currentTurnRack ?? getRack(game, game.activeSide);
   const showCurrentRack = game.status === "playing" && activeRack.length >= 8;
 
+  // Smooth-scroll to the newest row (which now sits at the bottom) whenever the
+  // list grows. We scroll the *nearest scrollable ancestor*, not the list itself,
+  // because the rail panel is the overflow:auto container.
+  const listRef = useRef<HTMLDivElement | null>(null);
+  const lastCountRef = useRef(0);
+  useEffect(() => {
+    const newCount = game.logs.length + (showCurrentRack ? 1 : 0);
+    if (newCount > lastCountRef.current) {
+      const el = listRef.current;
+      if (el) {
+        const scroller = findScrollableAncestor(el);
+        (scroller ?? el).scrollTo({ top: (scroller ?? el).scrollHeight, behavior: "smooth" });
+      }
+    }
+    lastCountRef.current = newCount;
+  }, [game.logs.length, showCurrentRack]);
+
   return (
-    <div className="turn-record-list">
+    <div className="turn-record-list" ref={listRef}>
+      {game.logs.map((log) => (
+        <CompletedTurnRecord
+          game={game}
+          key={log.id}
+          log={log}
+          selected={selectedLogId === log.id}
+          onSelect={() => onSelectLog(toggleSelection && selectedLogId === log.id ? null : log.id)}
+        />
+      ))}
+
       {showCurrentRack && (
         <section className={`turn-record-group live side-${game.activeSide.toLowerCase()}`}>
           <div className="turn-record-summary">
@@ -40,21 +68,23 @@ export function TurnRecordList({
           </div>
         </section>
       )}
-
-      {game.logs
-        .slice()
-        .reverse()
-        .map((log) => (
-          <CompletedTurnRecord
-            game={game}
-            key={log.id}
-            log={log}
-            selected={selectedLogId === log.id}
-            onSelect={() => onSelectLog(toggleSelection && selectedLogId === log.id ? null : log.id)}
-          />
-        ))}
     </div>
   );
+}
+
+function findScrollableAncestor(el: HTMLElement): HTMLElement | null {
+  let node: HTMLElement | null = el.parentElement;
+  while (node) {
+    const style = window.getComputedStyle(node);
+    if (
+      (style.overflowY === "auto" || style.overflowY === "scroll") &&
+      node.scrollHeight > node.clientHeight
+    ) {
+      return node;
+    }
+    node = node.parentElement;
+  }
+  return null;
 }
 
 function CompletedTurnRecord({

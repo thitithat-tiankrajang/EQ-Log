@@ -1,6 +1,6 @@
-import { type GameState, type TileInstance } from "../game";
-import { PanelHeading } from "./PanelHeading";
-import { TurnDetail } from "./TurnDetail";
+import { type GameState, type TileInstance } from "../../game";
+import { PanelHeading } from "../layout/PanelHeading";
+import { TurnDetail } from "../replay/TurnDetail";
 import { TurnRecordList } from "./TurnRecordList";
 
 // Always-on live turn log (left rail). Shows the latest turn's full detail by

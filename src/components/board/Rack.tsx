@@ -1,4 +1,4 @@
-import type { ActionType, Side, TileInstance } from "../game";
+import type { ActionType, Side, TileInstance } from "../../game";
 import { Tile } from "./Tile";
 
 type ActionMode = "none" | ActionType;

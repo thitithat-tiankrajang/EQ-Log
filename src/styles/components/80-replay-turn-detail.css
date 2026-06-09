@@ -63,8 +63,9 @@
 
 .td-row {
   display: grid;
-  grid-template-columns: 78px 1fr;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 4px;
   align-items: start;
 }
 
@@ -73,7 +74,7 @@
 }
 
 .td-label {
-  padding-top: 5px;
+  padding-top: 0;
   color: var(--muted, #5a675f);
   font-size: 11px;
   font-weight: 800;

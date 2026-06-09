@@ -1,9 +1,9 @@
 import { ChangeEvent, useRef, useState } from "react";
 import { Copy, Download, Pencil, Play, Plus, Trash2, Upload } from "lucide-react";
-import type { GameState, NewGameSettings, Side } from "../game";
-import type { RoomMeta } from "../rooms";
-import { AccountChip } from "../auth";
-import { AdminButton } from "../admin";
+import type { GameState, NewGameSettings, Side } from "../../game";
+import type { RoomMeta } from "../../rooms";
+import { AccountChip } from "../../auth";
+import { AdminButton } from "../../admin";
 
 export function Lobby({
   canCreate,

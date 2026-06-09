@@ -1,0 +1,929 @@
+/* ============================================================================
+   Tile readability — shrink only the WIDE tokens (2-digit numbers 10–20 and
+   the 3-char choices +/−, ×/÷) per context so they fit instead of being
+   clipped; single characters keep their large sizes. Sized per context
+   (reliable — no container queries).
+   ============================================================================ */
+.tile {
+  overflow: hidden;
+}
+
+.tile b {
+  max-width: none !important;
+  overflow: visible !important;
+  white-space: nowrap !important;
+}
+
+/* Base contexts (normal rack ~40px, draft / pending, log chips ~30px). */
+.tile-heavyNumber b {
+  font-size: 13px;
+}
+.tile-choice b {
+  font-size: 11px;
+  letter-spacing: -0.03em;
+}
+.tile.assigned-choice b {
+  font-size: 14px;
+  letter-spacing: 0;
+}
+
+/* Board cells (sized off --cell). */
+.tile.compact.tile-heavyNumber b {
+  font-size: calc(var(--cell) * 0.34);
+}
+.tile.compact.tile-choice b {
+  font-size: calc(var(--cell) * 0.26);
+  letter-spacing: -0.04em;
+}
+.tile.compact.assigned-choice b {
+  font-size: calc(var(--cell) * 0.44);
+  letter-spacing: 0;
+}
+
+/* Rack under the board (play-bar). */
+.play-bar .rack-tile .tile-heavyNumber b {
+  font-size: clamp(15px, calc(var(--cell) * 0.52), 25px);
+}
+.play-bar .rack-tile .tile-choice b {
+  font-size: clamp(11px, calc(var(--cell) * 0.38), 19px);
+  letter-spacing: -0.04em;
+}
+.play-bar .rack-tile .assigned-choice b {
+  font-size: clamp(21px, calc(var(--cell) * 0.78), 35px);
+  letter-spacing: 0;
+}
+
+/* Live-log compact tiles. */
+.turn-record-tile .tile-heavyNumber b {
+  font-size: clamp(8px, 0.82vw, 11px);
+}
+.turn-record-tile .tile-choice b {
+  font-size: clamp(6px, 0.64vw, 9px);
+  letter-spacing: -0.04em;
+}
+.log-detail .td-row.full-rack .td-chip .tile-heavyNumber b {
+  font-size: clamp(7px, 0.74vw, 10px);
+}
+.log-detail .td-row.full-rack .td-chip .tile-choice b {
+  font-size: clamp(6px, 0.58vw, 8px);
+  letter-spacing: -0.04em;
+}
+
+/* Assignment modal (large tiles). */
+.assignment-body .tile-choice b {
+  font-size: 18px;
+}
+
+/* Wider live-log column (left section). */
+:root {
+  --log-rail: clamp(265px, 22vw, 372px);
+}
+
+/* Equal left & right rails (both = ~331px at 1440vw, board cell stays at 47). */
+@media (min-width: 901px) {
+  :root {
+    --log-rail: clamp(280px, 23vw, 360px) !important;
+  }
+}
+
+/* ============================================================================
+   Batch tweaks: tilebag rows, operator/heavy sizing, pressed selection,
+   red/blue scores, board R/C labels, roomier right rail, review stars.
+   ============================================================================ */
+
+/* 1) Tilebag — responsive stacks (auto-fill, comfortable mid-size). */
+.tilebag-panel .tile-list {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)) !important;
+  gap: 8px !important;
+}
+.tilebag-panel .tile-button {
+  width: 100% !important;
+  min-width: 0 !important;
+  padding: 0 !important;
+}
+.tilebag-panel .tile-button .tile {
+  width: 100% !important;
+  height: auto !important;
+  min-width: 0 !important;
+  aspect-ratio: 0.92 !important;
+}
+
+/* 2) Bigger operators / equals / heavy numbers (single digits already fine). */
+.tile.compact.tile-operator b,
+.tile.compact.tile-equals b {
+  font-size: calc(var(--cell) * 0.5) !important;
+}
+.tile.compact.tile-heavyNumber b {
+  font-size: calc(var(--cell) * 0.44) !important;
+}
+.play-bar .rack-tile .tile-heavyNumber b {
+  font-size: clamp(16px, calc(var(--cell) * 0.62), 27px) !important;
+}
+.tile-operator b,
+.tile-equals b {
+  font-size: 18px;
+}
+.tile-heavyNumber b {
+  font-size: 15px;
+}
+
+/* 3) Selection = pressed look (no thick border). */
+.rack-tile.selected .tile {
+  outline: none !important;
+  transform: translateY(1px);
+  filter: brightness(0.82);
+  box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.42) !important;
+}
+
+/* 4) Header scores — bold, prominent, red (A) / blue (B). */
+:root {
+  --side-a: #dc2626;
+  --side-a-soft: rgba(220, 38, 38, 0.12);
+  --side-b: #2563eb;
+  --side-b-soft: rgba(37, 99, 235, 0.12);
+}
+.timer-score {
+  font-size: clamp(14px, 1.5vw, 19px) !important;
+  font-weight: 900 !important;
+}
+.timer-panel.side-a {
+  border-color: rgba(220, 38, 38, 0.34) !important;
+  background: linear-gradient(90deg, var(--side-a-soft), var(--surface-solid, #fff)) !important;
+}
+.timer-panel.side-b {
+  border-color: rgba(37, 99, 235, 0.32) !important;
+  background: linear-gradient(90deg, var(--side-b-soft), var(--surface-solid, #fff)) !important;
+}
+.timer-panel.side-a .timer-score {
+  color: var(--side-a) !important;
+}
+.timer-panel.side-b .timer-score {
+  color: var(--side-b) !important;
+}
+
+/* 5) Board R / C number gutters. */
+.board-frame {
+  display: grid;
+  grid-template-columns: 20px auto;
+  grid-template-rows: 18px auto;
+}
+.board-corner {
+  grid-column: 1;
+  grid-row: 1;
+}
+.board-col-labels {
+  grid-column: 2;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: repeat(15, var(--cell));
+  align-items: end;
+}
+.board-row-labels {
+  grid-column: 1;
+  grid-row: 2;
+  display: grid;
+  grid-template-rows: repeat(15, var(--cell));
+  justify-items: end;
+  padding-right: 3px;
+}
+.board-col-labels span,
+.board-row-labels span {
+  display: grid;
+  place-items: center;
+  color: var(--muted, #5a675f);
+  font-size: clamp(7px, calc(var(--cell) * 0.27), 11px);
+  font-weight: 800;
+  line-height: 1;
+}
+.board {
+  grid-column: 2;
+  grid-row: 2;
+}
+
+/* 6) Right rail — equal to the left log rail. */
+@media (min-width: 901px) {
+  :root {
+    --rail: clamp(280px, 23vw, 360px) !important;
+  }
+}
+.pending-list,
+.control-panel:has(.draft-panel) .pending-list {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 10px !important;
+  align-items: flex-start !important;
+}
+.pending-item,
+.control-panel:has(.draft-panel) .pending-item {
+  position: static !important;
+  margin: 0 !important;
+  flex: 0 0 auto !important;
+}
+.draft-panel {
+  gap: 12px;
+}
+
+/* 7) Self-review star rating. */
+.review-stars {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px;
+}
+.review-stars > span {
+  color: var(--muted, #5a675f);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.star-row {
+  display: inline-flex;
+  gap: 2px;
+}
+.star-row .star {
+  border: none;
+  background: none;
+  padding: 0 1px;
+  color: #cfd8d0;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+.star-row .star.on,
+.star-row .star:hover:not(:disabled) {
+  color: var(--gold, #d8a93a);
+}
+.star-row .star:disabled {
+  cursor: default;
+}
+
+/* ── Follow-ups: heavy tilebag 3/row, bigger rack choice glyph, stacked review ── */
+/* 10–20 tilebag group: slightly larger min so 2-digit tiles read clearly. */
+.tilebag-panel .tilebag-group-heavyNumber .tile-list {
+  grid-template-columns: repeat(auto-fill, minmax(60px, 1fr)) !important;
+}
+
+/* Choice operator (+/−, ×/÷) glyph in the rack — bigger. */
+.play-bar .rack-tile .tile-choice b {
+  font-size: clamp(15px, calc(var(--cell) * 0.56), 27px) !important;
+}
+
+/* "Your review" (stars) and "Turn note" on separate rows so stars are clickable. */
+.log-edit {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 10px !important;
+}
+.log-edit .score-field,
+.log-edit .note-field {
+  width: 100% !important;
+}
+.review-stars {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+}
+.star-row .star {
+  min-width: 22px;
+  min-height: 26px;
+  padding: 0 1px;
+}
+
+/* ============================================================================
+   Turn log — side colors + bingo highlight
+   ============================================================================ */
+.turn-record-group.side-a {
+  border-left: 3px solid var(--side-a, #dc2626);
+}
+.turn-record-group.side-b {
+  border-left: 3px solid var(--side-b, #2563eb);
+}
+.turn-record-group.side-a .turn-record-heading span {
+  color: var(--side-a, #dc2626);
+}
+.turn-record-group.side-b .turn-record-heading span {
+  color: var(--side-b, #2563eb);
+}
+.turn-record-group.side-a .turn-record-heading strong {
+  color: var(--side-a, #dc2626);
+}
+.turn-record-group.side-b .turn-record-heading strong {
+  color: var(--side-b, #2563eb);
+}
+
+.turn-record.bingo {
+  background: linear-gradient(135deg, rgba(245, 210, 122, 0.18), rgba(168, 125, 32, 0.10));
+  border: 1px solid rgba(168, 125, 32, 0.28);
+  border-radius: 5px;
+}
+.turn-record.bingo .turn-record-index {
+  background: var(--gold, #a87d20);
+  border-color: var(--gold, #a87d20);
+  color: #fff;
+}
+.turn-record.bingo .turn-record-title {
+  color: var(--gold, #a87d20);
+  font-weight: 900;
+}
+
+/* ============================================================================
+   Rack — side-based colors
+   ============================================================================ */
+.rack.side-a.active {
+  border-color: var(--side-a, #dc2626) !important;
+  background: rgba(220, 38, 38, 0.06) !important;
+}
+.rack.side-b.active {
+  border-color: var(--side-b, #2563eb) !important;
+  background: rgba(37, 99, 235, 0.06) !important;
+}
+.rack.side-a .rack-label strong {
+  color: var(--side-a, #dc2626);
+}
+.rack.side-b .rack-label strong {
+  color: var(--side-b, #2563eb);
+}
+
+/* Play-bar rack side coloring */
+.play-bar:has(.rack.side-a.active) {
+  border-color: var(--side-a, #dc2626);
+  background: rgba(220, 38, 38, 0.04);
+}
+.play-bar:has(.rack.side-b.active) {
+  border-color: var(--side-b, #2563eb);
+  background: rgba(37, 99, 235, 0.04);
+}
+
+/* ============================================================================
+   Tilebag — stacked tiles with count badges
+   ============================================================================ */
+.tile-stack {
+  position: relative;
+  display: inline-grid !important;
+  place-items: center;
+  width: 100% !important;
+  aspect-ratio: 1 / 1;
+}
+.tile-stack .tile {
+  width: 100% !important;
+  height: 100% !important;
+}
+.tile-stack-count {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 16px;
+  border-radius: 8px;
+  background: rgba(24, 33, 29, 0.88);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 900;
+  line-height: 1;
+  padding: 0 5px;
+  pointer-events: none;
+  z-index: 1;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+/* ============================================================================
+   Selection visuals — exchange = faded, place = pressed
+   ============================================================================ */
+.rack-tile.selected .tile,
+.rack-tile.place-select .tile {
+  outline: none !important;
+  transform: translateY(1px);
+  filter: brightness(0.72) !important;
+  box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.5) !important;
+}
+
+.rack-tile.exchange-select .tile,
+.rack-tile.outgoing .tile {
+  outline: none !important;
+  transform: none;
+  filter: none !important;
+  box-shadow: none !important;
+  opacity: 0.38;
+}
+
+/* ============================================================================
+   Tilebag — flat filtered stack grid, no region cards
+   ============================================================================ */
+.tilebag-panel .tilebag-groups.tilebag-stacks {
+  display: grid !important;
+  grid-template-columns: repeat(10, minmax(0, 1fr)) !important;
+  grid-auto-rows: auto !important;
+  align-content: start !important;
+  gap: clamp(3px, 0.42vw, 6px) !important;
+  min-height: 0 !important;
+  overflow: auto !important;
+  border: 0 !important;
+  background: transparent !important;
+  padding: 1px 2px 4px !important;
+}
+
+.tilebag-panel .tilebag-groups.tilebag-stacks .tile-stack {
+  position: relative !important;
+  display: grid !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  aspect-ratio: 1 / 1 !important;
+  padding: 0 !important;
+  place-items: stretch !important;
+}
+
+.tilebag-panel .tilebag-groups.tilebag-stacks .tile-stack .tile {
+  width: 100% !important;
+  height: 100% !important;
+  min-width: 0 !important;
+  aspect-ratio: 1 / 1 !important;
+  border-radius: 4px !important;
+}
+
+.tilebag-panel .tilebag-groups.tilebag-stacks .tile-stack .tile b {
+  font-size: clamp(8px, 0.92vw, 13px) !important;
+  line-height: 1 !important;
+}
+
+.tilebag-panel .tilebag-groups.tilebag-stacks .tile-stack-heavyNumber .tile b,
+.tilebag-panel .tilebag-groups.tilebag-stacks .tile-stack-choice .tile b {
+  font-size: clamp(7px, 0.78vw, 11px) !important;
+}
+
+.tilebag-panel .tilebag-groups.tilebag-stacks .tile-stack .tile small {
+  right: 2px !important;
+  bottom: 2px !important;
+  font-size: clamp(5px, 0.52vw, 8px) !important;
+  line-height: 1 !important;
+}
+
+.tilebag-panel .tilebag-groups.tilebag-stacks .tile-stack-count {
+  top: 2px !important;
+  right: 2px !important;
+  bottom: auto !important;
+  left: auto !important;
+  transform: none !important;
+  min-width: clamp(11px, 1vw, 16px) !important;
+  height: clamp(11px, 1vw, 16px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 999px !important;
+  background: rgba(24, 33, 29, 0.86) !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  font-size: clamp(6px, 0.56vw, 8px) !important;
+  font-weight: 900 !important;
+  padding: 0 2px !important;
+}
+
+.tilebag-panel .tilebag-empty {
+  grid-column: 1 / -1;
+  margin: 0;
+  border: 1px dashed var(--border, #d6ddd5);
+  border-radius: 6px;
+  color: var(--muted, #5a675f);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 8px;
+}
+
+/* ============================================================================
+   Rail balance — compact Tilebag, roomier Action Details
+   ============================================================================ */
+@media (min-width: 760px) {
+  .right-rail {
+    grid-template-rows:
+      clamp(148px, 25dvh, 214px)
+      clamp(72px, 10dvh, 96px)
+      minmax(240px, 1fr) !important;
+  }
+
+  .tilebag-panel {
+    gap: 4px !important;
+    padding: 5px !important;
+  }
+
+  .tilebag-panel .panel-heading {
+    min-height: 20px;
+  }
+
+  .tilebag-filter {
+    gap: 3px !important;
+    padding-bottom: 0 !important;
+  }
+
+  .tilebag-filter button {
+    min-height: 21px !important;
+    padding: 2px 6px !important;
+  }
+
+  .control-panel {
+    min-height: 0;
+  }
+
+  .control-panel:has(.draft-panel) {
+    grid-template-rows: auto minmax(0, 1fr) !important;
+  }
+
+  .control-panel:has(.draft-panel) .draft-panel {
+    min-height: 0;
+    grid-template-rows: auto auto minmax(0, 1fr) auto !important;
+  }
+
+  .control-panel:has(.draft-panel) .place-workspace,
+  .control-panel:has(.draft-panel) .exchange-workspace {
+    min-height: 0;
+  }
+
+  .control-panel:has(.draft-panel) .pending-list {
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: auto !important;
+  }
+}
+
+@media (min-width: 760px) and (max-width: 1040px) {
+  .right-rail {
+    grid-template-rows:
+      clamp(132px, 20dvh, 176px)
+      clamp(68px, 9dvh, 86px)
+      minmax(250px, 1fr) !important;
+  }
+}
+
+/* ============================================================================
+   Action Details polish — tile-first controls, stable Live Aid, square board
+   ============================================================================ */
+.board-frame,
+.board,
+.board-cell {
+  border-radius: 0 !important;
+}
+
+.board-cell.pending-selected {
+  background: var(--accent-soft, #dceee6) !important;
+}
+
+.board-cell.pending-selected .tile {
+  opacity: 1 !important;
+  filter: brightness(0.72) !important;
+  transform: translateY(1px);
+}
+
+@media (min-width: 760px) {
+  .right-rail {
+    grid-template-rows:
+      clamp(140px, 22dvh, 194px)
+      clamp(96px, 13dvh, 124px)
+      minmax(260px, 1fr) !important;
+  }
+
+  .live-aid {
+    grid-template-columns: minmax(0, 1fr) clamp(58px, 5vw, 76px) !important;
+    grid-template-areas:
+      "head selected"
+      "summary selected"
+      "equation status" !important;
+    align-content: stretch !important;
+    gap: 5px !important;
+  }
+
+  .selected-tile-line {
+    display: grid !important;
+    min-width: 0;
+    min-height: 0;
+    grid-area: selected !important;
+    grid-template-rows: auto minmax(0, 1fr);
+    align-items: center;
+    justify-items: center;
+    border: 1px solid var(--border, #d6ddd5);
+    border-radius: 6px;
+    background: var(--surface-solid, #fff);
+    padding: 4px;
+  }
+
+  .selected-tile-line > span {
+    color: var(--muted, #5a675f);
+    font-size: 9px;
+    font-weight: 900;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .selected-tile-line > .tile {
+    width: min(100%, 42px);
+    height: auto;
+    aspect-ratio: 1 / 1;
+  }
+
+  .selected-tile-line.empty > strong {
+    display: grid;
+    width: min(100%, 42px);
+    aspect-ratio: 1 / 1;
+    place-items: center;
+    border: 1px dashed var(--border, #d6ddd5);
+    border-radius: 4px;
+    color: var(--muted, #5a675f);
+    font-size: 10px;
+    font-weight: 900;
+  }
+
+  .play-bar {
+    margin-top: clamp(3px, 0.55dvh, 7px) !important;
+    padding: clamp(6px, 0.85dvh, 9px) !important;
+  }
+
+  .play-bar .rack {
+    padding: 2px !important;
+  }
+
+  .play-bar .rack-tiles {
+    gap: clamp(5px, 0.55vw, 8px) !important;
+    padding: 2px !important;
+  }
+
+  .action-status-compact {
+    grid-template-columns: auto minmax(0, 1fr) !important;
+    padding: 5px 7px !important;
+  }
+
+  .action-metrics {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 4px;
+    align-items: center;
+  }
+
+  .action-metrics strong,
+  .action-metrics em {
+    display: grid;
+    min-width: 0;
+    min-height: 22px;
+    place-items: center;
+    border: 1px solid var(--border, #d6ddd5);
+    border-radius: 5px;
+    background: var(--surface-solid, #fff);
+    font-size: 10px;
+    font-style: normal;
+    font-weight: 900;
+    line-height: 1;
+    overflow: hidden;
+    padding: 2px 4px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .action-status.valid .action-metrics strong {
+    border-color: rgba(21, 96, 78, 0.35);
+    color: var(--accent, #15604e);
+  }
+
+  .action-status.invalid .action-metrics strong {
+    border-color: rgba(178, 62, 62, 0.32);
+    color: var(--danger, #b23e3e);
+  }
+
+  .control-panel:has(.draft-panel) .draft-panel {
+    gap: 7px !important;
+    grid-template-rows: auto auto minmax(0, 1fr) auto !important;
+  }
+
+  .control-panel:has(.draft-panel) .place-workspace {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    grid-template-rows: minmax(58px, auto) minmax(0, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  .control-panel:has(.draft-panel) .exchange-workspace {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    grid-template-rows: minmax(0, 1fr) !important;
+    gap: 6px !important;
+  }
+
+  .pending-list,
+  .control-panel:has(.draft-panel) .pending-list {
+    display: grid !important;
+    grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+    gap: 4px !important;
+    align-items: stretch !important;
+    overflow: hidden !important;
+    padding: 1px !important;
+  }
+
+  .pending-item,
+  .control-panel:has(.draft-panel) .pending-item {
+    position: relative !important;
+    display: grid !important;
+    min-width: 0 !important;
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-template-rows: minmax(0, 1fr) 16px !important;
+    justify-items: stretch !important;
+    gap: 2px !important;
+    border-radius: 5px !important;
+    padding: 3px !important;
+  }
+
+  .pending-cell-badge {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    z-index: 2;
+    max-width: calc(100% - 4px) !important;
+    border-radius: 999px;
+    background: rgba(24, 33, 29, 0.82);
+    color: #ffffff !important;
+    font-size: 7px !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    padding: 2px 3px;
+  }
+
+  .pending-item .tile,
+  .control-panel:has(.draft-panel) .pending-item .tile {
+    align-self: center;
+    justify-self: center;
+    width: min(100%, 34px) !important;
+    height: auto !important;
+    aspect-ratio: 1 / 1;
+  }
+
+  .pending-item .tile b {
+    font-size: clamp(9px, 0.9vw, 12px) !important;
+    line-height: 1 !important;
+  }
+
+  .pending-item .tile small {
+    right: 2px !important;
+    bottom: 2px !important;
+    font-size: clamp(5px, 0.5vw, 7px) !important;
+  }
+
+  .pending-choice-options {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 2px !important;
+    height: 16px !important;
+    min-height: 0 !important;
+  }
+
+  .pending-choice-options button {
+    min-height: 0 !important;
+    height: 16px !important;
+    border-radius: 3px !important;
+    padding: 0 !important;
+    font-size: 9px !important;
+    line-height: 1 !important;
+  }
+
+  .pending-select-wrap {
+    position: relative;
+    display: grid;
+    width: 100%;
+    height: 16px;
+    min-width: 0;
+    place-items: center;
+    border: 1px solid var(--border, #d6ddd5);
+    border-radius: 3px;
+    background: var(--surface-solid, #fff);
+    overflow: hidden;
+  }
+
+  .pending-select-wrap > span {
+    max-width: 100%;
+    overflow: hidden;
+    color: var(--text, #18211d);
+    font-size: 9px;
+    font-weight: 900;
+    line-height: 1;
+    pointer-events: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pending-select-wrap select {
+    position: absolute;
+    inset: 0;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    opacity: 0;
+    cursor: pointer;
+  }
+
+  .pending-item em {
+    display: grid;
+    height: 16px;
+    place-items: center;
+    font-size: 8px !important;
+  }
+
+  .draft-tiles {
+    display: grid !important;
+    min-height: 0;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 6px !important;
+  }
+
+  .draft-tiles > div {
+    display: grid !important;
+    grid-template-columns: repeat(8, minmax(0, 1fr)) !important;
+    gap: 5px !important;
+    align-content: start;
+    min-height: 0;
+    overflow: hidden !important;
+  }
+
+  .draft-tiles .tile-button {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    aspect-ratio: 1 / 1;
+    place-items: stretch;
+  }
+
+  .draft-tiles .tile {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0;
+    aspect-ratio: 1 / 1;
+  }
+
+  .action-equation-preview > span {
+    min-height: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 760px) and (max-width: 1040px) {
+  .right-rail {
+    grid-template-rows:
+      clamp(126px, 18dvh, 162px)
+      clamp(94px, 12dvh, 116px)
+      minmax(270px, 1fr) !important;
+  }
+}
+
+/* Tilebag stack count sits below the tile, not on top of it. */
+.tilebag-panel .tilebag-groups.tilebag-stacks {
+  row-gap: clamp(5px, 0.6vw, 8px) !important;
+}
+
+.tilebag-panel .tilebag-groups.tilebag-stacks .tile-stack {
+  aspect-ratio: auto !important;
+  grid-template-rows: minmax(0, 1fr) 12px !important;
+  gap: 2px !important;
+}
+
+.tilebag-panel .tilebag-groups.tilebag-stacks .tile-stack .tile {
+  align-self: start;
+  height: auto !important;
+}
+
+.tilebag-panel .tilebag-groups.tilebag-stacks .tile-stack-count {
+  position: static !important;
+  display: grid !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 12px !important;
+  transform: none !important;
+  place-items: center !important;
+  border: 0 !important;
+  border-radius: 3px !important;
+  background: var(--surface-2, #eef3ef) !important;
+  color: var(--muted, #5a675f) !important;
+  font-size: clamp(7px, 0.62vw, 9px) !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
+  padding: 0 !important;
+}
+
+/* Final rail ratio: give Tilebag more vertical scan room, trim Action Details. */
+@media (min-width: 760px) {
+  .right-rail {
+    grid-template-rows:
+      clamp(190px, 30dvh, 260px)
+      clamp(96px, 13dvh, 124px)
+      minmax(210px, 1fr) !important;
+  }
+}
+
+@media (min-width: 760px) and (max-width: 1040px) {
+  .right-rail {
+    grid-template-rows:
+      clamp(182px, 26dvh, 236px)
+      clamp(94px, 12dvh, 116px)
+      minmax(220px, 1fr) !important;
+  }
+}
