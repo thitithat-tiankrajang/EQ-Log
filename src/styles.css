@@ -8,3 +8,13 @@
 @import "./styles/components/70-scoreboard-log.css";
 @import "./styles/components/80-replay-turn-detail.css";
 @import "./styles/90-refinement-layer.css";
+
+/* Lobby (split into focused files; each well under 1000 lines). */
+@import "./styles/pages/lobby/00-tokens.css";
+@import "./styles/pages/lobby/10-shell.css";
+@import "./styles/pages/lobby/20-rooms.css";
+@import "./styles/pages/lobby/30-create.css";
+@import "./styles/pages/lobby/40-members.css";
+@import "./styles/pages/lobby/50-stats.css";
+@import "./styles/pages/lobby/60-filters.css";
+@import "./styles/pages/lobby/70-responsive.css";

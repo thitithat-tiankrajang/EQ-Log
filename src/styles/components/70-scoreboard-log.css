@@ -3168,3 +3168,518 @@ button.tilebag-stat.active .ts-count {
   background: #b6402f !important;
   color: #fff !important;
 }
+
+/* ============================================================================
+   Final pass v16 — Score badge on the board + 4-way arrow icons.
+   ============================================================================ */
+
+/* The board is a 15x15 CSS grid (1 col labels + 15 board cols → grid-column
+   indices start from 2 for the actual cells, but the badge here is rendered
+   inside the .board grid which is just the 15 cells). Use grid-row/col to
+   pin the badge to the anchor cell, then translate to peek outside. */
+.board {
+  position: relative;
+}
+
+.board-score-badge {
+  position: absolute;
+  z-index: 6;
+  display: inline-grid;
+  grid-auto-flow: column;
+  place-items: center;
+  gap: 4px;
+  min-width: 44px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #15604e, #0d4738);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  box-shadow:
+    0 4px 10px rgba(15, 23, 31, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  pointer-events: none;
+  white-space: nowrap;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  /* Anchor: place the badge using the cell coordinates derived from
+     --badge-row / --badge-col (1-based; row/col grid lines start at 1). */
+  grid-row: var(--badge-row);
+  grid-column: var(--badge-col);
+  animation: badge-pop 0.32s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+}
+
+.board-score-badge small {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.85;
+}
+
+/* Horizontal play → badge floats to the LEFT of the anchor cell. */
+.board-score-badge.horizontal {
+  transform: translate(-110%, 6%);
+}
+
+/* Vertical play → badge floats ABOVE the anchor cell. */
+.board-score-badge.vertical {
+  transform: translate(6%, -110%);
+}
+
+.board-score-badge.invalid {
+  background: linear-gradient(180deg, #b6402f, #8c2c20);
+}
+
+@keyframes badge-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-110%, 6%) scale(0.7);
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.board-score-badge.vertical {
+  animation: badge-pop-v 0.32s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+}
+
+@keyframes badge-pop-v {
+  0% {
+    opacity: 0;
+    transform: translate(6%, -110%) scale(0.7);
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* ============================================================================
+   Final pass v17 — Pending tile + score badge re-themed to match the site:
+   • Pending tile keeps the dark-navy tile body (consistent with locked
+     tiles) but gains a teal accent ring + a tiny "new this turn" dot.
+   • Score badge sits ABOVE the board grid (raised z-index, no clipping),
+     uses the same accent palette as the rest of the design system.
+   • Scoring cells get a softer teal halo so they read as "counted",
+     not "alarming".
+   ============================================================================ */
+
+/* ---- Pending board cell: refined accent (no amber/gold) ---- */
+.board-cell.pending {
+  background: var(--surface, #fff) !important;
+  box-shadow:
+    inset 0 0 0 2px var(--accent, #15604e),
+    0 0 0 1px rgba(15, 96, 78, 0.18) !important;
+  position: relative !important;
+}
+
+.board-cell.pending::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: var(--accent, #15604e);
+  border: 1.5px solid var(--surface, #fff);
+  z-index: 2;
+  pointer-events: none;
+  box-shadow: 0 1px 2px rgba(15, 23, 31, 0.25);
+}
+
+/* Pending tile body: keep dark navy (consistent with locked) but slightly
+   brighter + accent inner ring, so it reads as a current-turn tile. */
+.board-cell.pending .tile {
+  background: linear-gradient(180deg, #1f2937, #111827) !important;
+  color: #f8fafc !important;
+  box-shadow:
+    inset 0 0 0 2px rgba(36, 123, 111, 0.55),
+    0 2px 4px rgba(15, 23, 31, 0.22) !important;
+}
+
+.board-cell.pending .tile b {
+  color: #f8fafc !important;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35) !important;
+}
+
+.board-cell.pending .tile small {
+  color: rgba(248, 250, 252, 0.78) !important;
+}
+
+/* Selected pending: thicker accent ring + raised. */
+.board-cell.pending.pending-selected {
+  box-shadow:
+    inset 0 0 0 3px var(--accent, #15604e),
+    0 0 0 2px rgba(15, 96, 78, 0.4) !important;
+}
+
+.board-cell.pending.pending-selected .tile {
+  filter: brightness(1.06) !important;
+}
+
+/* Scoring cells: soft teal halo (not bright). */
+.board-cell.scoring {
+  background: rgba(36, 123, 111, 0.1) !important;
+  box-shadow: inset 0 0 0 1px rgba(36, 123, 111, 0.32) !important;
+}
+
+.board-cell.scoring.pending {
+  background: rgba(36, 123, 111, 0.14) !important;
+  box-shadow:
+    inset 0 0 0 2px var(--accent, #15604e),
+    0 0 0 1px rgba(15, 96, 78, 0.3) !important;
+}
+
+/* ---- Score badge: theme-aligned, raised above the board ---- */
+.board {
+  position: relative;
+  overflow: visible !important; /* let the badge peek outside its cell */
+}
+
+.board-frame {
+  /* The badge can poke into the frame's gutter; make sure that area shows. */
+  overflow: visible !important;
+}
+
+.board-score-badge {
+  position: absolute;
+  z-index: 20 !important;
+  display: inline-grid;
+  grid-auto-flow: column;
+  place-items: center;
+  gap: 5px;
+  min-width: 46px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--surface, #fff);
+  color: var(--accent-strong, #0d4738);
+  border: 1.5px solid var(--accent, #15604e);
+  font-size: 13px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  box-shadow:
+    0 6px 14px rgba(15, 23, 31, 0.18),
+    0 2px 4px rgba(15, 23, 31, 0.12),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  pointer-events: none;
+  white-space: nowrap;
+  grid-row: var(--badge-row);
+  grid-column: var(--badge-col);
+  animation: badge-pop 0.32s cubic-bezier(0.22, 1.2, 0.36, 1) both;
+}
+
+.board-score-badge small {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted, #5a675f);
+}
+
+.board-score-badge.invalid {
+  color: #8c2c20;
+  border-color: #b6402f;
+}
+
+.board-score-badge.invalid small {
+  color: rgba(140, 44, 32, 0.7);
+}
+
+/* Pop animation respects orientation translate. */
+@keyframes badge-pop {
+  0% {
+    opacity: 0;
+    scale: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.board-score-badge.horizontal {
+  transform: translate(-110%, 6%);
+}
+
+.board-score-badge.vertical {
+  transform: translate(6%, -110%);
+}
+
+/* ============================================================================
+   Final pass v18 — Plain pending tile + pressed selection + matching-color
+   cursor/arrow cells + score badge "corner mark" only.
+   ============================================================================ */
+
+/* ---- Pending tile: plain look, thin neutral border, no glow ---- */
+.board-cell.pending {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: 1px solid transparent !important;
+  position: relative !important;
+}
+
+/* Top-right corner color mark — tiny chip showing it's a current-turn tile.
+   No shadow, no border ring on the cell itself. */
+.board-cell.pending::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--accent, #15604e);
+  z-index: 3;
+  pointer-events: none;
+  box-shadow: none;
+}
+
+/* Pending tile body: plain dark surface, no gradient, no shadow. */
+.board-cell.pending .tile {
+  background: #1f2937 !important;
+  color: #f8fafc !important;
+  box-shadow: none !important;
+  border: 0 !important;
+  text-shadow: none !important;
+}
+
+.board-cell.pending .tile b {
+  color: #f8fafc !important;
+  text-shadow: none !important;
+}
+
+.board-cell.pending .tile small {
+  color: rgba(248, 250, 252, 0.78) !important;
+}
+
+/* Selected pending: just looks "pressed" (no shadow / no glow). */
+.board-cell.pending.pending-selected {
+  box-shadow: none !important;
+  background: rgba(15, 96, 78, 0.08) !important;
+  border-color: transparent !important;
+}
+
+.board-cell.pending.pending-selected .tile {
+  filter: brightness(0.85) !important;
+  transform: translateY(1px);
+  box-shadow: none !important;
+}
+
+/* Scoring cells: plain pale tint, thin border, no glow. */
+.board-cell.scoring {
+  background: rgba(36, 123, 111, 0.07) !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(36, 123, 111, 0.22) !important;
+}
+
+.board-cell.scoring.pending {
+  background: rgba(36, 123, 111, 0.1) !important;
+  border-color: rgba(36, 123, 111, 0.32) !important;
+}
+
+/* ---- Cursor / arrow cell: inherits the slot's color ---- */
+/* Default white cell — arrow uses the accent color, but no fill. */
+.board-cell.cursor {
+  background: rgba(36, 123, 111, 0.1) !important;
+  box-shadow: inset 0 0 0 1.5px var(--accent, #15604e) !important;
+  border: none !important;
+}
+
+/* Premium slot colors carry through to the arrow cell. */
+.board-cell.slot-tw.cursor, /* triple word, original orange-red */
+.board-cell.slot-px3star.cursor { /* center star */
+  background: rgba(220, 38, 38, 0.18) !important;
+  box-shadow: inset 0 0 0 1.5px #dc2626 !important;
+}
+
+.board-cell.slot-de.cursor,  /* double equation orange/yellow */
+.board-cell.slot-2e.cursor {
+  background: rgba(217, 119, 6, 0.18) !important;
+  box-shadow: inset 0 0 0 1.5px #d97706 !important;
+}
+
+.board-cell.slot-te.cursor,
+.board-cell.slot-3e.cursor {
+  background: rgba(217, 119, 6, 0.24) !important;
+  box-shadow: inset 0 0 0 1.5px #b45309 !important;
+}
+
+.board-cell.slot-dl.cursor,
+.board-cell.slot-2p.cursor {
+  background: rgba(34, 197, 94, 0.18) !important;
+  box-shadow: inset 0 0 0 1.5px #15803d !important;
+}
+
+.board-cell.slot-tl.cursor,
+.board-cell.slot-3p.cursor {
+  background: rgba(37, 99, 235, 0.18) !important;
+  box-shadow: inset 0 0 0 1.5px #2563eb !important;
+}
+
+/* Arrow icon picks up its color from the cell's accent. */
+.board-cell-cursor {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: currentColor;
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+.board-cell.cursor { color: var(--accent, #15604e); }
+.board-cell.slot-tw.cursor, .board-cell.slot-px3star.cursor { color: #dc2626; }
+.board-cell.slot-de.cursor, .board-cell.slot-2e.cursor { color: #d97706; }
+.board-cell.slot-te.cursor, .board-cell.slot-3e.cursor { color: #b45309; }
+.board-cell.slot-dl.cursor, .board-cell.slot-2p.cursor { color: #15803d; }
+.board-cell.slot-tl.cursor, .board-cell.slot-3p.cursor { color: #2563eb; }
+
+/* ---- Score badge: now a small corner pill, no glow ---- */
+.board-score-badge {
+  position: absolute;
+  z-index: 25 !important;
+  display: inline-grid;
+  grid-auto-flow: column;
+  place-items: center;
+  gap: 3px;
+  min-width: 38px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--surface, #fff);
+  color: var(--accent-strong, #0d4738);
+  border: 1px solid var(--accent, #15604e);
+  font-size: 12px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  box-shadow: none !important;
+  pointer-events: none;
+  white-space: nowrap;
+  grid-row: var(--badge-row);
+  grid-column: var(--badge-col);
+  animation: none !important;
+}
+
+.board-score-badge small {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted, #5a675f);
+}
+
+.board-score-badge.invalid {
+  color: #8c2c20;
+  border-color: #b6402f;
+}
+
+.board-score-badge.invalid small {
+  color: rgba(140, 44, 32, 0.7);
+}
+
+/* Empty rack slot: clickable to receive a pending/selected tile. */
+.rack-slot {
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.rack-slot:hover {
+  background: rgba(36, 123, 111, 0.06) !important;
+  border-color: var(--accent, #15604e) !important;
+}
+
+/* ============================================================================
+   Final pass v19 — Green ribbon score badge with a triangular point that
+   "grips" the equation, like a folded paper tag. No shadow.
+   ============================================================================ */
+
+.board-score-badge {
+  position: absolute;
+  z-index: 25 !important;
+  display: inline-grid;
+  grid-auto-flow: column;
+  place-items: center;
+  gap: 5px;
+  min-width: 48px;
+  background: var(--accent, #15604e) !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  font-size: 13px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  white-space: nowrap;
+  grid-row: var(--badge-row);
+  grid-column: var(--badge-col);
+  animation: none !important;
+}
+
+.board-score-badge small {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.86) !important;
+}
+
+/* Horizontal play: badge sits LEFT of the leftmost cell. Triangle on the
+   right edge "points" into the equation. */
+.board-score-badge.horizontal {
+  transform: translate(-105%, 8%);
+  padding: 4px 16px 4px 10px;
+  clip-path: polygon(
+    0 0,
+    calc(100% - 10px) 0,
+    100% 50%,
+    calc(100% - 10px) 100%,
+    0 100%
+  );
+}
+
+/* Vertical play: badge sits ABOVE the topmost cell. Triangle on the bottom
+   edge "points" down into the equation. */
+.board-score-badge.vertical {
+  transform: translate(8%, -105%);
+  padding: 4px 12px 14px 12px;
+  clip-path: polygon(
+    0 0,
+    100% 0,
+    100% calc(100% - 10px),
+    50% 100%,
+    0 calc(100% - 10px)
+  );
+}
+
+/* Invalid placements: red ribbon. */
+.board-score-badge.invalid {
+  background: #b6402f !important;
+}
+
+.board-score-badge.invalid small {
+  color: rgba(255, 255, 255, 0.85) !important;
+}
+
+/* ---- Score / dropped state: the rack-slot button base look ---- */
+.rack-slot {
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--border-soft, rgba(214, 221, 213, 0.65)) !important;
+  border-radius: 6px;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.rack-slot:hover,
+.rack-slot:focus-visible {
+  background: rgba(36, 123, 111, 0.06);
+  border-color: var(--accent, #15604e) !important;
+  outline: none;
+}

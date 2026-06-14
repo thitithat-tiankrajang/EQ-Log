@@ -99,11 +99,22 @@ export type PendingPlacement = {
   row: number;
   col: number;
   assignedToken?: string;
+  cursorDir?: "right" | "down" | "left" | "up";
+  rackSlot?: number;
 };
 
 export type Phase = "refill" | "choose_action" | "perform_action";
-export type GameStatus = "playing" | "finished";
-export type ActionType = "place_equation" | "exchange" | "pass";
+/**
+ * Game lifecycle.
+ * - "playing"  : actively in progress, clock ticks, actions allowed
+ * - "draft"    : owner clicked Save & Exit while mid-game; same data as
+ *                 "playing" but timer is paused and actions are blocked until
+ *                 the user clicks Resume.
+ * - "finished" : owner ended the game (or the natural end-of-game trigger
+ *                 fired). Cannot be resumed; only Replay / Result are offered.
+ */
+export type GameStatus = "playing" | "draft" | "finished";
+export type ActionType = "place_equation" | "exchange" | "pass" | "end_game";
 
 export type EquationDetection = {
   direction: "horizontal" | "vertical";
@@ -142,6 +153,21 @@ export type PassDetail = {
   reason?: string;
 };
 
+export type EndGameReason = "rack_out" | "no_score_streak" | "manual";
+
+export type EndGameDetail = {
+  reason: EndGameReason;
+  description: string;
+  bonusSide?: Side;
+  bonusPoints: number;
+  rackPoints?: Record<Side, number>;
+  opponentRackPoints?: number;
+  tilebagPoints?: number;
+  noScoreStreak?: number;
+};
+
+export type TurnActionDetail = PlaceEquationDetail | ExchangeDetail | PassDetail | EndGameDetail;
+
 export type TurnLog = {
   id: string;
   turnNumber: number;
@@ -157,7 +183,7 @@ export type TurnLog = {
   boardAfter: BoardSnapshot;
   tilebagBefore: TileInstance[];
   tilebagAfter: TileInstance[];
-  actionDetail: PlaceEquationDetail | ExchangeDetail | PassDetail;
+  actionDetail: TurnActionDetail;
   calculatedScore: number;
   manualScore?: number;
   finalScore: number;
@@ -195,6 +221,10 @@ export type GameSnapshot = {
   gameId: string;
   name: string;
   players: Record<Side, string>;
+  /** Optional pointer to an organization member id per side. */
+  playerMembers?: Partial<Record<Side, string>>;
+  /** The side that went first this game; used for "starting position" filters. */
+  startingSide?: Side;
   turnNumber: number;
   activeSide: Side;
   phase: Phase;
@@ -230,6 +260,8 @@ export type NewGameSettings = {
   name: string;
   playerA: string;
   playerB: string;
+  playerAMemberId?: string | null;
+  playerBMemberId?: string | null;
   minutes: number;
   startingSide: Side;
   untimed?: boolean;
@@ -362,6 +394,9 @@ export function setRack<T extends GameState | GameSnapshot>(
 export function createNewGame(settings: NewGameSettings): GameState {
   const now = new Date().toISOString();
   const seconds = Math.max(1, Math.round(settings.minutes * 60));
+  const playerMembers: Partial<Record<Side, string>> = {};
+  if (settings.playerAMemberId) playerMembers.A = settings.playerAMemberId;
+  if (settings.playerBMemberId) playerMembers.B = settings.playerBMemberId;
   const base: Omit<GameState, "history" | "historyIndex" | "lastSavedAt"> = {
     commitId: crypto.randomUUID(),
     gameId: crypto.randomUUID(),
@@ -370,6 +405,8 @@ export function createNewGame(settings: NewGameSettings): GameState {
       A: settings.playerA.trim() || "A",
       B: settings.playerB.trim() || "B",
     },
+    playerMembers: Object.keys(playerMembers).length > 0 ? playerMembers : undefined,
+    startingSide: settings.startingSide,
     turnNumber: 1,
     activeSide: settings.startingSide,
     phase: "refill",
@@ -411,6 +448,8 @@ export function makeSnapshot(game: GameState | Omit<GameState, "history" | "hist
     gameId: game.gameId,
     name: game.name,
     players: game.players,
+    playerMembers: game.playerMembers,
+    startingSide: game.startingSide,
     turnNumber: game.turnNumber,
     activeSide: game.activeSide,
     phase: game.phase,

@@ -1,206 +1,8 @@
-/* ── Lobby ─────────────────────────────────────────────────────────────────── */
-.lobby-shell {
-  display: grid;
-  min-height: 100vh;
-  justify-items: center;
-  padding: 32px 18px 60px;
-}
+/* Global responsive layer for the in-game view + design tokens consumed by
+   other component files. The lobby itself is styled separately under
+   styles/pages/lobby/* — those tokens override the ones declared here. */
 
-.lobby-inner {
-  display: grid;
-  gap: 18px;
-  width: min(960px, 100%);
-}
-
-.lobby-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.lobby-head-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.lobby-new {
-  width: auto;
-}
-
-.lobby-create {
-  margin: 0;
-}
-
-.lobby-empty {
-  padding: 40px;
-  border: 1px dashed #cfc6b4;
-  border-radius: 8px;
-  background: rgba(255, 253, 248, 0.7);
-  text-align: center;
-}
-
-.room-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 14px;
-}
-
-.room-card {
-  position: relative;
-  display: grid;
-  overflow: hidden;
-  border: 1px solid #d8d1c1;
-  border-radius: 10px;
-  background: rgba(255, 253, 248, 0.96);
-  box-shadow: 0 6px 20px rgba(34, 32, 29, 0.06);
-}
-
-.room-card.finished {
-  opacity: 0.85;
-}
-
-.room-open {
-  display: grid;
-  gap: 8px;
-  border: 0;
-  background: transparent;
-  padding: 14px 14px 10px;
-  text-align: left;
-}
-
-.room-open:hover {
-  background: #f3efe6;
-}
-
-.room-card-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.room-card-head strong {
-  font-size: 16px;
-}
-
-.room-status {
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 800;
-  white-space: nowrap;
-}
-
-.room-status.playing {
-  background: #dff2ef;
-  color: #247b6f;
-}
-
-.room-status.finished {
-  background: #e8e3d7;
-  color: #6d6458;
-}
-
-.room-players {
-  color: #35312b;
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.room-players span {
-  margin: 0 4px;
-  color: #a89f8d;
-  font-weight: 600;
-}
-
-.room-owner {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  color: #6d6458;
-  font-size: 11px;
-  font-weight: 800;
-}
-
-.room-owner em {
-  color: #247b6f;
-  font-style: normal;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.room-meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  color: #6d6458;
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.room-updated {
-  color: #a89f8d;
-  font-size: 11px;
-}
-
-.room-card-actions {
-  display: flex;
-  border-top: 1px solid #ece6da;
-}
-
-.room-card-actions button {
-  flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 34px;
-  border: 0;
-  border-right: 1px solid #ece6da;
-  background: #fffdfa;
-  color: #6d6458;
-}
-
-.room-card-actions button:last-child {
-  border-right: 0;
-}
-
-.room-card-actions button:hover {
-  background: #f3efe6;
-  color: #302b1d;
-}
-
-.room-card-actions button:disabled {
-  cursor: not-allowed;
-  opacity: 0.38;
-}
-
-.room-card-actions button.danger:hover {
-  background: #fae6df;
-  color: #b6402f;
-}
-
-.spectator-note,
-.sync-error {
-  margin: 0;
-  border: 1px solid var(--border);
-  border-radius: 7px;
-  background: var(--surface-2);
-  color: var(--muted);
-  padding: 9px 11px;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.sync-error {
-  border-color: rgba(182, 64, 47, 0.35);
-  background: #fae6df;
-  color: #8f2e23;
-}
-
-/* ── Responsive ────────────────────────────────────────────────────────────── */
+/* Game-only responsive layer */
 @media (max-width: 1180px) {
   body {
     min-width: 0;
@@ -286,17 +88,9 @@
   .setup-grid {
     grid-template-columns: 1fr;
   }
-
-  .lobby-shell {
-    padding: 18px 12px 50px;
-  }
-
-  .room-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
-/* Formal responsive layer */
+/* Game-view design tokens (consumed by visual + refinement layers). */
 :root {
   --cell: clamp(28px, 2.75vw, 38px);
   --surface: rgba(255, 255, 255, 0.96);
@@ -321,14 +115,15 @@ body {
   background-size: 28px 28px;
 }
 
+/* Shared panel chrome used by both the in-game view and the auth/setup
+   screens. The lobby intentionally opts out via its own .lobby selectors. */
 .setup-panel,
 .top-bar,
 .timer-strip,
 .status-line,
 .tilebag-panel,
 .control-panel,
-.rack,
-.room-card {
+.rack {
   border-color: var(--border);
   background: var(--surface);
   box-shadow: 0 10px 32px rgba(31, 41, 51, 0.08);

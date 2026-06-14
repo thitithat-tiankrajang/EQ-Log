@@ -391,9 +391,11 @@ body {
 }
 
 @media (min-width: 760px) {
-  html,
-  body,
-  #root {
+  /* Only lock the viewport while the in-game view is mounted. The lobby has
+     no .app-shell, so html/body stay scrollable. */
+  html:has(.app-shell),
+  body:has(.app-shell),
+  #root:has(.app-shell) {
     width: 100%;
     height: 100%;
     overflow: hidden;

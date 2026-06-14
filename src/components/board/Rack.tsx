@@ -12,8 +12,9 @@ export function Rack({
   exchangeOutgoingIds,
   actionMode = "none",
   onTileClick,
+  onEmptySlotClick,
 }: {
-  rack: TileInstance[];
+  rack: (TileInstance | null)[];
   side: Side;
   label: string;
   active: boolean;
@@ -21,17 +22,32 @@ export function Rack({
   exchangeOutgoingIds: string[];
   actionMode?: ActionMode;
   onTileClick: (tile: TileInstance, side: Side) => void;
+  onEmptySlotClick?: (index: number, side: Side) => void;
 }) {
+  const tileCount = rack.filter(Boolean).length;
   return (
     <section className={`rack side-${side.toLowerCase()} ${active ? "active" : ""}`}>
       <div className="rack-label">
         <strong>{label}</strong>
-        <span>{rack.length}/8</span>
+        <span>{tileCount}/8</span>
       </div>
       <div className="rack-tiles">
         {Array.from({ length: 8 }).map((_, index) => {
           const tile = rack[index];
-          if (!tile) return <div className="rack-slot" key={`empty-${index}`} />;
+          const slotNumber = index + 1;
+          if (!tile) {
+            return (
+              <div className="rack-cell" key={`empty-${index}`}>
+                <span className="rack-cell-index" aria-hidden>{slotNumber}</span>
+                <button
+                  aria-label={`Empty rack slot ${slotNumber}`}
+                  className="rack-slot"
+                  type="button"
+                  onClick={() => onEmptySlotClick?.(index, side)}
+                />
+              </div>
+            );
+          }
           const isSelected = selectedRackTileId === tile.id;
           const isOutgoing = exchangeOutgoingIds.includes(tile.id);
           const selectionClass = isOutgoing
@@ -42,14 +58,17 @@ export function Rack({
                 : "selected place-select"
               : "";
           return (
-            <button
-              className={`tile-button rack-tile ${selectionClass}`}
-              key={tile.id}
-              type="button"
-              onClick={() => onTileClick(tile, side)}
-            >
-              <Tile tile={tile} />
-            </button>
+            <div className="rack-cell" key={tile.id}>
+              <span className="rack-cell-index" aria-hidden>{slotNumber}</span>
+              <button
+                className={`tile-button rack-tile ${selectionClass}`}
+                type="button"
+                aria-label={`Rack slot ${slotNumber}`}
+                onClick={() => onTileClick(tile, side)}
+              >
+                <Tile tile={tile} />
+              </button>
+            </div>
           );
         })}
       </div>

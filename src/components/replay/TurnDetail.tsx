@@ -1,4 +1,5 @@
 import {
+  type EndGameDetail,
   formatSeconds,
   type ExchangeDetail,
   type GameState,
@@ -15,6 +16,15 @@ import { Tile } from "../board/Tile";
 //  • time used this turn = (side's clock at turn start) − (clock at submit),
 //    where clock at turn start = the side's previous log's timerAfter.
 function turnInsights(game: GameState, log: TurnLog) {
+  if (log.action === "end_game") {
+    return {
+      startClock: log.timerAfter[log.side],
+      submitClock: log.timerAfter[log.side],
+      timeUsed: 0,
+      leftover: [],
+      drew: [],
+    };
+  }
   const priorSame = game.logs
     .filter((entry) => entry.side === log.side && entry.turnNumber < log.turnNumber)
     .sort((a, b) => a.turnNumber - b.turnNumber)
@@ -62,8 +72,11 @@ export function TurnDetail({ game, log }: { game: GameState; log: TurnLog }) {
       {log.action === "place_equation" && <PlaceBody log={log} />}
       {log.action === "exchange" && <ExchangeBody log={log} />}
       {log.action === "pass" && <p className="td-pass">Passed — board and rack unchanged.</p>}
+      {log.action === "end_game" && <EndGameBody game={game} log={log} />}
 
-      {log.action !== "pass" && <TileChips label="Rack after" muted tiles={log.rackAfter} />}
+      {(log.action === "place_equation" || log.action === "exchange") && (
+        <TileChips label="Rack after" muted tiles={log.rackAfter} />
+      )}
     </div>
   );
 }
@@ -126,6 +139,36 @@ function ExchangeBody({ log }: { log: TurnLog }) {
         tiles={detail.incomingTiles}
         highlightIds={new Set(detail.incomingTiles.map((tile) => tile.id))}
       />
+    </>
+  );
+}
+
+function EndGameBody({ game, log }: { game: GameState; log: TurnLog }) {
+  const detail = log.actionDetail as EndGameDetail;
+  return (
+    <>
+      <p className="td-pass">{detail.description}</p>
+      {detail.rackPoints && (
+        <div className="td-eq">
+          <span className="td-eq-text">
+            Rack totals: {game.players.A} {detail.rackPoints.A} · {game.players.B} {detail.rackPoints.B}
+          </span>
+          <strong>{detail.noScoreStreak ?? 0} no-score turns</strong>
+        </div>
+      )}
+      {detail.opponentRackPoints != null && (
+        <div className="td-eq">
+          <span className="td-eq-text">
+            Opponent rack {detail.opponentRackPoints} · Tilebag {detail.tilebagPoints ?? 0}
+          </span>
+          <strong>×2 bonus</strong>
+        </div>
+      )}
+      <div className="td-score">
+        <span>End-game bonus</span>
+        <strong>{detail.bonusPoints} pts</strong>
+        {detail.bonusSide && <em>to {game.players[detail.bonusSide]}</em>}
+      </div>
     </>
   );
 }

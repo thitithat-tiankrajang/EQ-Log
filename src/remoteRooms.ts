@@ -262,6 +262,7 @@ export function payloadFromRow(row: RemoteRoomRecord): RemoteRoomPayload {
 
 function metaFromRow(row: RemoteRoomRecord): RoomMeta {
   const owner = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+  const players = extractPlayerMembersFromState(row.state);
   return {
     id: row.id,
     ownerId: row.owner_id,
@@ -271,10 +272,37 @@ function metaFromRow(row: RemoteRoomRecord): RoomMeta {
     updatedAt: row.updated_at,
     playerA: row.player_a,
     playerB: row.player_b,
+    memberAId: players.memberAId,
+    memberBId: players.memberBId,
+    startingSide: players.startingSide,
     turnNumber: row.turn_number,
     scoreA: row.score_a,
     scoreB: row.score_b,
     status: row.status,
+  };
+}
+
+// Lightweight extractor: walks the encoded state JSON for the fields we need
+// without fully decoding the game. Tolerates legacy rows (returns nulls).
+function extractPlayerMembersFromState(
+  state: unknown,
+): { memberAId: string | null; memberBId: string | null; startingSide: "A" | "B" | null } {
+  if (!state || typeof state !== "object") {
+    return { memberAId: null, memberBId: null, startingSide: null };
+  }
+  const obj = state as {
+    playerMembers?: { A?: string; B?: string };
+    startingSide?: "A" | "B";
+    activeSide?: "A" | "B";
+    history?: { activeSide?: "A" | "B" }[];
+  };
+  const members = obj.playerMembers ?? {};
+  const startingSide =
+    obj.startingSide ?? obj.history?.[0]?.activeSide ?? obj.activeSide ?? null;
+  return {
+    memberAId: members.A ?? null,
+    memberBId: members.B ?? null,
+    startingSide,
   };
 }
 

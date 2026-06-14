@@ -2,10 +2,11 @@ import {
   Download,
   Flag,
   List,
-  LayoutGrid,
+  LogOut,
   Pause,
   Play,
   Redo2,
+  Trophy,
   Undo2,
   X,
 } from "lucide-react";
@@ -24,6 +25,7 @@ import { useAuth } from "./auth";
 import {
   ActionType,
   BoardSnapshot,
+  EndGameDetail,
   ExchangeDetail,
   GameState,
   NewGameSettings,
@@ -49,6 +51,8 @@ import {
   pushActionSnapshot,
   setRack,
   tileNeedsAssignment,
+  tilePoint,
+  TurnActionDetail,
   updateLogNote,
   validateMove,
 } from "./game";
@@ -75,12 +79,19 @@ type ExchangeDraft = {
   incomingTiles: TileInstance[];
 };
 
+type TilebagView = {
+  tiles: TileInstance[];
+  remainingCount: number;
+};
+
 type AssignmentRequest =
   | {
       kind: "place";
       tile: TileInstance;
       row: number;
       col: number;
+      dir?: "right" | "down" | "left" | "up";
+      rackSlot?: number;
     }
   | {
       kind: "swapPending";
@@ -132,12 +143,30 @@ function App() {
   const [selectedRackTileId, setSelectedRackTileId] = useState<string | null>(null);
   const [selectedPendingTileId, setSelectedPendingTileId] = useState<string | null>(null);
   const [pendingPlacements, setPendingPlacements] = useState<PendingPlacement[]>([]);
-  // Directional placement cursor. Clicking an empty cell cycles right → down →
-  // cancel. Pressing 1–8 (or clicking a rack tile) places that tile at the
-  // cursor and advances over any filled / pending cells in the direction.
+  // Directional placement cursor. Clicking an empty cell cycles
+  // right → down → left → up → cancel. Pressing 1–8 (or clicking a rack
+  // tile) places that tile at the cursor and advances over any filled /
+  // pending cells in the direction.
   const [placementCursor, setPlacementCursor] = useState<
-    { row: number; col: number; dir: "right" | "down" } | null
+    { row: number; col: number; dir: "right" | "down" | "left" | "up" } | null
   >(null);
+  // Replay practice sandbox. When the user enters a "before" half-step in
+  // replay, this captures a mutable copy of that turn's rackBefore + an empty
+  // placements list. The user can shuffle / place / assign exactly like a
+  // live turn, but the Submit action is disabled — it's exploratory only.
+  // Resets whenever the replay cursor moves.
+  const [replayDraft, setReplayDraft] = useState<{
+    rack: (TileInstance | null)[];
+    placements: PendingPlacement[];
+  } | null>(null);
+  // Per-side stable rack layout — 8 slots, holding tile ids. When a tile
+  // leaves rackA/rackB (e.g. dropped on the board) its slot becomes null so
+  // the remaining tiles stay in their positions instead of sliding left.
+  // Kept in sync with game.rackA / rackB via an effect below.
+  const [rackLayout, setRackLayout] = useState<Record<Side, (string | null)[]>>({
+    A: Array(8).fill(null),
+    B: Array(8).fill(null),
+  });
   const [exchangeDraft, setExchangeDraft] = useState<ExchangeDraft>({
     outgoingIds: [],
     incomingTiles: [],
@@ -154,6 +183,19 @@ function App() {
   const refillBaselineRef = useRef<RefillBaseline | null>(null);
   const boardZoneRef = useRef<HTMLElement | null>(null);
   const rightRailRef = useRef<HTMLElement | null>(null);
+  // Fast-path refs for rapid keyboard placement. Updated synchronously inside
+  // handlers so back-to-back keystrokes always read fresh state instead of
+  // stale closures. Re-synced on every render via the assignments below.
+  const cursorRef = useRef(placementCursor);
+  const pendingsRef = useRef(pendingPlacements);
+  const gameRef = useRef<GameState | null>(game);
+  const actionModeRef = useRef(actionMode);
+  const rackLayoutRef = useRef(rackLayout);
+  cursorRef.current = placementCursor;
+  pendingsRef.current = pendingPlacements;
+  gameRef.current = game;
+  actionModeRef.current = actionMode;
+  rackLayoutRef.current = rackLayout;
   const activeRoomIdRef = useRef<string | null>(activeRoomId);
   const isOwnerRef = useRef(false);
   const pendingSessionEventRef = useRef<RoomSessionEvent | null>(null);
@@ -437,27 +479,221 @@ function App() {
     };
   }, [view, game?.gameId]);
 
-  // Keyboard 1–8 places that rack tile at the active cursor (if any), or
-  // simply selects it. Only fires when the user isn't typing in a field.
+  // Keyboard 1–8 acts like clicking that rack slot (live play OR replay
+  // practice). Backspace removes the most-recently placed pending tile AND
+  // moves the cursor back to that cell so the user can immediately re-place.
+  // Ignored when typing in a field.
+  //
+  // Rapid-fire safety: the live 1–8 path reads its state from refs (kept in
+  // sync with React state on every render) and updates those refs inline so
+  // back-to-back keystrokes never see stale closure data. Without this, two
+  // fast presses can both target the same cursor cell.
   useEffect(() => {
-    if (view !== "game" || !game || readOnly || replayCursor !== null) return;
+    if (view !== "game" || !game || readOnly) return;
+    const isReplayBefore = replayCursor !== null && replayCursor % 2 === 0 && Boolean(replayDraft);
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const tag = target?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || (target?.isContentEditable ?? false)) return;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+      const consumed = () => {
+        event.preventDefault();
+        (document.activeElement as HTMLElement | null)?.blur?.();
+      };
+
+      // Backspace / Delete: undo the last placement (LIFO) and rewind the
+      // cursor to that cell so the next key/click can immediately re-place.
+      if (event.key === "Backspace" || event.key === "Delete") {
+        if (isReplayBefore && replayDraft) {
+          const last = replayDraft.placements.at(-1);
+          if (!last) return;
+          consumed();
+          const replayRack = replayDraft.rack.slice();
+          const replaySlot = last.rackSlot ?? replayRack.indexOf(null);
+          if (replaySlot >= 0 && replaySlot < 8) replayRack[replaySlot] = last.tile;
+          else replayRack.push(last.tile);
+          setReplayDraft({
+            rack: replayRack,
+            placements: replayDraft.placements.slice(0, -1),
+          });
+          setSelectedRackTileId(null);
+          setSelectedPendingTileId(null);
+          setPlacementCursor((cur) => ({ row: last.row, col: last.col, dir: last.cursorDir ?? cur?.dir ?? "right" }));
+          return;
+        }
+        // Live: read from refs so multiple Backspaces in quick succession
+        // each pop the actual latest placement, not a stale closure copy.
+        const currentGame = gameRef.current;
+        const currentPendings = pendingsRef.current;
+        const last = currentPendings.at(-1);
+        if (!last || actionModeRef.current !== "place_equation" || !currentGame) {
+          if (actionModeRef.current === "place_equation") consumed();
+          return;
+        }
+        consumed();
+        const newPendings = currentPendings.slice(0, -1);
+        const returningTile = { ...last.tile, assignedToken: last.assignedToken ?? last.tile.assignedToken };
+        const restoredLayout = fillRackLayoutSlot(currentGame.activeSide, last.rackSlot ?? -1, returningTile.id);
+        const restoredRack = rackFromSlots(
+          [...getRack(currentGame, currentGame.activeSide), returningTile],
+          currentGame.activeSide,
+          restoredLayout,
+        );
+        const newGame = setRack(
+          { ...currentGame, lastSavedAt: new Date().toISOString() },
+          currentGame.activeSide,
+          restoredRack,
+        );
+        const newCursor = { row: last.row, col: last.col, dir: last.cursorDir ?? cursorRef.current?.dir ?? "right" } as const;
+        // Sync refs first so the next keystroke sees the fresh state.
+        pendingsRef.current = newPendings;
+        gameRef.current = newGame;
+        cursorRef.current = newCursor;
+        setPendingPlacements(newPendings);
+        setGame(newGame);
+        setPlacementCursor(newCursor);
+        setSelectedRackTileId(null);
+        setSelectedPendingTileId(null);
+        return;
+      }
+
       const digit = parseInt(event.key, 10);
       if (!Number.isFinite(digit) || digit < 1 || digit > 8) return;
-      const rack = getRack(game, game.activeSide);
-      const tile = rack[digit - 1];
+
+      // Replay path: keep using the simple click handler — replayDraft state
+      // is locked to whatever the cursor moment was, so race isn't an issue.
+      if (isReplayBefore) {
+        if (selectedPendingTileId) {
+          consumed();
+          returnReplayPendingToRackSlot(digit - 1);
+          return;
+        }
+        const tile = replayDraft!.rack[digit - 1];
+        if (!tile) return;
+        consumed();
+        handleRackTileClick(tile, game.activeSide);
+        return;
+      }
+
+      // Live path — read from refs for race safety.
+      const currentGame = gameRef.current;
+      if (!currentGame) return;
+      const currentCursor = cursorRef.current;
+      const currentPendings = pendingsRef.current;
+      const rack = getRack(currentGame, currentGame.activeSide);
+      const rackSlot = digit - 1;
+      const tile = rackSlotsFrom(currentGame, currentGame.activeSide, rackLayoutRef.current)[rackSlot];
+
+      if (selectedPendingTileId) {
+        consumed();
+        handleEmptyRackSlotClick(digit - 1, currentGame.activeSide);
+        return;
+      }
       if (!tile) return;
-      event.preventDefault();
-      handleRackTileClick(tile, game.activeSide);
+
+      // Fast atomic cursor placement: read+update refs in one pass.
+      if (currentCursor) {
+        const cellOccupied =
+          Boolean(currentGame.board[currentCursor.row][currentCursor.col]) ||
+          currentPendings.some((p) => p.row === currentCursor.row && p.col === currentCursor.col);
+        if (cellOccupied) {
+          // The cursor cell got filled between renders — fall through to the
+          // generic handler, which will select the tile or skip the place.
+          consumed();
+          handleRackTileClick(tile, currentGame.activeSide);
+          return;
+        }
+        if (tileNeedsAssignment(tile.token) && !tile.assignedToken) {
+          consumed();
+          if (actionModeRef.current === "none") {
+            beginPlaceActionFromGame(currentGame, false);
+            const actionGame = { ...currentGame, phase: "perform_action" as Phase, lastSavedAt: new Date().toISOString() };
+            gameRef.current = actionGame;
+            setGame(actionGame);
+          }
+          setSelectedRackTileId(null);
+          setSelectedPendingTileId(null);
+          setAssignmentRequest({
+            kind: "place",
+            tile,
+            row: currentCursor.row,
+            col: currentCursor.col,
+            dir: currentCursor.dir,
+            rackSlot,
+          });
+          return;
+        }
+        consumed();
+        // Compute new state from refs (not closure).
+        const placement: PendingPlacement = {
+          tile,
+          row: currentCursor.row,
+          col: currentCursor.col,
+          assignedToken: tile.assignedToken,
+          cursorDir: currentCursor.dir,
+          rackSlot,
+        };
+        const newPendings = [...currentPendings, placement];
+        const nextLayout = removeTileFromRackLayout(currentGame.activeSide, tile.id);
+        const newRack = rackFromSlots(
+          rack.filter((t) => t.id !== tile.id),
+          currentGame.activeSide,
+          nextLayout,
+        );
+        const newGame = setRack(
+          { ...currentGame, lastSavedAt: new Date().toISOString() },
+          currentGame.activeSide,
+          newRack,
+        );
+        // Walk the cursor forward past occupied cells using the FRESH list.
+        const taken = new Set(newPendings.map((p) => `${p.row}:${p.col}`));
+        let next: typeof currentCursor | null = { ...currentCursor };
+        while (next) {
+          let nr: number = next.row;
+          let nc: number = next.col;
+          if (next.dir === "right") nc += 1;
+          else if (next.dir === "left") nc -= 1;
+          else if (next.dir === "down") nr += 1;
+          else nr -= 1;
+          if (nr < 0 || nc < 0 || nr >= 15 || nc >= 15) {
+            next = null;
+            break;
+          }
+          const blocked = Boolean(newGame.board[nr][nc]) || taken.has(`${nr}:${nc}`);
+          if (!blocked) {
+            next = { row: nr, col: nc, dir: next.dir };
+            break;
+          }
+          next = { row: nr, col: nc, dir: next.dir };
+        }
+        // Auto-start Place mode if needed, then sync refs first — the next
+        // keystroke (even in the same tick) gets fresh state.
+        const autoStartedPlace = actionModeRef.current === "none";
+        if (autoStartedPlace) {
+          beginPlaceActionFromGame(currentGame);
+        }
+        const finalGame = autoStartedPlace ? { ...newGame, phase: "perform_action" as Phase } : newGame;
+        pendingsRef.current = newPendings;
+        gameRef.current = finalGame;
+        cursorRef.current = next;
+        // Then trigger React updates.
+        setPendingPlacements(newPendings);
+        setGame(finalGame);
+        setPlacementCursor(next);
+        setSelectedRackTileId(null);
+        setSelectedPendingTileId(null);
+        return;
+      }
+
+      // No cursor → fall back to the generic click handler (selects the tile).
+      consumed();
+      handleRackTileClick(tile, currentGame.activeSide);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, game, readOnly, replayCursor, actionMode, placementCursor, pendingPlacements, selectedRackTileId]);
+  }, [view, game?.gameId, readOnly, replayCursor, replayDraft, selectedPendingTileId]);
 
   // Reset the undo timeline whenever a different game is opened/created/closed.
   // Declared BEFORE the capture effect so it clears state before capture runs.
@@ -497,17 +733,24 @@ function App() {
   }, [undoMutationKey, view]);
 
   const activeRack = game ? getRack(game, game.activeSide) : [];
-  const effectiveTilebag = useMemo(() => {
-    if (!game) return [];
-    return game.tilebag;
-  }, [game]);
 
   const validation = useMemo(() => {
-    if (!game || actionMode !== "place_equation") {
+    if (!game) return { isValid: false, errors: [], equations: [], score: 0, bingoBonus: 0 };
+    // Replay practice (before-phase) validates against the log's boardBefore
+    // using the draft placements. Live play validates against the live board.
+    if (replayCursor !== null) {
+      const idx = Math.floor(replayCursor / 2);
+      const log = game.logs[idx];
+      if (replayCursor % 2 === 0 && log && replayDraft && replayDraft.placements.length > 0) {
+        return validateMove(log.boardBefore, replayDraft.placements);
+      }
+      return { isValid: false, errors: [], equations: [], score: 0, bingoBonus: 0 };
+    }
+    if (actionMode !== "place_equation") {
       return { isValid: false, errors: [], equations: [], score: 0, bingoBonus: 0 };
     }
     return validateMove(game.board, pendingPlacements);
-  }, [actionMode, game, pendingPlacements]);
+  }, [actionMode, game, pendingPlacements, replayCursor, replayDraft]);
 
   // Derived replay state from the cursor.
   const replayPhase: "before" | "after" =
@@ -520,7 +763,7 @@ function App() {
   const selectedLogId = selectedLog?.id ?? null;
   const reviewing = Boolean(selectedLog);
 
-  // Replay-time score / tilebag overrides. This hook must stay before the
+  // Replay-time score / timer overrides. This hook must stay before the
   // lobby/loading return so App calls the same hooks in every render.
   const replayOverrides = useMemo(() => {
     if (!game || !selectedLog) return null;
@@ -531,7 +774,6 @@ function App() {
     // "after" phase: state right after the action (this log's after).
     const useThis = replayPhase === "after";
     const ref = useThis ? selectedLog : game.logs[logIdx - 1] ?? null;
-    const tilebag = useThis ? selectedLog.tilebagAfter : ref ? ref.tilebagAfter : game.history[0]?.tilebag ?? game.tilebag;
     // Sum finalScore per side over all logs whose state is "included" at this point.
     const upTo = useThis ? logIdx : logIdx - 1;
     const scores: Record<Side, number> = { A: 0, B: 0 };
@@ -547,8 +789,62 @@ function App() {
     const timers: Record<Side, number> = useThis
       ? selectedLog.timerAfter
       : ref?.timerAfter ?? initialTimers;
-    return { tilebag, scores, timers };
+    return { scores, timers };
   }, [game, selectedLog, replayPhase]);
+
+  // Sync the per-side display layout with the underlying game.rackA / rackB.
+  // Rules:
+  //  • Tiles that are still in the rack keep their slot.
+  //  • Tiles that have left the rack vacate their slot (slot → null).
+  //  • New tiles take the first empty slot.
+  // Result: empty slots stay in place, no left-shift "collapse".
+  useEffect(() => {
+    if (!game) return;
+    setRackLayout((current) => {
+      const next: Record<Side, (string | null)[]> = { A: current.A.slice(), B: current.B.slice() };
+      for (const side of ["A", "B"] as Side[]) {
+        const rack = getRack(game, side);
+        const presentIds = new Set(rack.map((tile) => tile.id));
+        // Vacate slots whose tiles are no longer in the rack.
+        next[side] = next[side].map((id) => (id && presentIds.has(id) ? id : null));
+        // Add new tiles to the first empty slot.
+        const knownIds = new Set(next[side].filter(Boolean) as string[]);
+        for (const tile of rack) {
+          if (knownIds.has(tile.id)) continue;
+          const emptyIdx = next[side].indexOf(null);
+          if (emptyIdx >= 0) {
+            next[side][emptyIdx] = tile.id;
+            knownIds.add(tile.id);
+          }
+        }
+      }
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game?.rackA, game?.rackB, game?.gameId]);
+
+  // Reset / seed the replay practice sandbox whenever the cursor changes.
+  useEffect(() => {
+    if (replayCursor === null) {
+      setReplayDraft(null);
+      setPlacementCursor(null);
+      return;
+    }
+    const idx = Math.floor(replayCursor / 2);
+    const log = game?.logs[idx];
+    if (!log) {
+      setReplayDraft(null);
+      return;
+    }
+    const isBeforePhase = replayCursor % 2 === 0;
+    if (isBeforePhase) {
+      // Seed a sandbox with this turn's rack-before; no placements yet.
+      setReplayDraft({ rack: log.rackBefore.slice(), placements: [] });
+    } else {
+      setReplayDraft(null);
+    }
+    setPlacementCursor(null);
+  }, [replayCursor, game?.gameId, game?.logs.length]);
 
   // Set the selection from a log id (called by TurnRecordList / LogPanel).
   // Selecting a log opens the "action applied" view of that log.
@@ -573,6 +869,7 @@ function App() {
         loading={roomsLoading}
         rooms={rooms}
         syncError={syncError}
+        isAdmin={!remoteEnabled || Boolean(profile?.is_admin)}
         getRoomRole={getRoomRole}
         onOpen={openRoom}
         onCreate={createAndOpenRoom}
@@ -785,9 +1082,99 @@ function App() {
     setActionStart(null);
   }
 
+  function rackSlotsFrom(
+    sourceGame: GameState,
+    side: Side,
+    layout: Record<Side, (string | null)[]> = rackLayoutRef.current,
+  ): (TileInstance | null)[] {
+    const tilesById = new Map(getRack(sourceGame, side).map((tile) => [tile.id, tile]));
+    return layout[side].map((id) => (id ? tilesById.get(id) ?? null : null));
+  }
+
+  function rackFromSlots(sourceRack: TileInstance[], side: Side, layout: Record<Side, (string | null)[]>): TileInstance[] {
+    const tilesById = new Map(sourceRack.map((tile) => [tile.id, tile]));
+    const used = new Set<string>();
+    const ordered: TileInstance[] = [];
+    for (const id of layout[side]) {
+      if (!id) continue;
+      const tile = tilesById.get(id);
+      if (!tile || used.has(id)) continue;
+      ordered.push(tile);
+      used.add(id);
+    }
+    for (const tile of sourceRack) {
+      if (!used.has(tile.id)) ordered.push(tile);
+    }
+    return ordered;
+  }
+
+  function applyRackLayout(updater: (current: Record<Side, (string | null)[]>) => Record<Side, (string | null)[]>) {
+    const next = updater(rackLayoutRef.current);
+    rackLayoutRef.current = next;
+    setRackLayout(next);
+    return next;
+  }
+
+  function removeTileFromRackLayout(side: Side, tileId: string) {
+    return applyRackLayout((current) => ({
+      ...current,
+      [side]: current[side].map((id) => (id === tileId ? null : id)),
+    }));
+  }
+
+  function fillRackLayoutSlot(side: Side, slot: number, tileId: string) {
+    return applyRackLayout((current) => {
+      const slots = current[side].map((id) => (id === tileId ? null : id));
+      const target = slot >= 0 && slot < 8 ? slot : slots.indexOf(null);
+      if (target >= 0) slots[target] = tileId;
+      return { ...current, [side]: slots };
+    });
+  }
+
+  function swapRackLayoutTiles(side: Side, firstId: string, secondId: string) {
+    return applyRackLayout((current) => {
+      const slots = current[side].slice();
+      const firstIndex = slots.indexOf(firstId);
+      const secondIndex = slots.indexOf(secondId);
+      if (firstIndex < 0 || secondIndex < 0) return current;
+      [slots[firstIndex], slots[secondIndex]] = [slots[secondIndex], slots[firstIndex]];
+      return { ...current, [side]: slots };
+    });
+  }
+
+  function rackSlotForTile(side: Side, tileId: string, layout: Record<Side, (string | null)[]> = rackLayoutRef.current) {
+    const index = layout[side].indexOf(tileId);
+    return index >= 0 ? index : undefined;
+  }
+
+  function beginPlaceActionFromGame(sourceGame: GameState, clearAssignment = true) {
+    pendingSessionEventRef.current = "state";
+    actionModeRef.current = "place_equation";
+    setActionMode("place_equation");
+    setSelectedRackTileId(null);
+    setSelectedPendingTileId(null);
+    if (clearAssignment) setAssignmentRequest(null);
+    setReplayCursor(null);
+    setActionStart({
+      startedAt: sourceGame.currentTurnStartedAt,
+      rackBefore: deepClone(getRack(sourceGame, sourceGame.activeSide)),
+      boardBefore: deepClone(sourceGame.board),
+      tilebagBefore: deepClone(sourceGame.tilebag),
+      timerBefore: { A: sourceGame.timers.A, B: sourceGame.timers.B },
+    });
+  }
+
   const reviewBoard = selectedLog
     ? replayPhase === "before"
-      ? selectedLog.boardBefore
+      ? // Overlay any practice placements the user has dropped during replay.
+        replayDraft && replayDraft.placements.length > 0
+        ? boardWithPending(
+            selectedLog.boardBefore,
+            replayDraft.placements,
+            selectedLog.turnNumber,
+            selectedLog.side,
+          )
+        : selectedLog.boardBefore
       : selectedLog.boardAfter
     : undefined;
   const boardToRender =
@@ -802,6 +1189,8 @@ function App() {
     !reviewing &&
     actionMode === "none" &&
     (game.phase === "choose_action" || isRackReady(game));
+  const exchangeRule = getExchangeRule(game);
+  const canStartExchange = canChooseAction && exchangeRule.allowed;
   const refillBaseline = refillBaselineRef.current;
   const canEditRefill =
     canChooseAction &&
@@ -816,6 +1205,8 @@ function App() {
 
   function startAction(action: ActionType) {
     if (!game || !canChooseAction || readOnly) return;
+    if (action === "end_game") return;
+    if (action === "exchange" && !exchangeRule.allowed) return;
     pendingSessionEventRef.current = "state";
     setActionMode(action);
     setSelectedRackTileId(null);
@@ -840,10 +1231,22 @@ function App() {
     if (!game || readOnly) return;
     pendingSessionEventRef.current = "state";
     if (actionMode === "place_equation" && pendingPlacements.length > 0) {
-      const rack = [
-        ...getRack(game, game.activeSide).map(clearTileAssignment),
-        ...pendingPlacements.map((item) => clearTileAssignment(item.tile)),
-      ];
+      const returningTiles = pendingPlacements.map((item) => clearTileAssignment(item.tile));
+      let nextLayout = rackLayoutRef.current;
+      for (const item of pendingPlacements) {
+        const tile = clearTileAssignment(item.tile);
+        const slots = nextLayout[game.activeSide].map((id) => (id === tile.id ? null : id));
+        const target = item.rackSlot !== undefined && item.rackSlot >= 0 && item.rackSlot < 8 ? item.rackSlot : slots.indexOf(null);
+        if (target >= 0) slots[target] = tile.id;
+        nextLayout = { ...nextLayout, [game.activeSide]: slots };
+      }
+      rackLayoutRef.current = nextLayout;
+      setRackLayout(nextLayout);
+      const rack = rackFromSlots(
+        [...getRack(game, game.activeSide).map(clearTileAssignment), ...returningTiles],
+        game.activeSide,
+        nextLayout,
+      );
       setGame({
         ...setRack(game, game.activeSide, rack),
         phase: isRackReady({ ...setRack(game, game.activeSide, rack), phase: "refill" }) ? "choose_action" : "refill",
@@ -890,6 +1293,7 @@ function App() {
       };
     }
     const nextRack = [...rack, tile];
+    fillRackLayoutSlot(game.activeSide, rackLayoutRef.current[game.activeSide].indexOf(null), tile.id);
     const nextTilebag = game.tilebag.filter((candidate) => candidate.id !== tile.id);
     const rackReady = nextRack.length >= 8 || nextTilebag.length === 0;
     const pendingBySide = getPendingExchangeReturnBySide(game);
@@ -962,7 +1366,12 @@ function App() {
         : getRack(game, game.activeSide).map((rackTile) => rackTile.id);
     if (baselineIds.includes(tile.id)) return;
     const rack = getRack(game, game.activeSide);
-    const nextRack = rack.filter((candidate) => candidate.id !== tile.id);
+    const nextLayout = removeTileFromRackLayout(game.activeSide, tile.id);
+    const nextRack = rackFromSlots(
+      rack.filter((candidate) => candidate.id !== tile.id),
+      game.activeSide,
+      nextLayout,
+    );
     setGame(
       setRack(
         {
@@ -983,18 +1392,27 @@ function App() {
     return true;
   }
 
-  function placeRackTileOnBoard(tile: TileInstance, row: number, col: number) {
+  function placeRackTileOnBoard(
+    tile: TileInstance,
+    row: number,
+    col: number,
+    options: { cursorDir?: "right" | "down" | "left" | "up"; rackSlot?: number } = {},
+  ) {
     if (!game || readOnly) return;
     pendingSessionEventRef.current = "state";
     const rack = getRack(game, game.activeSide);
     if (!rack.some((candidate) => candidate.id === tile.id)) return;
+    const rackSlot = options.rackSlot ?? rackSlotForTile(game.activeSide, tile.id);
     const placement: PendingPlacement = {
       tile,
       row,
       col,
       assignedToken: tile.assignedToken,
+      cursorDir: options.cursorDir,
+      rackSlot,
     };
     setPendingPlacements((current) => [...current, placement]);
+    const nextLayout = removeTileFromRackLayout(game.activeSide, tile.id);
     setGame(
       setRack(
         {
@@ -1002,7 +1420,11 @@ function App() {
           lastSavedAt: new Date().toISOString(),
         },
         game.activeSide,
-        rack.filter((candidate) => candidate.id !== tile.id),
+        rackFromSlots(
+          rack.filter((candidate) => candidate.id !== tile.id),
+          game.activeSide,
+          nextLayout,
+        ),
       ),
     );
     setSelectedRackTileId(null);
@@ -1015,11 +1437,13 @@ function App() {
     const rack = getRack(game, game.activeSide);
     const rackIndex = rack.findIndex((candidate) => candidate.id === rackTile.id);
     if (rackIndex < 0) return;
+    const rackSlot = rackSlotForTile(game.activeSide, rackTile.id);
     const returningTile = {
       ...pending.tile,
       assignedToken: pending.assignedToken ?? pending.tile.assignedToken,
     };
     const nextRack = rack.map((candidate, index) => (index === rackIndex ? returningTile : candidate));
+    const nextLayout = fillRackLayoutSlot(game.activeSide, rackSlot ?? pending.rackSlot ?? -1, returningTile.id);
     setPendingPlacements((current) =>
       current.map((placement) =>
         placement.tile.id === pending.tile.id
@@ -1027,6 +1451,7 @@ function App() {
               ...placement,
               tile: rackTile,
               assignedToken: rackTile.assignedToken,
+              rackSlot,
             }
           : placement,
       ),
@@ -1038,31 +1463,282 @@ function App() {
           lastSavedAt: new Date().toISOString(),
         },
         game.activeSide,
-        nextRack,
+        rackFromSlots(nextRack, game.activeSide, nextLayout),
       ),
     );
     setSelectedRackTileId(null);
     setSelectedPendingTileId(null);
   }
 
+  // Replay practice — operates entirely in client state. Allows shuffling
+  // the rack and dropping tiles on the board against the boardBefore state.
+  function handleReplayRackTileClick(tile: TileInstance) {
+    if (!selectedLog || replayPhase !== "before" || !replayDraft) return;
+    // Cursor active → drop the tile at the cursor.
+    if (placementCursor) {
+      const target = placementCursor;
+      const occupied =
+        Boolean(selectedLog.boardBefore[target.row][target.col]) ||
+        replayDraft.placements.some((p) => p.row === target.row && p.col === target.col);
+      if (occupied) return;
+      if (tileNeedsAssignment(tile.token) && !tile.assignedToken) {
+        const rackSlot = replayDraft.rack.findIndex((t) => t?.id === tile.id);
+        setAssignmentRequest({ kind: "place", tile, row: target.row, col: target.col, dir: target.dir, rackSlot });
+        return;
+      }
+      const rackSlot = replayDraft.rack.findIndex((t) => t?.id === tile.id);
+      const nextPlacements: PendingPlacement[] = [
+        ...replayDraft.placements,
+        { tile, row: target.row, col: target.col, assignedToken: tile.assignedToken, cursorDir: target.dir, rackSlot },
+      ];
+      const nextRack = replayDraft.rack.map((t) => (t?.id === tile.id ? null : t));
+      setReplayDraft({ rack: nextRack, placements: nextPlacements });
+      setSelectedRackTileId(null);
+      setSelectedPendingTileId(null);
+      setPlacementCursor(advanceReplayCursor(target, nextPlacements));
+      return;
+    }
+    if (selectedPendingTileId) {
+      const pending = replayDraft.placements.find((placement) => placement.tile.id === selectedPendingTileId);
+      const rackSlot = replayDraft.rack.findIndex((candidate) => candidate?.id === tile.id);
+      if (pending && rackSlot >= 0) {
+        if (tileNeedsAssignment(tile.token) && !tile.assignedToken) {
+          setAssignmentRequest({ kind: "swapPending", tile, pendingTileId: pending.tile.id });
+          return;
+        }
+        swapReplayRackTileWithPending(tile, pending);
+        return;
+      }
+    }
+    // Swap two rack tiles (existing selection → swap; no selection → select).
+    if (selectedRackTileId && selectedRackTileId !== tile.id) {
+      const a = replayDraft.rack.findIndex((t) => t?.id === selectedRackTileId);
+      const b = replayDraft.rack.findIndex((t) => t?.id === tile.id);
+      if (a >= 0 && b >= 0) {
+        const next = replayDraft.rack.slice();
+        [next[a], next[b]] = [next[b], next[a]];
+        setReplayDraft({ ...replayDraft, rack: next });
+        setSelectedRackTileId(null);
+        return;
+      }
+    }
+    setSelectedRackTileId((current) => (current === tile.id ? null : tile.id));
+  }
+
+  function handleReplayBoardClick(row: number, col: number) {
+    if (!selectedLog || replayPhase !== "before" || !replayDraft) return;
+    const occupied =
+      Boolean(selectedLog.boardBefore[row][col]) ||
+      replayDraft.placements.some((p) => p.row === row && p.col === col);
+    // Cursor cycling on empty cells: right → down → left → up → cancel.
+    if (!selectedRackTileId && !selectedPendingTileId && !occupied) {
+      const cycle: Array<"right" | "down" | "left" | "up"> = ["right", "down", "left", "up"];
+      const sameCell = placementCursor && placementCursor.row === row && placementCursor.col === col;
+      if (!sameCell) {
+        setPlacementCursor({ row, col, dir: "right" });
+      } else {
+        const i = cycle.indexOf(placementCursor!.dir);
+        const next = i < cycle.length - 1 ? cycle[i + 1] : null;
+        setPlacementCursor(next ? { row, col, dir: next } : null);
+      }
+      return;
+    }
+    // Selected pending tile + empty cell → move pending to that cell.
+    if (selectedPendingTileId && !occupied) {
+      setReplayDraft({
+        ...replayDraft,
+        placements: replayDraft.placements.map((p) =>
+          p.tile.id === selectedPendingTileId ? { ...p, row, col } : p,
+        ),
+      });
+      setSelectedPendingTileId(null);
+      return;
+    }
+    if (selectedRackTileId && !occupied) {
+      const tile = replayDraft.rack.find((t) => t?.id === selectedRackTileId);
+      if (!tile) return;
+      if (tileNeedsAssignment(tile.token) && !tile.assignedToken) {
+        const rackSlot = replayDraft.rack.findIndex((t) => t?.id === tile.id);
+        setAssignmentRequest({ kind: "place", tile, row, col, rackSlot });
+        return;
+      }
+      const rackSlot = replayDraft.rack.findIndex((t) => t?.id === tile.id);
+      const nextPlacements: PendingPlacement[] = [
+        ...replayDraft.placements,
+        { tile, row, col, assignedToken: tile.assignedToken, rackSlot },
+      ];
+      const nextRack = replayDraft.rack.map((t) => (t?.id === tile.id ? null : t));
+      setReplayDraft({ rack: nextRack, placements: nextPlacements });
+      setSelectedRackTileId(null);
+      return;
+    }
+    // Tap on a pending placement: select it (or deselect if already selected);
+    // moving the tile back to the rack now requires Cancel.
+    const pending = replayDraft.placements.find((p) => p.row === row && p.col === col);
+    if (pending) {
+      if (selectedRackTileId) {
+        // Selected rack tile + tap pending → swap them.
+        const rackTile = replayDraft.rack.find((t) => t?.id === selectedRackTileId);
+        if (!rackTile) return;
+        if (tileNeedsAssignment(rackTile.token) && !rackTile.assignedToken) {
+          setAssignmentRequest({ kind: "swapPending", tile: rackTile, pendingTileId: pending.tile.id });
+          return;
+        }
+        swapReplayRackTileWithPending(rackTile, pending);
+        return;
+      }
+      if (selectedPendingTileId && selectedPendingTileId !== pending.tile.id) {
+        // Swap two pending tiles' positions.
+        const other = replayDraft.placements.find((p) => p.tile.id === selectedPendingTileId);
+        if (!other) return;
+        setReplayDraft({
+          ...replayDraft,
+          placements: replayDraft.placements.map((p) => {
+            if (p.tile.id === other.tile.id) return { ...p, row: pending.row, col: pending.col };
+            if (p.tile.id === pending.tile.id) return { ...p, row: other.row, col: other.col };
+            return p;
+          }),
+        });
+        setSelectedPendingTileId(null);
+        return;
+      }
+      setSelectedRackTileId(null);
+      setSelectedPendingTileId((cur) => (cur === pending.tile.id ? null : pending.tile.id));
+    }
+  }
+
+  function swapReplayRackTileWithPending(rackTile: TileInstance, pending: PendingPlacement) {
+    if (!replayDraft) return;
+    const rackSlot = replayDraft.rack.findIndex((candidate) => candidate?.id === rackTile.id);
+    if (rackSlot < 0) return;
+    const returningTile = {
+      ...pending.tile,
+      assignedToken: pending.assignedToken ?? pending.tile.assignedToken,
+    };
+    setReplayDraft({
+      rack: replayDraft.rack.map((tile) => (tile?.id === rackTile.id ? returningTile : tile)),
+      placements: replayDraft.placements.map((placement) =>
+        placement.tile.id === pending.tile.id
+          ? { ...placement, tile: rackTile, assignedToken: rackTile.assignedToken, rackSlot }
+          : placement,
+      ),
+    });
+    setSelectedRackTileId(null);
+    setSelectedPendingTileId(null);
+  }
+
+  function returnReplayPendingToRackSlot(index: number) {
+    if (!replayDraft) return;
+    const targetId = selectedPendingTileId ?? replayDraft.placements.at(-1)?.tile.id;
+    if (!targetId) return;
+    const item = replayDraft.placements.find((placement) => placement.tile.id === targetId);
+    if (!item) return;
+    const returningTile = {
+      ...item.tile,
+      assignedToken: item.assignedToken ?? item.tile.assignedToken,
+    };
+    const nextRack = replayDraft.rack.slice();
+    const target = index >= 0 && index < 8 ? index : nextRack.indexOf(null);
+    if (target >= 0) {
+      const displaced = nextRack[target];
+      nextRack[target] = returningTile;
+      if (displaced && displaced.id !== returningTile.id) {
+        const emptyIndex = nextRack.findIndex((tile, tileIndex) => tileIndex !== target && tile === null);
+        if (emptyIndex >= 0) nextRack[emptyIndex] = displaced;
+        else nextRack.push(displaced);
+      }
+    } else {
+      nextRack.push(returningTile);
+    }
+    setReplayDraft({
+      rack: nextRack,
+      placements: replayDraft.placements.filter((placement) => placement.tile.id !== targetId),
+    });
+    setSelectedPendingTileId(null);
+  }
+
+  function advanceReplayCursor(
+    cursor: { row: number; col: number; dir: "right" | "down" | "left" | "up" },
+    extraPending: PendingPlacement[],
+  ): { row: number; col: number; dir: "right" | "down" | "left" | "up" } | null {
+    if (!selectedLog) return null;
+    let { row, col } = cursor;
+    const dir = cursor.dir;
+    const pendingKeys = new Set(extraPending.map((placement) => `${placement.row}:${placement.col}`));
+    while (true) {
+      if (dir === "right") col += 1;
+      else if (dir === "left") col -= 1;
+      else if (dir === "down") row += 1;
+      else row -= 1;
+      if (row < 0 || col < 0 || row >= 15 || col >= 15) return null;
+      const cellTaken = Boolean(selectedLog.boardBefore[row][col]) || pendingKeys.has(`${row}:${col}`);
+      if (!cellTaken) return { row, col, dir };
+    }
+  }
+
+  // Clicking an empty rack slot returns the currently-selected pending tile
+  // to the rack at that position (or the most recent pending if none is
+  // explicitly selected). Empty slot click is the "put it back" action — it
+  // mirrors clicking an empty board cell when a pending tile is selected.
+  function handleEmptyRackSlotClick(index: number, side: Side) {
+    if (!game || readOnly) return;
+    // Replay practice flow.
+    if (reviewing) {
+      returnReplayPendingToRackSlot(index);
+      return;
+    }
+    if (game.status !== "playing") return;
+    if (actionMode !== "place_equation") return;
+    const targetId = selectedPendingTileId ?? pendingPlacements.at(-1)?.tile.id;
+    if (!targetId) return;
+    const item = pendingPlacements.find((p) => p.tile.id === targetId);
+    if (!item) return;
+    const returningTile = { ...item.tile, assignedToken: item.assignedToken ?? item.tile.assignedToken };
+    const nextLayout = fillRackLayoutSlot(side, index, returningTile.id);
+    const nextRack = rackFromSlots(
+      [...getRack(game, game.activeSide), returningTile],
+      game.activeSide,
+      nextLayout,
+    );
+    setPendingPlacements((current) => current.filter((p) => p.tile.id !== targetId));
+    setGame(
+      setRack(
+        { ...game, lastSavedAt: new Date().toISOString() },
+        game.activeSide,
+        nextRack,
+      ),
+    );
+    setSelectedPendingTileId(null);
+  }
+
   function handleRackTileClick(tile: TileInstance, side: Side) {
-    if (!game || readOnly || reviewing || game.status !== "playing") return;
+    if (!game || readOnly) return;
+    // Replay practice flow — runs regardless of live game.status (a finished
+    // game is the most common thing to replay).
+    if (reviewing) {
+      handleReplayRackTileClick(tile);
+      return;
+    }
+    if (game.status !== "playing") return;
     if (side !== game.activeSide) return;
-    // Placement cursor active: place the tile at the cursor and advance.
+    // Placement cursor active: place the tile at the cursor and advance —
+    // this fully moves the tile from rack onto the board via the existing
+    // placeRackTileOnBoard helper (which removes the tile from the rack).
     if (placementCursor && (actionMode === "none" ? canChooseAction : actionMode === "place_equation")) {
       if (actionMode === "none") startAction("place_equation");
       const target = placementCursor;
-      const assigned = tile.assignedToken;
-      const placement: PendingPlacement = { row: target.row, col: target.col, tile, assignedToken: assigned };
-      const next = [...pendingPlacements, placement];
-      if (tileNeedsAssignment(tile.token) && !assigned) {
-        setAssignmentRequest({ kind: "place", tile, row: target.row, col: target.col });
-        // Defer the actual placement until the user picks a value — but place
-        // the tile first (assignedToken filled in later) so the cursor still advances.
+      const rackSlot = rackSlotForTile(game.activeSide, tile.id);
+      if (requestAssignmentForTile(tile, { kind: "place", tile, row: target.row, col: target.col, dir: target.dir, rackSlot })) {
+        // Need a value first; advance the cursor over this cell so the user
+        // can continue placing once they pick a value.
+        return;
       }
-      setPendingPlacements(next);
-      setSelectedRackTileId(null);
-      setSelectedPendingTileId(null);
+      placeRackTileOnBoard(tile, target.row, target.col, { cursorDir: target.dir, rackSlot });
+      // Compute "next pending" inline so advanceCursor can skip the just-placed cell.
+      const next = [
+        ...pendingPlacements,
+        { tile, row: target.row, col: target.col, assignedToken: tile.assignedToken, cursorDir: target.dir, rackSlot },
+      ];
       const advanced = advanceCursor(target, next);
       setPlacementCursor(advanced);
       return;
@@ -1080,11 +1756,8 @@ function App() {
       }
       if (selectedRackTileId && selectedRackTileId !== tile.id) {
         const rack = getRack(game, game.activeSide);
-        const selectedIndex = rack.findIndex((candidate) => candidate.id === selectedRackTileId);
-        const targetIndex = rack.findIndex((candidate) => candidate.id === tile.id);
-        if (selectedIndex >= 0 && targetIndex >= 0) {
-          const nextRack = [...rack];
-          [nextRack[selectedIndex], nextRack[targetIndex]] = [nextRack[targetIndex], nextRack[selectedIndex]];
+        if (rack.some((candidate) => candidate.id === selectedRackTileId) && rack.some((candidate) => candidate.id === tile.id)) {
+          const nextLayout = swapRackLayoutTiles(game.activeSide, selectedRackTileId, tile.id);
           setGame(
             setRack(
               {
@@ -1092,7 +1765,7 @@ function App() {
                 lastSavedAt: new Date().toISOString(),
               },
               game.activeSide,
-              nextRack,
+              rackFromSlots(rack, game.activeSide, nextLayout),
             ),
           );
           setSelectedRackTileId(null);
@@ -1120,11 +1793,8 @@ function App() {
       }
       if (selectedRackTileId && selectedRackTileId !== tile.id) {
         const rack = getRack(game, game.activeSide);
-        const selectedIndex = rack.findIndex((candidate) => candidate.id === selectedRackTileId);
-        const targetIndex = rack.findIndex((candidate) => candidate.id === tile.id);
-        if (selectedIndex >= 0 && targetIndex >= 0) {
-          const nextRack = [...rack];
-          [nextRack[selectedIndex], nextRack[targetIndex]] = [nextRack[targetIndex], nextRack[selectedIndex]];
+        if (rack.some((candidate) => candidate.id === selectedRackTileId) && rack.some((candidate) => candidate.id === tile.id)) {
+          const nextLayout = swapRackLayoutTiles(game.activeSide, selectedRackTileId, tile.id);
           setGame(
             setRack(
               {
@@ -1132,7 +1802,7 @@ function App() {
                 lastSavedAt: new Date().toISOString(),
               },
               game.activeSide,
-              nextRack,
+              rackFromSlots(rack, game.activeSide, nextLayout),
             ),
           );
           setSelectedRackTileId(null);
@@ -1166,35 +1836,48 @@ function App() {
   // Advance the directional cursor one cell, skipping cells already filled
   // (board) or already pending. Returns null if the cursor falls off the board.
   function advanceCursor(
-    cursor: { row: number; col: number; dir: "right" | "down" },
+    cursor: { row: number; col: number; dir: "right" | "down" | "left" | "up" },
     extraPending: PendingPlacement[],
-  ): { row: number; col: number; dir: "right" | "down" } | null {
+  ): { row: number; col: number; dir: "right" | "down" | "left" | "up" } | null {
     if (!game) return null;
     let { row, col } = cursor;
     const dir = cursor.dir;
     const pendingKeys = new Set(extraPending.map((p) => `${p.row}:${p.col}`));
     while (true) {
       if (dir === "right") col += 1;
-      else row += 1;
-      if (row >= 15 || col >= 15) return null;
+      else if (dir === "left") col -= 1;
+      else if (dir === "down") row += 1;
+      else row -= 1;
+      if (row < 0 || col < 0 || row >= 15 || col >= 15) return null;
       const cellTaken = Boolean(game.board[row][col]) || pendingKeys.has(`${row}:${col}`);
       if (!cellTaken) return { row, col, dir };
     }
   }
 
   function handleBoardCellClick(row: number, col: number) {
-    if (!game || readOnly || reviewing) return;
+    if (!game || readOnly) return;
+    if (reviewing) {
+      handleReplayBoardClick(row, col);
+      return;
+    }
     const occupied = Boolean(game.board[row][col]) ||
       pendingPlacements.some((p) => p.row === row && p.col === col);
-    // Empty cell with no selected rack tile → cursor cycling.
-    if (!selectedRackTileId && !occupied && (actionMode === "none" ? canChooseAction : actionMode === "place_equation")) {
-      // Cycle: nothing → right → down → cancel
-      if (!placementCursor || placementCursor.row !== row || placementCursor.col !== col) {
+    // Empty cell with no selection (rack or pending) → cursor cycling
+    // through 4 directions: right → down → left → up → cancel.
+    if (
+      !selectedRackTileId &&
+      !selectedPendingTileId &&
+      !occupied &&
+      (actionMode === "none" ? canChooseAction : actionMode === "place_equation")
+    ) {
+      const cycle: Array<"right" | "down" | "left" | "up"> = ["right", "down", "left", "up"];
+      const sameCell = placementCursor && placementCursor.row === row && placementCursor.col === col;
+      if (!sameCell) {
         setPlacementCursor({ row, col, dir: "right" });
-      } else if (placementCursor.dir === "right") {
-        setPlacementCursor({ row, col, dir: "down" });
       } else {
-        setPlacementCursor(null);
+        const i = cycle.indexOf(placementCursor!.dir);
+        const next = i < cycle.length - 1 ? cycle[i + 1] : null;
+        setPlacementCursor(next ? { row, col, dir: next } : null);
       }
       return;
     }
@@ -1231,28 +1914,12 @@ function App() {
         }
         return;
       }
-      if (!selectedPendingTileId) {
-        setSelectedRackTileId(null);
-        setSelectedPendingTileId(pending.tile.id);
-        return;
-      }
-      setPendingPlacements((current) =>
-        current.filter((item) => item.tile.id !== pending.tile.id),
-      );
-      setGame(
-        setRack(
-          {
-            ...game,
-            lastSavedAt: new Date().toISOString(),
-          },
-          game.activeSide,
-          [
-            ...getRack(game, game.activeSide),
-            { ...pending.tile, assignedToken: pending.assignedToken ?? pending.tile.assignedToken },
-          ],
-        ),
-      );
-      setSelectedPendingTileId(null);
+      // Tap on a pending tile: SELECT it (first tap) or DESELECT (second tap
+      // on the same tile). Pulling the tile back to the rack is reserved for
+      // Cancel — selection only here so a follow-up empty-cell click can move
+      // the tile rather than accidentally remove it.
+      setSelectedRackTileId(null);
+      setSelectedPendingTileId((cur) => (cur === pending.tile.id ? null : pending.tile.id));
       return;
     }
     if (game.board[row][col]) return;
@@ -1272,7 +1939,7 @@ function App() {
     const rack = getRack(game, game.activeSide);
     const tile = rack.find((candidate) => candidate.id === selectedRackTileId);
     if (!tile) return;
-    if (requestAssignmentForTile(tile, { kind: "place", tile, row, col })) return;
+    if (requestAssignmentForTile(tile, { kind: "place", tile, row, col, rackSlot: rackSlotForTile(game.activeSide, tile.id) })) return;
     placeRackTileOnBoard(tile, row, col);
   }
 
@@ -1296,7 +1963,49 @@ function App() {
       assignedToken: value,
     };
     if (assignmentRequest.kind === "place") {
-      placeRackTileOnBoard(assignedTile, assignmentRequest.row, assignmentRequest.col);
+      const placement: PendingPlacement = {
+        tile: assignedTile,
+        row: assignmentRequest.row,
+        col: assignmentRequest.col,
+        assignedToken: value,
+        cursorDir: assignmentRequest.dir,
+        rackSlot: assignmentRequest.rackSlot,
+      };
+      if (reviewing && replayPhase === "before" && replayDraft && selectedLog) {
+        const nextPlacements = [
+          ...replayDraft.placements.filter((item) => item.tile.id !== assignedTile.id),
+          placement,
+        ];
+        const nextRack = replayDraft.rack.map((tile) => (tile?.id === assignedTile.id ? null : tile));
+        setReplayDraft({ rack: nextRack, placements: nextPlacements });
+        setSelectedRackTileId(null);
+        setSelectedPendingTileId(null);
+        if (assignmentRequest.dir) {
+          setPlacementCursor(
+            advanceReplayCursor(
+              { row: assignmentRequest.row, col: assignmentRequest.col, dir: assignmentRequest.dir },
+              nextPlacements,
+            ),
+          );
+        }
+        setAssignmentRequest(null);
+        return;
+      }
+      placeRackTileOnBoard(assignedTile, assignmentRequest.row, assignmentRequest.col, {
+        cursorDir: assignmentRequest.dir,
+        rackSlot: assignmentRequest.rackSlot,
+      });
+      if (assignmentRequest.dir) {
+        setPlacementCursor(
+          advanceCursor(
+            { row: assignmentRequest.row, col: assignmentRequest.col, dir: assignmentRequest.dir },
+            [...pendingPlacements, placement],
+          ),
+        );
+      }
+    } else if (reviewing && replayPhase === "before" && replayDraft) {
+      const pending = replayDraft.placements.find((placement) => placement.tile.id === assignmentRequest.pendingTileId);
+      if (pending) swapReplayRackTileWithPending(assignedTile, pending);
     } else {
       const pending = pendingPlacements.find((placement) => placement.tile.id === assignmentRequest.pendingTileId);
       if (pending) swapRackTileWithPending(assignedTile, pending);
@@ -1308,7 +2017,16 @@ function App() {
     if (!game || readOnly) return;
     pendingSessionEventRef.current = "submit_action";
     const nextSide = otherSide(game.activeSide);
-    const logs = [...game.logs, log];
+    const normalLogs = [...game.logs, log];
+    const endGameLog = createAutomaticEndGameLog({
+      boardAfter,
+      game,
+      normalLog: log,
+      rackAfter,
+      tilebagAfter,
+      logs: normalLogs,
+    });
+    const logs = endGameLog ? [...normalLogs, endGameLog] : normalLogs;
     const pendingBySide = getPendingExchangeReturnBySide(game);
     const nextPendingBySide = floatingTiles
       ? { ...pendingBySide, [game.activeSide]: floatingTiles }
@@ -1324,7 +2042,9 @@ function App() {
         scores: calculateTotals(logs),
         activeSide: nextSide,
         turnNumber: game.turnNumber + 1,
-        phase: "refill" as Phase,
+        status: endGameLog ? "finished" : game.status,
+        timers: endGameLog ? { ...game.timers, paused: true } : game.timers,
+        phase: endGameLog ? "choose_action" as Phase : "refill" as Phase,
         currentTurnStartedAt: new Date().toISOString(),
         lastSavedAt: new Date().toISOString(),
       },
@@ -1333,9 +2053,10 @@ function App() {
     );
     const nextGame = {
       ...switchedBase,
-      phase: phaseForNextSide(switchedBase),
+      phase: endGameLog ? switchedBase.phase : phaseForNextSide(switchedBase),
     };
     setGame(pushActionSnapshot(nextGame));
+    if (endGameLog) setShowResult(true);
     setActionMode("none");
     setActionStart(null);
     setPendingPlacements([]);
@@ -1346,7 +2067,18 @@ function App() {
   }
 
   function confirmPlace() {
-    if (readOnly || !game || !actionStart || actionMode !== "place_equation" || !validation.isValid) return;
+    if (readOnly || !game || actionMode !== "place_equation" || !validation.isValid) return;
+    const effectiveActionStart =
+      actionStart ?? {
+        startedAt: game.currentTurnStartedAt,
+        rackBefore: [
+          ...deepClone(getRack(game, game.activeSide)),
+          ...pendingPlacements.map((placement) => deepClone(placement.tile)),
+        ],
+        boardBefore: deepClone(game.board),
+        tilebagBefore: deepClone(game.tilebag),
+        timerBefore: { A: game.timers.A, B: game.timers.B },
+      };
     const now = new Date().toISOString();
     const boardAfter = boardWithPending(game.board, pendingPlacements, game.turnNumber, game.activeSide);
     const rackAfter = deepClone(getRack(game, game.activeSide)).map(clearTileAssignment);
@@ -1354,7 +2086,7 @@ function App() {
     const log = createTurnLog({
       game,
       action: "place_equation",
-      actionStart,
+      actionStart: effectiveActionStart,
       endedAt: now,
       rackAfter,
       boardAfter,
@@ -1367,6 +2099,7 @@ function App() {
 
   function confirmExchange() {
     if (readOnly || !game || !actionStart || actionMode !== "exchange") return;
+    if (!exchangeRule.allowed) return;
     if (exchangeDraft.outgoingIds.length === 0) return;
     const outgoingSet = new Set(exchangeDraft.outgoingIds);
     const outgoingTiles = getRack(game, game.activeSide).filter((tile) => outgoingSet.has(tile.id));
@@ -1510,7 +2243,9 @@ function App() {
   function endGame() {
     if (!game || readOnly) return;
     pendingSessionEventRef.current = "end_game";
-    const confirmed = window.confirm("End this game? You can reopen and continue it later.");
+    const confirmed = window.confirm(
+      "End this game? It will be locked as finished — you can replay it later but cannot continue playing.",
+    );
     if (!confirmed) return;
     cancelDraftOnly();
     setReplayCursor(null);
@@ -1526,9 +2261,11 @@ function App() {
     setShowResult(true);
   }
 
-  // Owner reopens a finished game to keep playing; new turns append to the log.
+  // Resume a *drafted* game (the user previously hit Save & Exit). Finished
+  // games are locked and never come back through here.
   function resumeGame() {
     if (!game || readOnly) return;
+    if (game.status !== "draft") return;
     pendingSessionEventRef.current = "resume_game";
     setShowResult(false);
     setReplayCursor(null);
@@ -1537,9 +2274,34 @@ function App() {
       pushActionSnapshot({
         ...game,
         status: "playing",
+        // Wake the clock up so the side whose turn it is starts ticking again.
+        timers: { ...game.timers, paused: false },
+        currentTurnStartedAt: new Date().toISOString(),
         lastSavedAt: new Date().toISOString(),
       }),
     );
+  }
+
+  // Top-bar "Save & Exit": pauses the clock + flips a still-playing game to
+  // "draft", lets the persistence effects flush, then drops the user back at
+  // the lobby. Draft / finished games skip the status change and just exit.
+  function saveAndExit() {
+    if (!game) {
+      goToLobby();
+      return;
+    }
+    if (!readOnly && game.status === "playing") {
+      pendingSessionEventRef.current = "state";
+      cancelDraftOnly();
+      setReplayCursor(null);
+      setGame({
+        ...game,
+        status: "draft",
+        timers: { ...game.timers, paused: true },
+        lastSavedAt: new Date().toISOString(),
+      });
+    }
+    goToLobby();
   }
 
   function exportGame() {
@@ -1569,7 +2331,13 @@ function App() {
   const latestLog = game.logs.at(-1) ?? null;
   const showViewPanel = reviewing || readOnly;
   const viewPanelLog = reviewing ? selectedLog : latestLog;
-  const refillNeeded = game.phase === "refill" && game.status === "playing";
+  const refillNeeded = game.phase === "refill" && game.status === "playing" && !isRackReady(game);
+  const tilebagView = getTilebagView({
+    game,
+    refillNeeded,
+    reviewing,
+    selectedLog,
+  });
   const exchangeReady =
     actionMode === "exchange" &&
     exchangeDraft.outgoingIds.length > 0;
@@ -1577,6 +2345,7 @@ function App() {
     canPlayActiveRoom &&
     game.status === "playing" &&
     !reviewing &&
+    refillNeeded &&
     actionMode === "none" &&
     activeRack.length < 8;
   const selectedRackTile =
@@ -1585,17 +2354,24 @@ function App() {
   const currentTurnLogRack = actionStart?.rackBefore ?? activeRack;
   // Show one rack at a time — the side whose turn it is (or the reviewed side).
   const rackSide: Side = reviewing && selectedLog ? selectedLog.side : game.activeSide;
+  // Build the 8-slot display rack from the layout so empty slots stay in
+  // place when tiles leave for the board.
+  const displayRack: (TileInstance | null)[] = (() => {
+    if (reviewing && selectedLog) {
+      const sourceRack =
+        replayPhase === "before" ? replayDraft?.rack ?? selectedLog.rackBefore : selectedLog.rackAfter;
+      return [...sourceRack, null, null, null, null, null, null, null, null].slice(0, 8);
+    }
+    const live = getRack(game, rackSide);
+    const tilesById = new Map(live.map((tile) => [tile.id, tile]));
+    return rackLayout[rackSide].map((id) => (id ? tilesById.get(id) ?? null : null));
+  })();
   const rackConfigs = [
     {
       active: canPlayActiveRoom && !reviewing && game.status === "playing" && game.activeSide === rackSide,
       exchangeOutgoingIds: rackSide === game.activeSide ? exchangeDraft.outgoingIds : [],
       label: game.players[rackSide],
-      rack:
-        reviewing && selectedLog
-          ? replayPhase === "before"
-            ? selectedLog.rackBefore
-            : selectedLog.rackAfter
-          : getRack(game, rackSide),
+      rack: displayRack,
       side: rackSide,
     },
   ];
@@ -1632,9 +2408,20 @@ function App() {
             <Download size={18} />
             Export
           </button>
-          <button className="icon-button" type="button" onClick={goToLobby}>
-            <LayoutGrid size={18} />
-            Rooms
+          <button
+            className="icon-button top-save-exit"
+            type="button"
+            title={
+              readOnly
+                ? "Leave this room and return to the lobby."
+                : game.status === "playing"
+                  ? "Pause the clock, save the room as a draft, and go back to the lobby."
+                  : "Save and return to the lobby."
+            }
+            onClick={saveAndExit}
+          >
+            <LogOut size={18} />
+            Save or Exit
           </button>
           <button className="icon-button" type="button" onClick={() => setLogModalOpen(true)}>
             <List size={18} />
@@ -1658,16 +2445,54 @@ function App() {
               {game.timers.paused ? "Resume" : "Stop"}
             </button>
           )}
-          {game.status === "playing" ? (
+          {/* Lifecycle button — its meaning depends on game.status.
+              playing  → "End Game"        (danger, ends the match)
+              draft    → "Resume"          (un-pauses + flips back to playing)
+              finished → "Result + Replay" (no resume; this match is locked in) */}
+          {game.status === "playing" && (
             <button className="danger-button top-end-game" disabled={readOnly} type="button" onClick={endGame}>
               <Flag size={18} />
               End Game
             </button>
-          ) : (
-            <button className="resume-button top-end-game" disabled={readOnly} type="button" onClick={resumeGame}>
+          )}
+          {game.status === "draft" && (
+            <button
+              className="resume-button top-end-game"
+              disabled={readOnly}
+              type="button"
+              title="Resume this drafted game and start the clock again."
+              onClick={resumeGame}
+            >
               <Play size={18} />
-              Resume Game
+              Resume
             </button>
+          )}
+          {game.status === "finished" && (
+            <>
+              <button
+                className="icon-button"
+                type="button"
+                title="Open the final result summary."
+                onClick={() => setShowResult(true)}
+              >
+                <Trophy size={18} />
+                Result
+              </button>
+              <button
+                className="resume-button top-end-game"
+                type="button"
+                disabled={game.logs.length === 0}
+                title={
+                  game.logs.length === 0
+                    ? "Nothing to replay — this game has no recorded turns."
+                    : "Step through every move from the beginning."
+                }
+                onClick={startReplay}
+              >
+                <Play size={18} />
+                Replay
+              </button>
+            </>
           )}
         </div>
       </header>
@@ -1698,17 +2523,58 @@ function App() {
           <div className="board-stage">
             <Board
               board={boardToRender}
-              pendingPlacements={reviewing ? [] : pendingPlacements}
-              placementCursor={reviewing ? null : placementCursor}
-              scoringKeys={
+              pendingPlacements={
                 reviewing
-                  ? undefined
-                  : new Set(
-                      validation.equations
-                        .filter((eq) => eq.isValid)
-                        .flatMap((eq) => eq.cells.map((c) => `${c.row}:${c.col}`)),
-                    )
+                  ? replayPhase === "before"
+                    ? replayDraft?.placements ?? []
+                    : []
+                  : pendingPlacements
               }
+              placementCursor={placementCursor}
+              scoreAnchor={(() => {
+                const placements = reviewing
+                  ? replayPhase === "before"
+                    ? replayDraft?.placements ?? []
+                    : []
+                  : pendingPlacements;
+                if (placements.length === 0) return null;
+                // Determine if the play forms a single horizontal or vertical
+                // line. If it doesn't (or has only one tile), pick orientation
+                // from the longest matched equation.
+                const rows = new Set(placements.map((p) => p.row));
+                const cols = new Set(placements.map((p) => p.col));
+                let orientation: "horizontal" | "vertical" | null = null;
+                if (rows.size === 1 && cols.size > 1) orientation = "horizontal";
+                else if (cols.size === 1 && rows.size > 1) orientation = "vertical";
+                else if (placements.length === 1) {
+                  const longest = validation.equations
+                    .filter((e) => e.isValid)
+                    .reduce((acc: typeof validation.equations[number] | null, eq) =>
+                      !acc || eq.cells.length > acc.cells.length ? eq : acc, null);
+                  orientation = longest?.direction ?? "horizontal";
+                }
+                if (!orientation) return null;
+                const cells = (orientation === "horizontal"
+                  ? validation.equations.find((e) => e.direction === "horizontal" && e.isValid)
+                  : validation.equations.find((e) => e.direction === "vertical" && e.isValid)
+                )?.cells ??
+                  placements.map((p) => ({ row: p.row, col: p.col }));
+                const anchor = orientation === "horizontal"
+                  ? cells.reduce((a, c) => (c.col < a.col ? c : a))
+                  : cells.reduce((a, c) => (c.row < a.row ? c : a));
+                return {
+                  row: anchor.row,
+                  col: anchor.col,
+                  orientation,
+                  score: validation.score,
+                  isValid: validation.isValid,
+                };
+              })()}
+              scoringKeys={new Set(
+                validation.equations
+                  .filter((eq) => eq.isValid)
+                  .flatMap((eq) => eq.cells.map((c) => `${c.row}:${c.col}`)),
+              )}
               selectedPendingTileId={selectedPendingTileId}
               selectedRackTileId={selectedRackTileId}
               onCellClick={handleBoardCellClick}
@@ -1724,14 +2590,9 @@ function App() {
                   Replay {replayIndex + 1}/{game.logs.length}
                 </span>
               ) : game.status === "finished" ? (
-                <span className="pc-actions">
-                  <button type="button" onClick={() => setShowResult(true)}>
-                    Result
-                  </button>
-                  <button type="button" disabled={game.logs.length === 0} onClick={startReplay}>
-                    ▶ Replay
-                  </button>
-                </span>
+                <span className="pc-hint">Finished · use the top bar for Result / Replay</span>
+              ) : game.status === "draft" ? (
+                <span className="pc-hint">Draft · paused, press Resume to continue</span>
               ) : (
                 <span className="pc-hint">
                   {game.players[game.activeSide]} ·{" "}
@@ -1751,6 +2612,7 @@ function App() {
               rack={rackConfigs[0].rack}
               selectedRackTileId={selectedRackTileId}
               side={rackConfigs[0].side}
+              onEmptySlotClick={handleEmptyRackSlotClick}
               onTileClick={handleRackTileClick}
             />
           </div>
@@ -1759,7 +2621,8 @@ function App() {
         <aside className="right-rail" ref={rightRailRef}>
           <PlayRail
             game={game}
-            tilebag={replayOverrides?.tilebag ?? effectiveTilebag}
+            tilebag={tilebagView.tiles}
+            tilebagCount={tilebagView.remainingCount}
             tilebagDisabled={!canPickFromTilebag}
             onPickTile={refillFromBag}
           />
@@ -1771,6 +2634,8 @@ function App() {
             actionMode={actionMode}
             canChooseAction={canChooseAction}
             canEditRefill={canEditRefill}
+            canExchange={canStartExchange}
+            exchangeDisabledReason={exchangeRule.reason}
             exchangeDraft={exchangeDraft}
             exchangeReady={exchangeReady}
             game={game}
@@ -1826,8 +2691,6 @@ function App() {
             setShowResult(false);
             startReplay();
           }}
-          canResume={!readOnly}
-          onResume={resumeGame}
         />
       )}
     </main>
@@ -1836,6 +2699,240 @@ function App() {
 
 function clearTileAssignment(tile: TileInstance): TileInstance {
   return { ...tile, assignedToken: undefined };
+}
+
+function getTilebagView({
+  game,
+  refillNeeded,
+  reviewing,
+  selectedLog,
+}: {
+  game: GameState;
+  refillNeeded: boolean;
+  reviewing: boolean;
+  selectedLog: TurnLog | null;
+}): TilebagView {
+  if (reviewing && selectedLog) {
+    return getReplayTilebagView(game, selectedLog);
+  }
+  if (refillNeeded) {
+    return {
+      tiles: game.tilebag,
+      remainingCount: game.tilebag.length,
+    };
+  }
+  const previousAction = getLastPlayableLog(game.logs)?.action;
+  return getActionTilebagView({
+    opponentRack: getRack(game, otherSide(game.activeSide)),
+    previousAction,
+    tilebag: game.tilebag,
+  });
+}
+
+function getReplayTilebagView(game: GameState, selectedLog: TurnLog): TilebagView {
+  const logIndex = game.logs.findIndex((log) => log.id === selectedLog.id);
+  const previousLog = getLastPlayableLogBefore(game.logs, logIndex);
+  const opponent = otherSide(selectedLog.side);
+  const opponentRack = previousLog?.side === opponent ? previousLog.rackAfter : [];
+  return getActionTilebagView({
+    opponentRack,
+    previousAction: previousLog?.action,
+    tilebag: selectedLog.tilebagBefore,
+  });
+}
+
+function getActionTilebagView({
+  opponentRack,
+  previousAction,
+  tilebag,
+}: {
+  opponentRack: TileInstance[];
+  previousAction?: ActionType;
+  tilebag: TileInstance[];
+}): TilebagView {
+  return {
+    tiles: [...tilebag, ...opponentRack],
+    remainingCount: getAnalysisRemainingCount(tilebag.length, opponentRack.length, previousAction),
+  };
+}
+
+function getAnalysisRemainingCount(
+  tilebagCount: number,
+  opponentRackCount: number,
+  previousAction?: ActionType,
+): number {
+  if (previousAction === "exchange") return Math.max(tilebagCount + 8, 0);
+  const opponentEmptySlots = Math.max(0, 8 - opponentRackCount);
+  return Math.max(tilebagCount - opponentEmptySlots, 0);
+}
+
+function getLastPlayableLog(logs: TurnLog[]): TurnLog | null {
+  return getLastPlayableLogBefore(logs, logs.length);
+}
+
+function getLastPlayableLogBefore(logs: TurnLog[], beforeIndex: number): TurnLog | null {
+  for (let index = beforeIndex - 1; index >= 0; index -= 1) {
+    const log = logs[index];
+    if (log.action !== "end_game") return log;
+  }
+  return null;
+}
+
+function getExchangeRule(game: GameState): { allowed: boolean; reserve: number; reason?: string } {
+  const opponentRackCount = getRack(game, otherSide(game.activeSide)).length;
+  const reserve = game.tilebag.length + opponentRackCount - 8;
+  if (reserve >= 5) return { allowed: true, reserve };
+  return {
+    allowed: false,
+    reserve,
+    reason: `Exchange locked: tilebag (${game.tilebag.length}) + opponent rack (${opponentRackCount}) - 8 = ${reserve}; minimum is 5.`,
+  };
+}
+
+function sumTilePoints(tiles: TileInstance[]): number {
+  return tiles.reduce((sum, tile) => sum + tilePoint(tile), 0);
+}
+
+function createAutomaticEndGameLog({
+  boardAfter,
+  game,
+  logs,
+  normalLog,
+  rackAfter,
+  tilebagAfter,
+}: {
+  boardAfter: BoardSnapshot;
+  game: GameState;
+  logs: TurnLog[];
+  normalLog: TurnLog;
+  rackAfter: TileInstance[];
+  tilebagAfter: TileInstance[];
+}): TurnLog | null {
+  const activeSide = game.activeSide;
+  const opponentSide = otherSide(activeSide);
+  const opponentRack = getRack(game, opponentSide);
+  const now = new Date().toISOString();
+
+  if (normalLog.action === "place_equation" && rackAfter.length === 0) {
+    const remainingOpponentAndBag = opponentRack.length + tilebagAfter.length;
+    if (remainingOpponentAndBag <= 8) {
+      const opponentRackPoints = sumTilePoints(opponentRack);
+      const tilebagPoints = sumTilePoints(tilebagAfter);
+      const bonusPoints = (opponentRackPoints + tilebagPoints) * 2;
+      const detail: EndGameDetail = {
+        reason: "rack_out",
+        description: `${game.players[activeSide]} emptied the rack. ${game.players[opponentSide]}'s rack and the tilebag contain ${remainingOpponentAndBag} tile(s).`,
+        bonusSide: activeSide,
+        bonusPoints,
+        opponentRackPoints,
+        tilebagPoints,
+      };
+      return createEndGameLog({
+        boardAfter,
+        detail,
+        endedAt: now,
+        game,
+        rack: rackAfter,
+        side: activeSide,
+        tilebagAfter,
+      });
+    }
+  }
+
+  if (isNoScoreAction(normalLog.action) && hasSixTurnNoScoreStreak(logs)) {
+    const rackBySide: Record<Side, TileInstance[]> = {
+      A: activeSide === "A" ? rackAfter : getRack(game, "A"),
+      B: activeSide === "B" ? rackAfter : getRack(game, "B"),
+    };
+    const rackPoints: Record<Side, number> = {
+      A: sumTilePoints(rackBySide.A),
+      B: sumTilePoints(rackBySide.B),
+    };
+    const bonusSide: Side | undefined =
+      rackPoints.A === rackPoints.B ? undefined : rackPoints.A < rackPoints.B ? "A" : "B";
+    const bonusPoints = bonusSide ? Math.abs(rackPoints.A - rackPoints.B) : 0;
+    const scoringSide = bonusSide ?? activeSide;
+    const detail: EndGameDetail = {
+      reason: "no_score_streak",
+      description: bonusSide
+        ? `Six consecutive non-scoring turns. ${game.players[bonusSide]} has the lower rack total and receives ${bonusPoints} point(s).`
+        : "Six consecutive non-scoring turns. Rack totals are tied, so no bonus is awarded.",
+      bonusSide,
+      bonusPoints,
+      rackPoints,
+      noScoreStreak: 6,
+    };
+    return createEndGameLog({
+      boardAfter,
+      detail,
+      endedAt: now,
+      game,
+      rack: rackBySide[scoringSide],
+      side: scoringSide,
+      tilebagAfter,
+    });
+  }
+
+  return null;
+}
+
+function isNoScoreAction(action: ActionType): boolean {
+  return action === "pass" || action === "exchange";
+}
+
+function hasSixTurnNoScoreStreak(logs: TurnLog[]): boolean {
+  const lastSix = logs.slice(-6);
+  if (lastSix.length < 6) return false;
+  if (!lastSix.every((log) => isNoScoreAction(log.action))) return false;
+  const counts = lastSix.reduce<Record<Side, number>>(
+    (total, log) => ({ ...total, [log.side]: total[log.side] + 1 }),
+    { A: 0, B: 0 },
+  );
+  return counts.A === 3 && counts.B === 3;
+}
+
+function createEndGameLog({
+  boardAfter,
+  detail,
+  endedAt,
+  game,
+  rack,
+  side,
+  tilebagAfter,
+}: {
+  boardAfter: BoardSnapshot;
+  detail: EndGameDetail;
+  endedAt: string;
+  game: GameState;
+  rack: TileInstance[];
+  side: Side;
+  tilebagAfter: TileInstance[];
+}): TurnLog {
+  return {
+    id: crypto.randomUUID(),
+    turnNumber: game.turnNumber,
+    side,
+    action: "end_game",
+    startedAt: endedAt,
+    endedAt,
+    timerBefore: {
+      A: game.timers.A,
+      B: game.timers.B,
+    },
+    timerAfter: {
+      A: game.timers.A,
+      B: game.timers.B,
+    },
+    rackBefore: deepClone(rack),
+    rackAfter: deepClone(rack),
+    boardBefore: deepClone(boardAfter),
+    boardAfter: deepClone(boardAfter),
+    tilebagBefore: deepClone(tilebagAfter),
+    tilebagAfter: deepClone(tilebagAfter),
+    actionDetail: detail,
+    calculatedScore: detail.bonusPoints,
+    finalScore: detail.bonusPoints,
+  };
 }
 
 function AssignmentModal({
@@ -1883,16 +2980,12 @@ function AssignmentModal({
 
 function ResultModal({
   game,
-  canResume,
   onClose,
   onReplay,
-  onResume,
 }: {
   game: GameState;
-  canResume: boolean;
   onClose: () => void;
   onReplay: () => void;
-  onResume: () => void;
 }) {
   const { A, B } = game.scores;
   const winner = A === B ? null : A > B ? "A" : "B";
@@ -1933,17 +3026,18 @@ function ResultModal({
           {game.turnNumber - 1} turns · {game.logs.length} actions
         </div>
 
+        {/* Finished games are locked — only Replay / View Board are offered.
+            Save & Exit lives in the top bar for going back to the lobby. */}
         <div className="result-actions">
-          <button className="primary-action" type="button" onClick={onReplay}>
+          <button
+            className="primary-action"
+            type="button"
+            disabled={game.logs.length === 0}
+            onClick={onReplay}
+          >
             <Play size={18} />
             Start Replay
           </button>
-          {canResume && (
-            <button className="icon-button" type="button" onClick={onResume}>
-              <Undo2 size={18} />
-              Resume Game
-            </button>
-          )}
           <button className="icon-button" type="button" onClick={onClose}>
             View Board
           </button>
@@ -1961,7 +3055,7 @@ function createTurnLog(args: {
   rackAfter: TileInstance[];
   boardAfter: BoardSnapshot;
   tilebagAfter: TileInstance[];
-  detail: PlaceEquationDetail | ExchangeDetail | PassDetail;
+  detail: TurnActionDetail;
   calculatedScore: number;
 }): TurnLog {
   return {

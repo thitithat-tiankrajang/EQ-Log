@@ -388,9 +388,11 @@ body {
 }
 
 @media (min-width: 901px) {
-  html,
-  body,
-  #root {
+  /* Only the in-game view locks the viewport — the lobby (no .app-shell in
+     the DOM) keeps html/body scrollable so the rooms grid can grow. */
+  html:has(.app-shell),
+  body:has(.app-shell),
+  #root:has(.app-shell) {
     height: 100%;
     overflow: hidden;
   }

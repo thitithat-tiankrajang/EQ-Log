@@ -28,6 +28,8 @@ type ActionPanelProps = {
   actionMode: ActionMode;
   canChooseAction: boolean;
   canEditRefill: boolean;
+  canExchange: boolean;
+  exchangeDisabledReason?: string;
   exchangeDraft: ExchangeDraft;
   exchangeReady: boolean;
   game: GameState;
@@ -58,6 +60,8 @@ export function ActionPanel({
   actionMode,
   canChooseAction,
   canEditRefill,
+  canExchange,
+  exchangeDisabledReason,
   exchangeDraft,
   exchangeReady,
   game,
@@ -114,6 +118,8 @@ export function ActionPanel({
           activeRackCount={activeRack.length}
           canChooseAction={canChooseAction}
           canEditRefill={canEditRefill}
+          canExchange={canExchange}
+          exchangeDisabledReason={exchangeDisabledReason}
           refillNeeded={refillNeeded}
           onEditRefill={onEditRefill}
           onStartAction={onStartAction}
@@ -172,6 +178,8 @@ function ActionPicker({
   activeRackCount,
   canChooseAction,
   canEditRefill,
+  canExchange,
+  exchangeDisabledReason,
   refillNeeded,
   onEditRefill,
   onStartAction,
@@ -179,6 +187,8 @@ function ActionPicker({
   activeRackCount: number;
   canChooseAction: boolean;
   canEditRefill: boolean;
+  canExchange: boolean;
+  exchangeDisabledReason?: string;
   refillNeeded: boolean;
   onEditRefill: () => void;
   onStartAction: (action: ActionType) => void;
@@ -198,13 +208,21 @@ function ActionPicker({
         Drop a tile on the board to start playing. Or:
       </p>
       <div className="action-buttons two">
-        <button disabled={!canChooseAction} type="button" onClick={() => onStartAction("exchange")}>
+        <button
+          disabled={!canChooseAction || !canExchange}
+          title={!canExchange ? exchangeDisabledReason : undefined}
+          type="button"
+          onClick={() => onStartAction("exchange")}
+        >
           Exchange
         </button>
         <button disabled={!canChooseAction} type="button" onClick={() => onStartAction("pass")}>
           Pass
         </button>
       </div>
+      {canChooseAction && !canExchange && exchangeDisabledReason && (
+        <p className="action-picker-note">{exchangeDisabledReason}</p>
+      )}
       {canEditRefill && (
         <button className="edit-refill-button" type="button" onClick={onEditRefill}>
           Edit Refill

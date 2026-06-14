@@ -523,6 +523,25 @@ textarea {
   gap: 6px;
 }
 
+/* Per-slot wrapper: small index label stacked on top of the slot/tile. */
+.rack-cell {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rack-cell-index {
+  text-align: center;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  color: var(--muted, #6d6458);
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
 .rack-slot {
   width: 40px;
   height: 44px;

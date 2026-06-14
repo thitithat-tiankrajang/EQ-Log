@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import {
   displayToken,
   getRack,
+  type EndGameDetail,
   type ExchangeDetail,
   type GameState,
   type PlaceEquationDetail,
@@ -27,7 +28,7 @@ export function TurnRecordList({
   onSelectLog,
 }: TurnRecordListProps) {
   const activeRack = currentTurnRack ?? getRack(game, game.activeSide);
-  const showCurrentRack = game.status === "playing" && activeRack.length >= 8;
+  const showCurrentRack = game.status === "playing" && (activeRack.length >= 8 || game.tilebag.length === 0);
 
   // Smooth-scroll to the newest row (which now sits at the bottom) whenever the
   // list grows. We scroll the *nearest scrollable ancestor*, not the list itself,
@@ -155,6 +156,10 @@ function summaryText(log: TurnLog): string {
     const detail = log.actionDetail as ExchangeDetail;
     const list = detail.outgoingTiles.map((tile) => displayToken(tile)).join(" ");
     return `${label} · ${list || "0 tiles"}`;
+  }
+  if (log.action === "end_game") {
+    const detail = log.actionDetail as EndGameDetail;
+    return `${label} · ${detail.bonusPoints} pts`;
   }
   return label;
 }

@@ -13,6 +13,7 @@ export const ACTION_LABELS: Record<ActionType, string> = {
   place_equation: "Place Equation",
   exchange: "Exchange Tiles",
   pass: "Pass",
+  end_game: "End Game",
 };
 
 export const PHASE_LABELS: Record<Phase, string> = {

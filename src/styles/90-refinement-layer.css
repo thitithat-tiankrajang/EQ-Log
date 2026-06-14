@@ -362,23 +362,9 @@ select {
   font-weight: 700 !important;
 }
 
-/* ── Lobby cards: refined elevation. ────────────────────────────────────── */
-.room-card,
-.lobby-card,
-article {
-  border-radius: 12px !important;
-}
-
-.room-card {
-  border: 1px solid var(--border-soft) !important;
-  box-shadow: var(--shadow-1) !important;
-  transition: box-shadow 0.18s ease, transform 0.18s ease !important;
-}
-
-.room-card:hover {
-  box-shadow: var(--shadow-2) !important;
-  transform: translateY(-1px);
-}
+/* Lobby cards now own their own styling under styles/pages/lobby/*; this
+   refinement layer intentionally no longer targets .room-card so the new
+   flat lobby design isn't overridden by !important shadows. */
 
 /* ── Focus states: refined ring (no harsh outline). ─────────────────────── */
 button:focus-visible,
@@ -412,6 +398,18 @@ h1 {
   min-height: 0;
 }
 
+.action-picker-note {
+  margin: 0;
+  border: 1px solid rgba(167, 118, 19, 0.28);
+  border-radius: 6px;
+  background: rgba(255, 247, 220, 0.82);
+  color: #6b4b0f;
+  font-size: 0.72rem;
+  font-weight: 750;
+  line-height: 1.25;
+  padding: 6px 8px;
+}
+
 .edit-refill-button {
   width: 100%;
   min-height: 32px;
@@ -428,4 +426,72 @@ h1 {
 .edit-refill-button:hover {
   background: #dbeafe;
   border-color: rgba(37, 99, 235, 0.42);
+}
+
+/* ── Current-turn board marker. ─────────────────────────────────────────── */
+.board-cell.pending::after {
+  top: 0 !important;
+  right: 0 !important;
+  width: 38% !important;
+  height: 38% !important;
+  min-width: 10px;
+  min-height: 10px;
+  border-radius: 0 !important;
+  clip-path: polygon(100% 0, 0 0, 100% 100%);
+  background: var(--accent, #15604e) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+/* ── Board cursor replaces the premium label instead of drawing a second cell. */
+.board-cell.cursor {
+  box-shadow: none !important;
+  outline: 0 !important;
+}
+
+.board-cell.cursor:not(.filled):not(.pending) {
+  background: #fff !important;
+}
+
+.board-cell.slot-px2.cursor:not(.filled):not(.pending),
+.board-cell.slot-dl.cursor:not(.filled):not(.pending),
+.board-cell.slot-2p.cursor:not(.filled):not(.pending) {
+  background: #d6e7df !important;
+}
+
+.board-cell.slot-px3.cursor:not(.filled):not(.pending),
+.board-cell.slot-px3star.cursor:not(.filled):not(.pending),
+.board-cell.slot-tl.cursor:not(.filled):not(.pending),
+.board-cell.slot-3p.cursor:not(.filled):not(.pending) {
+  background: #bcd7eb !important;
+}
+
+.board-cell.slot-ex2.cursor:not(.filled):not(.pending),
+.board-cell.slot-de.cursor:not(.filled):not(.pending),
+.board-cell.slot-2e.cursor:not(.filled):not(.pending) {
+  background: #f1dd9c !important;
+}
+
+.board-cell.slot-ex3.cursor:not(.filled):not(.pending),
+.board-cell.slot-te.cursor:not(.filled):not(.pending),
+.board-cell.slot-3e.cursor:not(.filled):not(.pending) {
+  background: #e8a489 !important;
+}
+
+.board-cell-cursor {
+  position: static !important;
+  inset: auto !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  color: currentColor !important;
+  opacity: 1 !important;
+  animation: none !important;
+  pointer-events: none;
+}
+
+/* Assigned choice / blank text remains blue after the tile leaves the rack. */
+.board-cell.filled .tile.assigned-choice b,
+.board-cell.pending .tile.assigned-choice b {
+  color: var(--choice-assigned-text, #67e8f9) !important;
+  text-shadow: none !important;
 }

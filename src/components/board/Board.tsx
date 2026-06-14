@@ -1,4 +1,5 @@
-import { ArrowDown, ArrowRight } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from "lucide-react";
+import type { CSSProperties } from "react";
 import {
   slotTypeAt,
   type BoardSnapshot,
@@ -7,12 +8,22 @@ import {
 import { SLOT_LABELS } from "../../uiText";
 import { Tile } from "./Tile";
 
-type PlacementCursor = { row: number; col: number; dir: "right" | "down" } | null;
+type Direction = "right" | "down" | "left" | "up";
+type PlacementCursor = { row: number; col: number; dir: Direction } | null;
+
+export type BoardScoreAnchor = {
+  row: number;
+  col: number;
+  orientation: "horizontal" | "vertical";
+  score: number;
+  isValid: boolean;
+};
 
 export function Board({
   board,
   pendingPlacements,
   placementCursor = null,
+  scoreAnchor = null,
   scoringKeys,
   selectedRackTileId,
   selectedPendingTileId,
@@ -21,6 +32,7 @@ export function Board({
   board: BoardSnapshot;
   pendingPlacements: PendingPlacement[];
   placementCursor?: PlacementCursor;
+  scoreAnchor?: BoardScoreAnchor | null;
   scoringKeys?: Set<string>;
   selectedRackTileId: string | null;
   selectedPendingTileId: string | null;
@@ -62,6 +74,16 @@ export function Board({
                 {cell ? (
                   // A placed tile fully covers the square — no premium pip/star behind it.
                   <Tile compact showPoint tile={cell.tile} />
+                ) : isCursor ? (
+                  <span className="board-cell-cursor" aria-hidden="true">
+                    {(() => {
+                      const dir = placementCursor!.dir;
+                      if (dir === "right") return <ArrowRight size={22} />;
+                      if (dir === "down") return <ArrowDown size={22} />;
+                      if (dir === "left") return <ArrowLeft size={22} />;
+                      return <ArrowUp size={22} />;
+                    })()}
+                  </span>
                 ) : (
                   label && (
                     <span className={`premium-label ${isCenter ? "star" : ""}`}>
@@ -69,14 +91,23 @@ export function Board({
                     </span>
                   )
                 )}
-                {isCursor && !cell && (
-                  <span className="board-cell-cursor" aria-hidden="true">
-                    {placementCursor!.dir === "right" ? <ArrowRight size={20} /> : <ArrowDown size={20} />}
-                  </span>
-                )}
               </button>
             );
           }),
+        )}
+        {scoreAnchor && (
+          <span
+            className={`board-score-badge ${scoreAnchor.orientation} ${scoreAnchor.isValid ? "valid" : "invalid"}`}
+            style={
+              {
+                "--badge-row": scoreAnchor.row + 1,
+                "--badge-col": scoreAnchor.col + 1,
+              } as CSSProperties
+            }
+            aria-hidden="true"
+          >
+            {scoreAnchor.score} <small>pts</small>
+          </span>
         )}
       </div>
     </div>
