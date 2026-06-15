@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { ActionPanel } from "./components/actions/ActionPanel";
-import { Board } from "./components/board/Board";
+import { Board, type BoardScoreAnchor } from "./components/board/Board";
 import { Lobby } from "./components/pages/Lobby";
 import { LogModal } from "./components/logs/LogModal";
 import { LogPanel } from "./components/logs/LogPanel";
@@ -116,6 +116,60 @@ type UndoSnap = {
   pendingPlacements: PendingPlacement[];
   exchangeDraft: ExchangeDraft;
 };
+
+type ScoreAnchorCell = { row: number; col: number };
+
+function createBoardScoreAnchor({
+  cells,
+  isValid,
+  orientation,
+  score,
+}: {
+  cells: ScoreAnchorCell[];
+  isValid: boolean;
+  orientation: "horizontal" | "vertical";
+  score: number;
+}): BoardScoreAnchor | null {
+  if (cells.length === 0) return null;
+  const rows = cells.map((cell) => cell.row);
+  const cols = cells.map((cell) => cell.col);
+  const minRow = Math.min(...rows);
+  const maxRow = Math.max(...rows);
+  const minCol = Math.min(...cols);
+  const maxCol = Math.max(...cols);
+
+  if (orientation === "horizontal") {
+    const leftSpace = minCol;
+    const rightSpace = 14 - maxCol;
+    const side = leftSpace >= 3 || leftSpace >= rightSpace ? "left" : "right";
+    const alignY = minRow >= 13 ? "end" : "start";
+    return {
+      row: minRow,
+      col: side === "left" ? minCol : maxCol,
+      orientation,
+      side,
+      alignX: side === "left" ? "start" : "end",
+      alignY,
+      score,
+      isValid,
+    };
+  }
+
+  const topSpace = minRow;
+  const bottomSpace = 14 - maxRow;
+  const side = topSpace >= 2 || topSpace >= bottomSpace ? "above" : "below";
+  const alignX = minCol >= 13 ? "end" : "start";
+  return {
+    row: side === "above" ? minRow : maxRow,
+    col: minCol,
+    orientation,
+    side,
+    alignX,
+    alignY: side === "above" ? "start" : "end",
+    score,
+    isValid,
+  };
+}
 
 function App() {
   const { configured: authConfigured, isApproved, profile, userId } = useAuth();
@@ -462,10 +516,11 @@ function App() {
       if (!w || !h) return;
       const rackHeightRatio = 1.42;
       const rackChrome = 34;
-      const labelGutter = 22; // room for the R / C number gutters around the board
-      const sizeByWidth = (w - 4 - labelGutter) / 15;
-      const sizeByHeight = (h - rackChrome - labelGutter) / (15 + rackHeightRatio);
-      const size = Math.max(16, Math.min(72, Math.floor(Math.min(sizeByWidth, sizeByHeight))));
+      const labelGutter = 26; // room for the R / C number gutters around the board
+      const safetyInset = 18;
+      const sizeByWidth = (w - labelGutter - safetyInset * 2) / 15;
+      const sizeByHeight = (h - rackChrome - labelGutter - safetyInset) / (15 + rackHeightRatio);
+      const size = Math.max(15, Math.min(68, Math.floor(Math.min(sizeByWidth, sizeByHeight) * 0.96)));
       setBoardCell((prev) => (prev === size ? prev : size));
     };
     const observer = new ResizeObserver(measure);
@@ -2559,16 +2614,12 @@ function App() {
                   : validation.equations.find((e) => e.direction === "vertical" && e.isValid)
                 )?.cells ??
                   placements.map((p) => ({ row: p.row, col: p.col }));
-                const anchor = orientation === "horizontal"
-                  ? cells.reduce((a, c) => (c.col < a.col ? c : a))
-                  : cells.reduce((a, c) => (c.row < a.row ? c : a));
-                return {
-                  row: anchor.row,
-                  col: anchor.col,
+                return createBoardScoreAnchor({
+                  cells,
                   orientation,
                   score: validation.score,
                   isValid: validation.isValid,
-                };
+                });
               })()}
               scoringKeys={new Set(
                 validation.equations

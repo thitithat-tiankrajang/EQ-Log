@@ -3603,34 +3603,43 @@ button.tilebag-stat.active .ts-count {
   grid-auto-flow: column;
   place-items: center;
   gap: 5px;
-  min-width: 48px;
+  min-width: clamp(38px, calc(var(--cell) * 1.35), 48px);
   background: var(--accent, #15604e) !important;
   color: #ffffff !important;
   border: none !important;
   box-shadow: none !important;
   border-radius: 0 !important;
-  font-size: 13px;
+  font-size: clamp(10px, calc(var(--cell) * 0.31), 13px);
   font-weight: 900;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
   pointer-events: none;
   white-space: nowrap;
+  justify-self: start;
+  align-self: start;
   grid-row: var(--badge-row);
   grid-column: var(--badge-col);
   animation: none !important;
 }
 
 .board-score-badge small {
-  font-size: 9px;
+  font-size: clamp(7px, calc(var(--cell) * 0.18), 9px);
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.86) !important;
 }
 
-/* Horizontal play: badge sits LEFT of the leftmost cell. Triangle on the
-   right edge "points" into the equation. */
-.board-score-badge.horizontal {
+.board-score-badge.align-x-end {
+  justify-self: end;
+}
+
+.board-score-badge.align-y-end {
+  align-self: end;
+}
+
+/* Horizontal play: badge sits beside the equation. Triangle points inward. */
+.board-score-badge.horizontal.side-left {
   transform: translate(-105%, 8%);
   padding: 4px 16px 4px 10px;
   clip-path: polygon(
@@ -3642,9 +3651,28 @@ button.tilebag-stat.active .ts-count {
   );
 }
 
-/* Vertical play: badge sits ABOVE the topmost cell. Triangle on the bottom
-   edge "points" down into the equation. */
-.board-score-badge.vertical {
+.board-score-badge.horizontal.side-left.align-y-end {
+  transform: translate(-105%, -8%);
+}
+
+.board-score-badge.horizontal.side-right {
+  transform: translate(105%, 8%);
+  padding: 4px 10px 4px 16px;
+  clip-path: polygon(
+    10px 0,
+    100% 0,
+    100% 100%,
+    10px 100%,
+    0 50%
+  );
+}
+
+.board-score-badge.horizontal.side-right.align-y-end {
+  transform: translate(105%, -8%);
+}
+
+/* Vertical play: badge sits above or below the equation. Triangle points inward. */
+.board-score-badge.vertical.side-above {
   transform: translate(8%, -105%);
   padding: 4px 12px 14px 12px;
   clip-path: polygon(
@@ -3654,6 +3682,26 @@ button.tilebag-stat.active .ts-count {
     50% 100%,
     0 calc(100% - 10px)
   );
+}
+
+.board-score-badge.vertical.side-above.align-x-end {
+  transform: translate(-8%, -105%);
+}
+
+.board-score-badge.vertical.side-below {
+  transform: translate(8%, 105%);
+  padding: 14px 12px 4px 12px;
+  clip-path: polygon(
+    0 10px,
+    50% 0,
+    100% 10px,
+    100% 100%,
+    0 100%
+  );
+}
+
+.board-score-badge.vertical.side-below.align-x-end {
+  transform: translate(-8%, 105%);
 }
 
 /* Invalid placements: red ribbon. */

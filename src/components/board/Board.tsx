@@ -15,6 +15,9 @@ export type BoardScoreAnchor = {
   row: number;
   col: number;
   orientation: "horizontal" | "vertical";
+  side: "left" | "right" | "above" | "below";
+  alignX: "start" | "end";
+  alignY: "start" | "end";
   score: number;
   isValid: boolean;
 };
@@ -97,7 +100,9 @@ export function Board({
         )}
         {scoreAnchor && (
           <span
-            className={`board-score-badge ${scoreAnchor.orientation} ${scoreAnchor.isValid ? "valid" : "invalid"}`}
+            className={`board-score-badge ${scoreAnchor.orientation} side-${scoreAnchor.side} align-x-${
+              scoreAnchor.alignX
+            } align-y-${scoreAnchor.alignY} ${scoreAnchor.isValid ? "valid" : "invalid"}`}
             style={
               {
                 "--badge-row": scoreAnchor.row + 1,
