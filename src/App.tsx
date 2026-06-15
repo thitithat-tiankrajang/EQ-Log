@@ -544,8 +544,9 @@ function App() {
   // back-to-back keystrokes never see stale closure data. Without this, two
   // fast presses can both target the same cursor cell.
   useEffect(() => {
-    if (view !== "game" || !game || readOnly) return;
+    if (view !== "game" || !game) return;
     const isReplayBefore = replayCursor !== null && replayCursor % 2 === 0 && Boolean(replayDraft);
+    if (readOnly && !isReplayBefore) return;
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       const tag = target?.tagName;
@@ -1736,12 +1737,13 @@ function App() {
   // explicitly selected). Empty slot click is the "put it back" action — it
   // mirrors clicking an empty board cell when a pending tile is selected.
   function handleEmptyRackSlotClick(index: number, side: Side) {
-    if (!game || readOnly) return;
+    if (!game) return;
     // Replay practice flow.
     if (reviewing) {
       returnReplayPendingToRackSlot(index);
       return;
     }
+    if (readOnly) return;
     if (game.status !== "playing") return;
     if (actionMode !== "place_equation") return;
     const targetId = selectedPendingTileId ?? pendingPlacements.at(-1)?.tile.id;
@@ -1767,13 +1769,14 @@ function App() {
   }
 
   function handleRackTileClick(tile: TileInstance, side: Side) {
-    if (!game || readOnly) return;
+    if (!game) return;
     // Replay practice flow — runs regardless of live game.status (a finished
     // game is the most common thing to replay).
     if (reviewing) {
       handleReplayRackTileClick(tile);
       return;
     }
+    if (readOnly) return;
     if (game.status !== "playing") return;
     if (side !== game.activeSide) return;
     // Placement cursor active: place the tile at the cursor and advance —
@@ -1910,11 +1913,12 @@ function App() {
   }
 
   function handleBoardCellClick(row: number, col: number) {
-    if (!game || readOnly) return;
+    if (!game) return;
     if (reviewing) {
       handleReplayBoardClick(row, col);
       return;
     }
+    if (readOnly) return;
     const occupied = Boolean(game.board[row][col]) ||
       pendingPlacements.some((p) => p.row === row && p.col === col);
     // Empty cell with no selection (rack or pending) → cursor cycling
@@ -1999,6 +2003,17 @@ function App() {
   }
 
   function updatePendingAssignment(tileId: string, assignedToken: string) {
+    if (reviewing && replayPhase === "before" && replayDraft) {
+      setReplayDraft({
+        ...replayDraft,
+        placements: replayDraft.placements.map((placement) =>
+          placement.tile.id === tileId
+            ? { ...placement, tile: { ...placement.tile, assignedToken }, assignedToken }
+            : placement,
+        ),
+      });
+      return;
+    }
     if (readOnly) return;
     pendingSessionEventRef.current = "state";
     setPendingPlacements((current) =>
@@ -2011,8 +2026,9 @@ function App() {
   }
 
   function confirmAssignment(value: string) {
-    if (!assignmentRequest || readOnly) return;
-    pendingSessionEventRef.current = "state";
+    const isReplayAssignment = reviewing && replayPhase === "before" && Boolean(replayDraft);
+    if (!assignmentRequest || (readOnly && !isReplayAssignment)) return;
+    if (!isReplayAssignment) pendingSessionEventRef.current = "state";
     const assignedTile = {
       ...assignmentRequest.tile,
       assignedToken: value,
