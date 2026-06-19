@@ -1044,7 +1044,7 @@ function App() {
           loading={roomsLoading}
           rooms={rooms}
           syncError={syncError}
-          isAdmin={!remoteEnabled || hasAdminAccess}
+          canManageMembers={canCreateRoom}
           getRoomRole={getRoomRole}
           onOpen={openRoom}
           onCreate={createAndOpenRoom}

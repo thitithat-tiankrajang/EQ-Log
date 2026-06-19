@@ -13,16 +13,24 @@ import { formatAverage, formatWinRate } from "../../../stats";
 export function MembersView({
   members,
   statsByMember,
-  isAdmin,
+  canManage,
+  error,
+  loading,
+  ownerId,
   onChange,
 }: {
   members: Member[];
   statsByMember: Map<string, MemberStats>;
-  isAdmin: boolean;
+  canManage: boolean;
+  error: string | null;
+  loading: boolean;
+  ownerId: string | null;
   onChange: (next: Member[]) => void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftOpen, setDraftOpen] = useState(false);
+  const [operation, setOperation] = useState<string | null>(null);
+  const [operationError, setOperationError] = useState<string | null>(null);
   const institutions = useMemo(
     () =>
       [...new Set(members.map((member) => member.institution).filter(Boolean) as string[])].sort(
@@ -31,23 +39,47 @@ export function MembersView({
     [members],
   );
 
-  function handleCreate(input: { name: string; institution?: string }) {
-    onChange(createMember(input));
-    setDraftOpen(false);
+  async function handleCreate(input: { name: string; institution?: string }) {
+    setOperation("Saving member...");
+    setOperationError(null);
+    try {
+      onChange(await createMember(input, ownerId));
+      setDraftOpen(false);
+    } catch (nextError) {
+      setOperationError(nextError instanceof Error ? nextError.message : "Unable to add this member.");
+    } finally {
+      setOperation(null);
+    }
   }
 
-  function handleUpdate(id: string, patch: Parameters<typeof updateMember>[1]) {
-    onChange(updateMember(id, patch));
-    setEditingId(null);
+  async function handleUpdate(id: string, patch: Parameters<typeof updateMember>[1]) {
+    setOperation("Saving changes...");
+    setOperationError(null);
+    try {
+      onChange(await updateMember(id, patch, ownerId));
+      setEditingId(null);
+    } catch (nextError) {
+      setOperationError(nextError instanceof Error ? nextError.message : "Unable to update this member.");
+    } finally {
+      setOperation(null);
+    }
   }
 
-  function handleDelete(id: string) {
+  async function handleDelete(id: string) {
     const member = members.find((entry) => entry.id === id);
     if (!member) return;
     if (!window.confirm(`Remove ${member.name} from the directory?\nExisting game records keep the name on file.`)) {
       return;
     }
-    onChange(deleteMember(id));
+    setOperation("Deleting member...");
+    setOperationError(null);
+    try {
+      onChange(await deleteMember(id, ownerId));
+    } catch (nextError) {
+      setOperationError(nextError instanceof Error ? nextError.message : "Unable to delete this member.");
+    } finally {
+      setOperation(null);
+    }
   }
 
   return (
@@ -56,21 +88,25 @@ export function MembersView({
         <div>
           <h2>Organization members</h2>
           <p>
-            {isAdmin
-              ? "Add the people who play in your organization. They don't sign in — the admin just keeps the directory."
-              : "These are the people in this organization. Only an admin can edit the list."}
+            {canManage
+              ? "This is your private player directory. Only your account can use these members when creating rooms."
+              : "Sign in with an approved account to manage your private player directory."}
           </p>
         </div>
-        {isAdmin && !draftOpen && (
-          <button className="solid-button" type="button" onClick={() => setDraftOpen(true)}>
+        {canManage && !draftOpen && (
+          <button className="solid-button" disabled={Boolean(operation)} type="button" onClick={() => setDraftOpen(true)}>
             <Plus size={15} />
             Add member
           </button>
         )}
       </div>
 
-      {draftOpen && isAdmin && (
+      {(operationError ?? error) && <p className="sync-banner">{operationError ?? error}</p>}
+      {operation && <p className="info-banner member-operation" role="status">{operation}</p>}
+
+      {draftOpen && canManage && (
         <MemberFormCard
+          busy={Boolean(operation)}
           onCancel={() => setDraftOpen(false)}
           institutions={institutions}
           onSave={handleCreate}
@@ -78,18 +114,23 @@ export function MembersView({
         />
       )}
 
-      {members.length === 0 && !draftOpen ? (
+      {loading ? (
+        <p className="empty-state" role="status">Loading your members...</p>
+      ) : members.length === 0 && !draftOpen ? (
         <p className="empty-state">
-          The directory is empty. {isAdmin ? "Add the first member to get started." : "Ask an admin to set this up."}
+          {canManage
+            ? "Your directory is empty. Add the first member to get started."
+            : "No member directory is available for this account."}
         </p>
       ) : (
         <ul className="member-list">
           {members.map((member) => {
             const stats = statsByMember.get(member.id);
-            if (editingId === member.id && isAdmin) {
+            if (editingId === member.id && canManage) {
               return (
                 <li key={member.id}>
                   <MemberFormCard
+                    busy={Boolean(operation)}
                     initial={member}
                     institutions={institutions}
                     onCancel={() => setEditingId(null)}
@@ -126,14 +167,15 @@ export function MembersView({
                     avg score
                   </span>
                 </div>
-                {isAdmin && (
+                {canManage && (
                   <div className="member-card-actions">
-                    <button type="button" aria-label="Edit member" onClick={() => setEditingId(member.id)}>
+                    <button disabled={Boolean(operation)} type="button" aria-label="Edit member" onClick={() => setEditingId(member.id)}>
                       <Pencil size={14} />
                     </button>
                     <button
                       type="button"
                       className="danger"
+                      disabled={Boolean(operation)}
                       aria-label="Delete member"
                       onClick={() => handleDelete(member.id)}
                     >
@@ -151,15 +193,17 @@ export function MembersView({
 }
 
 function MemberFormCard({
+  busy,
   initial,
   institutions,
   onSave,
   onCancel,
   submitLabel,
 }: {
+  busy: boolean;
   initial?: Member;
   institutions: string[];
-  onSave: (input: { name: string; institution?: string }) => void;
+  onSave: (input: { name: string; institution?: string }) => void | Promise<void>;
   onCancel: () => void;
   submitLabel: string;
 }) {
@@ -187,7 +231,7 @@ function MemberFormCard({
         event.preventDefault();
         if (!name.trim()) return;
         if (!selectedInstitution.trim()) return;
-        onSave({ name, institution: selectedInstitution });
+        void onSave({ name, institution: selectedInstitution });
       }}
     >
       <div className="member-form-row">
@@ -233,11 +277,11 @@ function MemberFormCard({
         </div>
       </div>
       <div className="member-form-actions">
-        <button type="button" className="ghost-button" onClick={onCancel}>
+        <button type="button" className="ghost-button" disabled={busy} onClick={onCancel}>
           <X size={14} />
           Cancel
         </button>
-        <button type="submit" className="solid-button">
+        <button type="submit" className="solid-button" disabled={busy}>
           <Check size={14} />
           {submitLabel}
         </button>

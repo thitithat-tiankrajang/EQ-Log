@@ -2,13 +2,15 @@ import { useEffect, useMemo, useState } from "react";
 import { BarChart3, LayoutGrid, Users } from "lucide-react";
 import type { GameState, NewGameSettings } from "../../game";
 import type { RoomMeta } from "../../rooms";
-import { AccountChip } from "../../auth";
+import { AccountChip, useAuth } from "../../auth";
 import { AdminButton } from "../../admin";
 import {
+  loadMembers,
   listMembers,
   subscribeMembers,
   type Member,
 } from "../../members";
+import { isSupabaseConfigured } from "../../supabaseClient";
 import { computeAllMemberStats } from "../../stats";
 import { RoomsView } from "./lobby/RoomsView";
 import { MembersView } from "./lobby/MembersView";
@@ -22,7 +24,7 @@ export function Lobby({
   loading = false,
   rooms,
   syncError,
-  isAdmin,
+  canManageMembers,
   getRoomRole,
   onOpen,
   onCreate,
@@ -37,7 +39,7 @@ export function Lobby({
   loading?: boolean;
   rooms: RoomMeta[];
   syncError?: string | null;
-  isAdmin: boolean;
+  canManageMembers: boolean;
   getRoomRole: (room: RoomMeta) => { canManage: boolean; canCreate: boolean; label: string };
   onOpen: (id: string) => void;
   onCreate: (settings: NewGameSettings) => void;
@@ -47,13 +49,38 @@ export function Lobby({
   onExport: (id: string) => void;
   onImport: (game: GameState) => void;
 }) {
+  const { userId } = useAuth();
   const [tab, setTab] = useState<LobbyTab>("rooms");
-  const [members, setMembers] = useState<Member[]>(() => listMembers());
+  const [members, setMembers] = useState<Member[]>(() => (isSupabaseConfigured ? [] : listMembers()));
+  const [membersLoading, setMembersLoading] = useState(isSupabaseConfigured);
+  const [membersError, setMembersError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = subscribeMembers(() => setMembers(listMembers()));
-    return unsubscribe;
-  }, []);
+    let active = true;
+    async function refresh(showLoading = false) {
+      if (showLoading) setMembersLoading(true);
+      try {
+        const next = await loadMembers(userId);
+        if (!active) return;
+        setMembers(next);
+        setMembersError(null);
+      } catch (error) {
+        if (!active) return;
+        setMembers([]);
+        setMembersError(error instanceof Error ? error.message : "Unable to load members.");
+      } finally {
+        if (active && showLoading) setMembersLoading(false);
+      }
+    }
+
+    setMembers(isSupabaseConfigured ? [] : listMembers());
+    void refresh(true);
+    const unsubscribe = subscribeMembers(userId, () => void refresh());
+    return () => {
+      active = false;
+      unsubscribe();
+    };
+  }, [userId]);
 
   const statsByMember = useMemo(
     () => computeAllMemberStats(members, rooms),
@@ -130,7 +157,10 @@ export function Lobby({
             <MembersView
               members={members}
               statsByMember={statsByMember}
-              isAdmin={isAdmin}
+              canManage={canManageMembers}
+              error={membersError}
+              loading={membersLoading}
+              ownerId={userId}
               onChange={setMembers}
             />
           )}
