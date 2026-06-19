@@ -136,6 +136,35 @@
   box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.42) !important;
 }
 
+/* Held tiles from the previous turn — flagged and locked during refill. */
+.rack-tile.carried-over {
+  cursor: not-allowed;
+}
+
+.rack-tile.carried-over:disabled {
+  opacity: 1;
+}
+
+.rack-tile.carried-over .tile {
+  filter: saturate(0.88);
+}
+
+.rack-tile-held-flag {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  width: 0;
+  height: 0;
+  border-top: 6px solid var(--brand-red, #ea4335);
+  border-left: 6px solid transparent;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.tile-button.rack-tile {
+  position: relative;
+}
+
 /* 4) Header scores — bold, prominent, red (A) / blue (B). */
 :root {
   --side-a: #dc2626;

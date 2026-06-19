@@ -138,7 +138,7 @@ function HeadToHeadView({
         <div className="stats-focus-card">
           <MemberAvatar member={focused} size="md" />
           <div>
-            <h2>{focused.alias?.trim() || focused.name}</h2>
+            <h2>{focused.name}</h2>
             <p>
               {focusedStats.games} games · {focusedStats.wins}–{focusedStats.losses}–
               {focusedStats.draws} · {formatWinRate(focusedStats.winRate)} win rate

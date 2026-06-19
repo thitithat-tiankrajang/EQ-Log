@@ -29,7 +29,9 @@ function turnInsights(game: GameState, log: TurnLog) {
     .filter((entry) => entry.side === log.side && entry.turnNumber < log.turnNumber)
     .sort((a, b) => a.turnNumber - b.turnNumber)
     .at(-1);
-  const startClock = priorSame ? priorSame.timerAfter[log.side] : game.timers.initialSeconds;
+  const startClock = priorSame
+    ? priorSame.timerAfter[log.side]
+    : (game.timers.initialSecondsBySide?.[log.side] ?? game.timers.initialSeconds);
   const submitClock = log.timerAfter[log.side];
   const timeUsed = Math.max(0, startClock - submitClock);
   const leftover = priorSame ? priorSame.rackAfter : [];

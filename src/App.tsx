@@ -1,6 +1,7 @@
 import {
   Download,
   Flag,
+  LayoutGrid,
   List,
   LogOut,
   Pause,
@@ -26,6 +27,7 @@ import {
   ActionType,
   BoardSnapshot,
   EndGameDetail,
+  EquationDetection,
   ExchangeDetail,
   GameState,
   NewGameSettings,
@@ -45,11 +47,13 @@ import {
   getPendingExchangeReturnBySide,
   getAssignmentOptions,
   getRack,
+  getTileDrawMode,
   isRackReady,
   otherSide,
   phaseForNextSide,
   pushActionSnapshot,
   setRack,
+  shuffleTilebagQueue,
   tileNeedsAssignment,
   tilePoint,
   TurnActionDetail,
@@ -97,6 +101,11 @@ type AssignmentRequest =
       kind: "swapPending";
       tile: TileInstance;
       pendingTileId: string;
+    }
+  | {
+      kind: "editPending";
+      tile: TileInstance;
+      pendingTileId: string;
     };
 
 type RefillBaseline = {
@@ -109,6 +118,27 @@ type RefillBaseline = {
   turnNumber: number;
 };
 
+function captureRefillBaseline(game: GameState): RefillBaseline {
+  return {
+    gameId: game.gameId,
+    ids: getRack(game, game.activeSide).map((tile) => tile.id),
+    pendingExchangeReturnBySide: deepClone(getPendingExchangeReturnBySide(game)),
+    rack: deepClone(getRack(game, game.activeSide)),
+    side: game.activeSide,
+    tilebag: deepClone(game.tilebag),
+    turnNumber: game.turnNumber,
+  };
+}
+
+function refillBaselineMatchesTurn(baseline: RefillBaseline | null, game: GameState): baseline is RefillBaseline {
+  return Boolean(
+    baseline &&
+      baseline.gameId === game.gameId &&
+      baseline.side === game.activeSide &&
+      baseline.turnNumber === game.turnNumber,
+  );
+}
+
 // One undoable "record": the full game + draft state at a single step.
 type UndoSnap = {
   game: GameState;
@@ -118,6 +148,44 @@ type UndoSnap = {
 };
 
 type ScoreAnchorCell = { row: number; col: number };
+
+function getScoreAnchorCells({
+  board,
+  equations,
+  orientation,
+  placements,
+}: {
+  board: BoardSnapshot;
+  equations: EquationDetection[];
+  orientation: "horizontal" | "vertical";
+  placements: PendingPlacement[];
+}): ScoreAnchorCell[] {
+  const primaryEquation = equations
+    .filter((equation) => equation.isValid && equation.direction === orientation)
+    .reduce<EquationDetection | null>(
+      (longest, equation) =>
+        !longest || equation.cells.length > longest.cells.length ? equation : longest,
+      null,
+    );
+  if (primaryEquation) return primaryEquation.cells;
+  if (placements.length === 0) return [];
+
+  if (orientation === "horizontal") {
+    const row = placements[0].row;
+    let start = Math.min(...placements.map((placement) => placement.col));
+    let end = Math.max(...placements.map((placement) => placement.col));
+    while (start > 0 && board[row]?.[start - 1]) start -= 1;
+    while (end < board.length - 1 && board[row]?.[end + 1]) end += 1;
+    return Array.from({ length: end - start + 1 }, (_, offset) => ({ row, col: start + offset }));
+  }
+
+  const col = placements[0].col;
+  let start = Math.min(...placements.map((placement) => placement.row));
+  let end = Math.max(...placements.map((placement) => placement.row));
+  while (start > 0 && board[start - 1]?.[col]) start -= 1;
+  while (end < board.length - 1 && board[end + 1]?.[col]) end += 1;
+  return Array.from({ length: end - start + 1 }, (_, offset) => ({ row: start + offset, col }));
+}
 
 function createBoardScoreAnchor({
   cells,
@@ -139,25 +207,23 @@ function createBoardScoreAnchor({
   const maxCol = Math.max(...cols);
 
   if (orientation === "horizontal") {
-    const leftSpace = minCol;
-    const rightSpace = 14 - maxCol;
-    const side = leftSpace >= 3 || leftSpace >= rightSpace ? "left" : "right";
+    // Prefer the equation end. If it touches the board edge, attach to the
+    // start instead so the badge still points to an equation endpoint.
+    const side = maxCol === 14 && minCol > 0 ? "left" : "right";
     const alignY = minRow >= 13 ? "end" : "start";
     return {
       row: minRow,
       col: side === "left" ? minCol : maxCol,
       orientation,
       side,
-      alignX: side === "left" ? "start" : "end",
+      alignX: "start",
       alignY,
       score,
       isValid,
     };
   }
 
-  const topSpace = minRow;
-  const bottomSpace = 14 - maxRow;
-  const side = topSpace >= 2 || topSpace >= bottomSpace ? "above" : "below";
+  const side = maxRow === 14 && minRow > 0 ? "above" : "below";
   const alignX = minCol >= 13 ? "end" : "start";
   return {
     row: side === "above" ? minRow : maxRow,
@@ -165,9 +231,22 @@ function createBoardScoreAnchor({
     orientation,
     side,
     alignX,
-    alignY: side === "above" ? "start" : "end",
+    alignY: "start",
     score,
     isValid,
+  };
+}
+
+function isFinishedGame(game: Pick<GameState, "status" | "logs">): boolean {
+  return game.status === "finished" || game.logs.some((log) => log.action === "end_game");
+}
+
+function normalizeFinishedGame(game: GameState): GameState {
+  if (!isFinishedGame(game) || (game.status === "finished" && game.timers.paused)) return game;
+  return {
+    ...game,
+    status: "finished",
+    timers: { ...game.timers, paused: true },
   };
 }
 
@@ -177,13 +256,15 @@ function App() {
   const [rooms, setRooms] = useState<RoomMeta[]>(() => (remoteEnabled ? [] : roomStore.listRooms()));
   const [roomsLoading, setRoomsLoading] = useState(remoteEnabled);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [foregroundLoading, setForegroundLoading] = useState<string | null>(null);
+  const [backgroundSyncCount, setBackgroundSyncCount] = useState(0);
   const route = useRoute();
   const [game, setGame] = useState<GameState | null>(() => {
     if (remoteEnabled) return null;
     const id = route.kind === "room" ? route.roomId : roomStore.getActiveRoomId();
     if (!id) return null;
     const saved = roomStore.readRoom(id);
-    return saved && !hasDuplicateTileIds(saved) ? saved : null;
+    return saved && !hasDuplicateTileIds(saved) ? normalizeFinishedGame(saved) : null;
   });
   const [activeRoomId, setActiveRoomId] = useState<string | null>(() => {
     if (route.kind === "room") return route.roomId;
@@ -254,6 +335,8 @@ function App() {
   const isOwnerRef = useRef(false);
   const pendingSessionEventRef = useRef<RoomSessionEvent | null>(null);
   const lastAppliedStateKeyRef = useRef<string>("");
+  const lastAppliedSessionKeyRef = useRef<string>("");
+  const foregroundOperationRef = useRef(0);
   const undoStackRef = useRef<UndoSnap[]>([]);
   const redoStackRef = useRef<UndoSnap[]>([]);
   const lastSnapRef = useRef<UndoSnap | null>(null);
@@ -262,14 +345,22 @@ function App() {
   const [, bumpUndoVersion] = useState(0);
 
   const activeRoomMeta = activeRoomId ? rooms.find((room) => room.id === activeRoomId) ?? null : null;
-  const canCreateRoom = !remoteEnabled || Boolean(userId && isApproved);
-  const canPlayActiveRoom = !remoteEnabled || Boolean(userId && activeRoomMeta?.ownerId === userId);
+  const hasAdminAccess = remoteEnabled && Boolean(userId && profile?.is_admin);
+  const canCreateRoom = !remoteEnabled || Boolean(userId && (isApproved || hasAdminAccess));
+  const canPlayActiveRoom =
+    !remoteEnabled || Boolean(userId && (hasAdminAccess || activeRoomMeta?.ownerId === userId));
   const readOnly = remoteEnabled && !canPlayActiveRoom;
-  const roleLabel = !remoteEnabled ? "Local Control" : canPlayActiveRoom ? "Owner Control" : "Spectator Live";
+  const roleLabel = !remoteEnabled
+    ? "Local Control"
+    : hasAdminAccess
+      ? "Admin Control"
+      : canPlayActiveRoom
+        ? "Owner Control"
+        : "Spectator Live";
   const createDisabledReason = authConfigured
     ? !userId
       ? "Sign in to create a room."
-      : !isApproved
+      : !isApproved && !hasAdminAccess
         ? "Your account must be approved before creating a room."
         : null
     : null;
@@ -285,17 +376,7 @@ function App() {
       }),
     [actionMode, exchangeDraft, pendingPlacements, selectedPendingTileId, selectedRackTileId, userId],
   );
-  const liveSessionKey = useMemo(
-    () =>
-      JSON.stringify({
-        actionMode,
-        exchangeDraft,
-        pendingPlacements,
-        selectedPendingTileId,
-        selectedRackTileId,
-      }),
-    [actionMode, exchangeDraft, pendingPlacements, selectedPendingTileId, selectedRackTileId],
-  );
+  const liveSessionKey = useMemo(() => makeLiveSessionKey(liveSession), [liveSession]);
   const remoteStateKey = useMemo(() => (game ? makeRemoteStateKey(game) : ""), [game]);
   // Signature of everything that counts as an undoable mutation (excludes the
   // per-second timer tick and pure tile-selection highlights).
@@ -329,23 +410,27 @@ function App() {
     if (route.kind === "lobby") return;
     if (route.roomId === activeRoomId && game) return;
     let cancelled = false;
+    const finishLoading = startForegroundLoading("Opening room...");
     (async () => {
       try {
         const remotePayload = remoteEnabled ? await remoteRooms.readRoom(route.roomId) : null;
-        const saved = remotePayload?.game ?? roomStore.readRoom(route.roomId);
+        const storedGame = remotePayload?.game ?? roomStore.readRoom(route.roomId);
         if (cancelled) return;
-        if (!saved || hasDuplicateTileIds(saved)) {
+        if (!storedGame || hasDuplicateTileIds(storedGame)) {
           navigate({ kind: "lobby" }, true);
           return;
         }
+        const saved = normalizeFinishedGame(storedGame);
         if (!remoteEnabled) roomStore.setActiveRoomId(route.roomId);
         setActiveRoomId(route.roomId);
         setGame(saved);
         lastAppliedStateKeyRef.current = makeRemoteStateKey(saved);
         if (remotePayload) applyRemoteSession(remotePayload.session);
-        setShowResult(saved.status === "finished");
+        setShowResult(isFinishedGame(saved));
       } catch (error) {
         if (!cancelled) setSyncError(error instanceof Error ? error.message : "Unable to open this room.");
+      } finally {
+        finishLoading();
       }
     })();
     return () => {
@@ -407,12 +492,13 @@ function App() {
   }, [remoteEnabled]);
 
   useEffect(() => {
-    if (view !== "game" || !game || game.status !== "playing" || game.timers.paused || game.timers.untimed)
-      return;
+    if (view !== "game" || !game || game.status !== "playing" || game.timers.paused) return;
+    if (game.timers.untimed || game.timers.sideUntimed?.[game.activeSide]) return;
     const intervalId = window.setInterval(() => {
       setGame((current) => {
         if (!current || current.status !== "playing" || current.timers.paused) return current;
         const side = current.activeSide;
+        if (current.timers.untimed || current.timers.sideUntimed?.[side]) return current;
         const nextValue = Math.max(current.timers[side] - 1, current.timers.minSeconds);
         if (nextValue === current.timers[side]) return current;
         return {
@@ -426,7 +512,7 @@ function App() {
       });
     }, 1000);
     return () => window.clearInterval(intervalId);
-  }, [view, game?.activeSide, game?.status, game?.timers.paused]);
+  }, [view, game?.activeSide, game?.status, game?.timers.paused, game?.timers.untimed, game?.timers.sideUntimed]);
 
   // Persist the active room's full state locally on every change (incl. timer ticks).
   useEffect(() => {
@@ -441,8 +527,11 @@ function App() {
   useEffect(() => {
     if (!remoteEnabled || !game || !activeRoomId || !canPlayActiveRoom) return;
     if (hasDuplicateTileIds(game)) return;
+    if (remoteStateKey === lastAppliedStateKeyRef.current) return;
     const event = pendingSessionEventRef.current ?? "state";
     pendingSessionEventRef.current = null;
+    lastAppliedStateKeyRef.current = remoteStateKey;
+    setBackgroundSyncCount((count) => count + 1);
     void remoteRooms
       .updateRoomState({
         id: activeRoomId,
@@ -451,17 +540,22 @@ function App() {
         event,
       })
       .then(() => setSyncError(null))
-      .catch((error: Error) => setSyncError(error.message));
+      .catch((error: Error) => setSyncError(error.message))
+      .finally(() => setBackgroundSyncCount((count) => Math.max(0, count - 1)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remoteEnabled, activeRoomId, canPlayActiveRoom, remoteStateKey]);
 
   // Supabase live draft sync: lets spectators see pending placement/exchange state.
   useEffect(() => {
     if (!remoteEnabled || !activeRoomId || !canPlayActiveRoom) return;
+    if (liveSessionKey === lastAppliedSessionKeyRef.current) return;
+    lastAppliedSessionKeyRef.current = liveSessionKey;
+    setBackgroundSyncCount((count) => count + 1);
     void remoteRooms
       .updateRoomSession(activeRoomId, liveSession)
       .then(() => setSyncError(null))
-      .catch((error: Error) => setSyncError(error.message));
+      .catch((error: Error) => setSyncError(error.message))
+      .finally(() => setBackgroundSyncCount((count) => Math.max(0, count - 1)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remoteEnabled, activeRoomId, canPlayActiveRoom, liveSessionKey]);
 
@@ -484,25 +578,25 @@ function App() {
       return;
     }
     const current = refillBaselineRef.current;
-    if (
-      current &&
-      current.gameId === game.gameId &&
-      current.side === game.activeSide &&
-      current.turnNumber === game.turnNumber
-    ) {
-      return;
-    }
+    if (refillBaselineMatchesTurn(current, game)) return;
     if (game.phase !== "refill") return;
-    refillBaselineRef.current = {
-      gameId: game.gameId,
-      ids: getRack(game, game.activeSide).map((tile) => tile.id),
-      pendingExchangeReturnBySide: deepClone(getPendingExchangeReturnBySide(game)),
-      rack: deepClone(getRack(game, game.activeSide)),
-      side: game.activeSide,
-      tilebag: deepClone(game.tilebag),
-      turnNumber: game.turnNumber,
-    };
+    // Play mode captures the pre-draw rack synchronously before auto-refill runs.
+    if (getTileDrawMode(game) === "play") return;
+    refillBaselineRef.current = captureRefillBaseline(game);
   }, [game, view]);
+
+  useEffect(() => {
+    if (!game || view !== "game" || readOnly || replayCursor !== null) return;
+    if (restoringUndoRef.current) return;
+    if (getTileDrawMode(game) !== "play") return;
+    if (game.status !== "playing" || actionMode !== "none" || game.phase !== "refill") return;
+    if (isRackReady(game)) return;
+    if (!refillBaselineMatchesTurn(refillBaselineRef.current, game)) {
+      refillBaselineRef.current = captureRefillBaseline(game);
+    }
+    pendingSessionEventRef.current = "state";
+    setGame(refillRackFromQueue(game));
+  }, [actionMode, game, readOnly, replayCursor, view]);
 
   // Size the board from the whole board zone so the bottom rack stays in the
   // same viewport while the board remains as large as the available height allows.
@@ -516,10 +610,14 @@ function App() {
       if (!w || !h) return;
       const rackHeightRatio = 1.42;
       const rackChrome = 34;
-      const labelGutter = 26; // room for the R / C number gutters around the board
+      const rowLabelWidth = 34;
+      const colLabelHeight = 22;
+      const boardBorderTotal = 4;
+      const labelGutterX = rowLabelWidth + boardBorderTotal;
+      const labelGutterY = colLabelHeight + boardBorderTotal;
       const safetyInset = 18;
-      const sizeByWidth = (w - labelGutter - safetyInset * 2) / 15;
-      const sizeByHeight = (h - rackChrome - labelGutter - safetyInset) / (15 + rackHeightRatio);
+      const sizeByWidth = (w - labelGutterX - safetyInset * 2) / 15;
+      const sizeByHeight = (h - rackChrome - labelGutterY - safetyInset) / (15 + rackHeightRatio);
       const size = Math.max(15, Math.min(68, Math.floor(Math.min(sizeByWidth, sizeByHeight) * 0.96)));
       setBoardCell((prev) => (prev === size ? prev : size));
     };
@@ -557,6 +655,13 @@ function App() {
         event.preventDefault();
         (document.activeElement as HTMLElement | null)?.blur?.();
       };
+
+      if ((event.key === "e" || event.key === "E") && selectedPendingTileId && !assignmentRequest) {
+        if (openPendingAssignmentEditor(selectedPendingTileId)) {
+          consumed();
+          return;
+        }
+      }
 
       // Backspace / Delete: undo the last placement (LIFO) and rewind the
       // cursor to that cell so the next key/click can immediately re-place.
@@ -647,6 +752,13 @@ function App() {
         return;
       }
       if (!tile) return;
+      if (
+        currentGame.phase === "refill" &&
+        refillBaselineMatchesTurn(refillBaselineRef.current, currentGame) &&
+        refillBaselineRef.current.ids.includes(tile.id)
+      ) {
+        return;
+      }
 
       // Fast atomic cursor placement: read+update refs in one pass.
       if (currentCursor) {
@@ -749,7 +861,7 @@ function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, game?.gameId, readOnly, replayCursor, replayDraft, selectedPendingTileId]);
+  }, [view, game?.gameId, readOnly, replayCursor, replayDraft, selectedPendingTileId, assignmentRequest]);
 
   // Reset the undo timeline whenever a different game is opened/created/closed.
   // Declared BEFORE the capture effect so it clears state before capture runs.
@@ -841,7 +953,10 @@ function App() {
     // Timers: snapshot of each side's clock at this half-step. "after" uses
     // this log's timerAfter; "before" uses prior log's timerAfter (or initial).
     const initialSeconds = game.timers.initialSeconds;
-    const initialTimers: Record<Side, number> = { A: initialSeconds, B: initialSeconds };
+    const initialTimers: Record<Side, number> = game.timers.initialSecondsBySide ?? {
+      A: initialSeconds,
+      B: initialSeconds,
+    };
     const timers: Record<Side, number> = useThis
       ? selectedLog.timerAfter
       : ref?.timerAfter ?? initialTimers;
@@ -918,34 +1033,59 @@ function App() {
   }
 
   if (view !== "game" || !game) {
+    if (view === "game") {
+      return <LoadingScreen message={foregroundLoading ?? "Opening room..."} />;
+    }
     return (
-      <Lobby
-        canCreate={canCreateRoom}
-        createDisabledReason={createDisabledReason}
-        loading={roomsLoading}
-        rooms={rooms}
-        syncError={syncError}
-        isAdmin={!remoteEnabled || Boolean(profile?.is_admin)}
-        getRoomRole={getRoomRole}
-        onOpen={openRoom}
-        onCreate={createAndOpenRoom}
-        onRename={renameRoomById}
-        onDuplicate={duplicateRoomById}
-        onDelete={deleteRoomById}
-        onExport={exportRoomById}
-        onImport={importRoomGame}
-      />
+      <>
+        <Lobby
+          canCreate={canCreateRoom}
+          createDisabledReason={createDisabledReason}
+          loading={roomsLoading}
+          rooms={rooms}
+          syncError={syncError}
+          isAdmin={!remoteEnabled || hasAdminAccess}
+          getRoomRole={getRoomRole}
+          onOpen={openRoom}
+          onCreate={createAndOpenRoom}
+          onRename={renameRoomById}
+          onDuplicate={duplicateRoomById}
+          onDelete={deleteRoomById}
+          onExport={exportRoomById}
+          onImport={importRoomGame}
+        />
+        <GlobalActivity foreground={foregroundLoading} syncing={backgroundSyncCount > 0} />
+      </>
     );
   }
 
+  function startForegroundLoading(message: string): () => void {
+    const operationId = ++foregroundOperationRef.current;
+    const startedAt = Date.now();
+    setForegroundLoading(message);
+    return () => {
+      const clear = () => {
+        if (foregroundOperationRef.current === operationId) setForegroundLoading(null);
+      };
+      const remainingMs = 240 - (Date.now() - startedAt);
+      if (remainingMs > 0) {
+        window.setTimeout(clear, remainingMs);
+      } else {
+        clear();
+      }
+    };
+  }
+
   async function openRoom(id: string) {
+    const finishLoading = startForegroundLoading("Opening room...");
     try {
       const remotePayload = remoteEnabled ? await remoteRooms.readRoom(id) : null;
-      const saved = remotePayload?.game ?? roomStore.readRoom(id);
-      if (!saved || hasDuplicateTileIds(saved)) {
+      const storedGame = remotePayload?.game ?? roomStore.readRoom(id);
+      if (!storedGame || hasDuplicateTileIds(storedGame)) {
         window.alert("This room cannot be opened because its data is damaged.");
         return;
       }
+      const saved = normalizeFinishedGame(storedGame);
       cancelDraftOnly();
       setReplayCursor(null);
       if (!remoteEnabled) roomStore.setActiveRoomId(id);
@@ -954,10 +1094,12 @@ function App() {
       lastAppliedStateKeyRef.current = makeRemoteStateKey(saved);
       if (remotePayload) applyRemoteSession(remotePayload.session);
       navigate({ kind: "room", roomId: id });
-      setShowResult(saved.status === "finished");
+      setShowResult(isFinishedGame(saved));
       setSyncError(null);
     } catch (error) {
       setSyncError(error instanceof Error ? error.message : "Unable to open this room.");
+    } finally {
+      finishLoading();
     }
   }
 
@@ -967,6 +1109,7 @@ function App() {
       return;
     }
     const created = createNewGame(newSettings);
+    const finishLoading = startForegroundLoading("Creating room...");
     try {
       if (remoteEnabled) {
         if (!userId) return;
@@ -974,6 +1117,8 @@ function App() {
         const { id, meta } = await remoteRooms.createRoom(created, userId, session);
         setRooms((current) => [meta, ...current.filter((room) => room.id !== id)]);
         setActiveRoomId(id);
+        lastAppliedStateKeyRef.current = makeRemoteStateKey(created);
+        lastAppliedSessionKeyRef.current = makeLiveSessionKey(session);
         cancelDraftOnly();
         setReplayCursor(null);
         setGame(created);
@@ -991,6 +1136,8 @@ function App() {
       navigate({ kind: "room", roomId: id });
     } catch (error) {
       setSyncError(error instanceof Error ? error.message : "Unable to create this room.");
+    } finally {
+      finishLoading();
     }
   }
 
@@ -999,10 +1146,12 @@ function App() {
     setReplayCursor(null);
     setShowResult(false);
     if (remoteEnabled) {
+      setRoomsLoading(true);
       void remoteRooms
         .listRooms()
         .then(setRooms)
-        .catch((error: Error) => setSyncError(error.message));
+        .catch((error: Error) => setSyncError(error.message))
+        .finally(() => setRoomsLoading(false));
     } else {
       setRooms(roomStore.listRooms());
     }
@@ -1013,71 +1162,99 @@ function App() {
     if (!canManageRoom(id)) return;
     const trimmed = name.trim();
     if (!trimmed) return;
-    if (remoteEnabled) {
-      const target = id === activeRoomId && game ? game : (await remoteRooms.readRoom(id))?.game;
-      if (!target) return;
-      const nextGame = { ...target, name: trimmed, lastSavedAt: new Date().toISOString() };
-      if (id === activeRoomId) {
-        pendingSessionEventRef.current = "rename";
-        setGame(nextGame);
+    const finishLoading = startForegroundLoading("Renaming room...");
+    try {
+      if (remoteEnabled) {
+        const target = id === activeRoomId && game ? game : (await remoteRooms.readRoom(id))?.game;
+        if (!target) return;
+        const nextGame = { ...target, name: trimmed, lastSavedAt: new Date().toISOString() };
+        if (id === activeRoomId) {
+          pendingSessionEventRef.current = "rename";
+          setGame(nextGame);
+          return;
+        }
+        await remoteRooms.updateRoomState({
+          id,
+          game: nextGame,
+          session: id === activeRoomId ? liveSession : remoteRooms.emptyLiveSession(userId),
+          event: "rename",
+        });
+        setRooms(await remoteRooms.listRooms());
         return;
       }
-      await remoteRooms.updateRoomState({
-        id,
-        game: nextGame,
-        session: id === activeRoomId ? liveSession : remoteRooms.emptyLiveSession(userId),
-        event: "rename",
-      });
-      setRooms(await remoteRooms.listRooms());
-      return;
+      setRooms(roomStore.renameRoom(id, name));
+      if (id === activeRoomId && game) setGame({ ...game, name: trimmed || game.name });
+    } catch (error) {
+      setSyncError(error instanceof Error ? error.message : "Unable to rename this room.");
+    } finally {
+      finishLoading();
     }
-    setRooms(roomStore.renameRoom(id, name));
-    if (id === activeRoomId && game) setGame({ ...game, name: trimmed || game.name });
   }
 
   async function duplicateRoomById(id: string) {
     if (!canCreateRoom || !canManageRoom(id)) return;
-    if (remoteEnabled) {
-      const payload = await remoteRooms.readRoom(id);
-      if (!payload || !userId) return;
-      const copy = deepClone(payload.game);
-      copy.gameId = crypto.randomUUID();
-      copy.name = `${payload.game.name} (Copy)`;
-      const session = remoteRooms.emptyLiveSession(userId);
-      const { meta } = await remoteRooms.createRoom(copy, userId, session);
-      setRooms((current) => [meta, ...current]);
-      return;
+    const finishLoading = startForegroundLoading("Duplicating room...");
+    try {
+      if (remoteEnabled) {
+        const payload = await remoteRooms.readRoom(id);
+        if (!payload || !userId) return;
+        const copy = deepClone(payload.game);
+        copy.gameId = crypto.randomUUID();
+        copy.name = `${payload.game.name} (Copy)`;
+        const session = remoteRooms.emptyLiveSession(userId);
+        const { meta } = await remoteRooms.createRoom(copy, userId, session);
+        setRooms((current) => [meta, ...current]);
+        return;
+      }
+      const result = roomStore.duplicateRoom(id);
+      if (result) setRooms(result.index);
+    } catch (error) {
+      setSyncError(error instanceof Error ? error.message : "Unable to duplicate this room.");
+    } finally {
+      finishLoading();
     }
-    const result = roomStore.duplicateRoom(id);
-    if (result) setRooms(result.index);
   }
 
   async function deleteRoomById(id: string) {
     if (!canManageRoom(id)) return;
     const meta = rooms.find((room) => room.id === id);
     if (!window.confirm(`Delete "${meta?.name ?? ""}"? This cannot be undone.`)) return;
-    if (remoteEnabled) {
-      await remoteRooms.deleteRoom(id);
-      setRooms((current) => current.filter((room) => room.id !== id));
+    const finishLoading = startForegroundLoading("Deleting room...");
+    try {
+      if (remoteEnabled) {
+        await remoteRooms.deleteRoom(id);
+        setRooms((current) => current.filter((room) => room.id !== id));
+        if (id === activeRoomId) {
+          setActiveRoomId(null);
+          setGame(null);
+          navigate({ kind: "lobby" });
+        }
+        return;
+      }
+      const index = roomStore.deleteRoom(id);
+      setRooms(index);
       if (id === activeRoomId) {
         setActiveRoomId(null);
         setGame(null);
         navigate({ kind: "lobby" });
       }
-      return;
-    }
-    const index = roomStore.deleteRoom(id);
-    setRooms(index);
-    if (id === activeRoomId) {
-      setActiveRoomId(null);
-      setGame(null);
-      navigate({ kind: "lobby" });
+    } catch (error) {
+      setSyncError(error instanceof Error ? error.message : "Unable to delete this room.");
+    } finally {
+      finishLoading();
     }
   }
 
   async function exportRoomById(id: string) {
-    const saved = remoteEnabled ? (await remoteRooms.readRoom(id))?.game ?? null : roomStore.readRoom(id);
-    if (saved) downloadGame(saved);
+    const finishLoading = startForegroundLoading("Preparing export...");
+    try {
+      const saved = remoteEnabled ? (await remoteRooms.readRoom(id))?.game ?? null : roomStore.readRoom(id);
+      if (saved) downloadGame(saved);
+    } catch (error) {
+      setSyncError(error instanceof Error ? error.message : "Unable to export this room.");
+    } finally {
+      finishLoading();
+    }
   }
 
   async function importRoomGame(imported: GameState) {
@@ -1085,18 +1262,25 @@ function App() {
       window.alert(createDisabledReason ?? "You cannot import a room right now.");
       return;
     }
-    if (remoteEnabled) {
-      if (!userId) return;
-      const copy = deepClone(imported);
-      copy.gameId = crypto.randomUUID();
-      const session = remoteRooms.emptyLiveSession(userId);
-      const { meta } = await remoteRooms.createRoom(copy, userId, session);
-      await remoteRooms.appendRoomSession(meta.id, copy, session, "import");
-      setRooms((current) => [meta, ...current]);
-      return;
+    const finishLoading = startForegroundLoading("Importing room...");
+    try {
+      if (remoteEnabled) {
+        if (!userId) return;
+        const copy = deepClone(imported);
+        copy.gameId = crypto.randomUUID();
+        const session = remoteRooms.emptyLiveSession(userId);
+        const { meta } = await remoteRooms.createRoom(copy, userId, session);
+        await remoteRooms.appendRoomSession(meta.id, copy, session, "import");
+        setRooms((current) => [meta, ...current]);
+        return;
+      }
+      const { index } = roomStore.importRoom(imported);
+      setRooms(index);
+    } catch (error) {
+      setSyncError(error instanceof Error ? error.message : "Unable to import this room.");
+    } finally {
+      finishLoading();
     }
-    const { index } = roomStore.importRoom(imported);
-    setRooms(index);
   }
 
   function getRoomRole(room: RoomMeta) {
@@ -1104,31 +1288,41 @@ function App() {
     return {
       canManage,
       canCreate: canCreateRoom,
-      label: !remoteEnabled ? "Local" : canManage ? "Owner" : "Spectator",
+      label: !remoteEnabled
+        ? "Local"
+        : hasAdminAccess
+          ? room.ownerId === userId
+            ? "Admin · Owner"
+            : "Admin"
+          : canManage
+            ? "Owner"
+            : "Spectator",
     };
   }
 
   function canManageRoom(id: string): boolean {
     if (!remoteEnabled) return true;
     const room = rooms.find((item) => item.id === id);
-    return Boolean(userId && room?.ownerId === userId);
+    return Boolean(userId && (hasAdminAccess || room?.ownerId === userId));
   }
 
   function applyRemotePayload(payload: remoteRooms.RemoteRoomPayload) {
     if (hasDuplicateTileIds(payload.game)) throw new Error("Live room data is damaged.");
-    const key = makeRemoteStateKey(payload.game);
+    const remoteGame = normalizeFinishedGame(payload.game);
+    const key = makeRemoteStateKey(remoteGame);
     if (key !== lastAppliedStateKeyRef.current) {
       // Real state change (move / pause / end / etc.) — adopt the authoritative game.
       // Session-only updates (tile selection, drafts) skip this, so the spectator's
       // locally-ticking clock keeps running between moves (live countdown).
       lastAppliedStateKeyRef.current = key;
-      setGame(payload.game);
+      setGame(remoteGame);
     }
     applyRemoteSession(payload.session);
     setSyncError(null);
   }
 
   function applyRemoteSession(session: LiveRoomSession) {
+    lastAppliedSessionKeyRef.current = makeLiveSessionKey(session);
     setActionMode(session.actionMode);
     setPendingPlacements(session.pendingPlacements);
     setExchangeDraft(session.exchangeDraft);
@@ -1253,9 +1447,7 @@ function App() {
     game.phase === "choose_action" &&
     Boolean(
       refillBaseline &&
-        refillBaseline.gameId === game.gameId &&
-        refillBaseline.side === game.activeSide &&
-        refillBaseline.turnNumber === game.turnNumber &&
+        refillBaselineMatchesTurn(refillBaseline, game) &&
         activeRack.some((tile) => !refillBaseline.ids.includes(tile.id)),
     );
 
@@ -1327,6 +1519,7 @@ function App() {
 
   function refillFromBag(tile: TileInstance) {
     if (!game || readOnly || reviewing || game.status !== "playing") return;
+    if (getTileDrawMode(game) === "play") return;
     if (actionMode !== "none") return;
     pendingSessionEventRef.current = "state";
     const rack = getRack(game, game.activeSide);
@@ -1334,19 +1527,9 @@ function App() {
     const currentBaseline = refillBaselineRef.current;
     if (
       !currentBaseline ||
-      currentBaseline.gameId !== game.gameId ||
-      currentBaseline.side !== game.activeSide ||
-      currentBaseline.turnNumber !== game.turnNumber
+      !refillBaselineMatchesTurn(currentBaseline, game)
     ) {
-      refillBaselineRef.current = {
-        gameId: game.gameId,
-        ids: rack.map((rackTile) => rackTile.id),
-        pendingExchangeReturnBySide: deepClone(getPendingExchangeReturnBySide(game)),
-        rack: deepClone(rack),
-        side: game.activeSide,
-        tilebag: deepClone(game.tilebag),
-        turnNumber: game.turnNumber,
-      };
+      refillBaselineRef.current = captureRefillBaseline(game);
     }
     const nextRack = [...rack, tile];
     fillRackLayoutSlot(game.activeSide, rackLayoutRef.current[game.activeSide].indexOf(null), tile.id);
@@ -1377,16 +1560,14 @@ function App() {
     if (!game || readOnly || reviewing || actionMode !== "none") return;
     if (game.phase !== "choose_action") return;
     const baseline = refillBaselineRef.current;
-    if (
-      !baseline ||
-      baseline.gameId !== game.gameId ||
-      baseline.side !== game.activeSide ||
-      baseline.turnNumber !== game.turnNumber
-    ) {
-      return;
-    }
+    if (!refillBaselineMatchesTurn(baseline, game)) return;
     pendingSessionEventRef.current = "state";
     const pendingBySide = deepClone(baseline.pendingExchangeReturnBySide);
+    const baselineIdSet = new Set(baseline.ids);
+    applyRackLayout((current) => ({
+      ...current,
+      [game.activeSide]: current[game.activeSide].map((id) => (id && baselineIdSet.has(id) ? id : null)),
+    }));
     setGame(
       setRack(
         {
@@ -1410,14 +1591,12 @@ function App() {
 
   function returnRackTileToBag(tile: TileInstance) {
     if (!game || readOnly || reviewing || actionMode !== "none") return;
+    if (getTileDrawMode(game) === "play") return;
     pendingSessionEventRef.current = "state";
     if (game.phase !== "refill") return;
     const refillBaseline = refillBaselineRef.current;
     const baselineIds =
-      refillBaseline &&
-      refillBaseline.gameId === game.gameId &&
-      refillBaseline.side === game.activeSide &&
-      refillBaseline.turnNumber === game.turnNumber
+      refillBaselineMatchesTurn(refillBaseline, game)
         ? refillBaseline.ids
         : getRack(game, game.activeSide).map((rackTile) => rackTile.id);
     if (baselineIds.includes(tile.id)) return;
@@ -1738,6 +1917,9 @@ function App() {
   // mirrors clicking an empty board cell when a pending tile is selected.
   function handleEmptyRackSlotClick(index: number, side: Side) {
     if (!game) return;
+    // Empty slots are inert while the directional placement cursor is active.
+    // Use the ref so rapid keyboard input cannot observe an older cursor state.
+    if (cursorRef.current) return;
     // Replay practice flow.
     if (reviewing) {
       returnReplayPendingToRackSlot(index);
@@ -1837,17 +2019,14 @@ function App() {
     if (actionMode === "none") {
       if (game.phase === "refill") {
         const refillBaseline = refillBaselineRef.current;
-        const baselineIds =
-          refillBaseline &&
-          refillBaseline.gameId === game.gameId &&
-          refillBaseline.side === game.activeSide &&
-          refillBaseline.turnNumber === game.turnNumber
-            ? refillBaseline.ids
-            : [];
-        if (!baselineIds.includes(tile.id)) {
+        if (refillBaselineMatchesTurn(refillBaseline, game) && refillBaseline.ids.includes(tile.id)) {
+          return;
+        }
+        if (getTileDrawMode(game) !== "play") {
           returnRackTileToBag(tile);
           return;
         }
+        return;
       }
       if (selectedRackTileId && selectedRackTileId !== tile.id) {
         const rack = getRack(game, game.activeSide);
@@ -2025,6 +2204,25 @@ function App() {
     );
   }
 
+  function openPendingAssignmentEditor(tileId: string): boolean {
+    const replayPractice = reviewing && replayPhase === "before" && Boolean(replayDraft);
+    if (!replayPractice && readOnly) return false;
+    const placements = replayPractice ? replayDraft?.placements ?? [] : pendingPlacements;
+    const pending = placements.find((placement) => placement.tile.id === tileId);
+    if (!pending || !tileNeedsAssignment(pending.tile.token)) return false;
+    setSelectedRackTileId(null);
+    setSelectedPendingTileId(pending.tile.id);
+    setAssignmentRequest({
+      kind: "editPending",
+      tile: {
+        ...pending.tile,
+        assignedToken: pending.assignedToken ?? pending.tile.assignedToken,
+      },
+      pendingTileId: pending.tile.id,
+    });
+    return true;
+  }
+
   function confirmAssignment(value: string) {
     const isReplayAssignment = reviewing && replayPhase === "before" && Boolean(replayDraft);
     if (!assignmentRequest || (readOnly && !isReplayAssignment)) return;
@@ -2033,6 +2231,11 @@ function App() {
       ...assignmentRequest.tile,
       assignedToken: value,
     };
+    if (assignmentRequest.kind === "editPending") {
+      updatePendingAssignment(assignmentRequest.pendingTileId, value);
+      setAssignmentRequest(null);
+      return;
+    }
     if (assignmentRequest.kind === "place") {
       const placement: PendingPlacement = {
         tile: assignedTile,
@@ -2122,10 +2325,19 @@ function App() {
       game.activeSide,
       rackAfter,
     );
-    const nextGame = {
+    let nextGame: GameState = {
       ...switchedBase,
       phase: endGameLog ? switchedBase.phase : phaseForNextSide(switchedBase),
     };
+    if (
+      !endGameLog &&
+      getTileDrawMode(nextGame) === "play" &&
+      nextGame.phase === "refill" &&
+      !isRackReady(nextGame)
+    ) {
+      refillBaselineRef.current = captureRefillBaseline(nextGame);
+      nextGame = refillRackFromQueue(nextGame);
+    }
     setGame(pushActionSnapshot(nextGame));
     if (endGameLog) setShowResult(true);
     setActionMode("none");
@@ -2175,8 +2387,8 @@ function App() {
     const outgoingSet = new Set(exchangeDraft.outgoingIds);
     const outgoingTiles = getRack(game, game.activeSide).filter((tile) => outgoingSet.has(tile.id));
     const rackAfter = getRack(game, game.activeSide).filter((tile) => !outgoingSet.has(tile.id));
+    const returnedTiles = outgoingTiles.map(clearTileAssignment);
     const tilebagAfter = game.tilebag;
-    const floatingTiles = outgoingTiles.map((tile) => ({ ...tile, assignedToken: undefined }));
     const detail: ExchangeDetail = {
       outgoingTiles,
       incomingTiles: [],
@@ -2192,7 +2404,7 @@ function App() {
       detail,
       calculatedScore: 0,
     });
-    commitLog(log, game.board, rackAfter, tilebagAfter, floatingTiles);
+    commitLog(log, game.board, rackAfter, tilebagAfter, returnedTiles);
   }
 
   function confirmPass() {
@@ -2336,7 +2548,7 @@ function App() {
   // games are locked and never come back through here.
   function resumeGame() {
     if (!game || readOnly) return;
-    if (game.status !== "draft") return;
+    if (isFinishedGame(game) || game.status !== "draft") return;
     pendingSessionEventRef.current = "resume_game";
     setShowResult(false);
     setReplayCursor(null);
@@ -2353,15 +2565,14 @@ function App() {
     );
   }
 
-  // Top-bar "Save & Exit": pauses the clock + flips a still-playing game to
-  // "draft", lets the persistence effects flush, then drops the user back at
-  // the lobby. Draft / finished games skip the status change and just exit.
+  // Finished games and spectator views exit without touching persisted state.
+  // Only a live, owner-controlled game is converted to a saved draft.
   function saveAndExit() {
-    if (!game) {
+    if (!game || readOnly || isFinishedGame(game)) {
       goToLobby();
       return;
     }
-    if (!readOnly && game.status === "playing") {
+    if (game.status === "playing") {
       pendingSessionEventRef.current = "state";
       cancelDraftOnly();
       setReplayCursor(null);
@@ -2403,6 +2614,12 @@ function App() {
   const showViewPanel = reviewing || readOnly;
   const viewPanelLog = reviewing ? selectedLog : latestLog;
   const refillNeeded = game.phase === "refill" && game.status === "playing" && !isRackReady(game);
+  const carriedOverTileIds = (() => {
+    if (game.phase !== "refill" || game.status !== "playing") return new Set<string>();
+    const baseline = refillBaselineRef.current;
+    if (!refillBaselineMatchesTurn(baseline, game)) return new Set<string>();
+    return new Set(baseline.ids);
+  })();
   const tilebagView = getTilebagView({
     game,
     refillNeeded,
@@ -2413,6 +2630,7 @@ function App() {
     actionMode === "exchange" &&
     exchangeDraft.outgoingIds.length > 0;
   const canPickFromTilebag =
+    getTileDrawMode(game) !== "play" &&
     canPlayActiveRoom &&
     game.status === "playing" &&
     !reviewing &&
@@ -2446,9 +2664,24 @@ function App() {
       side: rackSide,
     },
   ];
+  const scoringEquations =
+    reviewing && replayPhase === "after" && selectedLog?.action === "place_equation"
+      ? (selectedLog.actionDetail as PlaceEquationDetail).equationsDetected
+      : validation.equations;
+  const scoringKeys = new Set(
+    scoringEquations
+      .filter((eq) => eq.isValid)
+      .flatMap((eq) => eq.cells.map((cell) => `${cell.row}:${cell.col}`)),
+  );
+  const gameFinished = isFinishedGame(game);
 
   return (
     <main className="app-shell">
+      <GlobalActivity
+        error={syncError}
+        foreground={foregroundLoading}
+        syncing={backgroundSyncCount > 0}
+      />
       <header className="top-bar">
         <div className="title-block">
           <h1>{game.name}</h1>
@@ -2483,7 +2716,9 @@ function App() {
             className="icon-button top-save-exit"
             type="button"
             title={
-              readOnly
+              gameFinished
+                ? "Exit this finished game and return to the lobby."
+                : readOnly
                 ? "Leave this room and return to the lobby."
                 : game.status === "playing"
                   ? "Pause the clock, save the room as a draft, and go back to the lobby."
@@ -2492,13 +2727,13 @@ function App() {
             onClick={saveAndExit}
           >
             <LogOut size={18} />
-            Save or Exit
+            {gameFinished || readOnly ? "Exit" : "Save or Exit"}
           </button>
           <button className="icon-button" type="button" onClick={() => setLogModalOpen(true)}>
             <List size={18} />
             Log
           </button>
-          {!game.timers.untimed && (
+          {!(game.timers.untimed || (game.timers.sideUntimed?.A && game.timers.sideUntimed?.B)) && (
             <button
               className={`icon-button top-stop-time ${game.timers.paused ? "paused" : "running"}`}
               disabled={readOnly || game.status !== "playing"}
@@ -2520,13 +2755,13 @@ function App() {
               playing  → "End Game"        (danger, ends the match)
               draft    → "Resume"          (un-pauses + flips back to playing)
               finished → "Result + Replay" (no resume; this match is locked in) */}
-          {game.status === "playing" && (
+          {!gameFinished && game.status === "playing" && (
             <button className="danger-button top-end-game" disabled={readOnly} type="button" onClick={endGame}>
               <Flag size={18} />
               End Game
             </button>
           )}
-          {game.status === "draft" && (
+          {!gameFinished && game.status === "draft" && (
             <button
               className="resume-button top-end-game"
               disabled={readOnly}
@@ -2538,7 +2773,7 @@ function App() {
               Resume
             </button>
           )}
-          {game.status === "finished" && (
+          {gameFinished && (
             <>
               <button
                 className="icon-button"
@@ -2625,11 +2860,12 @@ function App() {
                   orientation = longest?.direction ?? "horizontal";
                 }
                 if (!orientation) return null;
-                const cells = (orientation === "horizontal"
-                  ? validation.equations.find((e) => e.direction === "horizontal" && e.isValid)
-                  : validation.equations.find((e) => e.direction === "vertical" && e.isValid)
-                )?.cells ??
-                  placements.map((p) => ({ row: p.row, col: p.col }));
+                const cells = getScoreAnchorCells({
+                  board: boardToRender,
+                  equations: validation.equations,
+                  orientation,
+                  placements,
+                });
                 return createBoardScoreAnchor({
                   cells,
                   orientation,
@@ -2637,14 +2873,11 @@ function App() {
                   isValid: validation.isValid,
                 });
               })()}
-              scoringKeys={new Set(
-                validation.equations
-                  .filter((eq) => eq.isValid)
-                  .flatMap((eq) => eq.cells.map((c) => `${c.row}:${c.col}`)),
-              )}
+              scoringKeys={scoringKeys}
               selectedPendingTileId={selectedPendingTileId}
               selectedRackTileId={selectedRackTileId}
               onCellClick={handleBoardCellClick}
+              onPendingAssignmentEdit={openPendingAssignmentEditor}
             />
           </div>
 
@@ -2656,7 +2889,7 @@ function App() {
                 <span className="pc-hint">
                   Replay {replayIndex + 1}/{game.logs.length}
                 </span>
-              ) : game.status === "finished" ? (
+              ) : gameFinished ? (
                 <span className="pc-hint">Finished · use the top bar for Result / Replay</span>
               ) : game.status === "draft" ? (
                 <span className="pc-hint">Draft · paused, press Resume to continue</span>
@@ -2674,6 +2907,7 @@ function App() {
             <Rack
               actionMode={actionMode}
               active={rackConfigs[0].active}
+              carriedOverTileIds={carriedOverTileIds}
               exchangeOutgoingIds={rackConfigs[0].exchangeOutgoingIds}
               label={rackConfigs[0].label}
               rack={rackConfigs[0].rack}
@@ -2750,7 +2984,7 @@ function App() {
         />
       )}
 
-      {showResult && game.status === "finished" && (
+      {showResult && gameFinished && (
         <ResultModal
           game={game}
           onClose={() => setShowResult(false)}
@@ -2764,8 +2998,91 @@ function App() {
   );
 }
 
+function LoadingScreen({ message }: { message: string }) {
+  return (
+    <main className="loading-screen" aria-busy="true">
+      <div className="loading-panel" role="status" aria-live="polite">
+        <span className="loading-kicker">Equation Board</span>
+        <strong>{message}</strong>
+        <LoadingTrack />
+      </div>
+    </main>
+  );
+}
+
+function GlobalActivity({
+  error,
+  foreground,
+  syncing,
+}: {
+  error?: string | null;
+  foreground: string | null;
+  syncing: boolean;
+}) {
+  if (foreground) {
+    return (
+      <div className="loading-overlay" aria-busy="true">
+        <div className="loading-panel" role="status" aria-live="polite">
+          <span className="loading-kicker">Please wait</span>
+          <strong>{foreground}</strong>
+          <LoadingTrack />
+        </div>
+      </div>
+    );
+  }
+  if (error) {
+    return (
+      <div className="network-activity error" role="alert">
+        <strong>Sync failed</strong>
+        <span>{error}</span>
+      </div>
+    );
+  }
+  if (!syncing) return null;
+  return (
+    <div className="network-activity" role="status" aria-live="polite">
+      <strong>Saving changes...</strong>
+      <LoadingTrack />
+    </div>
+  );
+}
+
+function LoadingTrack() {
+  return (
+    <span className="loading-track" aria-hidden="true">
+      <span />
+    </span>
+  );
+}
+
 function clearTileAssignment(tile: TileInstance): TileInstance {
   return { ...tile, assignedToken: undefined };
+}
+
+function refillRackFromQueue(game: GameState): GameState {
+  const rack = getRack(game, game.activeSide);
+  const pendingBySide = getPendingExchangeReturnBySide(game);
+  const needed = Math.max(0, 8 - rack.length);
+  const drawnTiles = game.tilebag.slice(0, needed).map(clearTileAssignment);
+  const remainingQueue = game.tilebag.slice(drawnTiles.length);
+  const rackAfter = [...rack, ...drawnTiles];
+  const pendingReturn = pendingBySide[game.activeSide].map(clearTileAssignment);
+  const nextPendingBySide = { ...pendingBySide, [game.activeSide]: [] };
+  const rackReady = rackAfter.length >= 8 || remainingQueue.length === 0;
+  const tilebagAfter = shuffleTilebagQueue([...remainingQueue, ...pendingReturn]);
+
+  return setRack(
+    {
+      ...game,
+      tilebag: tilebagAfter,
+      pendingExchangeReturn: aggregatePendingExchangeReturns(nextPendingBySide),
+      pendingExchangeReturnBySide: nextPendingBySide,
+      phase: rackReady ? "choose_action" : "refill",
+      lastSavedAt: new Date().toISOString(),
+    },
+    game.activeSide,
+    rackAfter,
+  );
 }
 
 function getTilebagView({
@@ -2788,10 +3105,8 @@ function getTilebagView({
       remainingCount: game.tilebag.length,
     };
   }
-  const previousAction = getLastPlayableLog(game.logs)?.action;
   return getActionTilebagView({
     opponentRack: getRack(game, otherSide(game.activeSide)),
-    previousAction,
     tilebag: game.tilebag,
   });
 }
@@ -2803,38 +3118,28 @@ function getReplayTilebagView(game: GameState, selectedLog: TurnLog): TilebagVie
   const opponentRack = previousLog?.side === opponent ? previousLog.rackAfter : [];
   return getActionTilebagView({
     opponentRack,
-    previousAction: previousLog?.action,
     tilebag: selectedLog.tilebagBefore,
   });
 }
 
 function getActionTilebagView({
   opponentRack,
-  previousAction,
   tilebag,
 }: {
   opponentRack: TileInstance[];
-  previousAction?: ActionType;
   tilebag: TileInstance[];
 }): TilebagView {
   return {
     tiles: [...tilebag, ...opponentRack],
-    remainingCount: getAnalysisRemainingCount(tilebag.length, opponentRack.length, previousAction),
+    remainingCount: getAnalysisRemainingCount(tilebag.length, opponentRack.length),
   };
 }
 
 function getAnalysisRemainingCount(
   tilebagCount: number,
   opponentRackCount: number,
-  previousAction?: ActionType,
 ): number {
-  if (previousAction === "exchange") return Math.max(tilebagCount + 8, 0);
-  const opponentEmptySlots = Math.max(0, 8 - opponentRackCount);
-  return Math.max(tilebagCount - opponentEmptySlots, 0);
-}
-
-function getLastPlayableLog(logs: TurnLog[]): TurnLog | null {
-  return getLastPlayableLogBefore(logs, logs.length);
+  return Math.max(tilebagCount + opponentRackCount - 8, 0);
 }
 
 function getLastPlayableLogBefore(logs: TurnLog[], beforeIndex: number): TurnLog | null {
@@ -3056,6 +3361,9 @@ function ResultModal({
 }) {
   const { A, B } = game.scores;
   const winner = A === B ? null : A > B ? "A" : "B";
+  const winnerName = winner ? game.players[winner] : null;
+  const scoreMargin = Math.abs(A - B);
+  const turnCount = Math.max(0, game.turnNumber - 1);
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section
@@ -3064,33 +3372,49 @@ function ResultModal({
         role="dialog"
         onClick={(event) => event.stopPropagation()}
       >
-        <header className="modal-head">
+        <header className="modal-head result-modal-head">
           <div>
             <span className="eyebrow">Final Result</span>
             <h2>{game.name}</h2>
           </div>
-          <button className="icon-button" type="button" onClick={onClose}>
+          <button className="result-close" type="button" aria-label="Close final result" onClick={onClose}>
             <X size={18} />
-            Close
           </button>
         </header>
 
+        <div className={`result-outcome ${winner ? `side-${winner.toLowerCase()}` : "draw"}`}>
+          <span className="result-outcome-icon" aria-hidden="true">
+            <Trophy size={22} />
+          </span>
+          <div>
+            <span>{winner ? "Match winner" : "Match complete"}</span>
+            <strong>{winnerName ?? "Draw"}</strong>
+          </div>
+          <em>{winner ? `+${scoreMargin} pts` : "Scores tied"}</em>
+        </div>
+
         <div className="result-body">
-          <div className={`result-side ${winner === "A" ? "win" : ""}`}>
-            <span>{game.players.A}</span>
+          <div className={`result-side side-a ${winner === "A" ? "win" : ""}`}>
+            <span className="result-side-label">Side A</span>
             <strong>{A}</strong>
+            <span className="result-player-name">{game.players.A}</span>
             {winner === "A" && <em>Winner</em>}
           </div>
-          <div className="result-vs">{winner === null ? "Draw" : "vs"}</div>
-          <div className={`result-side ${winner === "B" ? "win" : ""}`}>
-            <span>{game.players.B}</span>
+          <div className="result-vs">
+            <strong>{winner === null ? "=" : "–"}</strong>
+            <span>Final</span>
+          </div>
+          <div className={`result-side side-b ${winner === "B" ? "win" : ""}`}>
+            <span className="result-side-label">Side B</span>
             <strong>{B}</strong>
+            <span className="result-player-name">{game.players.B}</span>
             {winner === "B" && <em>Winner</em>}
           </div>
         </div>
 
         <div className="result-meta">
-          {game.turnNumber - 1} turns · {game.logs.length} actions
+          <span><strong>{turnCount}</strong> turns</span>
+          <span><strong>{game.logs.length}</strong> actions</span>
         </div>
 
         {/* Finished games are locked — only Replay / View Board are offered.
@@ -3105,7 +3429,8 @@ function ResultModal({
             <Play size={18} />
             Start Replay
           </button>
-          <button className="icon-button" type="button" onClick={onClose}>
+          <button className="result-view-board" type="button" onClick={onClose}>
+            <LayoutGrid size={17} />
             View Board
           </button>
         </div>
@@ -3192,13 +3517,27 @@ function makeRemoteStateKey(game: GameState): string {
     rackB: game.rackB,
     scores: game.scores,
     status: game.status,
+    tileDrawMode: getTileDrawMode(game),
     tilebag: game.tilebag,
     timers: {
       initialSeconds: game.timers.initialSeconds,
+      initialSecondsBySide: game.timers.initialSecondsBySide,
+      sideUntimed: game.timers.sideUntimed,
       minSeconds: game.timers.minSeconds,
       paused: game.timers.paused,
+      untimed: game.timers.untimed,
     },
     turnNumber: game.turnNumber,
+  });
+}
+
+function makeLiveSessionKey(session: LiveRoomSession): string {
+  return JSON.stringify({
+    actionMode: session.actionMode,
+    exchangeDraft: session.exchangeDraft,
+    pendingPlacements: session.pendingPlacements,
+    selectedPendingTileId: session.selectedPendingTileId,
+    selectedRackTileId: session.selectedRackTileId,
   });
 }
 

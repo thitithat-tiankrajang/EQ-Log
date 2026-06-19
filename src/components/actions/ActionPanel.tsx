@@ -4,9 +4,11 @@ import {
   type GameState,
   type MoveValidation,
   type PendingPlacement,
+  type TileDrawMode,
   type TileInstance,
   type TurnLog,
   getAssignmentOptions,
+  getTileDrawMode,
   tileNeedsAssignment,
 } from "../../game";
 import { ACTION_LABELS } from "../../uiText";
@@ -121,6 +123,7 @@ export function ActionPanel({
           canExchange={canExchange}
           exchangeDisabledReason={exchangeDisabledReason}
           refillNeeded={refillNeeded}
+          tileDrawMode={getTileDrawMode(game)}
           onEditRefill={onEditRefill}
           onStartAction={onStartAction}
         />
@@ -181,6 +184,7 @@ function ActionPicker({
   canExchange,
   exchangeDisabledReason,
   refillNeeded,
+  tileDrawMode,
   onEditRefill,
   onStartAction,
 }: {
@@ -190,6 +194,7 @@ function ActionPicker({
   canExchange: boolean;
   exchangeDisabledReason?: string;
   refillNeeded: boolean;
+  tileDrawMode: TileDrawMode;
   onEditRefill: () => void;
   onStartAction: (action: ActionType) => void;
 }) {
@@ -197,7 +202,11 @@ function ActionPicker({
     return (
       <div className="refill-lock">
         <strong>Refill rack first</strong>
-        <span>Pick {Math.max(0, 8 - activeRackCount)} tile(s) from the tilebag to unlock actions.</span>
+        <span>
+          {tileDrawMode === "play"
+            ? "Drawing tiles from the queue."
+            : `Pick ${Math.max(0, 8 - activeRackCount)} tile(s) from the tilebag to unlock actions.`}
+        </span>
       </div>
     );
   }

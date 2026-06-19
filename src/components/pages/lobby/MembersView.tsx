@@ -1,8 +1,7 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Check, Pencil, Plus, Trash2, X } from "lucide-react";
 import {
   type Member,
-  MEMBER_COLORS,
   createMember,
   deleteMember,
   getMemberInitials,
@@ -24,8 +23,15 @@ export function MembersView({
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftOpen, setDraftOpen] = useState(false);
+  const institutions = useMemo(
+    () =>
+      [...new Set(members.map((member) => member.institution).filter(Boolean) as string[])].sort(
+        (a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }),
+      ),
+    [members],
+  );
 
-  function handleCreate(input: { name: string; alias?: string; role?: string; note?: string; color?: string }) {
+  function handleCreate(input: { name: string; institution?: string }) {
     onChange(createMember(input));
     setDraftOpen(false);
   }
@@ -66,6 +72,7 @@ export function MembersView({
       {draftOpen && isAdmin && (
         <MemberFormCard
           onCancel={() => setDraftOpen(false)}
+          institutions={institutions}
           onSave={handleCreate}
           submitLabel="Add to directory"
         />
@@ -84,6 +91,7 @@ export function MembersView({
                 <li key={member.id}>
                   <MemberFormCard
                     initial={member}
+                    institutions={institutions}
                     onCancel={() => setEditingId(null)}
                     onSave={(patch) => handleUpdate(member.id, patch)}
                     submitLabel="Save changes"
@@ -93,16 +101,16 @@ export function MembersView({
             }
             return (
               <li key={member.id} className="member-card">
-                <span className="member-card-avatar" style={{ background: member.color }} aria-hidden>
+                <span className="member-card-avatar" aria-hidden>
                   {getMemberInitials(member)}
                 </span>
                 <div className="member-card-body">
                   <div className="member-card-title">
                     <strong>{member.name}</strong>
-                    {member.alias && <em>· {member.alias}</em>}
                   </div>
-                  {member.role && <div className="member-card-role">{member.role}</div>}
-                  {member.note && <div className="member-card-note">{member.note}</div>}
+                  <div className="member-card-institution">
+                    {member.institution ?? "No institution"}
+                  </div>
                 </div>
                 <div className="member-card-stats">
                   <span>
@@ -144,20 +152,33 @@ export function MembersView({
 
 function MemberFormCard({
   initial,
+  institutions,
   onSave,
   onCancel,
   submitLabel,
 }: {
   initial?: Member;
-  onSave: (input: { name: string; alias?: string; role?: string; note?: string; color?: string }) => void;
+  institutions: string[];
+  onSave: (input: { name: string; institution?: string }) => void;
   onCancel: () => void;
   submitLabel: string;
 }) {
   const [name, setName] = useState(initial?.name ?? "");
-  const [alias, setAlias] = useState(initial?.alias ?? "");
-  const [role, setRole] = useState(initial?.role ?? "");
-  const [note, setNote] = useState(initial?.note ?? "");
-  const [color, setColor] = useState(initial?.color ?? MEMBER_COLORS[0]);
+  const hasInitialInstitution =
+    initial?.institution &&
+    institutions.some(
+      (entry) =>
+        entry.localeCompare(initial.institution ?? "", undefined, { sensitivity: "base" }) === 0,
+    );
+  const [institutionMode, setInstitutionMode] = useState<"existing" | "new">(
+    institutions.length > 0 && hasInitialInstitution ? "existing" : "new",
+  );
+  const [existingInstitution, setExistingInstitution] = useState(
+    hasInitialInstitution ? initial?.institution ?? "" : "",
+  );
+  const [newInstitution, setNewInstitution] = useState(hasInitialInstitution ? "" : initial?.institution ?? "");
+  const selectedInstitution =
+    institutionMode === "existing" ? existingInstitution : newInstitution;
 
   return (
     <form
@@ -165,44 +186,52 @@ function MemberFormCard({
       onSubmit={(event) => {
         event.preventDefault();
         if (!name.trim()) return;
-        onSave({ name, alias, role, note, color });
+        if (!selectedInstitution.trim()) return;
+        onSave({ name, institution: selectedInstitution });
       }}
     >
       <div className="member-form-row">
         <label className="member-form-field grow">
-          <span>Full name</span>
+          <span>Name</span>
           <input value={name} onChange={(event) => setName(event.target.value)} autoFocus required />
         </label>
-        <label className="member-form-field">
-          <span>Nickname</span>
-          <input value={alias} onChange={(event) => setAlias(event.target.value)} placeholder="optional" />
-        </label>
-      </div>
-      <div className="member-form-row">
-        <label className="member-form-field grow">
-          <span>Role / team</span>
-          <input value={role} onChange={(event) => setRole(event.target.value)} placeholder="optional" />
-        </label>
-        <label className="member-form-field grow">
-          <span>Note</span>
-          <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="optional" />
-        </label>
-      </div>
-      <fieldset className="member-form-colors">
-        <legend>Color tag</legend>
-        <div>
-          {MEMBER_COLORS.map((swatch) => (
-            <button
-              key={swatch}
-              type="button"
-              aria-label={`Pick color ${swatch}`}
-              className={`color-swatch ${swatch === color ? "active" : ""}`}
-              style={{ background: swatch }}
-              onClick={() => setColor(swatch)}
-            />
-          ))}
+        <div className="member-form-field grow">
+          <span>Institution</span>
+          <div className="institution-picker">
+            <select
+              value={institutionMode === "new" ? "__new__" : existingInstitution}
+              required={institutionMode === "existing"}
+              onChange={(event) => {
+                if (event.target.value === "__new__") {
+                  setInstitutionMode("new");
+                  return;
+                }
+                setInstitutionMode("existing");
+                setExistingInstitution(event.target.value);
+              }}
+            >
+              <option value="" disabled>
+                Select institution
+              </option>
+              {institutions.map((institution) => (
+                <option key={institution} value={institution}>
+                  {institution}
+                </option>
+              ))}
+              <option value="__new__">New institution...</option>
+            </select>
+            {institutionMode === "new" && (
+              <input
+                value={newInstitution}
+                onChange={(event) => setNewInstitution(event.target.value)}
+                placeholder="Institution name"
+                required
+              />
+            )}
+          </div>
+          <small>Choose an existing institution or type a new one to create its group.</small>
         </div>
-      </fieldset>
+      </div>
       <div className="member-form-actions">
         <button type="button" className="ghost-button" onClick={onCancel}>
           <X size={14} />

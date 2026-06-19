@@ -80,9 +80,9 @@ export function RoomFilters({
           const member = members.find((candidate) => candidate.id === entry.memberId);
           if (!member) return null;
           return (
-            <span key={entry.memberId} className="member-filter-chip" style={{ borderColor: member.color }}>
+            <span key={entry.memberId} className="member-filter-chip">
               <MemberAvatar member={member} />
-              <span className="member-filter-name">{member.alias?.trim() || member.name}</span>
+              <span className="member-filter-name">{member.name}</span>
               <select
                 className="member-filter-position"
                 value={entry.position}
@@ -133,7 +133,7 @@ export function RoomFilters({
             <option value="">+ Add member</option>
             {remaining.map((member) => (
               <option key={member.id} value={member.id}>
-                {member.alias?.trim() || member.name}
+                {member.institution ? `${member.name} · ${member.institution}` : member.name}
               </option>
             ))}
           </select>

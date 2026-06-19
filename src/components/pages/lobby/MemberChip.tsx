@@ -5,11 +5,7 @@ type Size = "sm" | "md";
 
 export function MemberAvatar({ member, size = "sm" }: { member: Member; size?: Size }) {
   return (
-    <span
-      aria-hidden
-      className={`member-avatar member-avatar-${size}`}
-      style={{ background: member.color }}
-    >
+    <span aria-hidden className={`member-avatar member-avatar-${size}`}>
       {getMemberInitials(member)}
     </span>
   );
@@ -24,12 +20,13 @@ export function MemberChip({
   hint?: string | null;
   size?: Size;
 }) {
+  const detail = hint ?? member.institution ?? null;
   return (
-    <span className={`member-chip member-chip-${size}`} title={member.name}>
+    <span className={`member-chip member-chip-${size}`} title={member.institution ? `${member.name} · ${member.institution}` : member.name}>
       <MemberAvatar member={member} size={size} />
       <span className="member-chip-name">
-        {member.alias?.trim() || member.name}
-        {hint && <em>{hint}</em>}
+        {member.name}
+        {detail && <em>{detail}</em>}
       </span>
     </span>
   );

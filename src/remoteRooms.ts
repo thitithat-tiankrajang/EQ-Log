@@ -1,6 +1,6 @@
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { decodeGame, encodeGame } from "./codec";
-import type { ActionType, GameState, PendingPlacement } from "./game";
+import type { ActionType, GameState, GameStatus, PendingPlacement } from "./game";
 import type { RoomMeta } from "./rooms";
 import { supabase } from "./supabaseClient";
 
@@ -63,6 +63,17 @@ const ROOM_SELECT =
 const LEGACY_ROOM_SELECT =
   "id,owner_id,name,player_a,player_b,status,turn_number,score_a,score_b,state,created_at,updated_at,profiles:owner_id(display_name,email)";
 
+type RemoteCapabilities = {
+  liveSchema?: boolean;
+  draftStatus?: boolean;
+  roomSessions?: boolean;
+  checkedAt: number;
+};
+
+const CAPABILITIES_KEY = "eq-lab:supabase-capabilities:v2";
+const CAPABILITIES_TTL_MS = 30 * 60 * 1000;
+let remoteCapabilities = readRemoteCapabilities();
+
 export function makeLiveSession(args: {
   actorId: string | null;
   actionMode: ActionMode;
@@ -96,16 +107,20 @@ export function emptyLiveSession(actorId: string | null = null): LiveRoomSession
 
 export async function listRooms(): Promise<RoomMeta[]> {
   if (!supabase) return [];
+  const useLiveSchema = remoteCapabilities.liveSchema !== false;
   const result = await supabase
     .from("rooms")
-    .select(ROOM_SELECT)
+    .select(useLiveSchema ? ROOM_SELECT : LEGACY_ROOM_SELECT)
     .order("updated_at", { ascending: false });
   let data: unknown = result.data;
   let error = result.error;
-  if (error && isMissingLiveSchemaError(error)) {
+  if (useLiveSchema && error && isMissingLiveSchemaError(error)) {
+    setRemoteCapability("liveSchema", false);
     const legacy = await supabase.from("rooms").select(LEGACY_ROOM_SELECT).order("updated_at", { ascending: false });
     data = legacy.data as unknown;
     error = legacy.error;
+  } else if (useLiveSchema && !error) {
+    setRemoteCapability("liveSchema", true);
   }
   if (error) throw error;
   return ((data ?? []) as unknown as RemoteRoomRecord[]).map(metaFromRow);
@@ -113,13 +128,21 @@ export async function listRooms(): Promise<RoomMeta[]> {
 
 export async function readRoom(id: string): Promise<RemoteRoomPayload | null> {
   if (!supabase) return null;
-  const result = await supabase.from("rooms").select(ROOM_SELECT).eq("id", id).maybeSingle();
+  const useLiveSchema = remoteCapabilities.liveSchema !== false;
+  const result = await supabase
+    .from("rooms")
+    .select(useLiveSchema ? ROOM_SELECT : LEGACY_ROOM_SELECT)
+    .eq("id", id)
+    .maybeSingle();
   let data: unknown = result.data;
   let error = result.error;
-  if (error && isMissingLiveSchemaError(error)) {
+  if (useLiveSchema && error && isMissingLiveSchemaError(error)) {
+    setRemoteCapability("liveSchema", false);
     const legacy = await supabase.from("rooms").select(LEGACY_ROOM_SELECT).eq("id", id).maybeSingle();
     data = legacy.data as unknown;
     error = legacy.error;
+  } else if (useLiveSchema && !error) {
+    setRemoteCapability("liveSchema", true);
   }
   if (error) throw error;
   if (!data) return null;
@@ -132,30 +155,54 @@ export async function createRoom(
   session: LiveRoomSession,
 ): Promise<{ id: string; meta: RoomMeta }> {
   if (!supabase) throw new Error("Supabase is not configured.");
-  const insertPayload = {
+  const databaseStatus = getDatabaseStatus(game.status);
+  const basePayload = {
     owner_id: ownerId,
     name: game.name,
     player_a: game.players.A,
     player_b: game.players.B,
-    status: game.status,
+    status: databaseStatus,
     turn_number: game.turnNumber,
     score_a: game.scores.A,
     score_b: game.scores.B,
     state: encodeGame(game),
-    session,
   };
-  const result = await supabase
+  const useLiveSchema = remoteCapabilities.liveSchema !== false;
+  const insertPayload = useLiveSchema ? { ...basePayload, session } : basePayload;
+  let result = await supabase
     .from("rooms")
     .insert(insertPayload)
-    .select(ROOM_SELECT)
+    .select(useLiveSchema ? ROOM_SELECT : LEGACY_ROOM_SELECT)
     .single();
+  if (isDraftStatusConstraintError(result.error, databaseStatus)) {
+    setRemoteCapability("draftStatus", false);
+    result = await supabase
+      .from("rooms")
+      .insert({ ...insertPayload, status: "playing" })
+      .select(useLiveSchema ? ROOM_SELECT : LEGACY_ROOM_SELECT)
+      .single();
+  } else if (databaseStatus === "draft" && !result.error) {
+    setRemoteCapability("draftStatus", true);
+  }
   let data: unknown = result.data;
   let error = result.error;
-  if (error && isMissingLiveSchemaError(error)) {
-    const { session: _session, ...legacyPayload } = insertPayload;
-    const legacy = await supabase.from("rooms").insert(legacyPayload).select(LEGACY_ROOM_SELECT).single();
+  if (useLiveSchema && error && isMissingLiveSchemaError(error)) {
+    setRemoteCapability("liveSchema", false);
+    let legacy = await supabase.from("rooms").insert(basePayload).select(LEGACY_ROOM_SELECT).single();
+    if (isDraftStatusConstraintError(legacy.error, databaseStatus)) {
+      setRemoteCapability("draftStatus", false);
+      legacy = await supabase
+        .from("rooms")
+        .insert({ ...basePayload, status: "playing" })
+        .select(LEGACY_ROOM_SELECT)
+        .single();
+    } else if (databaseStatus === "draft" && !legacy.error) {
+      setRemoteCapability("draftStatus", true);
+    }
     data = legacy.data as unknown;
     error = legacy.error;
+  } else if (useLiveSchema && !error) {
+    setRemoteCapability("liveSchema", true);
   }
   if (error) throw error;
   const meta = metaFromRow(data as unknown as RemoteRoomRecord);
@@ -170,33 +217,56 @@ export async function updateRoomState(args: {
   event?: RoomSessionEvent;
 }): Promise<void> {
   if (!supabase) return;
-  const updatePayload = {
+  const databaseStatus = getDatabaseStatus(args.game.status);
+  const basePayload = {
     name: args.game.name,
     player_a: args.game.players.A,
     player_b: args.game.players.B,
-    status: args.game.status,
+    status: databaseStatus,
     turn_number: args.game.turnNumber,
     score_a: args.game.scores.A,
     score_b: args.game.scores.B,
     state: encodeGame(args.game),
-    session: args.session,
     updated_at: new Date().toISOString(),
   };
-  let { error } = await supabase
+  const useLiveSchema = remoteCapabilities.liveSchema !== false;
+  const updatePayload = useLiveSchema ? { ...basePayload, session: args.session } : basePayload;
+  let updateResult = await supabase
     .from("rooms")
     .update(updatePayload)
     .eq("id", args.id);
-  if (error && isMissingLiveSchemaError(error)) {
-    const { session: _session, ...legacyPayload } = updatePayload;
-    const legacy = await supabase.from("rooms").update(legacyPayload).eq("id", args.id);
+  if (isDraftStatusConstraintError(updateResult.error, databaseStatus)) {
+    setRemoteCapability("draftStatus", false);
+    updateResult = await supabase
+      .from("rooms")
+      .update({ ...updatePayload, status: "playing" })
+      .eq("id", args.id);
+  } else if (databaseStatus === "draft" && !updateResult.error) {
+    setRemoteCapability("draftStatus", true);
+  }
+  let error = updateResult.error;
+  if (useLiveSchema && error && isMissingLiveSchemaError(error)) {
+    setRemoteCapability("liveSchema", false);
+    let legacy = await supabase.from("rooms").update(basePayload).eq("id", args.id);
+    if (isDraftStatusConstraintError(legacy.error, databaseStatus)) {
+      setRemoteCapability("draftStatus", false);
+      legacy = await supabase
+        .from("rooms")
+        .update({ ...basePayload, status: "playing" })
+        .eq("id", args.id);
+    } else if (databaseStatus === "draft" && !legacy.error) {
+      setRemoteCapability("draftStatus", true);
+    }
     error = legacy.error;
+  } else if (useLiveSchema && !error) {
+    setRemoteCapability("liveSchema", true);
   }
   if (error) throw error;
   if (args.event) await appendRoomSession(args.id, args.game, args.session, args.event);
 }
 
 export async function updateRoomSession(id: string, session: LiveRoomSession): Promise<void> {
-  if (!supabase) return;
+  if (!supabase || remoteCapabilities.liveSchema === false) return;
   const { error } = await supabase
     .from("rooms")
     .update({
@@ -204,8 +274,12 @@ export async function updateRoomSession(id: string, session: LiveRoomSession): P
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);
-  if (error && isMissingLiveSchemaError(error)) return;
+  if (error && isMissingLiveSchemaError(error)) {
+    setRemoteCapability("liveSchema", false);
+    return;
+  }
   if (error) throw error;
+  setRemoteCapability("liveSchema", true);
 }
 
 export async function deleteRoom(id: string): Promise<void> {
@@ -220,7 +294,7 @@ export async function appendRoomSession(
   session: LiveRoomSession,
   event: RoomSessionEvent,
 ): Promise<void> {
-  if (!supabase) return;
+  if (!supabase || remoteCapabilities.roomSessions === false) return;
   const latestLog = game.logs.at(-1);
   const { error } = await supabase.from("room_sessions").insert({
     room_id: roomId,
@@ -232,8 +306,12 @@ export async function appendRoomSession(
     state: encodeGame(game),
     session,
   });
-  if (error && isMissingLiveSchemaError(error)) return;
+  if (error && isMissingLiveSchemaError(error)) {
+    setRemoteCapability("roomSessions", false);
+    return;
+  }
   if (error) throw error;
+  setRemoteCapability("roomSessions", true);
 }
 
 export function subscribeToRooms(onChange: (payload: RealtimePostgresChangesPayload<RemoteRoomRecord>) => void) {
@@ -278,23 +356,73 @@ function metaFromRow(row: RemoteRoomRecord): RoomMeta {
     turnNumber: row.turn_number,
     scoreA: row.score_a,
     scoreB: row.score_b,
-    status: row.status,
+    status: players.status ?? row.status,
   };
+}
+
+function isDraftStatusConstraintError(
+  error: { code?: string; message?: string; details?: string } | null,
+  status: GameStatus,
+): boolean {
+  if (!error || status !== "draft" || error.code !== "23514") return false;
+  const text = `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase();
+  return text.includes("rooms_status_check") || text.includes("status");
+}
+
+function getDatabaseStatus(status: GameStatus): GameStatus {
+  return status === "draft" && remoteCapabilities.draftStatus === false ? "playing" : status;
+}
+
+function readRemoteCapabilities(): RemoteCapabilities {
+  const fallback: RemoteCapabilities = { checkedAt: Date.now() };
+  try {
+    const raw = window.localStorage.getItem(CAPABILITIES_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) as RemoteCapabilities;
+    if (!parsed.checkedAt || Date.now() - parsed.checkedAt > CAPABILITIES_TTL_MS) return fallback;
+    return parsed;
+  } catch {
+    return fallback;
+  }
+}
+
+function setRemoteCapability(
+  capability: "liveSchema" | "draftStatus" | "roomSessions",
+  value: boolean,
+): void {
+  if (remoteCapabilities[capability] === value) return;
+  remoteCapabilities = {
+    ...remoteCapabilities,
+    [capability]: value,
+    ...(capability === "liveSchema" && !value ? { roomSessions: false } : {}),
+    checkedAt: Date.now(),
+  };
+  try {
+    window.localStorage.setItem(CAPABILITIES_KEY, JSON.stringify(remoteCapabilities));
+  } catch {
+    // Storage can be unavailable in private or restricted browser contexts.
+  }
 }
 
 // Lightweight extractor: walks the encoded state JSON for the fields we need
 // without fully decoding the game. Tolerates legacy rows (returns nulls).
 function extractPlayerMembersFromState(
   state: unknown,
-): { memberAId: string | null; memberBId: string | null; startingSide: "A" | "B" | null } {
+): {
+  memberAId: string | null;
+  memberBId: string | null;
+  startingSide: "A" | "B" | null;
+  status: GameStatus | null;
+} {
   if (!state || typeof state !== "object") {
-    return { memberAId: null, memberBId: null, startingSide: null };
+    return { memberAId: null, memberBId: null, startingSide: null, status: null };
   }
   const obj = state as {
     playerMembers?: { A?: string; B?: string };
     startingSide?: "A" | "B";
     activeSide?: "A" | "B";
     history?: { activeSide?: "A" | "B" }[];
+    status?: GameStatus;
   };
   const members = obj.playerMembers ?? {};
   const startingSide =
@@ -303,6 +431,10 @@ function extractPlayerMembersFromState(
     memberAId: members.A ?? null,
     memberBId: members.B ?? null,
     startingSide,
+    status:
+      obj.status === "playing" || obj.status === "draft" || obj.status === "finished"
+        ? obj.status
+        : null,
   };
 }
 

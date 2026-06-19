@@ -102,7 +102,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  border: 1px solid;
+  border: 1px solid var(--lobby-border);
   border-radius: 999px;
   background: var(--lobby-surface-strong);
   padding: 4px 10px 4px 4px;

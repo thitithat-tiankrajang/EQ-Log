@@ -10,6 +10,7 @@ export function Rack({
   active,
   selectedRackTileId,
   exchangeOutgoingIds,
+  carriedOverTileIds = new Set<string>(),
   actionMode = "none",
   onTileClick,
   onEmptySlotClick,
@@ -20,6 +21,7 @@ export function Rack({
   active: boolean;
   selectedRackTileId: string | null;
   exchangeOutgoingIds: string[];
+  carriedOverTileIds?: Set<string>;
   actionMode?: ActionMode;
   onTileClick: (tile: TileInstance, side: Side) => void;
   onEmptySlotClick?: (index: number, side: Side) => void;
@@ -50,6 +52,7 @@ export function Rack({
           }
           const isSelected = selectedRackTileId === tile.id;
           const isOutgoing = exchangeOutgoingIds.includes(tile.id);
+          const isCarriedOver = carriedOverTileIds.has(tile.id);
           const selectionClass = isOutgoing
             ? "outgoing"
             : isSelected
@@ -61,12 +64,15 @@ export function Rack({
             <div className="rack-cell" key={tile.id}>
               <span className="rack-cell-index" aria-hidden>{slotNumber}</span>
               <button
-                className={`tile-button rack-tile ${selectionClass}`}
+                className={`tile-button rack-tile ${selectionClass} ${isCarriedOver ? "carried-over" : ""}`}
                 type="button"
-                aria-label={`Rack slot ${slotNumber}`}
+                disabled={isCarriedOver}
+                aria-label={isCarriedOver ? `Rack slot ${slotNumber} (held from previous turn)` : `Rack slot ${slotNumber}`}
+                title={isCarriedOver ? "Held from previous turn" : undefined}
                 onClick={() => onTileClick(tile, side)}
               >
                 <Tile tile={tile} />
+                {isCarriedOver && <span className="rack-tile-held-flag" aria-hidden="true" />}
               </button>
             </div>
           );

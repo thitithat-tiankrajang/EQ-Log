@@ -14,8 +14,9 @@ type ScoreboardProps = {
 // at the replayed half-step, not the live state.
 export function Scoreboard({ game, scoresOverride, timersOverride }: ScoreboardProps) {
   const sides: Side[] = ["A", "B"];
+  const allUntimed = game.timers.untimed || (game.timers.sideUntimed?.A && game.timers.sideUntimed?.B);
   return (
-    <section className={`scoreboard ${game.timers.untimed ? "untimed" : "timed"}`}>
+    <section className={`scoreboard ${allUntimed ? "untimed" : "timed"}`}>
       <div className="scoreboard-panels">
         {sides.map((side) => (
           <SidePanel
@@ -45,7 +46,8 @@ function SidePanel({
   const isActive = !scoresOverride && game.activeSide === side && game.status === "playing";
   const score = scoresOverride ? scoresOverride[side] : game.scores[side];
   const timer = timersOverride ? timersOverride[side] : game.timers[side];
-  const isNegative = !game.timers.untimed && timer < 0;
+  const isUntimed = game.timers.untimed || game.timers.sideUntimed?.[side] === true;
+  const isNegative = !isUntimed && timer < 0;
   return (
     <div
       className={`scoreboard-side side-${side.toLowerCase()} ${isActive ? "active" : ""} ${
@@ -54,7 +56,7 @@ function SidePanel({
     >
       <div className="ss-head">
         <span className="ss-label">{game.players[side]}</span>
-        {!game.timers.untimed && <span className="ss-clock">{formatSeconds(timer)}</span>}
+        {!isUntimed && <span className="ss-clock">{formatSeconds(timer)}</span>}
       </div>
       <div className="ss-score">
         <strong>{score}</strong>

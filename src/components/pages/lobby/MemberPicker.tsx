@@ -31,17 +31,13 @@ export function MemberPicker({
   }, [open]);
 
   const selected = selectedId ? members.find((member) => member.id === selectedId) ?? null : null;
-  const displayValue = selected ? selected.alias?.trim() || selected.name : freeText;
+  const displayValue = selected ? selected.name : freeText;
 
   return (
     <div className="member-picker" ref={ref}>
       <div className={`member-picker-input ${selected ? "linked" : ""}`}>
         {selected && (
-          <span
-            className="member-picker-avatar"
-            style={{ background: selected.color }}
-            aria-hidden
-          >
+          <span className="member-picker-avatar" aria-hidden>
             {selected.name.slice(0, 1).toUpperCase()}
           </span>
         )}
@@ -92,14 +88,14 @@ export function MemberPicker({
                     className={`member-picker-row ${selectedId === member.id ? "active" : ""}`}
                     onClick={() => {
                       onSelectMember(member.id);
-                      onChangeFreeText(member.alias?.trim() || member.name);
+                      onChangeFreeText(member.name);
                       setOpen(false);
                     }}
                   >
                     <MemberAvatar member={member} />
                     <span className="member-picker-name">
-                      {member.alias?.trim() || member.name}
-                      {member.role && <em>{member.role}</em>}
+                      {member.name}
+                      {member.institution && <em>{member.institution}</em>}
                     </span>
                   </button>
                 </li>

@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { LogOut } from "lucide-react";
 import { isSupabaseConfigured, supabase } from "./supabaseClient";
@@ -17,6 +17,8 @@ export type Profile = {
 type AuthValue = {
   configured: boolean;
   loading: boolean;
+  profileLoading: boolean;
+  profileError: string | null;
   session: Session | null;
   profile: Profile | null;
   userId: string | null;
@@ -28,6 +30,7 @@ type AuthValue = {
 };
 
 const AuthContext = createContext<AuthValue | null>(null);
+const PROFILE_LOAD_TIMEOUT_MS = 6000;
 
 export function useAuth(): AuthValue {
   const ctx = useContext(AuthContext);
@@ -37,13 +40,44 @@ export function useAuth(): AuthValue {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(isSupabaseConfigured);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const profileRequestRef = useRef(0);
 
   async function loadProfile(userId: string) {
     if (!supabase) return;
-    const { data } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
-    setProfile((data as Profile | null) ?? null);
+    const requestId = profileRequestRef.current + 1;
+    profileRequestRef.current = requestId;
+    setProfileLoading(true);
+    setProfileError(null);
+    try {
+      const { data, error } = await withTimeout(
+        supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+        PROFILE_LOAD_TIMEOUT_MS,
+      );
+      if (profileRequestRef.current !== requestId) return;
+      if (error) {
+        setProfile(null);
+        setProfileError(error.message);
+        return;
+      }
+      setProfile((data as Profile | null) ?? null);
+    } catch (error) {
+      if (profileRequestRef.current !== requestId) return;
+      setProfile(null);
+      setProfileError(error instanceof Error ? error.message : "Unable to load account profile.");
+    } finally {
+      if (profileRequestRef.current === requestId) setProfileLoading(false);
+    }
+  }
+
+  function clearProfile() {
+    profileRequestRef.current += 1;
+    setProfile(null);
+    setProfileError(null);
+    setProfileLoading(false);
   }
 
   useEffect(() => {
@@ -52,16 +86,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     let active = true;
-    supabase.auth.getSession().then(async ({ data }) => {
-      if (!active) return;
-      setSession(data.session);
-      if (data.session) await loadProfile(data.session.user.id);
-      if (active) setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        if (!active) return;
+        setSession(data.session);
+        if (data.session) await loadProfile(data.session.user.id);
+        else clearProfile();
+      })
+      .catch((error: Error) => {
+        if (!active) return;
+        clearProfile();
+        setProfileError(error.message);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
     const { data: sub } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setLoading(false);
       setSession(nextSession);
-      if (nextSession) loadProfile(nextSession.user.id);
-      else setProfile(null);
+      if (nextSession) void loadProfile(nextSession.user.id);
+      else clearProfile();
     });
     return () => {
       active = false;
@@ -72,6 +117,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const value: AuthValue = {
     configured: isSupabaseConfigured,
     loading,
+    profileLoading,
+    profileError,
     session,
     profile,
     userId: session?.user.id ?? null,
@@ -86,7 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     async signOut() {
       if (!supabase) return;
       await supabase.auth.signOut();
-      setProfile(null);
+      clearProfile();
     },
     async saveDisplayName(name: string) {
       if (!supabase || !session) return { error: "Not signed in" };
@@ -115,10 +162,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 // Renders children only for approved users. When Supabase is not configured the
 // app runs as-is (local-only mode) so nothing breaks before setup.
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { configured, loading, session, profile } = useAuth();
+  const { configured, loading, profileError, profileLoading, session, profile } = useAuth();
   if (!configured) return <>{children}</>;
   if (loading) return <AuthSplash text="Loading…" />;
   if (!session) return <>{children}</>;
+  if (profileLoading || profileError) return <>{children}</>;
   if (!profile || !profile.display_name) return <RegisterName />;
   if (profile.status === "blocked") {
     return <AuthMessage title="Account blocked" body="Your account has been blocked. Please contact an admin." />;
@@ -250,7 +298,7 @@ function AuthMessage({ title, body }: { title: string; body: string }) {
 
 // Account chip for the lobby header (renders nothing in local-only mode).
 export function AccountChip() {
-  const { configured, loading, profile, session, signInWithGoogle, signOut } = useAuth();
+  const { configured, loading, profile, profileError, profileLoading, session, signInWithGoogle, signOut } = useAuth();
   const [busy, setBusy] = useState(false);
   if (!configured) return null;
   if (loading) return <div className="account-chip">Loading account…</div>;
@@ -274,7 +322,9 @@ export function AccountChip() {
       </button>
     );
   }
-  if (!profile) return <div className="account-chip">Setting up account…</div>;
+  if (profileLoading) return <div className="account-chip">Setting up account…</div>;
+  if (profileError) return <div className="account-chip">Account check failed</div>;
+  if (!profile) return <div className="account-chip">Choose a name to play</div>;
   const label = profile.display_name ?? profile.email;
   return (
     <div className="account-chip">
@@ -289,6 +339,24 @@ export function AccountChip() {
       </button>
     </div>
   );
+}
+
+function withTimeout<T>(promise: PromiseLike<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = window.setTimeout(() => {
+      reject(new Error("Profile check timed out. You can keep using the room while it retries."));
+    }, ms);
+    Promise.resolve(promise).then(
+      (value) => {
+        window.clearTimeout(timeoutId);
+        resolve(value);
+      },
+      (error) => {
+        window.clearTimeout(timeoutId);
+        reject(error);
+      },
+    );
+  });
 }
 
 function GoogleMark() {

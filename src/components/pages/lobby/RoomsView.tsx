@@ -20,7 +20,9 @@ const DEFAULT_SETTINGS: NewGameSettings = {
   playerAMemberId: null,
   playerBMemberId: null,
   minutes: 22,
+  timerMinutes: { A: 22, B: 22 },
   startingSide: "A",
+  tileDrawMode: "manual",
   untimed: false,
 };
 
@@ -178,7 +180,7 @@ function resolveMemberLabel(memberId: string | null | undefined, members: Member
   if (!memberId) return null;
   const member = members.find((entry) => entry.id === memberId);
   if (!member) return null;
-  return member.alias?.trim() || member.name;
+  return member.name;
 }
 
 function filterRooms(rooms: RoomMeta[], filter: RoomsFilterState): RoomMeta[] {

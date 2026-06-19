@@ -39,6 +39,9 @@ export type TokenType =
   | "equals"
   | "Blank";
 
+export type TileDrawMode = "manual" | "play";
+export type SideTimerMinutes = Record<Side, number | null>;
+
 export type AmathTokenInfo = {
   token: string;
   count: number;
@@ -73,7 +76,7 @@ export const AMATH_TOKENS = {
   x: { token: "×", count: 4, type: "operator", point: 2 },
   "/": { token: "÷", count: 4, type: "operator", point: 2 },
   "+/-": { token: "+/-", count: 5, type: "choice", point: 1 },
-  "x//": { token: "×/÷", count: 4, type: "choice", point: 1 },
+  "x//": { token: "x/÷", count: 4, type: "choice", point: 1 },
   "=": { token: "=", count: 11, type: "equals", point: 1 },
   "?": { token: "?", count: 4, type: "Blank", point: 0 },
 } satisfies Record<AmathToken, AmathTokenInfo>;
@@ -225,6 +228,8 @@ export type GameSnapshot = {
   playerMembers?: Partial<Record<Side, string>>;
   /** The side that went first this game; used for "starting position" filters. */
   startingSide?: Side;
+  /** manual = record a physical bag; play = app draws from a shuffled queue. */
+  tileDrawMode?: TileDrawMode;
   turnNumber: number;
   activeSide: Side;
   phase: Phase;
@@ -240,6 +245,8 @@ export type GameSnapshot = {
     A: number;
     B: number;
     initialSeconds: number;
+    initialSecondsBySide?: Record<Side, number>;
+    sideUntimed?: Partial<Record<Side, boolean>>;
     paused: boolean;
     minSeconds: number;
     untimed?: boolean;
@@ -262,8 +269,10 @@ export type NewGameSettings = {
   playerB: string;
   playerAMemberId?: string | null;
   playerBMemberId?: string | null;
-  minutes: number;
+  minutes?: number;
+  timerMinutes?: SideTimerMinutes;
   startingSide: Side;
+  tileDrawMode?: TileDrawMode;
   untimed?: boolean;
 };
 
@@ -356,19 +365,66 @@ export function createBoard(size = 15): BoardSnapshot {
   return Array.from({ length: size }, () => Array.from({ length: size }, () => null));
 }
 
-export function createInitialTilebag(): TileInstance[] {
-  return (Object.keys(AMATH_TOKENS) as AmathToken[]).flatMap((token) => {
+export function getTileDrawMode(game: { tileDrawMode?: TileDrawMode }): TileDrawMode {
+  return game.tileDrawMode ?? "manual";
+}
+
+export function createInitialTilebag(options: { shuffleForPlay?: boolean } = {}): TileInstance[] {
+  const tiles = (Object.keys(AMATH_TOKENS) as AmathToken[]).flatMap((token) => {
     const info = AMATH_TOKENS[token];
     return Array.from({ length: info.count }, (_, index) => ({
       id: `${tokenIdPrefix(token)}_${index + 1}`,
       token,
     }));
   });
+  return options.shuffleForPlay ? shuffleTilebagQueue(tiles) : tiles;
+}
+
+export function shuffleTilebagQueue(tilebag: TileInstance[]): TileInstance[] {
+  if (tilebag.length <= 1) return tilebag.slice();
+
+  const total = tilebag.length;
+  const groups = new Map<AmathToken, TileInstance[]>();
+  for (const tile of tilebag) {
+    const group = groups.get(tile.token);
+    if (group) group.push(tile);
+    else groups.set(tile.token, [tile]);
+  }
+
+  const positioned = Array.from(groups.values()).flatMap((group) => {
+    const shuffledGroup = shuffleArray(group);
+    const spacing = total / shuffledGroup.length;
+    const offset = Math.random() * spacing;
+    return shuffledGroup.map((tile, index) => ({
+      tile,
+      position: (offset + index * spacing + (Math.random() - 0.5) * spacing * 0.45 + total) % total,
+      tieBreaker: Math.random(),
+    }));
+  });
+
+  return positioned
+    .sort((a, b) => a.position - b.position || a.tieBreaker - b.tieBreaker)
+    .map((item) => item.tile);
+}
+
+function shuffleArray<T>(items: T[]): T[] {
+  const next = items.slice();
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const swapIndex = Math.floor(Math.random() * (index + 1));
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+  }
+  return next;
 }
 
 export function displayToken(tile: TileInstance): string {
-  if (tile.assignedToken) return tile.assignedToken;
+  if (tile.assignedToken) return normalizeDisplayToken(tile.assignedToken);
   return AMATH_TOKENS[tile.token].token;
+}
+
+function normalizeDisplayToken(token: string): string {
+  if (token === "/") return "÷";
+  if (token === "x//" || token === "×/÷") return "x/÷";
+  return token;
 }
 
 export function tilePoint(tile: TileInstance): number {
@@ -393,7 +449,22 @@ export function setRack<T extends GameState | GameSnapshot>(
 
 export function createNewGame(settings: NewGameSettings): GameState {
   const now = new Date().toISOString();
-  const seconds = Math.max(1, Math.round(settings.minutes * 60));
+  const timerMinutes = normalizeTimerMinutes(settings);
+  const secondsBySide: Record<Side, number> = {
+    A: minutesToSeconds(timerMinutes.A),
+    B: minutesToSeconds(timerMinutes.B),
+  };
+  const sideUntimed: Partial<Record<Side, boolean>> = {
+    A: timerMinutes.A === null,
+    B: timerMinutes.B === null,
+  };
+  const allUntimed = sideUntimed.A === true && sideUntimed.B === true;
+  const initialSeconds = Math.max(secondsBySide.A, secondsBySide.B, 1);
+  const tileDrawMode = settings.tileDrawMode ?? "manual";
+  const initialQueue = createInitialTilebag({ shuffleForPlay: tileDrawMode === "play" });
+  const initialRack = tileDrawMode === "play" ? initialQueue.slice(0, 8) : [];
+  const initialTilebag =
+    tileDrawMode === "play" ? shuffleTilebagQueue(initialQueue.slice(initialRack.length)) : initialQueue;
   const playerMembers: Partial<Record<Side, string>> = {};
   if (settings.playerAMemberId) playerMembers.A = settings.playerAMemberId;
   if (settings.playerBMemberId) playerMembers.B = settings.playerBMemberId;
@@ -407,24 +478,27 @@ export function createNewGame(settings: NewGameSettings): GameState {
     },
     playerMembers: Object.keys(playerMembers).length > 0 ? playerMembers : undefined,
     startingSide: settings.startingSide,
+    tileDrawMode,
     turnNumber: 1,
     activeSide: settings.startingSide,
-    phase: "refill",
+    phase: tileDrawMode === "play" ? "choose_action" : "refill",
     status: "playing",
     boardSize: 15,
     board: createBoard(15),
-    rackA: [],
-    rackB: [],
-    tilebag: createInitialTilebag(),
+    rackA: settings.startingSide === "A" ? initialRack : [],
+    rackB: settings.startingSide === "B" ? initialRack : [],
+    tilebag: initialTilebag,
     pendingExchangeReturn: [],
     pendingExchangeReturnBySide: { A: [], B: [] },
     timers: {
-      A: seconds,
-      B: seconds,
-      initialSeconds: seconds,
+      A: secondsBySide.A,
+      B: secondsBySide.B,
+      initialSeconds,
+      initialSecondsBySide: secondsBySide,
+      sideUntimed,
       paused: false,
       minSeconds: -300,
-      untimed: Boolean(settings.untimed),
+      untimed: Boolean(settings.untimed) || allUntimed,
     },
     scores: { A: 0, B: 0 },
     logs: [],
@@ -440,6 +514,29 @@ export function createNewGame(settings: NewGameSettings): GameState {
   };
 }
 
+function normalizeTimerMinutes(settings: NewGameSettings): SideTimerMinutes {
+  if (settings.timerMinutes) {
+    return {
+      A: normalizeTimerMinute(settings.timerMinutes.A),
+      B: normalizeTimerMinute(settings.timerMinutes.B),
+    };
+  }
+  if (settings.untimed) return { A: null, B: null };
+  const minutes = normalizeTimerMinute(settings.minutes ?? 22) ?? 22;
+  return { A: minutes, B: minutes };
+}
+
+function normalizeTimerMinute(value: number | null | undefined): number | null {
+  if (value === null) return null;
+  const minutes = Number(value);
+  if (!Number.isFinite(minutes) || minutes <= 0) return 22;
+  return minutes;
+}
+
+function minutesToSeconds(minutes: number | null): number {
+  return minutes === null ? 0 : Math.max(1, Math.round(minutes * 60));
+}
+
 export function makeSnapshot(game: Omit<GameState, "history" | "historyIndex" | "lastSavedAt">): GameSnapshot;
 export function makeSnapshot(game: GameState): GameSnapshot;
 export function makeSnapshot(game: GameState | Omit<GameState, "history" | "historyIndex" | "lastSavedAt">): GameSnapshot {
@@ -450,6 +547,7 @@ export function makeSnapshot(game: GameState | Omit<GameState, "history" | "hist
     players: game.players,
     playerMembers: game.playerMembers,
     startingSide: game.startingSide,
+    tileDrawMode: getTileDrawMode(game),
     turnNumber: game.turnNumber,
     activeSide: game.activeSide,
     phase: game.phase,
@@ -621,6 +719,14 @@ export function validateMove(
     );
     if (!touchesExisting) {
       errors.push("New tiles must connect to existing board tiles.");
+    }
+  } else {
+    const center = Math.floor(size / 2);
+    const coversCenterStar = pendingPlacements.some(
+      (placement) => placement.row === center && placement.col === center,
+    );
+    if (!coversCenterStar) {
+      errors.push("The first equation must cover the center star.");
     }
   }
 

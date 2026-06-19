@@ -54,7 +54,8 @@
 .create-field input[type="text"],
 .create-field input[type="number"],
 .create-field input[type="search"],
-.create-field input:not([type]) {
+.create-field input:not([type]),
+.create-field select {
   width: 100%;
   border: 1px solid var(--lobby-border);
   border-radius: var(--lobby-radius-sm);
@@ -64,26 +65,50 @@
   font-size: 14px;
 }
 
-.create-field input:focus-visible {
+.create-field input:focus-visible,
+.create-field select:focus-visible {
   outline: 2px solid var(--lobby-accent);
   outline-offset: -1px;
   border-color: var(--lobby-accent);
 }
 
-.create-checkbox {
-  flex-direction: row;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding-top: 22px;
-  color: var(--lobby-text-soft);
-  font-size: 13px;
-  font-weight: 600;
+.create-timer-field {
+  display: grid;
+  gap: 6px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
 }
 
-.create-checkbox input {
-  width: auto;
-  margin: 0;
+.create-timer-field legend {
+  color: var(--lobby-text-soft);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 0 0 4px;
+}
+
+.create-timer-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.create-timer-grid label,
+.create-side-inputs label {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.create-timer-grid label > span,
+.create-side-inputs label > span {
+  color: var(--lobby-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .create-segment-field {
@@ -152,6 +177,17 @@
   font-weight: 800;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+.create-side-inputs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.85fr);
+  gap: 10px;
+  align-items: end;
+  border: 1px solid var(--lobby-border-soft);
+  border-radius: var(--lobby-radius-sm);
+  background: var(--lobby-surface-strong);
+  padding: 10px;
 }
 
 .create-side-label .dot {
@@ -243,6 +279,7 @@
   height: 26px;
   border-radius: 999px;
   margin-left: 6px;
+  background: var(--lobby-text);
   color: #fbfaf6;
   font-weight: 800;
   font-size: 11px;

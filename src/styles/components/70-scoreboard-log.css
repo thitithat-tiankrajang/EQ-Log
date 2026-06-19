@@ -2921,9 +2921,10 @@ button.tilebag-stat.active .ts-count {
 
 .rb-head {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr);
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: baseline;
-  gap: 10px;
+  column-gap: 10px;
+  row-gap: 3px;
 }
 
 .rb-eyebrow {
@@ -2942,13 +2943,14 @@ button.tilebag-stat.active .ts-count {
 }
 
 .rb-status {
-  justify-self: end;
+  grid-column: 1 / -1;
+  justify-self: start;
   font-size: 11px;
   font-weight: 700;
   color: var(--accent, #15604e);
   letter-spacing: 0.02em;
-  text-align: right;
-  white-space: nowrap;
+  text-align: left;
+  white-space: normal;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -3475,9 +3477,22 @@ button.tilebag-stat.active .ts-count {
   border: 1px solid rgba(36, 123, 111, 0.22) !important;
 }
 
+.board-cell.scoring::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  z-index: 6;
+  border: 2px solid rgba(14, 116, 144, 0.72);
+  pointer-events: none;
+}
+
 .board-cell.scoring.pending {
   background: rgba(36, 123, 111, 0.1) !important;
   border-color: rgba(36, 123, 111, 0.32) !important;
+}
+
+.board-cell.assignable-pending {
+  cursor: pointer;
 }
 
 /* ---- Cursor / arrow cell: inherits the slot's color ---- */
@@ -3640,7 +3655,7 @@ button.tilebag-stat.active .ts-count {
 
 /* Horizontal play: badge sits beside the equation. Triangle points inward. */
 .board-score-badge.horizontal.side-left {
-  transform: translate(-105%, 8%);
+  transform: translate(-100%, 0);
   padding: 4px 16px 4px 10px;
   clip-path: polygon(
     0 0,
@@ -3652,11 +3667,11 @@ button.tilebag-stat.active .ts-count {
 }
 
 .board-score-badge.horizontal.side-left.align-y-end {
-  transform: translate(-105%, -8%);
+  transform: translate(-100%, 0);
 }
 
 .board-score-badge.horizontal.side-right {
-  transform: translate(105%, 8%);
+  transform: translate(var(--cell), 0);
   padding: 4px 10px 4px 16px;
   clip-path: polygon(
     10px 0,
@@ -3668,12 +3683,12 @@ button.tilebag-stat.active .ts-count {
 }
 
 .board-score-badge.horizontal.side-right.align-y-end {
-  transform: translate(105%, -8%);
+  transform: translate(var(--cell), 0);
 }
 
 /* Vertical play: badge sits above or below the equation. Triangle points inward. */
 .board-score-badge.vertical.side-above {
-  transform: translate(8%, -105%);
+  transform: translate(0, -100%);
   padding: 4px 12px 14px 12px;
   clip-path: polygon(
     0 0,
@@ -3685,11 +3700,11 @@ button.tilebag-stat.active .ts-count {
 }
 
 .board-score-badge.vertical.side-above.align-x-end {
-  transform: translate(-8%, -105%);
+  transform: translate(0, -100%);
 }
 
 .board-score-badge.vertical.side-below {
-  transform: translate(8%, 105%);
+  transform: translate(0, var(--cell));
   padding: 14px 12px 4px 12px;
   clip-path: polygon(
     0 10px,
@@ -3701,7 +3716,7 @@ button.tilebag-stat.active .ts-count {
 }
 
 .board-score-badge.vertical.side-below.align-x-end {
-  transform: translate(-8%, 105%);
+  transform: translate(0, var(--cell));
 }
 
 /* Invalid placements: red ribbon. */

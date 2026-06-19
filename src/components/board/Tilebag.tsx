@@ -31,7 +31,7 @@ const COMPOSITION_LABELS: Record<CompositionGroup, string> = {
 
 const COMPOSITION_GROUPS: CompositionGroup[] = ["lightNumber", "heavyNumber", "operator", "Blank"];
 
-// "Operators" in the user's request bundles together: + - × ÷ +/- ×/÷ =
+// "Operators" in the user's request bundles together: + - × ÷ +/- x/÷ =
 // (everything in the original `operator`, `choice`, and `equals` types).
 // Blanks (?) stay on their own.
 function bucketFor(type: TokenType): CompositionGroup {

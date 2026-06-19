@@ -12,41 +12,20 @@ const STORAGE_KEY = "amath-lab-members-v1";
 export type Member = {
   id: string;
   name: string;
+  institution?: string;
+  createdAt: string;
   alias?: string;
   role?: string;
   note?: string;
-  color: string;
-  createdAt: string;
+  color?: string;
 };
-
-// Calm, low-saturation palette — assigned in round-robin so each new member
-// gets a distinct color without the admin having to pick one.
-export const MEMBER_COLORS = [
-  "#3f7a6b",
-  "#7d6cb0",
-  "#c97a4c",
-  "#3f6fa0",
-  "#7f8b3e",
-  "#a3563f",
-  "#5d6f7d",
-  "#a8843a",
-  "#5a8b71",
-  "#856489",
-];
-
-function nextColor(existing: Member[]): string {
-  const used = new Set(existing.map((member) => member.color));
-  const free = MEMBER_COLORS.find((color) => !used.has(color));
-  if (free) return free;
-  return MEMBER_COLORS[existing.length % MEMBER_COLORS.length];
-}
 
 function readRaw(): Member[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as Member[];
-    return Array.isArray(parsed) ? parsed : [];
+    return Array.isArray(parsed) ? parsed.map(normalizeMember).filter((member) => member.name) : [];
   } catch {
     return [];
   }
@@ -63,6 +42,12 @@ export function listMembers(): Member[] {
   );
 }
 
+export function listInstitutions(): string[] {
+  return [...new Set(readRaw().map((member) => member.institution).filter(Boolean) as string[])].sort(
+    (a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }),
+  );
+}
+
 export function findMember(id: string | null | undefined): Member | null {
   if (!id) return null;
   return readRaw().find((member) => member.id === id) ?? null;
@@ -70,10 +55,7 @@ export function findMember(id: string | null | undefined): Member | null {
 
 export type NewMember = {
   name: string;
-  alias?: string;
-  role?: string;
-  note?: string;
-  color?: string;
+  institution?: string;
 };
 
 export function createMember(input: NewMember): Member[] {
@@ -83,10 +65,7 @@ export function createMember(input: NewMember): Member[] {
   const member: Member = {
     id: crypto.randomUUID(),
     name,
-    alias: input.alias?.trim() || undefined,
-    role: input.role?.trim() || undefined,
-    note: input.note?.trim() || undefined,
-    color: input.color ?? nextColor(list),
+    institution: resolveInstitution(input.institution, list),
     createdAt: new Date().toISOString(),
   };
   const next = [...list, member];
@@ -95,19 +74,19 @@ export function createMember(input: NewMember): Member[] {
 }
 
 export function updateMember(id: string, patch: Partial<NewMember>): Member[] {
-  const list = readRaw().map((member) =>
-    member.id === id
-      ? {
-          ...member,
-          name: patch.name?.trim() || member.name,
-          alias:
-            patch.alias !== undefined ? patch.alias.trim() || undefined : member.alias,
-          role: patch.role !== undefined ? patch.role.trim() || undefined : member.role,
-          note: patch.note !== undefined ? patch.note.trim() || undefined : member.note,
-          color: patch.color ?? member.color,
-        }
-      : member,
-  );
+  const raw = readRaw();
+  const list = raw.map((member) => {
+    if (member.id !== id) return member;
+    return {
+      id: member.id,
+      name: patch.name?.trim() || member.name,
+      institution:
+        patch.institution !== undefined
+          ? resolveInstitution(patch.institution, raw)
+          : member.institution,
+      createdAt: member.createdAt,
+    };
+  });
   writeRaw(list);
   return list;
 }
@@ -119,11 +98,38 @@ export function deleteMember(id: string): Member[] {
 }
 
 export function getMemberInitials(member: Member): string {
-  const source = member.alias?.trim() || member.name.trim();
+  const source = member.name.trim();
   const parts = source.split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "?";
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function normalizeMember(member: Partial<Member>): Member {
+  const name = (member.name ?? member.alias ?? "").trim();
+  return {
+    id: member.id || crypto.randomUUID(),
+    name,
+    institution: normalizeInstitution(member.institution ?? member.role),
+    createdAt: member.createdAt || new Date().toISOString(),
+  };
+}
+
+function resolveInstitution(value: string | undefined, list: Member[]): string | undefined {
+  const institution = normalizeInstitution(value);
+  if (!institution) return undefined;
+  return (
+    list.find(
+      (member) =>
+        member.institution &&
+        member.institution.localeCompare(institution, undefined, { sensitivity: "base" }) === 0,
+    )?.institution ?? institution
+  );
+}
+
+function normalizeInstitution(value: string | undefined): string | undefined {
+  const institution = value?.trim().replace(/\s+/g, " ");
+  return institution || undefined;
 }
 
 // ── Live notifications ────────────────────────────────────────────────────

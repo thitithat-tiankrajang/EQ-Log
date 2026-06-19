@@ -428,19 +428,31 @@ h1 {
   border-color: rgba(37, 99, 235, 0.42);
 }
 
-/* ── Current-turn board marker. ─────────────────────────────────────────── */
+/* ── Current-turn board marker — small red chip on the tile corner. ─────── */
 .board-cell.pending::after {
-  top: 0 !important;
-  right: 0 !important;
-  width: 38% !important;
-  height: 38% !important;
-  min-width: 10px;
-  min-height: 10px;
+  content: none !important;
+  display: none !important;
+}
+
+.board-cell.pending .tile {
+  position: relative !important;
+}
+
+.board-cell.pending .tile::after {
+  content: "" !important;
+  position: absolute !important;
+  top: 1px !important;
+  right: 1px !important;
+  width: 0 !important;
+  height: 0 !important;
+  border-top: 6px solid var(--brand-red, #ea4335) !important;
+  border-left: 6px solid transparent !important;
   border-radius: 0 !important;
-  clip-path: polygon(100% 0, 0 0, 100% 100%);
-  background: var(--accent, #15604e) !important;
-  border: 0 !important;
+  clip-path: none !important;
+  background: transparent !important;
   box-shadow: none !important;
+  pointer-events: none !important;
+  z-index: 2 !important;
 }
 
 /* ── Board cursor replaces the premium label instead of drawing a second cell. */
@@ -489,9 +501,19 @@ h1 {
   pointer-events: none;
 }
 
-/* Assigned choice / blank text remains blue after the tile leaves the rack. */
+/* Assigned choice / blank text remains bright cyan on the board. */
 .board-cell.filled .tile.assigned-choice b,
-.board-cell.pending .tile.assigned-choice b {
-  color: var(--choice-assigned-text, #67e8f9) !important;
+.board-cell.pending .tile.assigned-choice b,
+.board-cell.filled .tile.tile-choice b,
+.board-cell.pending .tile.tile-choice b {
+  color: var(--choice-board-text, #00bcd4) !important;
+  text-shadow: none !important;
+}
+
+.board-cell.filled .tile.assigned-choice small,
+.board-cell.pending .tile.assigned-choice small,
+.board-cell.filled .tile.tile-choice small,
+.board-cell.pending .tile.tile-choice small {
+  color: var(--choice-board-point, #4285f4) !important;
   text-shadow: none !important;
 }

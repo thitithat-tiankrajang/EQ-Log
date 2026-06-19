@@ -27,7 +27,7 @@ import type {
   TileInstance,
   TurnLog,
 } from "./game";
-import { aggregatePendingExchangeReturns, getPendingExchangeReturnBySide } from "./game";
+import { aggregatePendingExchangeReturns, getPendingExchangeReturnBySide, getTileDrawMode } from "./game";
 
 export const STORAGE_PREFIX = "c1:";
 
@@ -156,6 +156,7 @@ function encodeSnapshot(snapshot: GameSnapshot): EncodedSnapshot {
     players: snapshot.players,
     playerMembers: snapshot.playerMembers,
     startingSide: snapshot.startingSide,
+    tileDrawMode: getTileDrawMode(snapshot),
     turnNumber: snapshot.turnNumber,
     activeSide: snapshot.activeSide,
     phase: snapshot.phase,
@@ -186,6 +187,7 @@ function decodeSnapshot(snapshot: EncodedSnapshot, nextId: IdFactory): GameSnaps
     players: snapshot.players,
     playerMembers: snapshot.playerMembers,
     startingSide: snapshot.startingSide ?? (snapshot.activeSide as Side),
+    tileDrawMode: snapshot.tileDrawMode ?? "manual",
     turnNumber: snapshot.turnNumber,
     activeSide: snapshot.activeSide as Side,
     phase: snapshot.phase,

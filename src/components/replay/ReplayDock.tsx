@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
-import type { GameState, TurnLog } from "../../game";
+import { displayToken, type GameState, type TurnLog } from "../../game";
 import { TurnDetail } from "./TurnDetail";
 
 // Embedded replay/live-view panel. The board area shows the selected replay
@@ -122,7 +122,7 @@ function ReplayBody({
           <div className="rb-rack-tiles">
             {log.rackBefore.map((tile) => (
               <span className="rb-tile" key={tile.id}>
-                <b>{tile.assignedToken ?? tile.token}</b>
+                <b>{displayToken(tile)}</b>
               </span>
             ))}
           </div>
