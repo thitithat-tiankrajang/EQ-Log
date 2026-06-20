@@ -338,6 +338,7 @@ function App() {
   const lastAppliedSessionKeyRef = useRef<string>("");
   const foregroundOperationRef = useRef(0);
   const liveSessionSyncTimerRef = useRef<number | null>(null);
+  const compactedRoomIdsRef = useRef(new Set<string>());
   const undoStackRef = useRef<UndoSnap[]>([]);
   const redoStackRef = useRef<UndoSnap[]>([]);
   const lastSnapRef = useRef<UndoSnap | null>(null);
@@ -426,7 +427,10 @@ function App() {
         setActiveRoomId(route.roomId);
         setGame(saved);
         lastAppliedStateKeyRef.current = makeRemoteStateKey(saved);
-        if (remotePayload) applyRemoteSession(remotePayload.session);
+        if (remotePayload) {
+          applyRemoteSession(remotePayload.session);
+          compactRemoteRoomIfNeeded(remotePayload, saved);
+        }
         setShowResult(isFinishedGame(saved));
       } catch (error) {
         if (!cancelled) setSyncError(error instanceof Error ? error.message : "Unable to open this room.");
@@ -464,7 +468,7 @@ function App() {
   }, [remoteEnabled, userId]);
 
   useEffect(() => {
-    if (!remoteEnabled || !activeRoomId) return;
+    if (!remoteEnabled || view !== "game" || !activeRoomId) return;
     return remoteRooms.subscribeToRoom(activeRoomId, (payload) => {
       const newRecord = payload.new as { id?: string } | null | undefined;
       const oldRecord = payload.old as { id?: string } | null | undefined;
@@ -487,7 +491,7 @@ function App() {
       if (!isOwnerRef.current) applyRemoteSession(session);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remoteEnabled, activeRoomId]);
+  }, [remoteEnabled, view, activeRoomId]);
 
   useEffect(() => {
     if (view !== "game" || !game || game.status !== "playing" || game.timers.paused) return;
@@ -523,7 +527,7 @@ function App() {
   // Supabase state sync: excludes timer-only ticks, but includes submitted turns,
   // undo/redo, score edits, pause/resume, end/resume, and room metadata changes.
   useEffect(() => {
-    if (!remoteEnabled || !game || !activeRoomId || !canPlayActiveRoom) return;
+    if (view !== "game" || !remoteEnabled || !game || !activeRoomId || !canPlayActiveRoom) return;
     if (hasDuplicateTileIds(game)) return;
     if (remoteStateKey === lastAppliedStateKeyRef.current) return;
     const event = pendingSessionEventRef.current ?? "state";
@@ -563,11 +567,11 @@ function App() {
       .catch((error: Error) => setSyncError(error.message))
       .finally(() => setBackgroundSyncCount((count) => Math.max(0, count - 1)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remoteEnabled, activeRoomId, canPlayActiveRoom, remoteStateKey]);
+  }, [view, remoteEnabled, activeRoomId, canPlayActiveRoom, remoteStateKey]);
 
   // Supabase live draft sync: lets spectators see pending placement/exchange state.
   useEffect(() => {
-    if (!remoteEnabled || !activeRoomId || !canPlayActiveRoom) return;
+    if (view !== "game" || !remoteEnabled || !activeRoomId || !canPlayActiveRoom) return;
     if (liveSessionKey === lastAppliedSessionKeyRef.current) return;
     lastAppliedSessionKeyRef.current = liveSessionKey;
     if (liveSessionSyncTimerRef.current !== null) window.clearTimeout(liveSessionSyncTimerRef.current);
@@ -577,7 +581,7 @@ function App() {
         .updateRoomSession(activeRoomId, liveSession)
         .then(() => setSyncError(null))
         .catch((error: Error) => setSyncError(error.message));
-    }, 50);
+    }, 120);
     return () => {
       if (liveSessionSyncTimerRef.current !== null) {
         window.clearTimeout(liveSessionSyncTimerRef.current);
@@ -585,7 +589,7 @@ function App() {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remoteEnabled, activeRoomId, canPlayActiveRoom, liveSessionKey]);
+  }, [view, remoteEnabled, activeRoomId, canPlayActiveRoom, liveSessionKey]);
 
   // Refresh the lobby summary only when meaningful fields change (not per second).
   useEffect(() => {
@@ -1120,7 +1124,10 @@ function App() {
       setActiveRoomId(id);
       setGame(saved);
       lastAppliedStateKeyRef.current = makeRemoteStateKey(saved);
-      if (remotePayload) applyRemoteSession(remotePayload.session);
+      if (remotePayload) {
+        applyRemoteSession(remotePayload.session);
+        compactRemoteRoomIfNeeded(remotePayload, saved);
+      }
       navigate({ kind: "room", roomId: id });
       setShowResult(isFinishedGame(saved));
       setSyncError(null);
@@ -1331,6 +1338,26 @@ function App() {
     if (!remoteEnabled) return true;
     const room = rooms.find((item) => item.id === id);
     return Boolean(userId && (hasAdminAccess || room?.ownerId === userId));
+  }
+
+  function compactRemoteRoomIfNeeded(payload: remoteRooms.RemoteRoomPayload, saved: GameState) {
+    if (!payload.needsCompaction || compactedRoomIdsRef.current.has(payload.meta.id)) return;
+    if (!userId || (!hasAdminAccess && payload.meta.ownerId !== userId)) return;
+    compactedRoomIdsRef.current.add(payload.meta.id);
+    setBackgroundSyncCount((count) => count + 1);
+    void remoteRooms
+      .updateRoomState({
+        id: payload.meta.id,
+        game: saved,
+        session: payload.session,
+        event: "state",
+      })
+      .then(() => setSyncError(null))
+      .catch((error: Error) => {
+        compactedRoomIdsRef.current.delete(payload.meta.id);
+        setSyncError(error.message);
+      })
+      .finally(() => setBackgroundSyncCount((count) => Math.max(0, count - 1)));
   }
 
   function applyRemotePayload(payload: remoteRooms.RemoteRoomPayload) {

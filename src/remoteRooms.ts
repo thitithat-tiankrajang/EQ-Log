@@ -58,6 +58,7 @@ export type RemoteRoomPayload = {
   game: GameState;
   meta: RoomMeta;
   session: LiveRoomSession;
+  needsCompaction: boolean;
 };
 
 export type RoomSessionEvent =
@@ -156,6 +157,7 @@ export async function readRoom(id: string): Promise<RemoteRoomPayload | null> {
     game: decodeRoomGame(row),
     meta: metaFromRow(row),
     session,
+    needsCompaction: getEncodedVersion(row.state) < 2,
   };
 }
 
@@ -261,32 +263,27 @@ export function subscribeToRoom(
 ): () => void {
   const client = supabase;
   if (!client) return () => undefined;
-  const stateChannel = client
-    .channel(`room-state:${id}`)
+  let channel = client
+    .channel(`room:${id}`)
     .on(
       "postgres_changes",
       { event: "*", schema: "public", table: "rooms", filter: `id=eq.${id}` },
       (payload: RealtimePostgresChangesPayload<RemoteRoomRecord>) => onState(payload),
-    )
-    .subscribe();
+    );
 
-  const liveChannel =
-    remoteCapabilities.liveRoom === false
-      ? null
-      : client
-          .channel(`room-live:${id}`)
-          .on(
-            "postgres_changes",
-            { event: "*", schema: "public", table: "room_live", filter: `room_id=eq.${id}` },
-            (payload: RealtimePostgresChangesPayload<RemoteRoomLiveRecord>) => {
-              if (payload.new && "session" in payload.new) onSession(parseSession(payload.new.session));
-            },
-          )
-          .subscribe();
+  if (remoteCapabilities.liveRoom !== false) {
+    channel = channel.on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "room_live", filter: `room_id=eq.${id}` },
+      (payload: RealtimePostgresChangesPayload<RemoteRoomLiveRecord>) => {
+        if (payload.new && "session" in payload.new) onSession(parseSession(payload.new.session));
+      },
+    );
+  }
+  channel.subscribe();
 
   return () => {
-    void client.removeChannel(stateChannel);
-    if (liveChannel) void client.removeChannel(liveChannel);
+    void client.removeChannel(channel);
   };
 }
 
@@ -295,6 +292,7 @@ export function payloadFromRow(row: RemoteRoomRecord): RemoteRoomPayload {
     game: decodeRoomGame(row),
     meta: metaFromRow(row),
     session: emptyLiveSession(),
+    needsCompaction: getEncodedVersion(row.state) < 2,
   };
 }
 
@@ -324,6 +322,12 @@ function roomSummaryPayload(game: GameState) {
 function decodeRoomGame(row: RemoteRoomRecord): GameState {
   if (!row.state) throw new Error("Room state is missing.");
   return decodeGame(row.state as Parameters<typeof decodeGame>[0]);
+}
+
+function getEncodedVersion(state: unknown): number {
+  if (!state || typeof state !== "object") return 0;
+  const version = Number((state as { v?: unknown }).v);
+  return Number.isFinite(version) ? version : 0;
 }
 
 async function readLiveSession(id: string): Promise<LiveRoomSession> {

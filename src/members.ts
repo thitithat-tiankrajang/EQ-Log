@@ -164,19 +164,12 @@ export function subscribeMembers(ownerId: string | null, listener: Listener): ()
     localListeners.add(listener);
     return () => localListeners.delete(listener);
   }
-  if (!ownerId) return () => undefined;
-  const client = supabase;
-  const channel = client
-    .channel(`members:${ownerId}`)
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "members", filter: `owner_id=eq.${ownerId}` },
-      listener,
-    )
-    .subscribe();
-  return () => {
-    void client.removeChannel(channel);
-  };
+  // Remote member CRUD is owner-only and updates this tab optimistically.
+  // Avoid a permanent Realtime channel for a directory that no other account
+  // can edit; refresh on login/reload is sufficient for cross-device changes.
+  void ownerId;
+  void listener;
+  return () => undefined;
 }
 
 function memberFromRow(row: MemberRow): Member {
