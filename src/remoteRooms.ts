@@ -27,14 +27,31 @@ export type RemoteRoomRecord = {
   player_a: string;
   player_b: string;
   status: GameState["status"];
+  lifecycle_status?: GameState["status"] | null;
+  member_a_id?: string | null;
+  member_b_id?: string | null;
+  starting_side?: "A" | "B" | null;
   turn_number: number;
   score_a: number;
   score_b: number;
-  state: unknown;
-  session?: unknown | null;
+  state?: unknown;
   created_at: string;
   updated_at: string;
-  profiles?: { display_name: string | null; email: string | null } | { display_name: string | null; email: string | null }[] | null;
+  profiles?:
+    | { display_name: string | null; email: string | null }
+    | { display_name: string | null; email: string | null }[]
+    | null;
+};
+
+type RemoteRoomLiveRecord = {
+  room_id: string;
+  session: unknown;
+  updated_at: string;
+};
+
+type DatabaseResult = {
+  data: unknown;
+  error: { code?: string; message: string; details?: string } | null;
 };
 
 export type RemoteRoomPayload = {
@@ -58,21 +75,25 @@ export type RoomSessionEvent =
   | "import"
   | "delete";
 
-const ROOM_SELECT =
-  "id,owner_id,name,player_a,player_b,status,turn_number,score_a,score_b,state,session,created_at,updated_at,profiles:owner_id(display_name,email)";
-const LEGACY_ROOM_SELECT =
-  "id,owner_id,name,player_a,player_b,status,turn_number,score_a,score_b,state,created_at,updated_at,profiles:owner_id(display_name,email)";
+const META_FIELDS =
+  "id,owner_id,name,player_a,player_b,status,turn_number,score_a,score_b,created_at,updated_at,profiles:owner_id(display_name,email)";
+const SUMMARY_FIELDS =
+  "id,owner_id,name,player_a,player_b,status,lifecycle_status,member_a_id,member_b_id,starting_side,turn_number,score_a,score_b,created_at,updated_at,profiles:owner_id(display_name,email)";
+const READ_ROOM_FIELDS = `${META_FIELDS},state`;
 
 type RemoteCapabilities = {
-  liveSchema?: boolean;
+  summaryColumns?: boolean;
+  liveRoom?: boolean;
   draftStatus?: boolean;
-  roomSessions?: boolean;
   checkedAt: number;
 };
 
-const CAPABILITIES_KEY = "eq-lab:supabase-capabilities:v2";
+const CAPABILITIES_KEY = "eq-lab:supabase-capabilities:v3";
 const CAPABILITIES_TTL_MS = 30 * 60 * 1000;
 let remoteCapabilities = readRemoteCapabilities();
+const stateWriteQueues = new Map<string, Promise<void>>();
+const latestLiveSessions = new Map<string, LiveRoomSession>();
+const liveWriteDrains = new Map<string, Promise<void>>();
 
 export function makeLiveSession(args: {
   actorId: string | null;
@@ -107,46 +128,35 @@ export function emptyLiveSession(actorId: string | null = null): LiveRoomSession
 
 export async function listRooms(): Promise<RoomMeta[]> {
   if (!supabase) return [];
-  const useLiveSchema = remoteCapabilities.liveSchema !== false;
-  const result = await supabase
+  const useSummary = remoteCapabilities.summaryColumns !== false;
+  let result: DatabaseResult = await supabase
     .from("rooms")
-    .select(useLiveSchema ? ROOM_SELECT : LEGACY_ROOM_SELECT)
+    .select(useSummary ? SUMMARY_FIELDS : META_FIELDS)
     .order("updated_at", { ascending: false });
-  let data: unknown = result.data;
-  let error = result.error;
-  if (useLiveSchema && error && isMissingLiveSchemaError(error)) {
-    setRemoteCapability("liveSchema", false);
-    const legacy = await supabase.from("rooms").select(LEGACY_ROOM_SELECT).order("updated_at", { ascending: false });
-    data = legacy.data as unknown;
-    error = legacy.error;
-  } else if (useLiveSchema && !error) {
-    setRemoteCapability("liveSchema", true);
+  if (useSummary && result.error && isMissingSummarySchemaError(result.error)) {
+    setRemoteCapability("summaryColumns", false);
+    result = await supabase.from("rooms").select(META_FIELDS).order("updated_at", { ascending: false });
+  } else if (useSummary && !result.error) {
+    setRemoteCapability("summaryColumns", true);
   }
-  if (error) throw error;
-  return ((data ?? []) as unknown as RemoteRoomRecord[]).map(metaFromRow);
+  if (result.error) throw result.error;
+  return ((result.data ?? []) as unknown as RemoteRoomRecord[]).map(metaFromRow);
 }
 
 export async function readRoom(id: string): Promise<RemoteRoomPayload | null> {
   if (!supabase) return null;
-  const useLiveSchema = remoteCapabilities.liveSchema !== false;
-  const result = await supabase
-    .from("rooms")
-    .select(useLiveSchema ? ROOM_SELECT : LEGACY_ROOM_SELECT)
-    .eq("id", id)
-    .maybeSingle();
-  let data: unknown = result.data;
-  let error = result.error;
-  if (useLiveSchema && error && isMissingLiveSchemaError(error)) {
-    setRemoteCapability("liveSchema", false);
-    const legacy = await supabase.from("rooms").select(LEGACY_ROOM_SELECT).eq("id", id).maybeSingle();
-    data = legacy.data as unknown;
-    error = legacy.error;
-  } else if (useLiveSchema && !error) {
-    setRemoteCapability("liveSchema", true);
-  }
-  if (error) throw error;
-  if (!data) return null;
-  return payloadFromRow(data as unknown as RemoteRoomRecord);
+  const [roomResult, session] = await Promise.all([
+    supabase.from("rooms").select(READ_ROOM_FIELDS).eq("id", id).maybeSingle(),
+    readLiveSession(id),
+  ]);
+  if (roomResult.error) throw roomResult.error;
+  if (!roomResult.data) return null;
+  const row = roomResult.data as unknown as RemoteRoomRecord;
+  return {
+    game: decodeRoomGame(row),
+    meta: metaFromRow(row),
+    session,
+  };
 }
 
 export async function createRoom(
@@ -156,130 +166,86 @@ export async function createRoom(
 ): Promise<{ id: string; meta: RoomMeta }> {
   if (!supabase) throw new Error("Supabase is not configured.");
   const databaseStatus = getDatabaseStatus(game.status);
-  const basePayload = {
-    owner_id: ownerId,
-    name: game.name,
-    player_a: game.players.A,
-    player_b: game.players.B,
-    status: databaseStatus,
-    turn_number: game.turnNumber,
-    score_a: game.scores.A,
-    score_b: game.scores.B,
-    state: encodeGame(game),
-  };
-  const useLiveSchema = remoteCapabilities.liveSchema !== false;
-  const insertPayload = useLiveSchema ? { ...basePayload, session } : basePayload;
-  let result = await supabase
+  const basePayload = roomStatePayload(game, databaseStatus);
+  const useSummary = remoteCapabilities.summaryColumns !== false;
+  const insertPayload = useSummary ? { ...basePayload, ...roomSummaryPayload(game) } : basePayload;
+  let result: DatabaseResult = await supabase
     .from("rooms")
     .insert(insertPayload)
-    .select(useLiveSchema ? ROOM_SELECT : LEGACY_ROOM_SELECT)
+    .select(useSummary ? SUMMARY_FIELDS : META_FIELDS)
     .single();
+
   if (isDraftStatusConstraintError(result.error, databaseStatus)) {
     setRemoteCapability("draftStatus", false);
     result = await supabase
       .from("rooms")
       .insert({ ...insertPayload, status: "playing" })
-      .select(useLiveSchema ? ROOM_SELECT : LEGACY_ROOM_SELECT)
+      .select(useSummary ? SUMMARY_FIELDS : META_FIELDS)
       .single();
   } else if (databaseStatus === "draft" && !result.error) {
     setRemoteCapability("draftStatus", true);
   }
-  let data: unknown = result.data;
-  let error = result.error;
-  if (useLiveSchema && error && isMissingLiveSchemaError(error)) {
-    setRemoteCapability("liveSchema", false);
-    let legacy = await supabase.from("rooms").insert(basePayload).select(LEGACY_ROOM_SELECT).single();
+
+  if (useSummary && result.error && isMissingSummarySchemaError(result.error)) {
+    setRemoteCapability("summaryColumns", false);
+    let legacy = await supabase.from("rooms").insert(basePayload).select(META_FIELDS).single();
     if (isDraftStatusConstraintError(legacy.error, databaseStatus)) {
       setRemoteCapability("draftStatus", false);
-      legacy = await supabase
-        .from("rooms")
-        .insert({ ...basePayload, status: "playing" })
-        .select(LEGACY_ROOM_SELECT)
-        .single();
-    } else if (databaseStatus === "draft" && !legacy.error) {
-      setRemoteCapability("draftStatus", true);
+      legacy = await supabase.from("rooms").insert({ ...basePayload, status: "playing" }).select(META_FIELDS).single();
     }
-    data = legacy.data as unknown;
-    error = legacy.error;
-  } else if (useLiveSchema && !error) {
-    setRemoteCapability("liveSchema", true);
+    result = legacy;
   }
-  if (error) throw error;
-  const meta = metaFromRow(data as unknown as RemoteRoomRecord);
-  await appendRoomSession(meta.id, game, session, "create");
+  if (result.error) throw result.error;
+  const meta = metaFromRow(result.data as unknown as RemoteRoomRecord);
+  await updateRoomSession(meta.id, session);
   return { id: meta.id, meta };
 }
 
-export async function updateRoomState(args: {
+export function updateRoomState(args: {
   id: string;
   game: GameState;
   session: LiveRoomSession;
   event?: RoomSessionEvent;
 }): Promise<void> {
-  if (!supabase) return;
-  const databaseStatus = getDatabaseStatus(args.game.status);
-  const basePayload = {
-    name: args.game.name,
-    player_a: args.game.players.A,
-    player_b: args.game.players.B,
-    status: databaseStatus,
-    turn_number: args.game.turnNumber,
-    score_a: args.game.scores.A,
-    score_b: args.game.scores.B,
-    state: encodeGame(args.game),
-    updated_at: new Date().toISOString(),
-  };
-  const useLiveSchema = remoteCapabilities.liveSchema !== false;
-  const updatePayload = useLiveSchema ? { ...basePayload, session: args.session } : basePayload;
-  let updateResult = await supabase
-    .from("rooms")
-    .update(updatePayload)
-    .eq("id", args.id);
-  if (isDraftStatusConstraintError(updateResult.error, databaseStatus)) {
-    setRemoteCapability("draftStatus", false);
-    updateResult = await supabase
-      .from("rooms")
-      .update({ ...updatePayload, status: "playing" })
-      .eq("id", args.id);
-  } else if (databaseStatus === "draft" && !updateResult.error) {
-    setRemoteCapability("draftStatus", true);
-  }
-  let error = updateResult.error;
-  if (useLiveSchema && error && isMissingLiveSchemaError(error)) {
-    setRemoteCapability("liveSchema", false);
-    let legacy = await supabase.from("rooms").update(basePayload).eq("id", args.id);
-    if (isDraftStatusConstraintError(legacy.error, databaseStatus)) {
+  return enqueueRoomWrite(stateWriteQueues, args.id, async () => {
+    if (!supabase) return;
+    const databaseStatus = getDatabaseStatus(args.game.status);
+    const basePayload = roomStatePayload(args.game, databaseStatus);
+    const useSummary = remoteCapabilities.summaryColumns !== false;
+    const updatePayload = useSummary ? { ...basePayload, ...roomSummaryPayload(args.game) } : basePayload;
+    let result = await supabase.from("rooms").update(updatePayload).eq("id", args.id);
+
+    if (isDraftStatusConstraintError(result.error, databaseStatus)) {
       setRemoteCapability("draftStatus", false);
-      legacy = await supabase
-        .from("rooms")
-        .update({ ...basePayload, status: "playing" })
-        .eq("id", args.id);
-    } else if (databaseStatus === "draft" && !legacy.error) {
+      result = await supabase.from("rooms").update({ ...updatePayload, status: "playing" }).eq("id", args.id);
+    } else if (databaseStatus === "draft" && !result.error) {
       setRemoteCapability("draftStatus", true);
     }
-    error = legacy.error;
-  } else if (useLiveSchema && !error) {
-    setRemoteCapability("liveSchema", true);
-  }
-  if (error) throw error;
-  if (args.event) await appendRoomSession(args.id, args.game, args.session, args.event);
+
+    if (useSummary && result.error && isMissingSummarySchemaError(result.error)) {
+      setRemoteCapability("summaryColumns", false);
+      let legacy = await supabase.from("rooms").update(basePayload).eq("id", args.id);
+      if (isDraftStatusConstraintError(legacy.error, databaseStatus)) {
+        setRemoteCapability("draftStatus", false);
+        legacy = await supabase.from("rooms").update({ ...basePayload, status: "playing" }).eq("id", args.id);
+      }
+      result = legacy;
+    }
+    if (result.error) throw result.error;
+  });
 }
 
-export async function updateRoomSession(id: string, session: LiveRoomSession): Promise<void> {
-  if (!supabase || remoteCapabilities.liveSchema === false) return;
-  const { error } = await supabase
-    .from("rooms")
-    .update({
-      session,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id);
-  if (error && isMissingLiveSchemaError(error)) {
-    setRemoteCapability("liveSchema", false);
-    return;
-  }
-  if (error) throw error;
-  setRemoteCapability("liveSchema", true);
+export function updateRoomSession(id: string, session: LiveRoomSession): Promise<void> {
+  latestLiveSessions.set(id, session);
+  const activeDrain = liveWriteDrains.get(id);
+  if (activeDrain) return activeDrain;
+  const drain = drainLiveSessionWrites(id);
+  liveWriteDrains.set(id, drain);
+  const cleanup = () => {
+    if (liveWriteDrains.get(id) === drain) liveWriteDrains.delete(id);
+  };
+  void drain.then(cleanup, cleanup);
+  return drain;
 }
 
 export async function deleteRoom(id: string): Promise<void> {
@@ -288,59 +254,121 @@ export async function deleteRoom(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function appendRoomSession(
-  roomId: string,
-  game: GameState,
-  session: LiveRoomSession,
-  event: RoomSessionEvent,
-): Promise<void> {
-  if (!supabase || remoteCapabilities.roomSessions === false) return;
-  const latestLog = game.logs.at(-1);
-  const { error } = await supabase.from("room_sessions").insert({
-    room_id: roomId,
-    actor_id: session.actorId,
-    event,
-    turn_number: game.turnNumber,
-    action: latestLog?.action ?? null,
-    log_id: latestLog?.id ?? null,
-    state: encodeGame(game),
-    session,
-  });
-  if (error && isMissingLiveSchemaError(error)) {
-    setRemoteCapability("roomSessions", false);
-    return;
-  }
-  if (error) throw error;
-  setRemoteCapability("roomSessions", true);
-}
-
-export function subscribeToRooms(onChange: (payload: RealtimePostgresChangesPayload<RemoteRoomRecord>) => void) {
+export function subscribeToRoom(
+  id: string,
+  onState: (payload: RealtimePostgresChangesPayload<RemoteRoomRecord>) => void,
+  onSession: (session: LiveRoomSession) => void,
+): () => void {
   const client = supabase;
   if (!client) return () => undefined;
-  const channel = client
-    .channel("public:rooms")
+  const stateChannel = client
+    .channel(`room-state:${id}`)
     .on(
       "postgres_changes",
-      { event: "*", schema: "public", table: "rooms" },
-      (payload: RealtimePostgresChangesPayload<RemoteRoomRecord>) => onChange(payload),
+      { event: "*", schema: "public", table: "rooms", filter: `id=eq.${id}` },
+      (payload: RealtimePostgresChangesPayload<RemoteRoomRecord>) => onState(payload),
     )
     .subscribe();
+
+  const liveChannel =
+    remoteCapabilities.liveRoom === false
+      ? null
+      : client
+          .channel(`room-live:${id}`)
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "room_live", filter: `room_id=eq.${id}` },
+            (payload: RealtimePostgresChangesPayload<RemoteRoomLiveRecord>) => {
+              if (payload.new && "session" in payload.new) onSession(parseSession(payload.new.session));
+            },
+          )
+          .subscribe();
+
   return () => {
-    void client.removeChannel(channel);
+    void client.removeChannel(stateChannel);
+    if (liveChannel) void client.removeChannel(liveChannel);
   };
 }
 
 export function payloadFromRow(row: RemoteRoomRecord): RemoteRoomPayload {
   return {
-    game: decodeGame(row.state as Parameters<typeof decodeGame>[0]),
+    game: decodeRoomGame(row),
     meta: metaFromRow(row),
-    session: parseSession(row.session),
+    session: emptyLiveSession(),
   };
+}
+
+function roomStatePayload(game: GameState, status: GameStatus) {
+  return {
+    name: game.name,
+    player_a: game.players.A,
+    player_b: game.players.B,
+    status,
+    turn_number: game.turnNumber,
+    score_a: game.scores.A,
+    score_b: game.scores.B,
+    state: encodeGame(game),
+    updated_at: new Date().toISOString(),
+  };
+}
+
+function roomSummaryPayload(game: GameState) {
+  return {
+    lifecycle_status: game.status,
+    member_a_id: game.playerMembers?.A ?? null,
+    member_b_id: game.playerMembers?.B ?? null,
+    starting_side: game.startingSide ?? game.activeSide,
+  };
+}
+
+function decodeRoomGame(row: RemoteRoomRecord): GameState {
+  if (!row.state) throw new Error("Room state is missing.");
+  return decodeGame(row.state as Parameters<typeof decodeGame>[0]);
+}
+
+async function readLiveSession(id: string): Promise<LiveRoomSession> {
+  if (!supabase || remoteCapabilities.liveRoom === false) return emptyLiveSession();
+  const { data, error } = await supabase
+    .from("room_live")
+    .select("room_id,session,updated_at")
+    .eq("room_id", id)
+    .maybeSingle();
+  if (error && isMissingLiveRoomError(error)) {
+    setRemoteCapability("liveRoom", false);
+    return emptyLiveSession();
+  }
+  if (error) throw error;
+  setRemoteCapability("liveRoom", true);
+  return data ? parseSession((data as RemoteRoomLiveRecord).session) : emptyLiveSession();
+}
+
+async function drainLiveSessionWrites(id: string): Promise<void> {
+  while (latestLiveSessions.has(id)) {
+    const session = latestLiveSessions.get(id);
+    latestLiveSessions.delete(id);
+    if (!session || !supabase || remoteCapabilities.liveRoom === false) continue;
+    const { error } = await supabase.from("room_live").upsert(
+      {
+        room_id: id,
+        actor_id: session.actorId,
+        session,
+        updated_at: session.updatedAt,
+      },
+      { onConflict: "room_id" },
+    );
+    if (error && isMissingLiveRoomError(error)) {
+      setRemoteCapability("liveRoom", false);
+      latestLiveSessions.delete(id);
+      return;
+    }
+    if (error) throw error;
+    setRemoteCapability("liveRoom", true);
+  }
 }
 
 function metaFromRow(row: RemoteRoomRecord): RoomMeta {
   const owner = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
-  const players = extractPlayerMembersFromState(row.state);
+  const legacy = extractSummaryFromState(row.state);
   return {
     id: row.id,
     ownerId: row.owner_id,
@@ -350,65 +378,17 @@ function metaFromRow(row: RemoteRoomRecord): RoomMeta {
     updatedAt: row.updated_at,
     playerA: row.player_a,
     playerB: row.player_b,
-    memberAId: players.memberAId,
-    memberBId: players.memberBId,
-    startingSide: players.startingSide,
+    memberAId: row.member_a_id ?? legacy.memberAId,
+    memberBId: row.member_b_id ?? legacy.memberBId,
+    startingSide: row.starting_side ?? legacy.startingSide,
     turnNumber: row.turn_number,
     scoreA: row.score_a,
     scoreB: row.score_b,
-    status: players.status ?? row.status,
+    status: normalizeGameStatus(row.lifecycle_status) ?? legacy.status ?? row.status,
   };
 }
 
-function isDraftStatusConstraintError(
-  error: { code?: string; message?: string; details?: string } | null,
-  status: GameStatus,
-): boolean {
-  if (!error || status !== "draft" || error.code !== "23514") return false;
-  const text = `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase();
-  return text.includes("rooms_status_check") || text.includes("status");
-}
-
-function getDatabaseStatus(status: GameStatus): GameStatus {
-  return status === "draft" && remoteCapabilities.draftStatus === false ? "playing" : status;
-}
-
-function readRemoteCapabilities(): RemoteCapabilities {
-  const fallback: RemoteCapabilities = { checkedAt: Date.now() };
-  try {
-    const raw = window.localStorage.getItem(CAPABILITIES_KEY);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as RemoteCapabilities;
-    if (!parsed.checkedAt || Date.now() - parsed.checkedAt > CAPABILITIES_TTL_MS) return fallback;
-    return parsed;
-  } catch {
-    return fallback;
-  }
-}
-
-function setRemoteCapability(
-  capability: "liveSchema" | "draftStatus" | "roomSessions",
-  value: boolean,
-): void {
-  if (remoteCapabilities[capability] === value) return;
-  remoteCapabilities = {
-    ...remoteCapabilities,
-    [capability]: value,
-    ...(capability === "liveSchema" && !value ? { roomSessions: false } : {}),
-    checkedAt: Date.now(),
-  };
-  try {
-    window.localStorage.setItem(CAPABILITIES_KEY, JSON.stringify(remoteCapabilities));
-  } catch {
-    // Storage can be unavailable in private or restricted browser contexts.
-  }
-}
-
-// Lightweight extractor: walks the encoded state JSON for the fields we need
-// without fully decoding the game. Tolerates legacy rows (returns nulls).
-function extractPlayerMembersFromState(
-  state: unknown,
-): {
+function extractSummaryFromState(state: unknown): {
   memberAId: string | null;
   memberBId: string | null;
   startingSide: "A" | "B" | null;
@@ -424,18 +404,16 @@ function extractPlayerMembersFromState(
     history?: { activeSide?: "A" | "B" }[];
     status?: GameStatus;
   };
-  const members = obj.playerMembers ?? {};
-  const startingSide =
-    obj.startingSide ?? obj.history?.[0]?.activeSide ?? obj.activeSide ?? null;
   return {
-    memberAId: members.A ?? null,
-    memberBId: members.B ?? null,
-    startingSide,
-    status:
-      obj.status === "playing" || obj.status === "draft" || obj.status === "finished"
-        ? obj.status
-        : null,
+    memberAId: obj.playerMembers?.A ?? null,
+    memberBId: obj.playerMembers?.B ?? null,
+    startingSide: obj.startingSide ?? obj.history?.[0]?.activeSide ?? obj.activeSide ?? null,
+    status: normalizeGameStatus(obj.status),
   };
+}
+
+function normalizeGameStatus(status: unknown): GameStatus | null {
+  return status === "playing" || status === "draft" || status === "finished" ? status : null;
 }
 
 function parseSession(value: unknown): LiveRoomSession {
@@ -456,7 +434,66 @@ function parseSession(value: unknown): LiveRoomSession {
   };
 }
 
-function isMissingLiveSchemaError(error: { code?: string; message?: string } | null): boolean {
+function enqueueRoomWrite(
+  queues: Map<string, Promise<void>>,
+  id: string,
+  operation: () => Promise<void>,
+): Promise<void> {
+  const previous = queues.get(id) ?? Promise.resolve();
+  const current = previous.catch(() => undefined).then(operation);
+  queues.set(id, current);
+  const cleanup = () => {
+    if (queues.get(id) === current) queues.delete(id);
+  };
+  void current.then(cleanup, cleanup);
+  return current;
+}
+
+function isDraftStatusConstraintError(
+  error: { code?: string; message?: string; details?: string } | null,
+  status: GameStatus,
+): boolean {
+  if (!error || status !== "draft" || error.code !== "23514") return false;
+  const text = `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase();
+  return text.includes("rooms_status_check") || text.includes("status");
+}
+
+function getDatabaseStatus(status: GameStatus): GameStatus {
+  return status === "draft" && remoteCapabilities.draftStatus === false ? "playing" : status;
+}
+
+function isMissingSummarySchemaError(error: { code?: string; message?: string } | null): boolean {
   const text = `${error?.code ?? ""} ${error?.message ?? ""}`;
-  return /42703|PGRST204|rooms\.session|session.*rooms|room_sessions|schema cache/i.test(text);
+  return /42703|PGRST204|lifecycle_status|member_a_id|member_b_id|starting_side|schema cache/i.test(text);
+}
+
+function isMissingLiveRoomError(error: { code?: string; message?: string } | null): boolean {
+  const text = `${error?.code ?? ""} ${error?.message ?? ""}`;
+  return /42P01|PGRST205|room_live|schema cache/i.test(text);
+}
+
+function readRemoteCapabilities(): RemoteCapabilities {
+  const fallback: RemoteCapabilities = { checkedAt: Date.now() };
+  try {
+    const raw = window.localStorage.getItem(CAPABILITIES_KEY);
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw) as RemoteCapabilities;
+    if (!parsed.checkedAt || Date.now() - parsed.checkedAt > CAPABILITIES_TTL_MS) return fallback;
+    return parsed;
+  } catch {
+    return fallback;
+  }
+}
+
+function setRemoteCapability(
+  capability: "summaryColumns" | "liveRoom" | "draftStatus",
+  value: boolean,
+): void {
+  if (remoteCapabilities[capability] === value) return;
+  remoteCapabilities = { ...remoteCapabilities, [capability]: value, checkedAt: Date.now() };
+  try {
+    window.localStorage.setItem(CAPABILITIES_KEY, JSON.stringify(remoteCapabilities));
+  } catch {
+    // Storage can be unavailable in private or restricted browser contexts.
+  }
 }

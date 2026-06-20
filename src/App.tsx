@@ -337,6 +337,7 @@ function App() {
   const lastAppliedStateKeyRef = useRef<string>("");
   const lastAppliedSessionKeyRef = useRef<string>("");
   const foregroundOperationRef = useRef(0);
+  const liveSessionSyncTimerRef = useRef<number | null>(null);
   const undoStackRef = useRef<UndoSnap[]>([]);
   const redoStackRef = useRef<UndoSnap[]>([]);
   const lastSnapRef = useRef<UndoSnap | null>(null);
@@ -463,13 +464,8 @@ function App() {
   }, [remoteEnabled, userId]);
 
   useEffect(() => {
-    if (!remoteEnabled) return;
-    return remoteRooms.subscribeToRooms((payload) => {
-      void remoteRooms
-        .listRooms()
-        .then(setRooms)
-        .catch((error: Error) => setSyncError(error.message));
-
+    if (!remoteEnabled || !activeRoomId) return;
+    return remoteRooms.subscribeToRoom(activeRoomId, (payload) => {
       const newRecord = payload.new as { id?: string } | null | undefined;
       const oldRecord = payload.old as { id?: string } | null | undefined;
       const changedId = newRecord?.id ?? oldRecord?.id;
@@ -487,9 +483,11 @@ function App() {
       } catch (error) {
         setSyncError(error instanceof Error ? error.message : "Unable to read live room update.");
       }
+    }, (session) => {
+      if (!isOwnerRef.current) applyRemoteSession(session);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remoteEnabled]);
+  }, [remoteEnabled, activeRoomId]);
 
   useEffect(() => {
     if (view !== "game" || !game || game.status !== "playing" || game.timers.paused) return;
@@ -539,7 +537,29 @@ function App() {
         session: liveSession,
         event,
       })
-      .then(() => setSyncError(null))
+      .then(() => {
+        setSyncError(null);
+        setRooms((current) =>
+          current.map((room) =>
+            room.id === activeRoomId
+              ? {
+                  ...room,
+                  name: game.name,
+                  playerA: game.players.A,
+                  playerB: game.players.B,
+                  memberAId: game.playerMembers?.A ?? null,
+                  memberBId: game.playerMembers?.B ?? null,
+                  startingSide: game.startingSide,
+                  turnNumber: game.turnNumber,
+                  scoreA: game.scores.A,
+                  scoreB: game.scores.B,
+                  status: game.status,
+                  updatedAt: game.lastSavedAt,
+                }
+              : room,
+          ),
+        );
+      })
       .catch((error: Error) => setSyncError(error.message))
       .finally(() => setBackgroundSyncCount((count) => Math.max(0, count - 1)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -550,12 +570,20 @@ function App() {
     if (!remoteEnabled || !activeRoomId || !canPlayActiveRoom) return;
     if (liveSessionKey === lastAppliedSessionKeyRef.current) return;
     lastAppliedSessionKeyRef.current = liveSessionKey;
-    setBackgroundSyncCount((count) => count + 1);
-    void remoteRooms
-      .updateRoomSession(activeRoomId, liveSession)
-      .then(() => setSyncError(null))
-      .catch((error: Error) => setSyncError(error.message))
-      .finally(() => setBackgroundSyncCount((count) => Math.max(0, count - 1)));
+    if (liveSessionSyncTimerRef.current !== null) window.clearTimeout(liveSessionSyncTimerRef.current);
+    liveSessionSyncTimerRef.current = window.setTimeout(() => {
+      liveSessionSyncTimerRef.current = null;
+      void remoteRooms
+        .updateRoomSession(activeRoomId, liveSession)
+        .then(() => setSyncError(null))
+        .catch((error: Error) => setSyncError(error.message));
+    }, 50);
+    return () => {
+      if (liveSessionSyncTimerRef.current !== null) {
+        window.clearTimeout(liveSessionSyncTimerRef.current);
+        liveSessionSyncTimerRef.current = null;
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remoteEnabled, activeRoomId, canPlayActiveRoom, liveSessionKey]);
 
@@ -1270,7 +1298,6 @@ function App() {
         copy.gameId = crypto.randomUUID();
         const session = remoteRooms.emptyLiveSession(userId);
         const { meta } = await remoteRooms.createRoom(copy, userId, session);
-        await remoteRooms.appendRoomSession(meta.id, copy, session, "import");
         setRooms((current) => [meta, ...current]);
         return;
       }
@@ -1317,12 +1344,13 @@ function App() {
       lastAppliedStateKeyRef.current = key;
       setGame(remoteGame);
     }
-    applyRemoteSession(payload.session);
     setSyncError(null);
   }
 
   function applyRemoteSession(session: LiveRoomSession) {
-    lastAppliedSessionKeyRef.current = makeLiveSessionKey(session);
+    const key = makeLiveSessionKey(session);
+    if (key === lastAppliedSessionKeyRef.current) return;
+    lastAppliedSessionKeyRef.current = key;
     setActionMode(session.actionMode);
     setPendingPlacements(session.pendingPlacements);
     setExchangeDraft(session.exchangeDraft);

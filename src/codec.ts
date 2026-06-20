@@ -242,18 +242,42 @@ function decodePendingExchangeReturnBySide(
 }
 
 // ── Game ────────────────────────────────────────────────────────────────────────
-type EncodedGame = EncodedSnapshot & {
+type EncodedHistorySnapshot = Omit<EncodedSnapshot, "logs"> & {
+  logCount: number;
+};
+
+type EncodedGameV1 = EncodedSnapshot & {
   v: 1;
   history: EncodedSnapshot[];
   historyIndex: number;
   lastSavedAt: string;
 };
 
-export function encodeGame(game: GameState): EncodedGame {
+type EncodedGameV2 = EncodedSnapshot & {
+  v: 2;
+  history: EncodedHistorySnapshot[];
+  historyLogs: EncodedLog[];
+  historyIndex: number;
+  lastSavedAt: string;
+};
+
+type EncodedGame = EncodedGameV1 | EncodedGameV2;
+
+function encodeHistorySnapshot(snapshot: GameSnapshot): EncodedHistorySnapshot {
+  const { logs: _logs, ...encoded } = encodeSnapshot(snapshot);
+  return { ...encoded, logCount: snapshot.logs.length };
+}
+
+export function encodeGame(game: GameState): EncodedGameV2 {
+  const historyLogCatalog = game.history.reduce<TurnLog[]>(
+    (longest, snapshot) => (snapshot.logs.length > longest.length ? snapshot.logs : longest),
+    game.logs,
+  );
   return {
-    v: 1,
+    v: 2,
     ...encodeSnapshot(game),
-    history: game.history.map(encodeSnapshot),
+    history: game.history.map(encodeHistorySnapshot),
+    historyLogs: historyLogCatalog.map(encodeLog),
     historyIndex: game.historyIndex,
     lastSavedAt: game.lastSavedAt,
   };
@@ -265,9 +289,22 @@ export function decodeGame(payload: EncodedGame): GameState {
   let counter = 0;
   const nextId: IdFactory = () => `t${(counter += 1)}`;
   const current = decodeSnapshot(payload, nextId);
+  if (payload.v === 1) {
+    return {
+      ...current,
+      history: payload.history.map((snapshot) => decodeSnapshot(snapshot, nextId)),
+      historyIndex: payload.historyIndex,
+      lastSavedAt: payload.lastSavedAt,
+    };
+  }
+  const historyLogs = payload.historyLogs.map((log) => decodeLog(log, nextId));
   return {
     ...current,
-    history: payload.history.map((snapshot) => decodeSnapshot(snapshot, nextId)),
+    history: payload.history.map((snapshot) => {
+      const { logCount, ...encoded } = snapshot;
+      const decoded = decodeSnapshot({ ...encoded, logs: [] }, nextId);
+      return { ...decoded, logs: historyLogs.slice(0, logCount) };
+    }),
     historyIndex: payload.historyIndex,
     lastSavedAt: payload.lastSavedAt,
   };
