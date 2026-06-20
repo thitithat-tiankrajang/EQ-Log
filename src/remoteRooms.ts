@@ -168,7 +168,10 @@ export async function createRoom(
 ): Promise<{ id: string; meta: RoomMeta }> {
   if (!supabase) throw new Error("Supabase is not configured.");
   const databaseStatus = getDatabaseStatus(game.status);
-  const basePayload = roomStatePayload(game, databaseStatus);
+  const basePayload = {
+    ...roomStatePayload(game, databaseStatus),
+    owner_id: ownerId,
+  };
   const useSummary = remoteCapabilities.summaryColumns !== false;
   const insertPayload = useSummary ? { ...basePayload, ...roomSummaryPayload(game) } : basePayload;
   let result: DatabaseResult = await supabase
