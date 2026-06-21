@@ -596,8 +596,9 @@
   border-radius: 0 !important;
 }
 
+/* Selected current-turn board cell only; state color comes from tokens.css. */
 .board-cell.pending-selected {
-  background: var(--accent-soft, #dceee6) !important;
+  background: var(--board-cell-selected-bg) !important;
 }
 
 .board-cell.pending-selected .tile {

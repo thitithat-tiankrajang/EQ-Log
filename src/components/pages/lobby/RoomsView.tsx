@@ -7,24 +7,12 @@ import type { RoomMeta } from "../../../rooms";
 import type { Member } from "../../../members";
 import { RoomCard } from "./RoomCard";
 import { CreateRoomPanel } from "./CreateRoomPanel";
+import { DEFAULT_NEW_GAME_SETTINGS } from "../../../constants/roomDefaults";
 import {
   RoomFilters,
   defaultRoomsFilter,
   type RoomsFilterState,
 } from "./RoomFilters";
-
-const DEFAULT_SETTINGS: NewGameSettings = {
-  name: "Equation Lab",
-  playerA: "",
-  playerB: "",
-  playerAMemberId: null,
-  playerBMemberId: null,
-  minutes: 22,
-  timerMinutes: { A: 22, B: 22 },
-  startingSide: "A",
-  tileDrawMode: "manual",
-  untimed: false,
-};
 
 export function RoomsView({
   rooms,
@@ -58,7 +46,7 @@ export function RoomsView({
   onImport: (game: GameState) => void;
 }) {
   const [showCreate, setShowCreate] = useState(canCreate && rooms.length === 0);
-  const [settings, setSettings] = useState<NewGameSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<NewGameSettings>(DEFAULT_NEW_GAME_SETTINGS);
   const [filter, setFilter] = useState<RoomsFilterState>(defaultRoomsFilter);
   const importRef = useRef<HTMLInputElement | null>(null);
 
@@ -85,7 +73,7 @@ export function RoomsView({
       playerB: settings.playerB.trim() || resolveMemberLabel(settings.playerBMemberId, members) || "Player B",
     });
     setShowCreate(false);
-    setSettings(DEFAULT_SETTINGS);
+    setSettings(DEFAULT_NEW_GAME_SETTINGS);
   }
 
   return (

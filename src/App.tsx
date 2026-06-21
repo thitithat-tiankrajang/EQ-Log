@@ -1,7 +1,6 @@
 import {
   Download,
   Flag,
-  LayoutGrid,
   List,
   LogOut,
   Pause,
@@ -9,11 +8,11 @@ import {
   Redo2,
   Trophy,
   Undo2,
-  X,
 } from "lucide-react";
 import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { ActionPanel } from "./components/actions/ActionPanel";
 import { Board, type BoardScoreAnchor } from "./components/board/Board";
+import { GlobalActivity, LoadingScreen } from "./components/feedback/LoadingActivity";
 import { Lobby } from "./components/pages/Lobby";
 import { LogModal } from "./components/logs/LogModal";
 import { LogPanel } from "./components/logs/LogPanel";
@@ -21,12 +20,12 @@ import { PlayRail } from "./components/rail/PlayRail";
 import { RailDivider } from "./components/rail/RailDivider";
 import { Rack } from "./components/board/Rack";
 import { Scoreboard } from "./components/game/Scoreboard";
-import { Tile } from "./components/board/Tile";
+import { AssignmentModal, type AssignmentRequest } from "./components/modals/AssignmentModal";
+import { ResultModal } from "./components/modals/ResultModal";
 import { useAuth } from "./auth";
 import {
   ActionType,
   BoardSnapshot,
-  EndGameDetail,
   EquationDetection,
   ExchangeDetail,
   GameState,
@@ -45,7 +44,6 @@ import {
   createPlaceDetail,
   deepClone,
   getPendingExchangeReturnBySide,
-  getAssignmentOptions,
   getRack,
   getTileDrawMode,
   isRackReady,
@@ -53,9 +51,7 @@ import {
   phaseForNextSide,
   pushActionSnapshot,
   setRack,
-  shuffleTilebagQueue,
   tileNeedsAssignment,
-  tilePoint,
   TurnActionDetail,
   updateLogNote,
   validateMove,
@@ -67,6 +63,29 @@ import type { LiveRoomSession, RoomSessionEvent } from "./remoteRooms";
 import { navigate, useRoute } from "./router";
 import { isSupabaseConfigured } from "./supabaseClient";
 import { ACTION_LABELS } from "./uiText";
+import {
+  BOARD_SIZE,
+  RACK_SIZE,
+} from "./constants/gameRules";
+import {
+  BOARD_CELL_MAX_PX,
+  BOARD_CELL_MIN_PX,
+  BOARD_CELL_SCALE,
+  BOARD_BORDER_TOTAL_PX,
+  BOARD_COLUMN_LABEL_HEIGHT_PX,
+  BOARD_RACK_CHROME_PX,
+  BOARD_ROW_LABEL_WIDTH_PX,
+  BOARD_SAFETY_INSET_PX,
+  RACK_HEIGHT_TO_CELL_RATIO,
+} from "./constants/layout";
+import {
+  LIVE_SESSION_SYNC_DEBOUNCE_MS,
+  MIN_LOADING_VISIBLE_MS,
+  TIMER_TICK_MS,
+} from "./constants/network";
+import { createAutomaticEndGameLog } from "./gameplay/endGame";
+import { getExchangeRule, getTilebagView, refillRackFromQueue } from "./gameplay/tilebag";
+import { clearTileAssignment } from "./gameplay/tiles";
 
 type ActionMode = "none" | ActionType;
 
@@ -82,31 +101,6 @@ type ExchangeDraft = {
   outgoingIds: string[];
   incomingTiles: TileInstance[];
 };
-
-type TilebagView = {
-  tiles: TileInstance[];
-  remainingCount: number;
-};
-
-type AssignmentRequest =
-  | {
-      kind: "place";
-      tile: TileInstance;
-      row: number;
-      col: number;
-      dir?: "right" | "down" | "left" | "up";
-      rackSlot?: number;
-    }
-  | {
-      kind: "swapPending";
-      tile: TileInstance;
-      pendingTileId: string;
-    }
-  | {
-      kind: "editPending";
-      tile: TileInstance;
-      pendingTileId: string;
-    };
 
 type RefillBaseline = {
   gameId: string;
@@ -299,8 +293,8 @@ function App() {
   // the remaining tiles stay in their positions instead of sliding left.
   // Kept in sync with game.rackA / rackB via an effect below.
   const [rackLayout, setRackLayout] = useState<Record<Side, (string | null)[]>>({
-    A: Array(8).fill(null),
-    B: Array(8).fill(null),
+    A: Array(RACK_SIZE).fill(null),
+    B: Array(RACK_SIZE).fill(null),
   });
   const [exchangeDraft, setExchangeDraft] = useState<ExchangeDraft>({
     outgoingIds: [],
@@ -512,7 +506,7 @@ function App() {
           lastSavedAt: new Date().toISOString(),
         };
       });
-    }, 1000);
+    }, TIMER_TICK_MS);
     return () => window.clearInterval(intervalId);
   }, [view, game?.activeSide, game?.status, game?.timers.paused, game?.timers.untimed, game?.timers.sideUntimed]);
 
@@ -581,7 +575,7 @@ function App() {
         .updateRoomSession(activeRoomId, liveSession)
         .then(() => setSyncError(null))
         .catch((error: Error) => setSyncError(error.message));
-    }, 120);
+    }, LIVE_SESSION_SYNC_DEBOUNCE_MS);
     return () => {
       if (liveSessionSyncTimerRef.current !== null) {
         window.clearTimeout(liveSessionSyncTimerRef.current);
@@ -640,17 +634,19 @@ function App() {
       const w = el.clientWidth;
       const h = el.clientHeight;
       if (!w || !h) return;
-      const rackHeightRatio = 1.42;
-      const rackChrome = 34;
-      const rowLabelWidth = 34;
-      const colLabelHeight = 22;
-      const boardBorderTotal = 4;
-      const labelGutterX = rowLabelWidth + boardBorderTotal;
-      const labelGutterY = colLabelHeight + boardBorderTotal;
-      const safetyInset = 18;
-      const sizeByWidth = (w - labelGutterX - safetyInset * 2) / 15;
-      const sizeByHeight = (h - rackChrome - labelGutterY - safetyInset) / (15 + rackHeightRatio);
-      const size = Math.max(15, Math.min(68, Math.floor(Math.min(sizeByWidth, sizeByHeight) * 0.96)));
+      const labelGutterX = BOARD_ROW_LABEL_WIDTH_PX + BOARD_BORDER_TOTAL_PX;
+      const labelGutterY = BOARD_COLUMN_LABEL_HEIGHT_PX + BOARD_BORDER_TOTAL_PX;
+      const sizeByWidth = (w - labelGutterX - BOARD_SAFETY_INSET_PX * 2) / BOARD_SIZE;
+      const sizeByHeight =
+        (h - BOARD_RACK_CHROME_PX - labelGutterY - BOARD_SAFETY_INSET_PX) /
+        (BOARD_SIZE + RACK_HEIGHT_TO_CELL_RATIO);
+      const size = Math.max(
+        BOARD_CELL_MIN_PX,
+        Math.min(
+          BOARD_CELL_MAX_PX,
+          Math.floor(Math.min(sizeByWidth, sizeByHeight) * BOARD_CELL_SCALE),
+        ),
+      );
       setBoardCell((prev) => (prev === size ? prev : size));
     };
     const observer = new ResizeObserver(measure);
@@ -704,7 +700,7 @@ function App() {
           consumed();
           const replayRack = replayDraft.rack.slice();
           const replaySlot = last.rackSlot ?? replayRack.indexOf(null);
-          if (replaySlot >= 0 && replaySlot < 8) replayRack[replaySlot] = last.tile;
+          if (replaySlot >= 0 && replaySlot < RACK_SIZE) replayRack[replaySlot] = last.tile;
           else replayRack.push(last.tile);
           setReplayDraft({
             rack: replayRack,
@@ -752,7 +748,7 @@ function App() {
       }
 
       const digit = parseInt(event.key, 10);
-      if (!Number.isFinite(digit) || digit < 1 || digit > 8) return;
+      if (!Number.isFinite(digit) || digit < 1 || digit > RACK_SIZE) return;
 
       // Replay path: keep using the simple click handler — replayDraft state
       // is locked to whatever the cursor moment was, so race isn't an issue.
@@ -856,7 +852,7 @@ function App() {
           else if (next.dir === "left") nc -= 1;
           else if (next.dir === "down") nr += 1;
           else nr -= 1;
-          if (nr < 0 || nc < 0 || nr >= 15 || nc >= 15) {
+          if (nr < 0 || nc < 0 || nr >= BOARD_SIZE || nc >= BOARD_SIZE) {
             next = null;
             break;
           }
@@ -1099,7 +1095,7 @@ function App() {
       const clear = () => {
         if (foregroundOperationRef.current === operationId) setForegroundLoading(null);
       };
-      const remainingMs = 240 - (Date.now() - startedAt);
+      const remainingMs = MIN_LOADING_VISIBLE_MS - (Date.now() - startedAt);
       if (remainingMs > 0) {
         window.setTimeout(clear, remainingMs);
       } else {
@@ -1430,7 +1426,7 @@ function App() {
   function fillRackLayoutSlot(side: Side, slot: number, tileId: string) {
     return applyRackLayout((current) => {
       const slots = current[side].map((id) => (id === tileId ? null : id));
-      const target = slot >= 0 && slot < 8 ? slot : slots.indexOf(null);
+      const target = slot >= 0 && slot < RACK_SIZE ? slot : slots.indexOf(null);
       if (target >= 0) slots[target] = tileId;
       return { ...current, [side]: slots };
     });
@@ -1539,7 +1535,7 @@ function App() {
       for (const item of pendingPlacements) {
         const tile = clearTileAssignment(item.tile);
         const slots = nextLayout[game.activeSide].map((id) => (id === tile.id ? null : id));
-        const target = item.rackSlot !== undefined && item.rackSlot >= 0 && item.rackSlot < 8 ? item.rackSlot : slots.indexOf(null);
+        const target = item.rackSlot !== undefined && item.rackSlot >= 0 && item.rackSlot < RACK_SIZE ? item.rackSlot : slots.indexOf(null);
         if (target >= 0) slots[target] = tile.id;
         nextLayout = { ...nextLayout, [game.activeSide]: slots };
       }
@@ -1578,7 +1574,7 @@ function App() {
     if (actionMode !== "none") return;
     pendingSessionEventRef.current = "state";
     const rack = getRack(game, game.activeSide);
-    if (rack.length >= 8) return;
+    if (rack.length >= RACK_SIZE) return;
     const currentBaseline = refillBaselineRef.current;
     if (
       !currentBaseline ||
@@ -1589,7 +1585,7 @@ function App() {
     const nextRack = [...rack, tile];
     fillRackLayoutSlot(game.activeSide, rackLayoutRef.current[game.activeSide].indexOf(null), tile.id);
     const nextTilebag = game.tilebag.filter((candidate) => candidate.id !== tile.id);
-    const rackReady = nextRack.length >= 8 || nextTilebag.length === 0;
+    const rackReady = nextRack.length >= RACK_SIZE || nextTilebag.length === 0;
     const pendingBySide = getPendingExchangeReturnBySide(game);
     const pendingReturn = rackReady ? pendingBySide[game.activeSide] : [];
     const nextPendingBySide = rackReady
@@ -1667,7 +1663,7 @@ function App() {
         {
           ...game,
           tilebag: [...game.tilebag, tile],
-          phase: nextRack.length >= 8 ? "choose_action" : "refill",
+          phase: nextRack.length >= RACK_SIZE ? "choose_action" : "refill",
           lastSavedAt: new Date().toISOString(),
         },
         game.activeSide,
@@ -1928,7 +1924,7 @@ function App() {
       assignedToken: item.assignedToken ?? item.tile.assignedToken,
     };
     const nextRack = replayDraft.rack.slice();
-    const target = index >= 0 && index < 8 ? index : nextRack.indexOf(null);
+    const target = index >= 0 && index < RACK_SIZE ? index : nextRack.indexOf(null);
     if (target >= 0) {
       const displaced = nextRack[target];
       nextRack[target] = returningTile;
@@ -1960,7 +1956,7 @@ function App() {
       else if (dir === "left") col -= 1;
       else if (dir === "down") row += 1;
       else row -= 1;
-      if (row < 0 || col < 0 || row >= 15 || col >= 15) return null;
+      if (row < 0 || col < 0 || row >= BOARD_SIZE || col >= BOARD_SIZE) return null;
       const cellTaken = Boolean(selectedLog.boardBefore[row][col]) || pendingKeys.has(`${row}:${col}`);
       if (!cellTaken) return { row, col, dir };
     }
@@ -2140,7 +2136,7 @@ function App() {
       else if (dir === "left") col -= 1;
       else if (dir === "down") row += 1;
       else row -= 1;
-      if (row < 0 || col < 0 || row >= 15 || col >= 15) return null;
+      if (row < 0 || col < 0 || row >= BOARD_SIZE || col >= BOARD_SIZE) return null;
       const cellTaken = Boolean(game.board[row][col]) || pendingKeys.has(`${row}:${col}`);
       if (!cellTaken) return { row, col, dir };
     }
@@ -2672,8 +2668,15 @@ function App() {
   const carriedOverTileIds = (() => {
     if (game.phase !== "refill" || game.status !== "playing") return new Set<string>();
     const baseline = refillBaselineRef.current;
-    if (!refillBaselineMatchesTurn(baseline, game)) return new Set<string>();
-    return new Set(baseline.ids);
+    if (refillBaselineMatchesTurn(baseline, game)) return new Set(baseline.ids);
+
+    // Effects capture the local baseline after the first refill render. Use the
+    // active player's latest completed rack so the first frame and spectators
+    // still get the carried-over count immediately.
+    const latestActiveSideLog = [...game.logs].reverse().find(
+      (log) => log.side === game.activeSide && log.action !== "end_game",
+    );
+    return new Set(latestActiveSideLog?.rackAfter.map((tile) => tile.id) ?? []);
   })();
   const tilebagView = getTilebagView({
     game,
@@ -2691,7 +2694,7 @@ function App() {
     !reviewing &&
     refillNeeded &&
     actionMode === "none" &&
-    activeRack.length < 8;
+    activeRack.length < RACK_SIZE;
   const selectedRackTile =
     activeRack.find((tile) => tile.id === selectedRackTileId) ??
     pendingPlacements.find((placement) => placement.tile.id === selectedPendingTileId)?.tile;
@@ -2704,7 +2707,7 @@ function App() {
     if (reviewing && selectedLog) {
       const sourceRack =
         replayPhase === "before" ? replayDraft?.rack ?? selectedLog.rackBefore : selectedLog.rackAfter;
-      return [...sourceRack, null, null, null, null, null, null, null, null].slice(0, 8);
+      return [...sourceRack, ...Array<TileInstance | null>(RACK_SIZE).fill(null)].slice(0, RACK_SIZE);
     }
     const live = getRack(game, rackSide);
     const tilesById = new Map(live.map((tile) => [tile.id, tile]));
@@ -2952,7 +2955,7 @@ function App() {
                 <span className="pc-hint">
                   {game.players[game.activeSide]} ·{" "}
                   {refillNeeded
-                    ? `Refill ${activeRack.length}/8`
+                    ? `Refill ${activeRack.length}/${RACK_SIZE}`
                     : actionMode === "none"
                       ? "Choose action"
                       : ACTION_LABELS[actionMode]}
@@ -3050,447 +3053,6 @@ function App() {
         />
       )}
     </main>
-  );
-}
-
-function LoadingScreen({ message }: { message: string }) {
-  return (
-    <main className="loading-screen" aria-busy="true">
-      <div className="loading-panel" role="status" aria-live="polite">
-        <span className="loading-kicker">Equation Board</span>
-        <strong>{message}</strong>
-        <LoadingTrack />
-      </div>
-    </main>
-  );
-}
-
-function GlobalActivity({
-  error,
-  foreground,
-  syncing,
-}: {
-  error?: string | null;
-  foreground: string | null;
-  syncing: boolean;
-}) {
-  if (foreground) {
-    return (
-      <div className="loading-overlay" aria-busy="true">
-        <div className="loading-panel" role="status" aria-live="polite">
-          <span className="loading-kicker">Please wait</span>
-          <strong>{foreground}</strong>
-          <LoadingTrack />
-        </div>
-      </div>
-    );
-  }
-  if (error) {
-    return (
-      <div className="network-activity error" role="alert">
-        <strong>Sync failed</strong>
-        <span>{error}</span>
-      </div>
-    );
-  }
-  if (!syncing) return null;
-  return (
-    <div className="network-activity" role="status" aria-live="polite">
-      <strong>Saving changes...</strong>
-      <LoadingTrack />
-    </div>
-  );
-}
-
-function LoadingTrack() {
-  return (
-    <span className="loading-track" aria-hidden="true">
-      <span />
-    </span>
-  );
-}
-
-function clearTileAssignment(tile: TileInstance): TileInstance {
-  return { ...tile, assignedToken: undefined };
-}
-
-function refillRackFromQueue(game: GameState): GameState {
-  const rack = getRack(game, game.activeSide);
-  const pendingBySide = getPendingExchangeReturnBySide(game);
-  const needed = Math.max(0, 8 - rack.length);
-  const drawnTiles = game.tilebag.slice(0, needed).map(clearTileAssignment);
-  const remainingQueue = game.tilebag.slice(drawnTiles.length);
-  const rackAfter = [...rack, ...drawnTiles];
-  const pendingReturn = pendingBySide[game.activeSide].map(clearTileAssignment);
-  const nextPendingBySide = { ...pendingBySide, [game.activeSide]: [] };
-  const rackReady = rackAfter.length >= 8 || remainingQueue.length === 0;
-  const tilebagAfter = shuffleTilebagQueue([...remainingQueue, ...pendingReturn]);
-
-  return setRack(
-    {
-      ...game,
-      tilebag: tilebagAfter,
-      pendingExchangeReturn: aggregatePendingExchangeReturns(nextPendingBySide),
-      pendingExchangeReturnBySide: nextPendingBySide,
-      phase: rackReady ? "choose_action" : "refill",
-      lastSavedAt: new Date().toISOString(),
-    },
-    game.activeSide,
-    rackAfter,
-  );
-}
-
-function getTilebagView({
-  game,
-  refillNeeded,
-  reviewing,
-  selectedLog,
-}: {
-  game: GameState;
-  refillNeeded: boolean;
-  reviewing: boolean;
-  selectedLog: TurnLog | null;
-}): TilebagView {
-  if (reviewing && selectedLog) {
-    return getReplayTilebagView(game, selectedLog);
-  }
-  if (refillNeeded) {
-    return {
-      tiles: game.tilebag,
-      remainingCount: game.tilebag.length,
-    };
-  }
-  return getActionTilebagView({
-    opponentRack: getRack(game, otherSide(game.activeSide)),
-    tilebag: game.tilebag,
-  });
-}
-
-function getReplayTilebagView(game: GameState, selectedLog: TurnLog): TilebagView {
-  const logIndex = game.logs.findIndex((log) => log.id === selectedLog.id);
-  const previousLog = getLastPlayableLogBefore(game.logs, logIndex);
-  const opponent = otherSide(selectedLog.side);
-  const opponentRack = previousLog?.side === opponent ? previousLog.rackAfter : [];
-  return getActionTilebagView({
-    opponentRack,
-    tilebag: selectedLog.tilebagBefore,
-  });
-}
-
-function getActionTilebagView({
-  opponentRack,
-  tilebag,
-}: {
-  opponentRack: TileInstance[];
-  tilebag: TileInstance[];
-}): TilebagView {
-  return {
-    tiles: [...tilebag, ...opponentRack],
-    remainingCount: getAnalysisRemainingCount(tilebag.length, opponentRack.length),
-  };
-}
-
-function getAnalysisRemainingCount(
-  tilebagCount: number,
-  opponentRackCount: number,
-): number {
-  return Math.max(tilebagCount + opponentRackCount - 8, 0);
-}
-
-function getLastPlayableLogBefore(logs: TurnLog[], beforeIndex: number): TurnLog | null {
-  for (let index = beforeIndex - 1; index >= 0; index -= 1) {
-    const log = logs[index];
-    if (log.action !== "end_game") return log;
-  }
-  return null;
-}
-
-function getExchangeRule(game: GameState): { allowed: boolean; reserve: number; reason?: string } {
-  const opponentRackCount = getRack(game, otherSide(game.activeSide)).length;
-  const reserve = game.tilebag.length + opponentRackCount - 8;
-  if (reserve >= 5) return { allowed: true, reserve };
-  return {
-    allowed: false,
-    reserve,
-    reason: `Exchange locked: tilebag (${game.tilebag.length}) + opponent rack (${opponentRackCount}) - 8 = ${reserve}; minimum is 5.`,
-  };
-}
-
-function sumTilePoints(tiles: TileInstance[]): number {
-  return tiles.reduce((sum, tile) => sum + tilePoint(tile), 0);
-}
-
-function createAutomaticEndGameLog({
-  boardAfter,
-  game,
-  logs,
-  normalLog,
-  rackAfter,
-  tilebagAfter,
-}: {
-  boardAfter: BoardSnapshot;
-  game: GameState;
-  logs: TurnLog[];
-  normalLog: TurnLog;
-  rackAfter: TileInstance[];
-  tilebagAfter: TileInstance[];
-}): TurnLog | null {
-  const activeSide = game.activeSide;
-  const opponentSide = otherSide(activeSide);
-  const opponentRack = getRack(game, opponentSide);
-  const now = new Date().toISOString();
-
-  if (normalLog.action === "place_equation" && rackAfter.length === 0) {
-    const remainingOpponentAndBag = opponentRack.length + tilebagAfter.length;
-    if (remainingOpponentAndBag <= 8) {
-      const opponentRackPoints = sumTilePoints(opponentRack);
-      const tilebagPoints = sumTilePoints(tilebagAfter);
-      const bonusPoints = (opponentRackPoints + tilebagPoints) * 2;
-      const detail: EndGameDetail = {
-        reason: "rack_out",
-        description: `${game.players[activeSide]} emptied the rack. ${game.players[opponentSide]}'s rack and the tilebag contain ${remainingOpponentAndBag} tile(s).`,
-        bonusSide: activeSide,
-        bonusPoints,
-        opponentRackPoints,
-        tilebagPoints,
-      };
-      return createEndGameLog({
-        boardAfter,
-        detail,
-        endedAt: now,
-        game,
-        rack: rackAfter,
-        side: activeSide,
-        tilebagAfter,
-      });
-    }
-  }
-
-  if (isNoScoreAction(normalLog.action) && hasSixTurnNoScoreStreak(logs)) {
-    const rackBySide: Record<Side, TileInstance[]> = {
-      A: activeSide === "A" ? rackAfter : getRack(game, "A"),
-      B: activeSide === "B" ? rackAfter : getRack(game, "B"),
-    };
-    const rackPoints: Record<Side, number> = {
-      A: sumTilePoints(rackBySide.A),
-      B: sumTilePoints(rackBySide.B),
-    };
-    const bonusSide: Side | undefined =
-      rackPoints.A === rackPoints.B ? undefined : rackPoints.A < rackPoints.B ? "A" : "B";
-    const bonusPoints = bonusSide ? Math.abs(rackPoints.A - rackPoints.B) : 0;
-    const scoringSide = bonusSide ?? activeSide;
-    const detail: EndGameDetail = {
-      reason: "no_score_streak",
-      description: bonusSide
-        ? `Six consecutive non-scoring turns. ${game.players[bonusSide]} has the lower rack total and receives ${bonusPoints} point(s).`
-        : "Six consecutive non-scoring turns. Rack totals are tied, so no bonus is awarded.",
-      bonusSide,
-      bonusPoints,
-      rackPoints,
-      noScoreStreak: 6,
-    };
-    return createEndGameLog({
-      boardAfter,
-      detail,
-      endedAt: now,
-      game,
-      rack: rackBySide[scoringSide],
-      side: scoringSide,
-      tilebagAfter,
-    });
-  }
-
-  return null;
-}
-
-function isNoScoreAction(action: ActionType): boolean {
-  return action === "pass" || action === "exchange";
-}
-
-function hasSixTurnNoScoreStreak(logs: TurnLog[]): boolean {
-  const lastSix = logs.slice(-6);
-  if (lastSix.length < 6) return false;
-  if (!lastSix.every((log) => isNoScoreAction(log.action))) return false;
-  const counts = lastSix.reduce<Record<Side, number>>(
-    (total, log) => ({ ...total, [log.side]: total[log.side] + 1 }),
-    { A: 0, B: 0 },
-  );
-  return counts.A === 3 && counts.B === 3;
-}
-
-function createEndGameLog({
-  boardAfter,
-  detail,
-  endedAt,
-  game,
-  rack,
-  side,
-  tilebagAfter,
-}: {
-  boardAfter: BoardSnapshot;
-  detail: EndGameDetail;
-  endedAt: string;
-  game: GameState;
-  rack: TileInstance[];
-  side: Side;
-  tilebagAfter: TileInstance[];
-}): TurnLog {
-  return {
-    id: crypto.randomUUID(),
-    turnNumber: game.turnNumber,
-    side,
-    action: "end_game",
-    startedAt: endedAt,
-    endedAt,
-    timerBefore: {
-      A: game.timers.A,
-      B: game.timers.B,
-    },
-    timerAfter: {
-      A: game.timers.A,
-      B: game.timers.B,
-    },
-    rackBefore: deepClone(rack),
-    rackAfter: deepClone(rack),
-    boardBefore: deepClone(boardAfter),
-    boardAfter: deepClone(boardAfter),
-    tilebagBefore: deepClone(tilebagAfter),
-    tilebagAfter: deepClone(tilebagAfter),
-    actionDetail: detail,
-    calculatedScore: detail.bonusPoints,
-    finalScore: detail.bonusPoints,
-  };
-}
-
-function AssignmentModal({
-  request,
-  onCancel,
-  onSelect,
-}: {
-  request: AssignmentRequest;
-  onCancel: () => void;
-  onSelect: (value: string) => void;
-}) {
-  const options = getAssignmentOptions(request.tile.token);
-  return (
-    <div className="modal-backdrop" role="presentation" onClick={onCancel}>
-      <section
-        aria-modal="true"
-        className="assignment-modal"
-        role="dialog"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <header className="modal-head">
-          <div>
-            <span className="eyebrow">Tile Assignment</span>
-            <h2>Choose the tile value</h2>
-          </div>
-          <button className="icon-button" type="button" onClick={onCancel}>
-            <X size={18} />
-            Cancel
-          </button>
-        </header>
-        <div className="assignment-body">
-          <Tile tile={request.tile} />
-          <div className="assignment-options">
-            {options.map((option) => (
-              <button key={option} type="button" onClick={() => onSelect(option)}>
-                {option}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-    </div>
-  );
-}
-
-function ResultModal({
-  game,
-  onClose,
-  onReplay,
-}: {
-  game: GameState;
-  onClose: () => void;
-  onReplay: () => void;
-}) {
-  const { A, B } = game.scores;
-  const winner = A === B ? null : A > B ? "A" : "B";
-  const winnerName = winner ? game.players[winner] : null;
-  const scoreMargin = Math.abs(A - B);
-  const turnCount = Math.max(0, game.turnNumber - 1);
-  return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section
-        aria-modal="true"
-        className="result-modal"
-        role="dialog"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <header className="modal-head result-modal-head">
-          <div>
-            <span className="eyebrow">Final Result</span>
-            <h2>{game.name}</h2>
-          </div>
-          <button className="result-close" type="button" aria-label="Close final result" onClick={onClose}>
-            <X size={18} />
-          </button>
-        </header>
-
-        <div className={`result-outcome ${winner ? `side-${winner.toLowerCase()}` : "draw"}`}>
-          <span className="result-outcome-icon" aria-hidden="true">
-            <Trophy size={22} />
-          </span>
-          <div>
-            <span>{winner ? "Match winner" : "Match complete"}</span>
-            <strong>{winnerName ?? "Draw"}</strong>
-          </div>
-          <em>{winner ? `+${scoreMargin} pts` : "Scores tied"}</em>
-        </div>
-
-        <div className="result-body">
-          <div className={`result-side side-a ${winner === "A" ? "win" : ""}`}>
-            <span className="result-side-label">Side A</span>
-            <strong>{A}</strong>
-            <span className="result-player-name">{game.players.A}</span>
-            {winner === "A" && <em>Winner</em>}
-          </div>
-          <div className="result-vs">
-            <strong>{winner === null ? "=" : "–"}</strong>
-            <span>Final</span>
-          </div>
-          <div className={`result-side side-b ${winner === "B" ? "win" : ""}`}>
-            <span className="result-side-label">Side B</span>
-            <strong>{B}</strong>
-            <span className="result-player-name">{game.players.B}</span>
-            {winner === "B" && <em>Winner</em>}
-          </div>
-        </div>
-
-        <div className="result-meta">
-          <span><strong>{turnCount}</strong> turns</span>
-          <span><strong>{game.logs.length}</strong> actions</span>
-        </div>
-
-        {/* Finished games are locked — only Replay / View Board are offered.
-            Save & Exit lives in the top bar for going back to the lobby. */}
-        <div className="result-actions">
-          <button
-            className="primary-action"
-            type="button"
-            disabled={game.logs.length === 0}
-            onClick={onReplay}
-          >
-            <Play size={18} />
-            Start Replay
-          </button>
-          <button className="result-view-board" type="button" onClick={onClose}>
-            <LayoutGrid size={17} />
-            View Board
-          </button>
-        </div>
-      </section>
-    </div>
   );
 }
 

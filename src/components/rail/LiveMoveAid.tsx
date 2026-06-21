@@ -1,4 +1,5 @@
 import type { ActionType, GameState, MoveValidation, PendingPlacement, TileInstance } from "../../game";
+import { RACK_SIZE } from "../../constants/gameRules";
 import { ACTION_LABELS } from "../../uiText";
 import { Tile } from "../board/Tile";
 
@@ -31,8 +32,8 @@ export function LiveMoveAid({
     reviewing,
   });
   const rackStatus = refillNeeded
-    ? `Rack ${activeRackCount}/8 · Need ${Math.max(0, 8 - activeRackCount)}`
-    : `Rack ${activeRackCount}/8`;
+    ? `Rack ${activeRackCount}/${RACK_SIZE} · Need ${Math.max(0, RACK_SIZE - activeRackCount)}`
+    : `Rack ${activeRackCount}/${RACK_SIZE}`;
   const equationText = getEquationText(validation, actionMode);
   const status = actionLabel;
 

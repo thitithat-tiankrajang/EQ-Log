@@ -203,27 +203,28 @@ textarea,
 }
 
 .board {
-  border-color: #1f2933;
-  background: var(--border-strong);
+  border-color: var(--board-frame-border);
+  background: var(--board-frame-bg);
 }
 
+/* Responsive board states use the same global semantic colors. */
 .board-cell {
-  border-color: #bac2cc;
-  background: var(--surface-solid);
+  border-color: var(--board-cell-border);
+  background: var(--board-slot-px1-bg);
 }
 
 .board-cell.filled {
-  background: #edf0f2;
+  background: var(--board-cell-filled-bg);
 }
 
 .board-cell.pending {
-  background: var(--accent-soft);
-  outline-color: var(--accent);
+  background: var(--board-cell-pending-bg);
+  outline-color: var(--board-cell-pending-outline);
 }
 
 .premium-label,
 .premium-pip {
-  color: rgba(31, 41, 51, 0.48);
+  color: var(--board-premium-label);
 }
 
 .rack-row {

@@ -1,4 +1,5 @@
 import { type GameState, type TileInstance } from "../../game";
+import { RACK_SIZE } from "../../constants/gameRules";
 import { PanelHeading } from "../layout/PanelHeading";
 import { TurnDetail } from "../replay/TurnDetail";
 import { TurnRecordList } from "./TurnRecordList";
@@ -33,7 +34,7 @@ export function LogPanel({
       <PanelHeading title="Turn Log" detail={`${game.logs.length} turns`} />
 
       <div className="log-list">
-        {game.logs.length === 0 && (currentTurnRack?.length ?? 0) < 8 && (
+        {game.logs.length === 0 && (currentTurnRack?.length ?? 0) < RACK_SIZE && (
           <p className="empty-text">No turn records yet.</p>
         )}
         <TurnRecordList

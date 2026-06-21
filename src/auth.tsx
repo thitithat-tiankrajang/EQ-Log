@@ -3,6 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import { LogOut } from "lucide-react";
 import { isSupabaseConfigured, supabase } from "./supabaseClient";
 import "./styles/pages/auth.css";
+import { PROFILE_LOAD_TIMEOUT_MS } from "./constants/network";
 
 export type ProfileStatus = "pending" | "approved" | "blocked";
 
@@ -30,8 +31,6 @@ type AuthValue = {
 };
 
 const AuthContext = createContext<AuthValue | null>(null);
-const PROFILE_LOAD_TIMEOUT_MS = 6000;
-
 export function useAuth(): AuthValue {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within <AuthProvider>");

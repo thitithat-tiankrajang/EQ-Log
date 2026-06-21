@@ -27,6 +27,7 @@ import type {
   TileInstance,
   TurnLog,
 } from "./game";
+import { BOARD_SIZE } from "./constants/gameRules";
 import { aggregatePendingExchangeReturns, getPendingExchangeReturnBySide, getTileDrawMode } from "./game";
 
 export const STORAGE_PREFIX = "c1:";
@@ -40,7 +41,7 @@ const TOKEN_INDEX: Record<string, number> = Object.fromEntries(
   TOKENS.map((token, index) => [token, index]),
 );
 
-const BOARD_DIM = 15;
+const BOARD_DIM = BOARD_SIZE;
 
 type TileCode = number | [number, string];
 type CellCode = [number, TileCode, number, 0 | 1]; // [cellIndex, tile, placedTurn, side]

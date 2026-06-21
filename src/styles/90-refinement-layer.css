@@ -445,7 +445,7 @@ h1 {
   right: 1px !important;
   width: 0 !important;
   height: 0 !important;
-  border-top: 6px solid var(--brand-red, #ea4335) !important;
+  border-top: 6px solid var(--board-current-turn-marker) !important;
   border-left: 6px solid transparent !important;
   border-radius: 0 !important;
   clip-path: none !important;
@@ -455,39 +455,48 @@ h1 {
   z-index: 2 !important;
 }
 
-/* ── Board cursor replaces the premium label instead of drawing a second cell. */
+/* Board cursor replaces the label on an empty cell; cursor tokens follow slot type. */
 .board-cell.cursor {
   box-shadow: none !important;
   outline: 0 !important;
 }
 
 .board-cell.cursor:not(.filled):not(.pending) {
-  background: #fff !important;
+  background: var(--board-cursor-px1-bg) !important;
+  color: var(--board-cursor-px1-accent) !important;
 }
 
 .board-cell.slot-px2.cursor:not(.filled):not(.pending),
 .board-cell.slot-dl.cursor:not(.filled):not(.pending),
 .board-cell.slot-2p.cursor:not(.filled):not(.pending) {
-  background: #d6e7df !important;
+  background: var(--board-cursor-px2-bg) !important;
+  color: var(--board-cursor-px2-accent) !important;
 }
 
 .board-cell.slot-px3.cursor:not(.filled):not(.pending),
-.board-cell.slot-px3star.cursor:not(.filled):not(.pending),
 .board-cell.slot-tl.cursor:not(.filled):not(.pending),
 .board-cell.slot-3p.cursor:not(.filled):not(.pending) {
-  background: #bcd7eb !important;
+  background: var(--board-cursor-px3-bg) !important;
+  color: var(--board-cursor-px3-accent) !important;
+}
+
+.board-cell.slot-px3star.cursor:not(.filled):not(.pending) {
+  background: var(--board-cursor-px3star-bg) !important;
+  color: var(--board-cursor-px3star-accent) !important;
 }
 
 .board-cell.slot-ex2.cursor:not(.filled):not(.pending),
 .board-cell.slot-de.cursor:not(.filled):not(.pending),
 .board-cell.slot-2e.cursor:not(.filled):not(.pending) {
-  background: #f1dd9c !important;
+  background: var(--board-cursor-ex2-bg) !important;
+  color: var(--board-cursor-ex2-accent) !important;
 }
 
 .board-cell.slot-ex3.cursor:not(.filled):not(.pending),
 .board-cell.slot-te.cursor:not(.filled):not(.pending),
 .board-cell.slot-3e.cursor:not(.filled):not(.pending) {
-  background: #e8a489 !important;
+  background: var(--board-cursor-ex3-bg) !important;
+  color: var(--board-cursor-ex3-accent) !important;
 }
 
 .board-cell-cursor {
@@ -506,7 +515,7 @@ h1 {
 .board-cell.pending .tile.assigned-choice b,
 .board-cell.filled .tile.tile-choice b,
 .board-cell.pending .tile.tile-choice b {
-  color: var(--choice-board-text, #00bcd4) !important;
+  color: var(--choice-board-text) !important;
   text-shadow: none !important;
 }
 
@@ -514,6 +523,6 @@ h1 {
 .board-cell.pending .tile.assigned-choice small,
 .board-cell.filled .tile.tile-choice small,
 .board-cell.pending .tile.tile-choice small {
-  color: var(--choice-board-point, #4285f4) !important;
+  color: var(--choice-board-point) !important;
   text-shadow: none !important;
 }

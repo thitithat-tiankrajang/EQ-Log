@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { X } from "lucide-react";
 import { type GameState, type TileInstance } from "../../game";
+import { RACK_SIZE } from "../../constants/gameRules";
 import { ACTION_LABELS } from "../../uiText";
 import { TurnDetail } from "../replay/TurnDetail";
 import { TurnRecordList } from "./TurnRecordList";
@@ -58,7 +59,7 @@ export function LogModal({
 
         <div className="modal-body">
           <div className="modal-log-list">
-            {game.logs.length === 0 && (currentTurnRack?.length ?? 0) < 8 && (
+            {game.logs.length === 0 && (currentTurnRack?.length ?? 0) < RACK_SIZE && (
               <p className="empty-text">No turn records yet.</p>
             )}
             <TurnRecordList

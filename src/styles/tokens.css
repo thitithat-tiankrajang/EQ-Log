@@ -1,0 +1,131 @@
+:root {
+  /* Brand and typography */
+  --brand-blue: #4285f4;
+  --brand-red: #ea4335;
+  --brand-yellow: #fbbc05;
+  --brand-green: #34a853;
+  --white: #ffffff;
+  --light-grey: #f8f9fa;
+  --dark-grey: #3c4043;
+  --cyan: #00bcd4;
+  --font-sans: "Roboto", Arial, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", "Menlo", "Consolas", monospace;
+  --tile-font: Arial, "Helvetica Neue", Helvetica, sans-serif;
+
+  /* Shared surfaces and semantic colors */
+  --page-bg: #f8fafd;
+  --surface: rgba(255, 255, 255, 0.96);
+  --surface-solid: #ffffff;
+  --surface-2: #f8f9fa;
+  --surface-3: #eef4ff;
+  --text: var(--dark-grey);
+  --muted: #5f6368;
+  --border: #dadce0;
+  --border-soft: rgba(218, 220, 224, 0.76);
+  --border-strong: #a8afb8;
+  --divider: rgba(60, 64, 67, 0.1);
+  --accent: var(--brand-blue);
+  --accent-strong: #185abc;
+  --accent-soft: #e8f0fe;
+  --gold: var(--brand-yellow);
+  --gold-soft: #fff7d6;
+  --blue: var(--brand-blue);
+  --danger: var(--brand-red);
+  --danger-soft: #fce8e6;
+  --success: var(--brand-green);
+  --success-soft: #e6f4ea;
+  --cyan-soft: #e0f7fa;
+
+  /* Flat component geometry */
+  --shadow-material: none;
+  --shadow-1: none;
+  --shadow-2: none;
+  --shadow-3: none;
+  --shadow-modal: none;
+
+  /* Lobby */
+  --lobby-bg: #f8fafd;
+  --lobby-surface: rgba(255, 255, 255, 0.96);
+  --lobby-surface-2: #f8f9fa;
+  --lobby-surface-strong: #ffffff;
+  --lobby-text: var(--dark-grey);
+  --lobby-text-soft: #5f6368;
+  --lobby-muted: #80868b;
+  --lobby-border: #dadce0;
+  --lobby-border-soft: rgba(218, 220, 224, 0.76);
+  --lobby-divider: rgba(60, 64, 67, 0.1);
+  --lobby-accent: var(--brand-blue);
+  --lobby-accent-soft: #e8f0fe;
+  --lobby-accent-deep: #185abc;
+  --lobby-warning: #c58a00;
+  --lobby-warning-soft: #fff7d6;
+  --lobby-danger: var(--brand-red);
+  --lobby-danger-soft: #fce8e6;
+  --lobby-side-a: var(--brand-red);
+  --lobby-side-b: var(--brand-blue);
+  --lobby-radius-sm: 0;
+  --lobby-radius-md: 0;
+  --lobby-radius-lg: 0;
+  --lobby-shadow: none;
+
+  /* Tiles and racks */
+  --tile-face: #111827;
+  --tile-face-top: #111827;
+  --tile-border: #3f4b5d;
+  --tile-text: #f8fafc;
+  --tile-point: #ffffff;
+  --choice-assigned-text: #7dd3fc;
+  --choice-board-face-top: #111827;
+  --choice-board-face: #111827;
+  --choice-board-border: #3f4b5d;
+  --choice-board-text: #7dd3fc;
+  --choice-board-point: #7dd3fc;
+  --rack-surface: #dce6f5;
+  --rack-surface-active-a: #f8dfe2;
+  --rack-surface-active-b: #dbe8ff;
+  --rack-slot-surface: #cbd8ec;
+  --rack-slot-border: #9aacc3;
+  --rack-slot-hover: #b9c9df;
+
+  /* Board frame and shared cell states */
+  --board-frame-bg: #dfe6ef; /* Visible behind the 15x15 cell grid. */
+  --board-frame-border: #3c4043; /* Outer border around the complete board. */
+  --board-cell-border: #d6dde6; /* Grid line between empty cells. */
+  --board-cell-filled-bg: #f1f3f4; /* Cell containing a committed tile. */
+  --board-cell-pending-bg: var(--accent-soft); /* Cell containing a current-turn tile. */
+  --board-cell-pending-outline: var(--accent); /* Outline for a current-turn tile. */
+  --board-cell-hover-bg: #edf8f5; /* Empty selectable cell while placing. */
+  --board-cell-selected-bg: rgba(15, 96, 78, 0.08); /* Selected current-turn tile. */
+  --board-cell-selected-outline: #0891b2;
+  --board-cell-press-bg: rgba(60, 64, 67, 0.24); /* Any clickable board cell while pressed. */
+  --board-cell-scoring-bg: rgba(36, 123, 111, 0.07); /* Cell included in score preview. */
+  --board-cell-scoring-pending-bg: rgba(36, 123, 111, 0.1); /* Scoring cell also placed this turn. */
+  --board-cell-scoring-border: rgba(36, 123, 111, 0.22);
+  --board-cell-scoring-pending-border: rgba(36, 123, 111, 0.32);
+
+  /* Empty board slots: use only when the cell has no tile and is not pending. */
+  --board-slot-px1-bg: #ffffff; /* Normal square: no multiplier. */
+  --board-slot-px2-bg: #f4cf9b; /* Piece x2 (2P): light orange. */
+  --board-slot-px3-bg: #b9d9ee; /* Piece x3 (3P): light sky blue. */
+  --board-slot-px3star-bg: #b9d9ee; /* Center-star 3P: light sky blue. */
+  --board-slot-ex2-bg: #f3df8f; /* Equation x2 (2E): light yellow. */
+  --board-slot-ex3-bg: #efb0a2; /* Equation x3 (3E): light red. */
+  --board-premium-label: rgba(60, 64, 67, 0.56); /* Multiplier text on an empty premium square. */
+  --board-center-star-label: #1487d4; /* Star text/pip at the center square only. */
+  --board-current-turn-marker: var(--brand-red); /* Corner chip on a tile placed this turn. */
+  --board-scoring-inner-border: rgba(14, 116, 144, 0.72); /* Inner mark on a scoring-preview cell. */
+
+  /* Placement cursor: shown instead of the label on an empty target square. */
+  --board-cursor-px1-bg: #ffffff;
+  --board-cursor-px1-accent: var(--accent);
+  --board-cursor-px2-bg: #efc17c;
+  --board-cursor-px2-accent: #a85f00;
+  --board-cursor-px3-bg: #a9cfe8;
+  --board-cursor-px3-accent: #2563eb;
+  --board-cursor-px3star-bg: #a9cfe8;
+  --board-cursor-px3star-accent: #2563eb;
+  --board-cursor-ex2-bg: #ead371;
+  --board-cursor-ex2-accent: #9a6b00;
+  --board-cursor-ex3-bg: #e99b88;
+  --board-cursor-ex3-accent: #b42318;
+}

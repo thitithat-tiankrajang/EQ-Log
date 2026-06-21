@@ -1,85 +1,32 @@
+import {
+  BINGO_BONUS,
+  BOARD_SIZE,
+  DEFAULT_TIMER_MINUTES,
+  MIN_TIMER_SECONDS,
+  RACK_SIZE,
+} from "./constants/gameRules";
+import {
+  BLANK_ASSIGNMENT_OPTIONS,
+  EVALUATOR_MARKS,
+  TENS_TOKENS,
+  UNIT_TOKENS,
+} from "./constants/equationRules";
+import {
+  AMATH_TOKENS,
+  type AmathToken,
+  type AmathTokenInfo,
+  type TokenType,
+} from "./constants/tileDefinitions";
+import { BOARD_LAYOUT, type SlotType } from "./constants/boardLayout";
+
+export { AMATH_TOKENS, BLANK_ASSIGNMENT_OPTIONS, BOARD_LAYOUT };
+export type { AmathToken, AmathTokenInfo, SlotType, TokenType };
+
 export type Side = "A" | "B";
-
-export type AmathToken =
-  | "0"
-  | "1"
-  | "2"
-  | "3"
-  | "4"
-  | "5"
-  | "6"
-  | "7"
-  | "8"
-  | "9"
-  | "10"
-  | "11"
-  | "12"
-  | "13"
-  | "14"
-  | "15"
-  | "16"
-  | "17"
-  | "18"
-  | "19"
-  | "20"
-  | "+"
-  | "-"
-  | "x"
-  | "/"
-  | "+/-"
-  | "x//"
-  | "="
-  | "?";
-
-export type TokenType =
-  | "lightNumber"
-  | "heavyNumber"
-  | "operator"
-  | "choice"
-  | "equals"
-  | "Blank";
 
 export type TileDrawMode = "manual" | "play";
 export type SideTimerMinutes = Record<Side, number | null>;
 
-export type AmathTokenInfo = {
-  token: string;
-  count: number;
-  type: TokenType;
-  point: number;
-};
-
-export const AMATH_TOKENS = {
-  "0": { token: "0", count: 5, type: "lightNumber", point: 1 },
-  "1": { token: "1", count: 6, type: "lightNumber", point: 1 },
-  "2": { token: "2", count: 6, type: "lightNumber", point: 1 },
-  "3": { token: "3", count: 5, type: "lightNumber", point: 1 },
-  "4": { token: "4", count: 5, type: "lightNumber", point: 2 },
-  "5": { token: "5", count: 4, type: "lightNumber", point: 2 },
-  "6": { token: "6", count: 4, type: "lightNumber", point: 2 },
-  "7": { token: "7", count: 4, type: "lightNumber", point: 2 },
-  "8": { token: "8", count: 4, type: "lightNumber", point: 2 },
-  "9": { token: "9", count: 4, type: "lightNumber", point: 2 },
-  "10": { token: "10", count: 2, type: "heavyNumber", point: 3 },
-  "11": { token: "11", count: 1, type: "heavyNumber", point: 4 },
-  "12": { token: "12", count: 2, type: "heavyNumber", point: 3 },
-  "13": { token: "13", count: 1, type: "heavyNumber", point: 6 },
-  "14": { token: "14", count: 1, type: "heavyNumber", point: 4 },
-  "15": { token: "15", count: 1, type: "heavyNumber", point: 4 },
-  "16": { token: "16", count: 1, type: "heavyNumber", point: 4 },
-  "17": { token: "17", count: 1, type: "heavyNumber", point: 6 },
-  "18": { token: "18", count: 1, type: "heavyNumber", point: 4 },
-  "19": { token: "19", count: 1, type: "heavyNumber", point: 7 },
-  "20": { token: "20", count: 1, type: "heavyNumber", point: 5 },
-  "+": { token: "+", count: 4, type: "operator", point: 2 },
-  "-": { token: "-", count: 4, type: "operator", point: 2 },
-  x: { token: "×", count: 4, type: "operator", point: 2 },
-  "/": { token: "÷", count: 4, type: "operator", point: 2 },
-  "+/-": { token: "+/-", count: 5, type: "choice", point: 1 },
-  "x//": { token: "x/÷", count: 4, type: "choice", point: 1 },
-  "=": { token: "=", count: 11, type: "equals", point: 1 },
-  "?": { token: "?", count: 4, type: "Blank", point: 0 },
-} satisfies Record<AmathToken, AmathTokenInfo>;
 
 export type TileInstance = {
   id: string;
@@ -286,72 +233,13 @@ export type MoveValidation = {
   bingoBonus: number;
 };
 
-export type SlotType = "px1" | "px2" | "px3" | "px3star" | "ex2" | "ex3";
-
 // ── A-Math equation rules (ported from solution.js: Condition + Check_Equation) ──
-const UNIT_SET = new Set(["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"]);
-const TENS_SET = new Set([
-  "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
-]);
-// Marks in evaluator notation.
-const MARKS_SET = new Set(["=", "+", "-", "*", "/"]);
-
 // Display token to evaluator token; numbers, +, -, and = stay as-is.
 function toEvalToken(token: string): string {
   if (token === "×") return "*";
   if (token === "÷") return "/";
   return token;
 }
-
-export const BLANK_ASSIGNMENT_OPTIONS = [
-  "0",
-  "1",
-  "2",
-  "3",
-  "4",
-  "5",
-  "6",
-  "7",
-  "8",
-  "9",
-  "10",
-  "11",
-  "12",
-  "13",
-  "14",
-  "15",
-  "16",
-  "17",
-  "18",
-  "19",
-  "20",
-  "+",
-  "-",
-  "×",
-  "÷",
-  "=",
-];
-
-// Standard A-Math 15×15 premium-square layout.
-//   px1 = normal, px2 = piece x2, px3 = piece x3, px3star = center piece x3
-//   ex2 = equation x2, ex3 = equation x3
-export const BOARD_LAYOUT: SlotType[][] = [
-  ["ex3", "px1", "px1", "px2", "px1", "px1", "px1", "ex3", "px1", "px1", "px1", "px2", "px1", "px1", "ex3"],
-  ["px1", "ex2", "px1", "px1", "px1", "px3", "px1", "px1", "px1", "px3", "px1", "px1", "px1", "ex2", "px1"],
-  ["px1", "px1", "ex2", "px1", "px1", "px1", "px2", "px1", "px2", "px1", "px1", "px1", "ex2", "px1", "px1"],
-  ["px2", "px1", "px1", "ex2", "px1", "px1", "px1", "px2", "px1", "px1", "px1", "ex2", "px1", "px1", "px2"],
-  ["px1", "px1", "px1", "px1", "px3", "px1", "px1", "px1", "px1", "px1", "px3", "px1", "px1", "px1", "px1"],
-  ["px1", "px3", "px1", "px1", "px1", "px3", "px1", "px1", "px1", "px3", "px1", "px1", "px1", "px3", "px1"],
-  ["px1", "px1", "px2", "px1", "px1", "px1", "px2", "px1", "px2", "px1", "px1", "px1", "px2", "px1", "px1"],
-  ["ex3", "px1", "px1", "px2", "px1", "px1", "px1", "px3star", "px1", "px1", "px1", "px2", "px1", "px1", "ex3"],
-  ["px1", "px1", "px2", "px1", "px1", "px1", "px2", "px1", "px2", "px1", "px1", "px1", "px2", "px1", "px1"],
-  ["px1", "px3", "px1", "px1", "px1", "px3", "px1", "px1", "px1", "px3", "px1", "px1", "px1", "px3", "px1"],
-  ["px1", "px1", "px1", "px1", "px3", "px1", "px1", "px1", "px1", "px1", "px3", "px1", "px1", "px1", "px1"],
-  ["px2", "px1", "px1", "ex2", "px1", "px1", "px1", "px2", "px1", "px1", "px1", "ex2", "px1", "px1", "px2"],
-  ["px1", "px1", "ex2", "px1", "px1", "px1", "px2", "px1", "px2", "px1", "px1", "px1", "ex2", "px1", "px1"],
-  ["px1", "ex2", "px1", "px1", "px1", "px3", "px1", "px1", "px1", "px3", "px1", "px1", "px1", "ex2", "px1"],
-  ["ex3", "px1", "px1", "px2", "px1", "px1", "px1", "ex3", "px1", "px1", "px1", "px2", "px1", "px1", "ex3"],
-];
 
 export function slotTypeAt(row: number, col: number): SlotType {
   return BOARD_LAYOUT[row]?.[col] ?? "px1";
@@ -361,7 +249,7 @@ export function otherSide(side: Side): Side {
   return side === "A" ? "B" : "A";
 }
 
-export function createBoard(size = 15): BoardSnapshot {
+export function createBoard(size = BOARD_SIZE): BoardSnapshot {
   return Array.from({ length: size }, () => Array.from({ length: size }, () => null));
 }
 
@@ -462,7 +350,7 @@ export function createNewGame(settings: NewGameSettings): GameState {
   const initialSeconds = Math.max(secondsBySide.A, secondsBySide.B, 1);
   const tileDrawMode = settings.tileDrawMode ?? "manual";
   const initialQueue = createInitialTilebag({ shuffleForPlay: tileDrawMode === "play" });
-  const initialRack = tileDrawMode === "play" ? initialQueue.slice(0, 8) : [];
+  const initialRack = tileDrawMode === "play" ? initialQueue.slice(0, RACK_SIZE) : [];
   const initialTilebag =
     tileDrawMode === "play" ? shuffleTilebagQueue(initialQueue.slice(initialRack.length)) : initialQueue;
   const playerMembers: Partial<Record<Side, string>> = {};
@@ -483,8 +371,8 @@ export function createNewGame(settings: NewGameSettings): GameState {
     activeSide: settings.startingSide,
     phase: tileDrawMode === "play" ? "choose_action" : "refill",
     status: "playing",
-    boardSize: 15,
-    board: createBoard(15),
+    boardSize: BOARD_SIZE,
+    board: createBoard(BOARD_SIZE),
     rackA: settings.startingSide === "A" ? initialRack : [],
     rackB: settings.startingSide === "B" ? initialRack : [],
     tilebag: initialTilebag,
@@ -497,7 +385,7 @@ export function createNewGame(settings: NewGameSettings): GameState {
       initialSecondsBySide: secondsBySide,
       sideUntimed,
       paused: false,
-      minSeconds: -300,
+      minSeconds: MIN_TIMER_SECONDS,
       untimed: Boolean(settings.untimed) || allUntimed,
     },
     scores: { A: 0, B: 0 },
@@ -522,14 +410,14 @@ function normalizeTimerMinutes(settings: NewGameSettings): SideTimerMinutes {
     };
   }
   if (settings.untimed) return { A: null, B: null };
-  const minutes = normalizeTimerMinute(settings.minutes ?? 22) ?? 22;
+  const minutes = normalizeTimerMinute(settings.minutes ?? DEFAULT_TIMER_MINUTES) ?? DEFAULT_TIMER_MINUTES;
   return { A: minutes, B: minutes };
 }
 
 function normalizeTimerMinute(value: number | null | undefined): number | null {
   if (value === null) return null;
   const minutes = Number(value);
-  if (!Number.isFinite(minutes) || minutes <= 0) return 22;
+  if (!Number.isFinite(minutes) || minutes <= 0) return DEFAULT_TIMER_MINUTES;
   return minutes;
 }
 
@@ -634,7 +522,7 @@ export function getDefaultAssignment(token: AmathToken): string | undefined {
   return undefined;
 }
 
-export function getAssignmentOptions(token: AmathToken): string[] {
+export function getAssignmentOptions(token: AmathToken): readonly string[] {
   if (token === "+/-") return ["+", "-"];
   if (token === "x//") return ["×", "÷"];
   if (token === "?") return BLANK_ASSIGNMENT_OPTIONS;
@@ -742,7 +630,7 @@ export function validateMove(
 
   const equationScore = equations.reduce((total, equation) => total + equation.score, 0);
   // Bingo: placing all 8 rack tiles in one turn earns +40.
-  const bingoBonus = pendingPlacements.length >= 8 ? 40 : 0;
+  const bingoBonus = pendingPlacements.length >= RACK_SIZE ? BINGO_BONUS : 0;
   const score = equationScore + bingoBonus;
   return {
     isValid: errors.length === 0 && equations.every((equation) => equation.isValid),
@@ -794,11 +682,11 @@ export function createPlaceDetail(
 }
 
 export function isRackReady(game: GameState): boolean {
-  return getRack(game, game.activeSide).length >= 8 || game.tilebag.length === 0;
+  return getRack(game, game.activeSide).length >= RACK_SIZE || game.tilebag.length === 0;
 }
 
 export function phaseForNextSide(game: GameState): Phase {
-  return getRack(game, game.activeSide).length >= 8 || game.tilebag.length === 0
+  return getRack(game, game.activeSide).length >= RACK_SIZE || game.tilebag.length === 0
     ? "choose_action"
     : "refill";
 }
@@ -932,18 +820,18 @@ function conditionReason(seq: string[], display: string[]): string | null {
 
   const first = seq[0];
   const last = seq[seq.length - 1];
-  if (MARKS_SET.has(first) && first !== "-") return `${text}: cannot start with an operator.`;
-  if (MARKS_SET.has(last)) return `${text}: cannot end with an operator.`;
+  if (EVALUATOR_MARKS.has(first) && first !== "-") return `${text}: cannot start with an operator.`;
+  if (EVALUATOR_MARKS.has(last)) return `${text}: cannot end with an operator.`;
 
   for (let i = 0; i < seq.length - 1; i += 1) {
     const a = seq[i];
     const b = seq[i + 1];
-    if (MARKS_SET.has(a) && MARKS_SET.has(b) && !(a === "=" && b === "-")) {
+    if (EVALUATOR_MARKS.has(a) && EVALUATOR_MARKS.has(b) && !(a === "=" && b === "-")) {
       return `${text}: adjacent operators are not allowed.`;
     }
-    if (TENS_SET.has(a) && TENS_SET.has(b)) return `${text}: 10-20 tiles cannot touch each other.`;
-    if (UNIT_SET.has(a) && TENS_SET.has(b)) return `${text}: 10-20 tiles cannot touch single-digit tiles.`;
-    if (TENS_SET.has(a) && UNIT_SET.has(b)) return `${text}: 10-20 tiles cannot touch single-digit tiles.`;
+    if (TENS_TOKENS.has(a) && TENS_TOKENS.has(b)) return `${text}: 10-20 tiles cannot touch each other.`;
+    if (UNIT_TOKENS.has(a) && TENS_TOKENS.has(b)) return `${text}: 10-20 tiles cannot touch single-digit tiles.`;
+    if (TENS_TOKENS.has(a) && UNIT_TOKENS.has(b)) return `${text}: 10-20 tiles cannot touch single-digit tiles.`;
     if (a === "/" && b === "0") return `${text}: this position cannot divide by 0.`;
     if (a === "-" && b === "0" && (i === 0 || seq[i - 1] === "=")) {
       return `${text}: 0 cannot be marked as negative.`;
@@ -953,7 +841,7 @@ function conditionReason(seq: string[], display: string[]): string | null {
   // No 4+ digit number (max 3 consecutive single digits).
   let run = 0;
   for (const token of seq) {
-    if (UNIT_SET.has(token)) {
+    if (UNIT_TOKENS.has(token)) {
       run += 1;
       if (run > 3) return `${text}: numbers cannot exceed 3 digits.`;
     } else {
@@ -964,7 +852,7 @@ function conditionReason(seq: string[], display: string[]): string | null {
   // No multi-digit number with a leading zero.
   let buffer = "";
   for (const token of seq) {
-    if (!MARKS_SET.has(token)) {
+    if (!EVALUATOR_MARKS.has(token)) {
       buffer += token;
     } else {
       if (buffer.length >= 2 && buffer[0] === "0") return `${text}: numbers cannot start with 0.`;

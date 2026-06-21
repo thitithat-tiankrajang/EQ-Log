@@ -1,0 +1,6 @@
+export const TIMER_TICK_MS = 1_000;
+export const LIVE_SESSION_SYNC_DEBOUNCE_MS = 120;
+export const MIN_LOADING_VISIBLE_MS = 240;
+export const PROFILE_LOAD_TIMEOUT_MS = 6_000;
+export const REMOTE_CAPABILITIES_TTL_MS = 30 * 60 * 1_000;
+

@@ -102,45 +102,45 @@ body {
   border-color: #7a5bbb;
 }
 
-/* Board — neutral cells so saturated tiles pop; refined premium squares */
+/* Board states and empty premium slots; all colors resolve through tokens.css. */
 .board {
-  border-color: #131a16;
+  border-color: var(--board-frame-border);
   box-shadow: 0 18px 48px rgba(19, 26, 22, 0.16);
 }
 .board-cell {
-  background: #fcfdfb;
-  border-color: #c0cbc2;
+  background: var(--board-slot-px1-bg);
+  border-color: var(--board-cell-border);
 }
 .board-cell.filled {
-  background: #eef2ed;
+  background: var(--board-cell-filled-bg);
   padding: 0;
 }
 .board-cell.pending {
-  background: var(--accent-soft);
-  outline-color: var(--accent);
+  background: var(--board-cell-pending-bg);
+  outline-color: var(--board-cell-pending-outline);
 }
 .board-cell.slot-px2:not(.filled):not(.pending) {
-  background: #d6e7df;
+  background: var(--board-slot-px2-bg);
 }
 .board-cell.slot-px3:not(.filled):not(.pending) {
-  background: #bcd7eb;
+  background: var(--board-slot-px3-bg);
 }
 .board-cell.slot-px3star:not(.filled):not(.pending) {
-  background: #bcd7eb;
+  background: var(--board-slot-px3star-bg);
 }
 .board-cell.slot-ex2:not(.filled):not(.pending) {
-  background: #f1dd9c;
+  background: var(--board-slot-ex2-bg);
 }
 .board-cell.slot-ex3:not(.filled):not(.pending) {
-  background: #e8a489;
+  background: var(--board-slot-ex3-bg);
 }
 .premium-label,
 .premium-pip {
-  color: rgba(24, 33, 29, 0.5);
+  color: var(--board-premium-label);
   font-weight: 800;
 }
 .board-cell.slot-px3star .premium-label {
-  color: #a23a68;
+  color: var(--board-center-star-label);
 }
 
 /* Accent-driven surfaces */
@@ -373,8 +373,8 @@ body {
 }
 
 .board-cell.pending-selected {
-  background: #dff6fb;
-  outline: 3px solid #0891b2;
+  background: var(--board-cell-selected-bg);
+  outline: 3px solid var(--board-cell-selected-outline);
   outline-offset: -3px;
 }
 
@@ -477,7 +477,6 @@ body {
 /* Final board-lab refinements: stable right rail, square tiles, assignment modal */
 :root {
   --choice-assigned-text: #67e8f9;
-  --center-star-blue: #1487d4;
 }
 
 .tile,
@@ -503,7 +502,7 @@ body {
 .premium-label.star,
 .premium-pip.star,
 .board-cell.slot-px3star .premium-label {
-  color: var(--center-star-blue);
+  color: var(--board-center-star-label);
 }
 
 .assignment-modal {

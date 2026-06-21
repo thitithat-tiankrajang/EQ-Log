@@ -1,4 +1,5 @@
 import type { MoveValidation } from "../../game";
+import { RACK_SIZE } from "../../constants/gameRules";
 
 export function EquationPreview({ validation }: { validation: MoveValidation }) {
   if (validation.equations.length === 0) return null;
@@ -19,7 +20,7 @@ export function EquationPreview({ validation }: { validation: MoveValidation }) 
       ))}
       {validation.bingoBonus > 0 && (
         <div className="valid-equation">
-          <span>Bingo - all 8 tiles placed</span>
+          <span>Bingo - all {RACK_SIZE} tiles placed</span>
           <strong>+{validation.bingoBonus} pts</strong>
         </div>
       )}

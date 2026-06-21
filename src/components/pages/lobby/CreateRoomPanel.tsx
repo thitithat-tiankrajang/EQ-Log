@@ -1,8 +1,7 @@
 import { Play } from "lucide-react";
 import type { NewGameSettings, Side, TileDrawMode } from "../../../game";
 import type { Member } from "../../../members";
-
-const TIMER_OPTIONS: Array<number | null> = [22, 20, 15, 12, 10, 8, null];
+import { DEFAULT_TIMER_MINUTES, TIMER_MINUTE_OPTIONS } from "../../../constants/gameRules";
 
 export function CreateRoomPanel({
   settings,
@@ -18,7 +17,7 @@ export function CreateRoomPanel({
   function timerValue(side: Side): number | null {
     if (settings.timerMinutes) return settings.timerMinutes[side];
     if (settings.untimed) return null;
-    return settings.minutes ?? 22;
+    return settings.minutes ?? DEFAULT_TIMER_MINUTES;
   }
 
   function setTimerValue(side: Side, value: string) {
@@ -26,11 +25,11 @@ export function CreateRoomPanel({
     const timerMinutes = {
       A: timerValue("A"),
       B: timerValue("B"),
-      [side]: Number.isFinite(minutes) || minutes === null ? minutes : 22,
+      [side]: Number.isFinite(minutes) || minutes === null ? minutes : DEFAULT_TIMER_MINUTES,
     } as Record<Side, number | null>;
     onChange({
       ...settings,
-      minutes: timerMinutes.A ?? timerMinutes.B ?? settings.minutes ?? 22,
+      minutes: timerMinutes.A ?? timerMinutes.B ?? settings.minutes ?? DEFAULT_TIMER_MINUTES,
       timerMinutes,
       untimed: timerMinutes.A === null && timerMinutes.B === null,
     });
@@ -63,7 +62,7 @@ export function CreateRoomPanel({
                   value={timerValue(side) === null ? "none" : String(timerValue(side))}
                   onChange={(event) => setTimerValue(side, event.target.value)}
                 >
-                  {TIMER_OPTIONS.map((option) => (
+                  {TIMER_MINUTE_OPTIONS.map((option) => (
                     <option key={option ?? "none"} value={option ?? "none"}>
                       {option === null ? "No timer" : option}
                     </option>

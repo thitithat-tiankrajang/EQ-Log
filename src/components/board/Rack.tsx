@@ -1,4 +1,5 @@
 import type { ActionType, Side, TileInstance } from "../../game";
+import { RACK_SIZE } from "../../constants/gameRules";
 import { Tile } from "./Tile";
 
 type ActionMode = "none" | ActionType;
@@ -31,10 +32,10 @@ export function Rack({
     <section className={`rack side-${side.toLowerCase()} ${active ? "active" : ""}`}>
       <div className="rack-label">
         <strong>{label}</strong>
-        <span>{tileCount}/8</span>
+        <span>{tileCount}/{RACK_SIZE}</span>
       </div>
       <div className="rack-tiles">
-        {Array.from({ length: 8 }).map((_, index) => {
+        {Array.from({ length: RACK_SIZE }).map((_, index) => {
           const tile = rack[index];
           const slotNumber = index + 1;
           if (!tile) {

@@ -18,5 +18,6 @@
 @import "./styles/pages/lobby/50-stats.css";
 @import "./styles/pages/lobby/60-filters.css";
 @import "./styles/pages/lobby/70-responsive.css";
+@import "./styles/tokens.css";
 @import "./styles/95-material-ai.css";
 @import "./styles/components/96-loading-activity.css";

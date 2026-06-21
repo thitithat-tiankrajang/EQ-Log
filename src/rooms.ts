@@ -7,6 +7,7 @@
 
 import { GameState, GameStatus, Side, deepClone } from "./game";
 import { serializeGame, deserializeGame } from "./codec";
+import { ROOM_STORAGE_PREFIX, STORAGE_KEYS } from "./constants/storage";
 
 export type RoomMeta = {
   id: string;
@@ -26,13 +27,8 @@ export type RoomMeta = {
   status: GameStatus;
 };
 
-const INDEX_KEY = "amath-lab-rooms-index-v1";
-const ROOM_PREFIX = "amath-lab-room-";
-const ACTIVE_KEY = "amath-lab-active-room-v1";
-const LEGACY_KEY = "amath-lab-board-state-v3";
-
 function roomKey(id: string): string {
-  return `${ROOM_PREFIX}${id}`;
+  return `${ROOM_STORAGE_PREFIX}${id}`;
 }
 
 function readJSON<T>(key: string): T | null {
@@ -64,30 +60,30 @@ function metaFromGame(id: string, game: GameState, createdAt: string): RoomMeta 
 }
 
 function rawIndex(): RoomMeta[] {
-  return readJSON<RoomMeta[]>(INDEX_KEY) ?? [];
+  return readJSON<RoomMeta[]>(STORAGE_KEYS.roomIndex) ?? [];
 }
 
 function persistIndex(index: RoomMeta[]): void {
-  localStorage.setItem(INDEX_KEY, JSON.stringify(index));
+  localStorage.setItem(STORAGE_KEYS.roomIndex, JSON.stringify(index));
 }
 
 // One-time migration of the legacy single-game save into a room.
 function migrateLegacy(): RoomMeta[] {
-  const legacy = readJSON<GameState>(LEGACY_KEY);
+  const legacy = readJSON<GameState>(STORAGE_KEYS.legacyGame);
   if (!legacy || !legacy.gameId) return [];
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   localStorage.setItem(roomKey(id), JSON.stringify(legacy));
   const index = [metaFromGame(id, legacy, now)];
   persistIndex(index);
-  localStorage.setItem(ACTIVE_KEY, id);
-  localStorage.removeItem(LEGACY_KEY);
+  localStorage.setItem(STORAGE_KEYS.activeRoom, id);
+  localStorage.removeItem(STORAGE_KEYS.legacyGame);
   return index;
 }
 
 /** Lobby list, newest activity first. Runs the legacy migration on first read. */
 export function listRooms(): RoomMeta[] {
-  let index = readJSON<RoomMeta[]>(INDEX_KEY);
+  let index = readJSON<RoomMeta[]>(STORAGE_KEYS.roomIndex);
   if (!index) index = migrateLegacy();
   return [...index].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
@@ -164,10 +160,10 @@ export function importRoom(game: GameState): { id: string; index: RoomMeta[] } {
 }
 
 export function getActiveRoomId(): string | null {
-  return localStorage.getItem(ACTIVE_KEY);
+  return localStorage.getItem(STORAGE_KEYS.activeRoom);
 }
 
 export function setActiveRoomId(id: string | null): void {
-  if (id) localStorage.setItem(ACTIVE_KEY, id);
-  else localStorage.removeItem(ACTIVE_KEY);
+  if (id) localStorage.setItem(STORAGE_KEYS.activeRoom, id);
+  else localStorage.removeItem(STORAGE_KEYS.activeRoom);
 }

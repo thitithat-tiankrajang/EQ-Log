@@ -9,6 +9,7 @@ import {
   type TileInstance,
   type TurnLog,
 } from "../../game";
+import { RACK_SIZE } from "../../constants/gameRules";
 import { ACTION_LABELS } from "../../uiText";
 import { Tile } from "../board/Tile";
 
@@ -28,7 +29,7 @@ export function TurnRecordList({
   onSelectLog,
 }: TurnRecordListProps) {
   const activeRack = currentTurnRack ?? getRack(game, game.activeSide);
-  const showCurrentRack = game.status === "playing" && (activeRack.length >= 8 || game.tilebag.length === 0);
+  const showCurrentRack = game.status === "playing" && (activeRack.length >= RACK_SIZE || game.tilebag.length === 0);
 
   // Smooth-scroll to the newest row (which now sits at the bottom) whenever the
   // list grows. We scroll the *nearest scrollable ancestor*, not the list itself,
@@ -64,7 +65,7 @@ export function TurnRecordList({
           <div className="turn-record-summary">
             <span className="trs-turn">T{game.turnNumber}</span>
             <span className={`trs-side side-${game.activeSide.toLowerCase()}`}>{game.players[game.activeSide]}</span>
-            <span className="trs-action">Ready · {activeRack.length}/8</span>
+            <span className="trs-action">Ready · {activeRack.length}/{RACK_SIZE}</span>
             <span className="trs-live">Live</span>
           </div>
         </section>
@@ -101,7 +102,7 @@ function CompletedTurnRecord({
 }) {
   const isPlace = log.action === "place_equation";
   const placedTiles = isPlace ? (log.actionDetail as PlaceEquationDetail).placedTiles : [];
-  const placedAll = isPlace && placedTiles.length >= 8;
+  const placedAll = isPlace && placedTiles.length >= RACK_SIZE;
   const sideClass = `side-${log.side.toLowerCase()}`;
   return (
     <section className={`turn-record-group ${sideClass} ${selected ? "selected" : ""} ${placedAll ? "bingo" : ""}`}>
@@ -130,7 +131,7 @@ function CompletedTurnRecord({
 function TileStrip({ tiles, muted = false }: { tiles: TileInstance[]; muted?: boolean }) {
   return (
     <div className={`turn-record-tiles ${muted ? "muted" : ""}`}>
-      {Array.from({ length: 8 }).map((_, index) => {
+      {Array.from({ length: RACK_SIZE }).map((_, index) => {
         const tile = tiles[index];
         if (!tile) return <span className="turn-record-empty-tile" key={`empty-${index}`} />;
         return (

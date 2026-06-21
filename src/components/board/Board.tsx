@@ -7,6 +7,7 @@ import {
   type PendingPlacement,
 } from "../../game";
 import { SLOT_LABELS } from "../../uiText";
+import { BOARD_SIZE } from "../../constants/gameRules";
 import { Tile } from "./Tile";
 
 type Direction = "right" | "down" | "left" | "up";
@@ -84,12 +85,12 @@ export function Board({
     <div className="board-frame">
       <div className="board-corner" aria-hidden="true" />
       <div className="board-col-labels" aria-hidden="true">
-        {Array.from({ length: 15 }).map((_, index) => (
+        {Array.from({ length: BOARD_SIZE }).map((_, index) => (
           <span key={index}>C{index + 1}</span>
         ))}
       </div>
       <div className="board-row-labels" aria-hidden="true">
-        {Array.from({ length: 15 }).map((_, index) => (
+        {Array.from({ length: BOARD_SIZE }).map((_, index) => (
           <span key={index}>R{index + 1}</span>
         ))}
       </div>

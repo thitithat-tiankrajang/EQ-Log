@@ -159,29 +159,33 @@ body {
 }
 
 .board {
-  border-color: #17212b;
+  border-color: var(--board-frame-border);
   box-shadow: 0 18px 45px rgba(23, 33, 43, 0.15);
 }
 
 .board-cell {
-  border-color: #b8c3cc;
+  border-color: var(--board-cell-border);
 }
 
+/* Empty premium cells only; colors come from the global slot map. */
 .board-cell.slot-px2:not(.filled):not(.pending) {
-  background: #f5cf99;
+  background: var(--board-slot-px2-bg);
 }
 
-.board-cell.slot-px3:not(.filled):not(.pending),
+.board-cell.slot-px3:not(.filled):not(.pending) {
+  background: var(--board-slot-px3-bg);
+}
+
 .board-cell.slot-px3star:not(.filled):not(.pending) {
-  background: #b8d9ee;
+  background: var(--board-slot-px3star-bg);
 }
 
 .board-cell.slot-ex2:not(.filled):not(.pending) {
-  background: #efe18a;
+  background: var(--board-slot-ex2-bg);
 }
 
 .board-cell.slot-ex3:not(.filled):not(.pending) {
-  background: #eea18e;
+  background: var(--board-slot-ex3-bg);
 }
 
 .rack-row {
@@ -227,7 +231,7 @@ body {
 .action-buttons button.active,
 .log-row.selected,
 .board-cell.pending {
-  background: var(--accent-soft);
+  background: var(--board-cell-pending-bg);
 }
 
 @media (max-width: 1180px) {

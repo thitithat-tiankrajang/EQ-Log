@@ -414,9 +414,9 @@ textarea {
   grid-template-columns: repeat(15, var(--cell));
   grid-template-rows: repeat(15, var(--cell));
   overflow: hidden;
-  border: 2px solid #302b1d;
+  border: 2px solid var(--board-frame-border);
   border-radius: 8px;
-  background: #d8d1c1;
+  background: var(--board-frame-bg);
   max-width: 100%;
 }
 
@@ -429,44 +429,46 @@ textarea {
   min-height: var(--cell);
   place-items: center;
   border: 0;
-  border-right: 1px solid #bbb19e;
-  border-bottom: 1px solid #bbb19e;
-  background: #fffdfa;
+  border-right: 1px solid var(--board-cell-border);
+  border-bottom: 1px solid var(--board-cell-border);
+  background: var(--board-slot-px1-bg);
   padding: 2px;
 }
 
-/* Premium squares — visible on empty cells; filled cells show a small corner pip. */
+/* Empty premium cells only. Colors are defined by slot condition in tokens.css. */
 .board-cell.slot-px2:not(.filled):not(.pending) {
-  background: #f7dab2;
+  background: var(--board-slot-px2-bg);
 }
-.board-cell.slot-px3:not(.filled):not(.pending),
+.board-cell.slot-px3:not(.filled):not(.pending) {
+  background: var(--board-slot-px3-bg);
+}
 .board-cell.slot-px3star:not(.filled):not(.pending) {
-  background: #b9d4ea;
+  background: var(--board-slot-px3star-bg);
 }
 .board-cell.slot-ex2:not(.filled):not(.pending) {
-  background: #f3e09a;
+  background: var(--board-slot-ex2-bg);
 }
 .board-cell.slot-ex3:not(.filled):not(.pending) {
-  background: #eeae9c;
+  background: var(--board-slot-ex3-bg);
 }
 
 .premium-label {
   font-size: calc(var(--cell) * 0.28);
   font-weight: 900;
   line-height: 1;
-  color: rgba(34, 32, 29, 0.5);
+  color: var(--board-premium-label);
 }
 
 .premium-label.star {
   font-size: calc(var(--cell) * 0.5);
-  color: #247b6f;
+  color: var(--board-center-star-label);
 }
 
 .premium-pip {
   position: absolute;
   top: 1px;
   left: 2px;
-  color: rgba(34, 32, 29, 0.45);
+  color: var(--board-premium-label);
   font-size: calc(var(--cell) * 0.2);
   font-weight: 900;
   line-height: 1;
@@ -478,17 +480,17 @@ textarea {
 }
 
 .board-cell.filled {
-  background: #efe7d6;
+  background: var(--board-cell-filled-bg);
 }
 
 .board-cell.pending {
-  background: #dff2ef;
-  outline: 2px solid #247b6f;
+  background: var(--board-cell-pending-bg);
+  outline: 2px solid var(--board-cell-pending-outline);
   outline-offset: -3px;
 }
 
 .board.placing .board-cell:not(.filled):hover {
-  background: #edf8f5;
+  background: var(--board-cell-hover-bg);
 }
 
 .rack-row {

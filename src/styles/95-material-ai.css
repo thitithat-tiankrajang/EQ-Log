@@ -3,78 +3,6 @@
    Clean, vibrant, user-friendly styling layered after the existing app CSS.
    ============================================================================ */
 
-:root {
-  --brand-blue: #4285f4;
-  --brand-red: #ea4335;
-  --brand-yellow: #fbbc05;
-  --brand-green: #34a853;
-  --white: #ffffff;
-  --light-grey: #f8f9fa;
-  --dark-grey: #3c4043;
-  --cyan: #00bcd4;
-  --font-sans: "Roboto", Arial, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", "SFMono-Regular", "Menlo", "Consolas", monospace;
-  --shadow-material: 0 2px 4px rgba(60, 64, 67, 0.1);
-
-  --page-bg: #f8fafd;
-  --surface: rgba(255, 255, 255, 0.96);
-  --surface-solid: #ffffff;
-  --surface-2: #f8f9fa;
-  --surface-3: #eef4ff;
-  --text: var(--dark-grey);
-  --muted: #5f6368;
-  --border: #dadce0;
-  --border-soft: rgba(218, 220, 224, 0.76);
-  --border-strong: #a8afb8;
-  --divider: rgba(60, 64, 67, 0.1);
-  --accent: var(--brand-blue);
-  --accent-strong: #185abc;
-  --accent-soft: #e8f0fe;
-  --gold: var(--brand-yellow);
-  --gold-soft: #fff7d6;
-  --blue: var(--brand-blue);
-  --danger: var(--brand-red);
-  --danger-soft: #fce8e6;
-  --success: var(--brand-green);
-  --success-soft: #e6f4ea;
-  --cyan-soft: #e0f7fa;
-  --shadow-1: var(--shadow-material);
-  --shadow-2: 0 2px 12px rgba(60, 64, 67, 0.12);
-  --shadow-3: 0 8px 24px rgba(60, 64, 67, 0.16);
-  --shadow-modal: 0 16px 48px rgba(60, 64, 67, 0.22);
-
-  --lobby-bg: #f8fafd;
-  --lobby-surface: rgba(255, 255, 255, 0.96);
-  --lobby-surface-2: #f8f9fa;
-  --lobby-surface-strong: #ffffff;
-  --lobby-text: var(--dark-grey);
-  --lobby-text-soft: #5f6368;
-  --lobby-muted: #80868b;
-  --lobby-border: #dadce0;
-  --lobby-border-soft: rgba(218, 220, 224, 0.76);
-  --lobby-divider: rgba(60, 64, 67, 0.1);
-  --lobby-accent: var(--brand-blue);
-  --lobby-accent-soft: #e8f0fe;
-  --lobby-accent-deep: #185abc;
-  --lobby-warning: #c58a00;
-  --lobby-warning-soft: #fff7d6;
-  --lobby-danger: var(--brand-red);
-  --lobby-danger-soft: #fce8e6;
-  --lobby-side-a: var(--brand-red);
-  --lobby-side-b: var(--brand-blue);
-  --lobby-radius-sm: 8px;
-  --lobby-radius-md: 8px;
-  --lobby-radius-lg: 8px;
-  --lobby-shadow: var(--shadow-material);
-
-  --tile-face: #ffffff;
-  --tile-face-top: #f8f9fa;
-  --tile-border: #cfd5dc;
-  --tile-text: var(--dark-grey);
-  --tile-point: var(--brand-blue);
-  --choice-assigned-text: #008da3;
-}
-
 html,
 body {
   font-family: var(--font-sans);
@@ -426,45 +354,49 @@ textarea:focus,
 }
 
 .board {
-  border-color: #c9d0d8 !important;
-  background: #dfe6ef !important;
+  border-color: var(--board-frame-border) !important;
+  background: var(--board-frame-bg) !important;
   box-shadow: 0 12px 32px rgba(60, 64, 67, 0.14) !important;
 }
 
 .board-cell {
-  background: #ffffff !important;
-  border-color: #d6dde6 !important;
+  background: var(--board-slot-px1-bg) !important;
+  border-color: var(--board-cell-border) !important;
 }
 
 .board-cell.filled {
-  background: #f1f3f4 !important;
+  background: var(--board-cell-filled-bg) !important;
 }
 
 .board-cell.pending {
-  background: var(--accent-soft) !important;
-  outline-color: var(--accent) !important;
+  background: var(--board-cell-pending-bg) !important;
+  outline-color: var(--board-cell-pending-outline) !important;
 }
 
+/* Empty premium cells only; the global map owns every slot color. */
 .board-cell.slot-px2:not(.filled):not(.pending) {
-  background: #e6f4ea !important;
+  background: var(--board-slot-px2-bg) !important;
 }
 
-.board-cell.slot-px3:not(.filled):not(.pending),
+.board-cell.slot-px3:not(.filled):not(.pending) {
+  background: var(--board-slot-px3-bg) !important;
+}
+
 .board-cell.slot-px3star:not(.filled):not(.pending) {
-  background: #e8f0fe !important;
+  background: var(--board-slot-px3star-bg) !important;
 }
 
 .board-cell.slot-ex2:not(.filled):not(.pending) {
-  background: #fff7d6 !important;
+  background: var(--board-slot-ex2-bg) !important;
 }
 
 .board-cell.slot-ex3:not(.filled):not(.pending) {
-  background: #fce8e6 !important;
+  background: var(--board-slot-ex3-bg) !important;
 }
 
 .premium-label,
 .premium-pip {
-  color: rgba(60, 64, 67, 0.56) !important;
+  color: var(--board-premium-label) !important;
   font-weight: 700 !important;
 }
 
@@ -646,18 +578,6 @@ textarea:focus,
 }
 
 /* Flat refinement: reduce nested frames, rounded corners, and shadows. */
-:root {
-  --shadow-material: none;
-  --shadow-1: none;
-  --shadow-2: none;
-  --shadow-3: none;
-  --shadow-modal: none;
-  --lobby-shadow: none;
-  --lobby-radius-sm: 0;
-  --lobby-radius-md: 0;
-  --lobby-radius-lg: 0;
-}
-
 .top-bar,
 .timer-strip,
 .status-line,
@@ -1023,28 +943,6 @@ textarea:focus {
 }
 
 /* Game pieces stay dark; rack surfaces carry the contrast. */
-:root {
-  --tile-face: #111827;
-  --tile-face-top: #1f2937;
-  --tile-border: #3f4b5d;
-  --tile-text: #f8fafc;
-  --tile-point: #ffffff;
-  --choice-assigned-text: #7dd3fc;
-  --choice-board-face-top: #1f2937;
-  --choice-board-face: #111827;
-  --choice-board-border: #3f4b5d;
-  --choice-board-text: #7dd3fc;
-  --choice-board-point: #7dd3fc;
-  --tile-font: Arial, "Helvetica Neue", Helvetica, sans-serif;
-
-  --rack-surface: #dce6f5;
-  --rack-surface-active-a: #f8dfe2;
-  --rack-surface-active-b: #dbe8ff;
-  --rack-slot-surface: #cbd8ec;
-  --rack-slot-border: #9aacc3;
-  --rack-slot-hover: #b9c9df;
-}
-
 .tile-lightNumber,
 .tile-heavyNumber,
 .tile-operator,
@@ -1273,8 +1171,8 @@ textarea:focus {
   box-sizing: content-box !important;
   width: calc(var(--cell) * 15) !important;
   height: calc(var(--cell) * 15) !important;
-  border: var(--board-border) solid #3c4043 !important;
-  background: #dfe6ef !important;
+  border: var(--board-border) solid var(--board-frame-border) !important;
+  background: var(--board-frame-bg) !important;
   box-shadow: none !important;
 }
 
@@ -1285,7 +1183,6 @@ textarea:focus {
   --press-blue: #185abc;
   --press-blue-soft: #d2e3fc;
   --press-danger: #c5221f;
-  --press-cell: rgba(60, 64, 67, 0.24);
 }
 
 :where(
@@ -1376,7 +1273,7 @@ textarea:focus {
 }
 
 .board-cell:active:not(:disabled) {
-  background-color: var(--press-cell) !important;
+  background-color: var(--board-cell-press-bg) !important;
   filter: brightness(0.92) !important;
 }
 
@@ -1439,6 +1336,37 @@ textarea:focus {
 .board-cell.filled > .tile.assigned-choice small,
 .board-cell.pending > .tile.assigned-choice small {
   color: var(--choice-board-text) !important;
+}
+
+/* Final tile surface in every context: flat black, with no gloss or shadow. */
+.tile,
+.tile-lightNumber,
+.tile-heavyNumber,
+.tile-operator,
+.tile-choice,
+.tile-equals,
+.tile-Blank,
+.tile-blank,
+.rack-tile.selected .tile,
+.rack-tile.place-select .tile,
+.rack-tile.exchange-select .tile,
+.rack-tile.outgoing .tile,
+.board-cell.filled > .tile,
+.board-cell.pending > .tile,
+.board-cell.pending .tile {
+  background-color: var(--tile-face) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
+.tile b,
+.tile small,
+.tile-equals small,
+.board-cell.filled > .tile b,
+.board-cell.pending > .tile b,
+.board-cell.filled > .tile small,
+.board-cell.pending > .tile small {
+  text-shadow: none !important;
 }
 
 /* Current-turn marker sits on the tile corner, not the whole cell. */

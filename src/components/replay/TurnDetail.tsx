@@ -7,6 +7,7 @@ import {
   type TileInstance,
   type TurnLog,
 } from "../../game";
+import { RACK_SIZE } from "../../constants/gameRules";
 import { ACTION_LABELS } from "../../uiText";
 import { Tile } from "../board/Tile";
 
@@ -189,7 +190,7 @@ function TileChips({
   highlightIds?: Set<string>;
 }) {
   return (
-    <div className={`td-row ${tiles.length >= 8 ? "full-rack" : ""} ${muted ? "muted" : ""}`}>
+    <div className={`td-row ${tiles.length >= RACK_SIZE ? "full-rack" : ""} ${muted ? "muted" : ""}`}>
       <span className="td-label">
         {label}
         {note && <em> · {note}</em>}

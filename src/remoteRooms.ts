@@ -3,6 +3,8 @@ import { decodeGame, encodeGame } from "./codec";
 import type { ActionType, GameState, GameStatus, PendingPlacement } from "./game";
 import type { RoomMeta } from "./rooms";
 import { supabase } from "./supabaseClient";
+import { REMOTE_CAPABILITIES_TTL_MS } from "./constants/network";
+import { STORAGE_KEYS } from "./constants/storage";
 
 type ActionMode = "none" | ActionType;
 
@@ -89,8 +91,6 @@ type RemoteCapabilities = {
   checkedAt: number;
 };
 
-const CAPABILITIES_KEY = "eq-lab:supabase-capabilities:v3";
-const CAPABILITIES_TTL_MS = 30 * 60 * 1000;
 let remoteCapabilities = readRemoteCapabilities();
 const stateWriteQueues = new Map<string, Promise<void>>();
 const latestLiveSessions = new Map<string, LiveRoomSession>();
@@ -482,10 +482,10 @@ function isMissingLiveRoomError(error: { code?: string; message?: string } | nul
 function readRemoteCapabilities(): RemoteCapabilities {
   const fallback: RemoteCapabilities = { checkedAt: Date.now() };
   try {
-    const raw = window.localStorage.getItem(CAPABILITIES_KEY);
+    const raw = window.localStorage.getItem(STORAGE_KEYS.remoteCapabilities);
     if (!raw) return fallback;
     const parsed = JSON.parse(raw) as RemoteCapabilities;
-    if (!parsed.checkedAt || Date.now() - parsed.checkedAt > CAPABILITIES_TTL_MS) return fallback;
+    if (!parsed.checkedAt || Date.now() - parsed.checkedAt > REMOTE_CAPABILITIES_TTL_MS) return fallback;
     return parsed;
   } catch {
     return fallback;
@@ -499,7 +499,7 @@ function setRemoteCapability(
   if (remoteCapabilities[capability] === value) return;
   remoteCapabilities = { ...remoteCapabilities, [capability]: value, checkedAt: Date.now() };
   try {
-    window.localStorage.setItem(CAPABILITIES_KEY, JSON.stringify(remoteCapabilities));
+    window.localStorage.setItem(STORAGE_KEYS.remoteCapabilities, JSON.stringify(remoteCapabilities));
   } catch {
     // Storage can be unavailable in private or restricted browser contexts.
   }

@@ -1,6 +1,5 @@
 import { isSupabaseConfigured, supabase } from "./supabaseClient";
-
-const STORAGE_KEY = "amath-lab-members-v1";
+import { STORAGE_KEYS } from "./constants/storage";
 
 export type Member = {
   id: string;
@@ -24,7 +23,7 @@ type MemberRow = {
 
 function readLocalMembers(): Member[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEYS.members);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as Array<Partial<Member> & { alias?: string; role?: string }>;
     return Array.isArray(parsed)
@@ -36,7 +35,7 @@ function readLocalMembers(): Member[] {
 }
 
 function writeLocalMembers(list: Member[]): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+  localStorage.setItem(STORAGE_KEYS.members, JSON.stringify(list));
   emitLocalChange();
 }
 
@@ -154,7 +153,7 @@ function ensureCrossTabSync(): void {
   if (flagged.__amathMembersHooked) return;
   flagged.__amathMembersHooked = true;
   window.addEventListener("storage", (event) => {
-    if (event.key === STORAGE_KEY) emitLocalChange();
+    if (event.key === STORAGE_KEYS.members) emitLocalChange();
   });
 }
 

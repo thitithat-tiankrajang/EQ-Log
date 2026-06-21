@@ -11,6 +11,7 @@ import {
   getTileDrawMode,
   tileNeedsAssignment,
 } from "../../game";
+import { BINGO_BONUS, RACK_SIZE } from "../../constants/gameRules";
 import { ACTION_LABELS } from "../../uiText";
 import { DraftTiles } from "../game/DraftTiles";
 import { EquationPreview } from "../game/EquationPreview";
@@ -205,7 +206,7 @@ function ActionPicker({
         <span>
           {tileDrawMode === "play"
             ? "Drawing tiles from the queue."
-            : `Pick ${Math.max(0, 8 - activeRackCount)} tile(s) from the tilebag to unlock actions.`}
+            : `Pick ${Math.max(0, RACK_SIZE - activeRackCount)} tile(s) from the tilebag to unlock actions.`}
         </span>
       </div>
     );
@@ -322,9 +323,9 @@ function PlaceActionDetails({
         <span>Place</span>
         <div className="action-metrics">
           <strong>{validation.isValid ? "Valid" : "Draft"}</strong>
-          <em>{pendingPlacements.length}/8 tiles</em>
+          <em>{pendingPlacements.length}/{RACK_SIZE} tiles</em>
           <em>{validation.isValid ? `${validation.score} pts` : "No score"}</em>
-          {validation.bingoBonus > 0 && <em>Bingo +40</em>}
+          {validation.bingoBonus > 0 && <em>Bingo +{BINGO_BONUS}</em>}
         </div>
       </div>
       <div className="place-workspace">
@@ -446,7 +447,7 @@ function ExchangeActionDetails({
         <span>Exchange</span>
         <div className="action-metrics">
           <strong>{exchangeReady ? "Ready" : "Draft"}</strong>
-          <em>{exchangeDraft.outgoingIds.length}/8 tiles</em>
+          <em>{exchangeDraft.outgoingIds.length}/{RACK_SIZE} tiles</em>
           <em>0 pts</em>
         </div>
       </div>

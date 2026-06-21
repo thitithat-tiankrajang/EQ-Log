@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { GripHorizontal } from "lucide-react";
-
-const STORAGE_KEY = "amath:right-rail-split";
+import { ACTION_PANEL_MIN_HEIGHT_PX, TILEBAG_PANEL_MIN_HEIGHT_PX } from "../../constants/layout";
+import { STORAGE_KEYS } from "../../constants/storage";
 
 // A horizontal grab-handle that sits between Tilebag (above) and Action card
 // (below) in the right rail. Dragging it sets `--actions-height` on the rail
@@ -18,7 +18,7 @@ export function RailDivider({ railRef }: { railRef: React.RefObject<HTMLElement 
   useEffect(() => {
     const rail = railRef.current;
     if (!rail) return;
-    const saved = window.localStorage.getItem(STORAGE_KEY);
+    const saved = window.localStorage.getItem(STORAGE_KEYS.railSplit);
     const initial = saved ? parseFloat(saved) : NaN;
     if (Number.isFinite(initial) && initial > 0) {
       rail.style.setProperty("--actions-height", `${initial}px`);
@@ -34,8 +34,8 @@ export function RailDivider({ railRef }: { railRef: React.RefObject<HTMLElement 
       const delta = event.clientY - startY.current;
       // Dragging the handle UP grows the actions panel; DOWN shrinks it.
       const next = startHeight.current - delta;
-      const min = 140;
-      const max = Math.max(min + 1, railRect.height - 160);
+      const min = ACTION_PANEL_MIN_HEIGHT_PX;
+      const max = Math.max(min + 1, railRect.height - TILEBAG_PANEL_MIN_HEIGHT_PX);
       const clamped = Math.max(min, Math.min(max, next));
       rail.style.setProperty("--actions-height", `${clamped}px`);
     },
@@ -52,7 +52,7 @@ export function RailDivider({ railRef }: { railRef: React.RefObject<HTMLElement 
       document.body.style.userSelect = "";
       if (rail) {
         const final = rail.style.getPropertyValue("--actions-height");
-        if (final) window.localStorage.setItem(STORAGE_KEY, final.replace("px", ""));
+        if (final) window.localStorage.setItem(STORAGE_KEYS.railSplit, final.replace("px", ""));
       }
       // Release pointer capture even if React already cleaned up the target.
       try {

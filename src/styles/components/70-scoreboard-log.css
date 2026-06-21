@@ -3005,7 +3005,7 @@ button.tilebag-stat.active .ts-count {
 /* Pending tiles: a high-contrast warm tone (amber/gold) tinted with side
    color, so the user can see at a glance which tiles are still draftable. */
 .board-cell.pending {
-  background: var(--accent-soft, rgba(15, 96, 78, 0.08)) !important;
+  background: var(--board-cell-pending-bg) !important;
   position: relative;
   box-shadow: inset 0 0 0 1px var(--accent, #15604e) !important;
 }
@@ -3018,7 +3018,7 @@ button.tilebag-stat.active .ts-count {
   width: 7px;
   height: 7px;
   border-radius: 999px;
-  background: var(--accent, #15604e);
+  background: var(--board-current-turn-marker);
   border: 1.5px solid var(--surface, #fff);
   z-index: 2;
   pointer-events: none;
@@ -3056,14 +3056,14 @@ button.tilebag-stat.active .ts-count {
 /* Cells that contribute to a scored equation get a soft halo so the user
    can see what is being counted. */
 .board-cell.scoring {
-  background: rgba(36, 123, 111, 0.16) !important;
-  box-shadow: inset 0 0 0 1px rgba(36, 123, 111, 0.42) !important;
+  background: var(--board-cell-scoring-bg) !important;
+  box-shadow: inset 0 0 0 1px var(--board-cell-scoring-border) !important;
 }
 
 .board-cell.scoring.pending {
   /* When a cell is both pending and scoring, keep the warm tile but add a
      teal outer ring so it's distinct from a "just pending" cell. */
-  background: rgba(36, 123, 111, 0.18) !important;
+  background: var(--board-cell-scoring-pending-bg) !important;
   box-shadow:
     inset 0 0 0 1px var(--accent-strong, #0d4738),
     0 0 0 1px rgba(36, 123, 111, 0.34) !important;
@@ -3108,8 +3108,8 @@ button.tilebag-stat.active .ts-count {
 
 /* Directional placement cursor — the icon floats inside the cell. */
 .board-cell.cursor {
-  background: rgba(36, 123, 111, 0.18) !important;
-  box-shadow: inset 0 0 0 2px var(--accent, #15604e) !important;
+  background: var(--board-cursor-px1-bg) !important;
+  box-shadow: inset 0 0 0 2px var(--board-cursor-px1-accent) !important;
   z-index: 1;
 }
 
@@ -3270,7 +3270,7 @@ button.tilebag-stat.active .ts-count {
 
 /* ---- Pending board cell: refined accent (no amber/gold) ---- */
 .board-cell.pending {
-  background: var(--surface, #fff) !important;
+  background: var(--board-cell-pending-bg) !important;
   box-shadow:
     inset 0 0 0 2px var(--accent, #15604e),
     0 0 0 1px rgba(15, 96, 78, 0.18) !important;
@@ -3285,7 +3285,7 @@ button.tilebag-stat.active .ts-count {
   width: 7px;
   height: 7px;
   border-radius: 999px;
-  background: var(--accent, #15604e);
+  background: var(--board-current-turn-marker);
   border: 1.5px solid var(--surface, #fff);
   z-index: 2;
   pointer-events: none;
@@ -3324,12 +3324,12 @@ button.tilebag-stat.active .ts-count {
 
 /* Scoring cells: soft teal halo (not bright). */
 .board-cell.scoring {
-  background: rgba(36, 123, 111, 0.1) !important;
-  box-shadow: inset 0 0 0 1px rgba(36, 123, 111, 0.32) !important;
+  background: var(--board-cell-scoring-bg) !important;
+  box-shadow: inset 0 0 0 1px var(--board-cell-scoring-border) !important;
 }
 
 .board-cell.scoring.pending {
-  background: rgba(36, 123, 111, 0.14) !important;
+  background: var(--board-cell-scoring-pending-bg) !important;
   box-shadow:
     inset 0 0 0 2px var(--accent, #15604e),
     0 0 0 1px rgba(15, 96, 78, 0.3) !important;
@@ -3433,7 +3433,7 @@ button.tilebag-stat.active .ts-count {
   width: 8px;
   height: 8px;
   border-radius: 2px;
-  background: var(--accent, #15604e);
+  background: var(--board-current-turn-marker);
   z-index: 3;
   pointer-events: none;
   box-shadow: none;
@@ -3460,7 +3460,7 @@ button.tilebag-stat.active .ts-count {
 /* Selected pending: just looks "pressed" (no shadow / no glow). */
 .board-cell.pending.pending-selected {
   box-shadow: none !important;
-  background: rgba(15, 96, 78, 0.08) !important;
+  background: var(--board-cell-selected-bg) !important;
   border-color: transparent !important;
 }
 
@@ -3472,9 +3472,9 @@ button.tilebag-stat.active .ts-count {
 
 /* Scoring cells: plain pale tint, thin border, no glow. */
 .board-cell.scoring {
-  background: rgba(36, 123, 111, 0.07) !important;
+  background: var(--board-cell-scoring-bg) !important;
   box-shadow: none !important;
-  border: 1px solid rgba(36, 123, 111, 0.22) !important;
+  border: 1px solid var(--board-cell-scoring-border) !important;
 }
 
 .board-cell.scoring::after {
@@ -3482,56 +3482,55 @@ button.tilebag-stat.active .ts-count {
   position: absolute;
   inset: 3px;
   z-index: 6;
-  border: 2px solid rgba(14, 116, 144, 0.72);
+  border: 2px solid var(--board-scoring-inner-border);
   pointer-events: none;
 }
 
 .board-cell.scoring.pending {
-  background: rgba(36, 123, 111, 0.1) !important;
-  border-color: rgba(36, 123, 111, 0.32) !important;
+  background: var(--board-cell-scoring-pending-bg) !important;
+  border-color: var(--board-cell-scoring-pending-border) !important;
 }
 
 .board-cell.assignable-pending {
   cursor: pointer;
 }
 
-/* ---- Cursor / arrow cell: inherits the slot's color ---- */
-/* Default white cell — arrow uses the accent color, but no fill. */
+/* Cursor/arrow colors are selected by slot condition from tokens.css. */
 .board-cell.cursor {
-  background: rgba(36, 123, 111, 0.1) !important;
-  box-shadow: inset 0 0 0 1.5px var(--accent, #15604e) !important;
+  background: var(--board-cursor-px1-bg) !important;
+  box-shadow: inset 0 0 0 1.5px var(--board-cursor-px1-accent) !important;
   border: none !important;
 }
 
 /* Premium slot colors carry through to the arrow cell. */
 .board-cell.slot-tw.cursor, /* triple word, original orange-red */
 .board-cell.slot-px3star.cursor { /* center star */
-  background: rgba(220, 38, 38, 0.18) !important;
-  box-shadow: inset 0 0 0 1.5px #dc2626 !important;
+  background: var(--board-cursor-px3star-bg) !important;
+  box-shadow: inset 0 0 0 1.5px var(--board-cursor-px3star-accent) !important;
 }
 
 .board-cell.slot-de.cursor,  /* double equation orange/yellow */
 .board-cell.slot-2e.cursor {
-  background: rgba(217, 119, 6, 0.18) !important;
-  box-shadow: inset 0 0 0 1.5px #d97706 !important;
+  background: var(--board-cursor-ex2-bg) !important;
+  box-shadow: inset 0 0 0 1.5px var(--board-cursor-ex2-accent) !important;
 }
 
 .board-cell.slot-te.cursor,
 .board-cell.slot-3e.cursor {
-  background: rgba(217, 119, 6, 0.24) !important;
-  box-shadow: inset 0 0 0 1.5px #b45309 !important;
+  background: var(--board-cursor-ex3-bg) !important;
+  box-shadow: inset 0 0 0 1.5px var(--board-cursor-ex3-accent) !important;
 }
 
 .board-cell.slot-dl.cursor,
 .board-cell.slot-2p.cursor {
-  background: rgba(34, 197, 94, 0.18) !important;
-  box-shadow: inset 0 0 0 1.5px #15803d !important;
+  background: var(--board-cursor-px2-bg) !important;
+  box-shadow: inset 0 0 0 1.5px var(--board-cursor-px2-accent) !important;
 }
 
 .board-cell.slot-tl.cursor,
 .board-cell.slot-3p.cursor {
-  background: rgba(37, 99, 235, 0.18) !important;
-  box-shadow: inset 0 0 0 1.5px #2563eb !important;
+  background: var(--board-cursor-px3-bg) !important;
+  box-shadow: inset 0 0 0 1.5px var(--board-cursor-px3-accent) !important;
 }
 
 /* Arrow icon picks up its color from the cell's accent. */
@@ -3545,12 +3544,12 @@ button.tilebag-stat.active .ts-count {
   opacity: 0.9;
 }
 
-.board-cell.cursor { color: var(--accent, #15604e); }
-.board-cell.slot-tw.cursor, .board-cell.slot-px3star.cursor { color: #dc2626; }
-.board-cell.slot-de.cursor, .board-cell.slot-2e.cursor { color: #d97706; }
-.board-cell.slot-te.cursor, .board-cell.slot-3e.cursor { color: #b45309; }
-.board-cell.slot-dl.cursor, .board-cell.slot-2p.cursor { color: #15803d; }
-.board-cell.slot-tl.cursor, .board-cell.slot-3p.cursor { color: #2563eb; }
+.board-cell.cursor { color: var(--board-cursor-px1-accent); }
+.board-cell.slot-tw.cursor, .board-cell.slot-px3star.cursor { color: var(--board-cursor-px3star-accent); }
+.board-cell.slot-de.cursor, .board-cell.slot-2e.cursor { color: var(--board-cursor-ex2-accent); }
+.board-cell.slot-te.cursor, .board-cell.slot-3e.cursor { color: var(--board-cursor-ex3-accent); }
+.board-cell.slot-dl.cursor, .board-cell.slot-2p.cursor { color: var(--board-cursor-px2-accent); }
+.board-cell.slot-tl.cursor, .board-cell.slot-3p.cursor { color: var(--board-cursor-px3-accent); }
 
 /* ---- Score badge: now a small corner pill, no glow ---- */
 .board-score-badge {
