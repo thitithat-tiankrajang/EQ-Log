@@ -598,7 +598,9 @@ function App() {
       !game ||
       view !== "game" ||
       game.status !== "playing" ||
-      (game.phase !== "refill" && game.phase !== "choose_action")
+      (game.phase !== "refill" &&
+        game.phase !== "choose_action" &&
+        game.phase !== "perform_action")
     ) {
       refillBaselineRef.current = null;
       return;

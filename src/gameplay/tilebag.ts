@@ -1,4 +1,8 @@
-import { EXCHANGE_MIN_RESERVE, RACK_SIZE } from "../constants/gameRules";
+import {
+  ACTION_HIDDEN_TILE_BASE_COUNT,
+  EXCHANGE_MIN_RESERVE,
+  RACK_SIZE,
+} from "../constants/gameRules";
 import {
   aggregatePendingExchangeReturns,
   getPendingExchangeReturnBySide,
@@ -77,6 +81,7 @@ export function getTilebagView({
 
   const opponentSide = otherSide(game.activeSide);
   return getActionTilebagView({
+    board: game.board,
     opponentRack: getRack(game, opponentSide),
     tilebag: game.tilebag,
   });
@@ -99,23 +104,34 @@ function getReplayTilebagView(game: GameState, selectedLog: TurnLog): TilebagVie
   const opponent = otherSide(selectedLog.side);
   const opponentRack = previousLog?.side === opponent ? previousLog.rackAfter : [];
   return getActionTilebagView({
+    board: selectedLog.boardBefore,
     opponentRack,
     tilebag: selectedLog.tilebagBefore,
   });
 }
 
 function getActionTilebagView({
+  board,
   opponentRack,
   tilebag,
 }: {
+  board: GameState["board"];
   opponentRack: TileInstance[];
   tilebag: TileInstance[];
 }): TilebagView {
+  const opponentEmptySlotCount = Math.max(RACK_SIZE - opponentRack.length, 0);
+  const boardTileCount = board.reduce(
+    (total, row) => total + row.filter((cell) => cell !== null).length,
+    0,
+  );
+  const remainingCount =
+    tilebag.length < opponentEmptySlotCount
+      ? tilebag.length + opponentRack.length
+      : Math.max(ACTION_HIDDEN_TILE_BASE_COUNT - boardTileCount, 0);
+
   return {
     tiles: [...tilebag, ...opponentRack],
-    // During action selection, this is every tile hidden from the active player.
-    // Any exchange return due this turn is already part of tilebag after refill.
-    remainingCount: tilebag.length + opponentRack.length,
+    remainingCount,
   };
 }
 

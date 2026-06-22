@@ -155,3 +155,10 @@ Material AI Style represents a modern UI/UX web trend with a tech-inspired focus
 ## Use Cases
 
 Landing pages and modern websites.
+
+## 15. Edit Board and Branching Timeline
+
+The future replacement for `Live | Last turn` is specified in
+[`EDIT_BOARD_BRANCHING_DESIGN.md`](./EDIT_BOARD_BRANCHING_DESIGN.md). It defines
+the flat Material AI interface, immutable log editing, checkpoints, parallel
+game branches, restore behavior, and a storage-conscious Supabase model.

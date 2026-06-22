@@ -1656,6 +1656,33 @@ textarea:focus {
   border-radius: 999px !important;
 }
 
+/* Refill editing is a reversible action: keep it distinct, flat, and calm. */
+.edit-refill-button,
+.edit-refill-button:hover:not(:disabled),
+.edit-refill-button:focus-visible {
+  border: 1px solid #5f9bea !important;
+  border-radius: 0 !important;
+  background: #8ab4f8 !important;
+  color: #202124 !important;
+  box-shadow: none !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+.edit-refill-button:hover:not(:disabled),
+.edit-refill-button:focus-visible {
+  background: #78a7f3 !important;
+}
+
+.edit-refill-button:active:not(:disabled) {
+  border-color: #2f6fcd !important;
+  background: #5f97eb !important;
+  color: #202124 !important;
+  box-shadow: none !important;
+  filter: none !important;
+  transform: none !important;
+}
+
 @media (max-width: 520px) {
   .result-outcome {
     grid-template-columns: auto minmax(0, 1fr);

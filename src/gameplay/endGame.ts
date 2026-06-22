@@ -62,7 +62,12 @@ export function createAutomaticEndGameLog({
     }
   }
 
-  if (isNoScoreAction(normalLog.action) && hasNoScoreStreak(logs)) {
+  const openingPlacementCompleted = logs.some((log) => log.action === "place_equation");
+  if (
+    openingPlacementCompleted &&
+    isNoScoreAction(normalLog.action) &&
+    hasNoScoreStreak(logs)
+  ) {
     const rackBySide: Record<Side, TileInstance[]> = {
       A: activeSide === "A" ? rackAfter : getRack(game, "A"),
       B: activeSide === "B" ? rackAfter : getRack(game, "B"),
