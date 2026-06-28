@@ -52,6 +52,7 @@
 }
 
 .create-field input[type="text"],
+.create-field input[type="email"],
 .create-field input[type="number"],
 .create-field input[type="search"],
 .create-field input:not([type]),
@@ -157,6 +158,24 @@
   color: #fbfaf6;
 }
 
+.create-playmode-segment button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
+.create-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  border-left: 3px solid var(--brand-blue);
+  background: var(--accent-soft);
+  color: var(--lobby-text-soft);
+  padding: 8px 10px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 /* Side picker — collapses cleanly onto its own row at narrow widths. */
 .create-side-field {
   grid-column: span 2;
@@ -188,6 +207,23 @@
   border-radius: var(--lobby-radius-sm);
   background: var(--lobby-surface-strong);
   padding: 10px;
+}
+
+.create-side-inputs:has(input[type="email"]) {
+  grid-template-columns: minmax(0, 1fr) minmax(190px, 0.75fr) minmax(220px, 0.9fr);
+}
+
+.create-side-inputs label.has-error input {
+  border-color: var(--brand-red);
+  outline-color: var(--brand-red);
+}
+
+.create-error {
+  color: var(--brand-red);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .create-side-label .dot {
@@ -225,6 +261,11 @@
 .create-submit:hover {
   background: var(--lobby-accent-deep);
   border-color: var(--lobby-accent-deep);
+}
+
+.create-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 /* Member picker — combobox with linked-member chip on the left. */

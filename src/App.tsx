@@ -47,6 +47,7 @@ import {
   getRack,
   getTileDrawMode,
   isRackReady,
+  normalizeEmail,
   otherSide,
   phaseForNextSide,
   pushActionSnapshot,
@@ -326,10 +327,10 @@ function App() {
   actionModeRef.current = actionMode;
   rackLayoutRef.current = rackLayout;
   const activeRoomIdRef = useRef<string | null>(activeRoomId);
-  const isOwnerRef = useRef(false);
   const pendingSessionEventRef = useRef<RoomSessionEvent | null>(null);
   const lastAppliedStateKeyRef = useRef<string>("");
   const lastAppliedSessionKeyRef = useRef<string>("");
+  const localStateWriteKeysRef = useRef(new Set<string>());
   const foregroundOperationRef = useRef(0);
   const liveSessionSyncTimerRef = useRef<number | null>(null);
   const compactedRoomIdsRef = useRef(new Set<string>());
@@ -343,15 +344,37 @@ function App() {
   const activeRoomMeta = activeRoomId ? rooms.find((room) => room.id === activeRoomId) ?? null : null;
   const hasAdminAccess = remoteEnabled && Boolean(userId && profile?.is_admin);
   const canCreateRoom = !remoteEnabled || Boolean(userId && (isApproved || hasAdminAccess));
-  const canPlayActiveRoom =
+  const accountEmail = normalizeEmail(profile?.email);
+  const inviteEmailA = normalizeEmail(activeRoomMeta?.inviteEmailA ?? game?.playerEmails?.A);
+  const inviteEmailB = normalizeEmail(activeRoomMeta?.inviteEmailB ?? game?.playerEmails?.B);
+  const invitedSides: Side[] = accountEmail
+    ? [
+        ...(inviteEmailA === accountEmail ? (["A"] as Side[]) : []),
+        ...(inviteEmailB === accountEmail ? (["B"] as Side[]) : []),
+      ]
+    : [];
+  const canManageActiveRoom =
     !remoteEnabled || Boolean(userId && (hasAdminAccess || activeRoomMeta?.ownerId === userId));
+  const canWriteActiveRoom =
+    !remoteEnabled || Boolean(userId && (canManageActiveRoom || invitedSides.length > 0));
+  const canPlayActiveRoom =
+    !remoteEnabled ||
+    Boolean(
+      userId &&
+        (canManageActiveRoom ||
+          (game && game.status === "playing" && invitedSides.includes(game.activeSide))),
+    );
   const readOnly = remoteEnabled && !canPlayActiveRoom;
   const roleLabel = !remoteEnabled
     ? "Local Control"
     : hasAdminAccess
       ? "Admin Control"
-      : canPlayActiveRoom
+      : canManageActiveRoom
         ? "Owner Control"
+        : invitedSides.length > 0
+          ? game && game.status === "playing" && invitedSides.includes(game.activeSide)
+            ? `Side ${game.activeSide} · Your turn`
+            : `Side ${invitedSides.join("/")} · Waiting`
         : "Spectator Live";
   const createDisabledReason = authConfigured
     ? !userId
@@ -396,8 +419,7 @@ function App() {
 
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId;
-    isOwnerRef.current = canPlayActiveRoom;
-  }, [activeRoomId, canPlayActiveRoom]);
+  }, [activeRoomId]);
 
   // Reconcile route changes (browser back/forward, manual hash edit) with state.
   // Owner-initiated openRoom/createAndOpenRoom already sync everything *before*
@@ -422,6 +444,7 @@ function App() {
         setGame(saved);
         lastAppliedStateKeyRef.current = makeRemoteStateKey(saved);
         if (remotePayload) {
+          setRooms((current) => upsertRoomMeta(current, remotePayload.meta));
           applyRemoteSession(remotePayload.session);
           compactRemoteRoomIfNeeded(remotePayload, saved);
         }
@@ -475,17 +498,17 @@ function App() {
         cancelDraftOnly();
         return;
       }
-      if (isOwnerRef.current || !payload.new) return;
+      if (!payload.new) return;
       try {
         applyRemotePayload(remoteRooms.payloadFromRow(payload.new as Parameters<typeof remoteRooms.payloadFromRow>[0]));
       } catch (error) {
         setSyncError(error instanceof Error ? error.message : "Unable to read live room update.");
       }
     }, (session) => {
-      if (!isOwnerRef.current) applyRemoteSession(session);
+      if (!userId || session.actorId !== userId) applyRemoteSession(session);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remoteEnabled, view, activeRoomId]);
+  }, [remoteEnabled, view, activeRoomId, userId]);
 
   useEffect(() => {
     if (view !== "game" || !game || game.status !== "playing" || game.timers.paused) return;
@@ -521,12 +544,13 @@ function App() {
   // Supabase state sync: excludes timer-only ticks, but includes submitted turns,
   // undo/redo, score edits, pause/resume, end/resume, and room metadata changes.
   useEffect(() => {
-    if (view !== "game" || !remoteEnabled || !game || !activeRoomId || !canPlayActiveRoom) return;
+    if (view !== "game" || !remoteEnabled || !game || !activeRoomId || !canWriteActiveRoom) return;
     if (hasDuplicateTileIds(game)) return;
     if (remoteStateKey === lastAppliedStateKeyRef.current) return;
     const event = pendingSessionEventRef.current ?? "state";
     pendingSessionEventRef.current = null;
     lastAppliedStateKeyRef.current = remoteStateKey;
+    rememberRecentKey(localStateWriteKeysRef.current, remoteStateKey);
     setBackgroundSyncCount((count) => count + 1);
     void remoteRooms
       .updateRoomState({
@@ -547,6 +571,8 @@ function App() {
                   playerB: game.players.B,
                   memberAId: game.playerMembers?.A ?? null,
                   memberBId: game.playerMembers?.B ?? null,
+                  inviteEmailA: game.playerEmails?.A ?? null,
+                  inviteEmailB: game.playerEmails?.B ?? null,
                   startingSide: game.startingSide,
                   turnNumber: game.turnNumber,
                   scoreA: game.scores.A,
@@ -558,10 +584,19 @@ function App() {
           ),
         );
       })
-      .catch((error: Error) => setSyncError(error.message))
+      .catch(async (error: Error) => {
+        localStateWriteKeysRef.current.delete(remoteStateKey);
+        setSyncError(error.message);
+        try {
+          const authoritative = await remoteRooms.readRoom(activeRoomId);
+          if (authoritative) applyRemotePayload(authoritative);
+        } catch {
+          // Keep the original write error visible when recovery cannot load.
+        }
+      })
       .finally(() => setBackgroundSyncCount((count) => Math.max(0, count - 1)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, remoteEnabled, activeRoomId, canPlayActiveRoom, remoteStateKey]);
+  }, [view, remoteEnabled, activeRoomId, canWriteActiveRoom, remoteStateKey]);
 
   // Supabase live draft sync: lets spectators see pending placement/exchange state.
   useEffect(() => {
@@ -1123,6 +1158,7 @@ function App() {
       setGame(saved);
       lastAppliedStateKeyRef.current = makeRemoteStateKey(saved);
       if (remotePayload) {
+        setRooms((current) => upsertRoomMeta(current, remotePayload.meta));
         applyRemoteSession(remotePayload.session);
         compactRemoteRoomIfNeeded(remotePayload, saved);
       }
@@ -1317,6 +1353,12 @@ function App() {
 
   function getRoomRole(room: RoomMeta) {
     const canManage = canManageRoom(room.id);
+    const roomInviteSides = accountEmail
+      ? [
+          ...(normalizeEmail(room.inviteEmailA) === accountEmail ? (["A"] as Side[]) : []),
+          ...(normalizeEmail(room.inviteEmailB) === accountEmail ? (["B"] as Side[]) : []),
+        ]
+      : [];
     return {
       canManage,
       canCreate: canCreateRoom,
@@ -1328,6 +1370,8 @@ function App() {
             : "Admin"
           : canManage
             ? "Owner"
+            : roomInviteSides.length > 0
+              ? `Player ${roomInviteSides.join("/")}`
             : "Spectator",
     };
   }
@@ -1362,12 +1406,18 @@ function App() {
     if (hasDuplicateTileIds(payload.game)) throw new Error("Live room data is damaged.");
     const remoteGame = normalizeFinishedGame(payload.game);
     const key = makeRemoteStateKey(remoteGame);
+    setRooms((current) => upsertRoomMeta(current, payload.meta));
+    if (localStateWriteKeysRef.current.delete(key)) {
+      setSyncError(null);
+      return;
+    }
     if (key !== lastAppliedStateKeyRef.current) {
       // Real state change (move / pause / end / etc.) — adopt the authoritative game.
       // Session-only updates (tile selection, drafts) skip this, so the spectator's
       // locally-ticking clock keeps running between moves (live countdown).
       lastAppliedStateKeyRef.current = key;
       setGame(remoteGame);
+      cancelDraftOnly();
     }
     setSyncError(null);
   }
@@ -2494,7 +2544,7 @@ function App() {
   }
 
   function undo() {
-    if (readOnly || undoStackRef.current.length === 0) return;
+    if (!canManageActiveRoom || undoStackRef.current.length === 0) return;
     pendingSessionEventRef.current = "undo";
     const target = undoStackRef.current.pop()!;
     if (lastSnapRef.current) redoStackRef.current.push(lastSnapRef.current);
@@ -2503,7 +2553,7 @@ function App() {
   }
 
   function redo() {
-    if (readOnly || redoStackRef.current.length === 0) return;
+    if (!canManageActiveRoom || redoStackRef.current.length === 0) return;
     pendingSessionEventRef.current = "redo";
     const target = redoStackRef.current.pop()!;
     if (lastSnapRef.current) undoStackRef.current.push(lastSnapRef.current);
@@ -2533,7 +2583,7 @@ function App() {
 
 
   function updateNote(logId: string, note: string) {
-    if (!game || readOnly) return;
+    if (!game || !canManageActiveRoom) return;
     pendingSessionEventRef.current = "note";
     const logs = updateLogNote(game.logs, logId, note);
     const history = game.history.map((snapshot) => {
@@ -2548,7 +2598,7 @@ function App() {
 
   // Self-review star rating saved on the turn log (does NOT change the game score).
   function updateLogStars(logId: string, stars: number) {
-    if (!game || readOnly) return;
+    if (!game || !canManageActiveRoom) return;
     pendingSessionEventRef.current = "note";
     const apply = (log: TurnLog) => (log.id === logId ? { ...log, stars } : log);
     setGame({
@@ -2564,7 +2614,7 @@ function App() {
   }
 
   function toggleTimer() {
-    if (!game || readOnly || game.status !== "playing") return;
+    if (!game || !canManageActiveRoom || game.status !== "playing") return;
     pendingSessionEventRef.current = "timer_toggle";
     setGame({
       ...game,
@@ -2577,7 +2627,7 @@ function App() {
   }
 
   function endGame() {
-    if (!game || readOnly) return;
+    if (!game || !canManageActiveRoom) return;
     pendingSessionEventRef.current = "end_game";
     const confirmed = window.confirm(
       "End this game? It will be locked as finished — you can replay it later but cannot continue playing.",
@@ -2600,7 +2650,7 @@ function App() {
   // Resume a *drafted* game (the user previously hit Save & Exit). Finished
   // games are locked and never come back through here.
   function resumeGame() {
-    if (!game || readOnly) return;
+    if (!game || !canManageActiveRoom) return;
     if (isFinishedGame(game) || game.status !== "draft") return;
     pendingSessionEventRef.current = "resume_game";
     setShowResult(false);
@@ -2621,7 +2671,7 @@ function App() {
   // Finished games and spectator views exit without touching persisted state.
   // Only a live, owner-controlled game is converted to a saved draft.
   function saveAndExit() {
-    if (!game || readOnly || isFinishedGame(game)) {
+    if (!game || !canManageActiveRoom || isFinishedGame(game)) {
       goToLobby();
       return;
     }
@@ -2747,10 +2797,16 @@ function App() {
           <h1>{game.name}</h1>
         </div>
         <div className="top-actions">
-          <span className={`role-badge ${readOnly ? "spectator" : "owner"}`}>{roleLabel}</span>
+          <span
+            className={`role-badge ${
+              canManageActiveRoom ? "owner" : invitedSides.length > 0 ? "invitee" : "spectator"
+            }`}
+          >
+            {roleLabel}
+          </span>
           <button
             className="icon-button"
-            disabled={readOnly || undoStackRef.current.length === 0}
+            disabled={!canManageActiveRoom || undoStackRef.current.length === 0}
             title="Undo"
             type="button"
             onClick={undo}
@@ -2760,7 +2816,7 @@ function App() {
           </button>
           <button
             className="icon-button"
-            disabled={readOnly || redoStackRef.current.length === 0}
+            disabled={!canManageActiveRoom || redoStackRef.current.length === 0}
             title="Redo"
             type="button"
             onClick={redo}
@@ -2778,7 +2834,7 @@ function App() {
             title={
               gameFinished
                 ? "Exit this finished game and return to the lobby."
-                : readOnly
+                : !canManageActiveRoom
                 ? "Leave this room and return to the lobby."
                 : game.status === "playing"
                   ? "Pause the clock, save the room as a draft, and go back to the lobby."
@@ -2787,7 +2843,7 @@ function App() {
             onClick={saveAndExit}
           >
             <LogOut size={18} />
-            {gameFinished || readOnly ? "Exit" : "Save or Exit"}
+            {gameFinished || !canManageActiveRoom ? "Exit" : "Save or Exit"}
           </button>
           <button className="icon-button" type="button" onClick={() => setLogModalOpen(true)}>
             <List size={18} />
@@ -2796,9 +2852,9 @@ function App() {
           {!(game.timers.untimed || (game.timers.sideUntimed?.A && game.timers.sideUntimed?.B)) && (
             <button
               className={`icon-button top-stop-time ${game.timers.paused ? "paused" : "running"}`}
-              disabled={readOnly || game.status !== "playing"}
+              disabled={!canManageActiveRoom || game.status !== "playing"}
               title={
-                readOnly
+                !canManageActiveRoom
                   ? "Only the room owner can control the clock."
                   : game.timers.paused
                     ? "Resume the clock"
@@ -2816,7 +2872,12 @@ function App() {
               draft    → "Resume"          (un-pauses + flips back to playing)
               finished → "Result + Replay" (no resume; this match is locked in) */}
           {!gameFinished && game.status === "playing" && (
-            <button className="danger-button top-end-game" disabled={readOnly} type="button" onClick={endGame}>
+            <button
+              className="danger-button top-end-game"
+              disabled={!canManageActiveRoom}
+              type="button"
+              onClick={endGame}
+            >
               <Flag size={18} />
               End Game
             </button>
@@ -2824,7 +2885,7 @@ function App() {
           {!gameFinished && game.status === "draft" && (
             <button
               className="resume-button top-end-game"
-              disabled={readOnly}
+              disabled={!canManageActiveRoom}
               type="button"
               title="Resume this drafted game and start the clock again."
               onClick={resumeGame}
@@ -2877,7 +2938,7 @@ function App() {
             onStarsChange={updateLogStars}
             onNoteChange={updateNote}
             currentTurnRack={currentTurnLogRack}
-            readOnly={readOnly}
+            readOnly={!canManageActiveRoom}
           />
         </aside>
 
@@ -3032,7 +3093,7 @@ function App() {
         onStarsChange={updateLogStars}
         currentTurnRack={currentTurnLogRack}
         onNoteChange={updateNote}
-        readOnly={readOnly}
+        readOnly={!canManageActiveRoom}
         onSelectLog={selectLog}
       />
 
@@ -3125,10 +3186,12 @@ function makeRemoteStateKey(game: GameState): string {
   return JSON.stringify({
     activeSide: game.activeSide,
     board: game.board,
+    gameId: game.gameId,
     historyIndex: game.historyIndex,
     logs: game.logs,
     name: game.name,
     phase: game.phase,
+    playerEmails: game.playerEmails,
     players: game.players,
     pendingExchangeReturn: aggregatePendingExchangeReturns(getPendingExchangeReturnBySide(game)),
     pendingExchangeReturnBySide: getPendingExchangeReturnBySide(game),
@@ -3148,6 +3211,27 @@ function makeRemoteStateKey(game: GameState): string {
     },
     turnNumber: game.turnNumber,
   });
+}
+
+function upsertRoomMeta(rooms: RoomMeta[], incoming: RoomMeta): RoomMeta[] {
+  const existing = rooms.find((room) => room.id === incoming.id);
+  const merged = existing
+    ? {
+        ...existing,
+        ...incoming,
+        ownerName: incoming.ownerName ?? existing.ownerName,
+      }
+    : incoming;
+  return [merged, ...rooms.filter((room) => room.id !== incoming.id)];
+}
+
+function rememberRecentKey(keys: Set<string>, key: string): void {
+  keys.add(key);
+  while (keys.size > 32) {
+    const oldest = keys.values().next().value as string | undefined;
+    if (!oldest) break;
+    keys.delete(oldest);
+  }
 }
 
 function makeLiveSessionKey(session: LiveRoomSession): string {

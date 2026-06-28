@@ -134,8 +134,24 @@
 }
 
 .room-card-player-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   min-width: 0;
   overflow: hidden;
+}
+
+.room-card-remote {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 4px;
+  border-left: 2px solid var(--brand-blue);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  padding: 3px 6px;
+  font-size: 10px;
+  font-weight: 800;
 }
 
 .room-card-player-score {

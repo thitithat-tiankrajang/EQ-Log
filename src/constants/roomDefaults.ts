@@ -7,6 +7,8 @@ export const DEFAULT_NEW_GAME_SETTINGS: NewGameSettings = {
   playerB: "",
   playerAMemberId: null,
   playerBMemberId: null,
+  playerAEmail: null,
+  playerBEmail: null,
   minutes: DEFAULT_TIMER_MINUTES,
   timerMinutes: { A: DEFAULT_TIMER_MINUTES, B: DEFAULT_TIMER_MINUTES },
   startingSide: "A",

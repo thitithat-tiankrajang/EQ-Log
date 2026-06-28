@@ -35,6 +35,7 @@
   }
 
   .create-side-inputs,
+  .create-side-inputs:has(input[type="email"]),
   .institution-picker {
     grid-template-columns: 1fr;
   }

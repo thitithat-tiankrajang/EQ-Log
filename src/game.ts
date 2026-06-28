@@ -173,6 +173,12 @@ export type GameSnapshot = {
   players: Record<Side, string>;
   /** Optional pointer to an organization member id per side. */
   playerMembers?: Partial<Record<Side, string>>;
+  /**
+   * Email of the invited player per side (kept in lowercase). When set, a
+   * signed-in user whose email matches can play that side from a different
+   * device. Owner / admin can always play both sides regardless.
+   */
+  playerEmails?: Partial<Record<Side, string>>;
   /** The side that went first this game; used for "starting position" filters. */
   startingSide?: Side;
   /** manual = record a physical bag; play = app draws from a shuffled queue. */
@@ -216,6 +222,13 @@ export type NewGameSettings = {
   playerB: string;
   playerAMemberId?: string | null;
   playerBMemberId?: string | null;
+  /**
+   * Optional invitee email per side. Setting either turns on "play vs email"
+   * mode for that side — the matching signed-in user can play that side from
+   * their own device.
+   */
+  playerAEmail?: string | null;
+  playerBEmail?: string | null;
   minutes?: number;
   timerMinutes?: SideTimerMinutes;
   startingSide: Side;
@@ -356,6 +369,11 @@ export function createNewGame(settings: NewGameSettings): GameState {
   const playerMembers: Partial<Record<Side, string>> = {};
   if (settings.playerAMemberId) playerMembers.A = settings.playerAMemberId;
   if (settings.playerBMemberId) playerMembers.B = settings.playerBMemberId;
+  const playerEmails: Partial<Record<Side, string>> = {};
+  const emailA = normalizeEmail(settings.playerAEmail);
+  const emailB = normalizeEmail(settings.playerBEmail);
+  if (emailA) playerEmails.A = emailA;
+  if (emailB) playerEmails.B = emailB;
   const base: Omit<GameState, "history" | "historyIndex" | "lastSavedAt"> = {
     commitId: crypto.randomUUID(),
     gameId: crypto.randomUUID(),
@@ -365,6 +383,7 @@ export function createNewGame(settings: NewGameSettings): GameState {
       B: settings.playerB.trim() || "B",
     },
     playerMembers: Object.keys(playerMembers).length > 0 ? playerMembers : undefined,
+    playerEmails: Object.keys(playerEmails).length > 0 ? playerEmails : undefined,
     startingSide: settings.startingSide,
     tileDrawMode,
     turnNumber: 1,
@@ -425,6 +444,12 @@ function minutesToSeconds(minutes: number | null): number {
   return minutes === null ? 0 : Math.max(1, Math.round(minutes * 60));
 }
 
+export function normalizeEmail(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim().toLowerCase();
+  return trimmed ? trimmed : null;
+}
+
 export function makeSnapshot(game: Omit<GameState, "history" | "historyIndex" | "lastSavedAt">): GameSnapshot;
 export function makeSnapshot(game: GameState): GameSnapshot;
 export function makeSnapshot(game: GameState | Omit<GameState, "history" | "historyIndex" | "lastSavedAt">): GameSnapshot {
@@ -434,6 +459,7 @@ export function makeSnapshot(game: GameState | Omit<GameState, "history" | "hist
     name: game.name,
     players: game.players,
     playerMembers: game.playerMembers,
+    playerEmails: game.playerEmails,
     startingSide: game.startingSide,
     tileDrawMode: getTileDrawMode(game),
     turnNumber: game.turnNumber,

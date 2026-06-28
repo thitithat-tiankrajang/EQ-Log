@@ -1,4 +1,4 @@
-import { Copy, Download, Pencil, Trash2 } from "lucide-react";
+import { Copy, Download, Mail, Pencil, Trash2 } from "lucide-react";
 import type { RoomMeta } from "../../../rooms";
 import type { Member } from "../../../members";
 import type { Side } from "../../../game";
@@ -48,6 +48,7 @@ export function RoomCard({
             side="A"
             member={memberA}
             label={room.playerA}
+            remote={Boolean(room.inviteEmailA)}
             score={room.scoreA}
             starting={startingSide === "A"}
             winner={winner === "A"}
@@ -58,6 +59,7 @@ export function RoomCard({
             side="B"
             member={memberB}
             label={room.playerB}
+            remote={Boolean(room.inviteEmailB)}
             score={room.scoreB}
             starting={startingSide === "B"}
             winner={winner === "B"}
@@ -116,6 +118,7 @@ function PlayerRow({
   side,
   member,
   label,
+  remote,
   score,
   starting,
   winner,
@@ -124,6 +127,7 @@ function PlayerRow({
   side: Side;
   member: Member | null;
   label: string;
+  remote: boolean;
   score: number;
   starting: boolean;
   winner: boolean;
@@ -136,6 +140,12 @@ function PlayerRow({
           <MemberChip member={member} hint={starting ? "1st" : null} />
         ) : (
           <MemberPlaceholderChip name={label} hint={starting ? "1st" : null} />
+        )}
+        {remote && (
+          <span className="room-card-remote" title="This side plays from another signed-in account">
+            <Mail size={11} />
+            Email player
+          </span>
         )}
       </div>
       <div className={`room-card-player-score ${finished ? "final" : ""}`}>{score}</div>

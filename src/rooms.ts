@@ -20,6 +20,8 @@ export type RoomMeta = {
   playerB: string;
   memberAId?: string | null;
   memberBId?: string | null;
+  inviteEmailA?: string | null;
+  inviteEmailB?: string | null;
   startingSide?: Side | null;
   turnNumber: number;
   scoreA: number;
@@ -51,6 +53,8 @@ function metaFromGame(id: string, game: GameState, createdAt: string): RoomMeta 
     playerB: game.players.B,
     memberAId: game.playerMembers?.A ?? null,
     memberBId: game.playerMembers?.B ?? null,
+    inviteEmailA: game.playerEmails?.A ?? null,
+    inviteEmailB: game.playerEmails?.B ?? null,
     startingSide: game.startingSide ?? game.history[0]?.activeSide ?? null,
     turnNumber: game.turnNumber,
     scoreA: game.scores.A,
