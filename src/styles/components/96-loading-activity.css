@@ -98,9 +98,23 @@
 
 @media (max-width: 640px) {
   .network-activity {
-    top: 8px;
+    top: 64px;
     right: 8px;
+    width: auto;
+    max-width: calc(100vw - 16px);
+    border-radius: 999px;
+    padding: 8px 12px;
+  }
+
+  .network-activity:not(.error) {
+    grid-template-columns: auto 48px;
+    align-items: center;
+  }
+
+  .network-activity.error {
+    top: 8px;
     width: calc(100vw - 16px);
+    border-radius: 8px;
   }
 }
 

@@ -87,7 +87,6 @@ import {
 } from "./constants/layout";
 import {
   LIVE_SESSION_SYNC_DEBOUNCE_MS,
-  MIN_LOADING_VISIBLE_MS,
   TIMER_TICK_MS,
 } from "./constants/network";
 import { createAutomaticEndGameLog } from "./gameplay/endGame";
@@ -726,13 +725,18 @@ function App() {
       if (window.matchMedia(`(max-width: ${MOBILE_LAYOUT_MAX_PX}px)`).matches) {
         const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
         const dockRackHeight = (window.innerWidth - 48) / RACK_SIZE;
-        const sizeByWidth = (w - BOARD_BORDER_TOTAL_PX - MOBILE_BOARD_INSET_PX) / BOARD_SIZE;
+        // MOBILE_BOARD_INSET_PX already represents every pixel outside the
+        // 15 cells (board border + grid-wrap padding). Keep the fractional
+        // result so the board reaches both viewport edges instead of losing
+        // as much as 14px to Math.floor rounding.
+        const sizeByWidth = (w - MOBILE_BOARD_INSET_PX) / BOARD_SIZE;
         const sizeByHeight =
           (viewportHeight - MOBILE_CHROME_BASE_PX - dockRackHeight) / BOARD_SIZE;
-        const size = Math.max(
+        const rawSize = Math.max(
           BOARD_CELL_MIN_PX,
-          Math.min(BOARD_CELL_MAX_PX, Math.floor(Math.min(sizeByWidth, sizeByHeight))),
+          Math.min(BOARD_CELL_MAX_PX, Math.min(sizeByWidth, sizeByHeight)),
         );
+        const size = Math.floor(rawSize * 100) / 100;
         setBoardCell((prev) => (prev === size ? prev : size));
         return;
       }
@@ -1197,18 +1201,9 @@ function App() {
 
   function startForegroundLoading(message: string): () => void {
     const operationId = ++foregroundOperationRef.current;
-    const startedAt = Date.now();
     setForegroundLoading(message);
     return () => {
-      const clear = () => {
-        if (foregroundOperationRef.current === operationId) setForegroundLoading(null);
-      };
-      const remainingMs = MIN_LOADING_VISIBLE_MS - (Date.now() - startedAt);
-      if (remainingMs > 0) {
-        window.setTimeout(clear, remainingMs);
-      } else {
-        clear();
-      }
+      if (foregroundOperationRef.current === operationId) setForegroundLoading(null);
     };
   }
 
@@ -1286,7 +1281,10 @@ function App() {
     setReplayCursor(null);
     setShowResult(false);
     if (remoteEnabled) {
-      setRoomsLoading(true);
+      // Keep the already-rendered lobby list in place while refreshing it.
+      // Replacing the whole list with a loading state on every exit makes
+      // navigation feel like a reload even though usable data is available.
+      if (rooms.length === 0) setRoomsLoading(true);
       void remoteRooms
         .listRooms()
         .then(setRooms)

@@ -14,7 +14,8 @@ export const TILEBAG_PANEL_MIN_HEIGHT_PX = 160;
 /* Mobile (≤ this width the game switches to the bottom-dock layout;
    keep in sync with the @media breakpoints in styles/99-mobile-play.css). */
 export const MOBILE_LAYOUT_MAX_PX = 759;
-/* Horizontal room the board frame needs beyond the 15 cells (edge spacing). */
+/* Total horizontal pixels outside the 15 cells on mobile:
+   4px board border + 8px grid-wrap padding. */
 export const MOBILE_BOARD_INSET_PX = 12;
 /* Fixed mobile chrome above/below the board, EXCLUDING the rack row:
    top bar + score strip + gaps + dock action bar + dock padding. */
