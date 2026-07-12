@@ -58,6 +58,7 @@ import {
   validateMove,
 } from "./game";
 import * as roomStore from "./rooms";
+import { canonicalStringify, makeRemoteStateKey } from "./stateKey";
 import type { RoomMeta } from "./rooms";
 import * as remoteRooms from "./remoteRooms";
 import type { LiveRoomSession, RoomSessionEvent } from "./remoteRooms";
@@ -326,6 +327,7 @@ function App() {
   gameRef.current = game;
   actionModeRef.current = actionMode;
   rackLayoutRef.current = rackLayout;
+  const readOnlyRef = useRef(false);
   const activeRoomIdRef = useRef<string | null>(activeRoomId);
   const pendingSessionEventRef = useRef<RoomSessionEvent | null>(null);
   const lastAppliedStateKeyRef = useRef<string>("");
@@ -365,6 +367,7 @@ function App() {
           (game && game.status === "playing" && invitedSides.includes(game.activeSide))),
     );
   const readOnly = remoteEnabled && !canPlayActiveRoom;
+  readOnlyRef.current = readOnly;
   const roleLabel = !remoteEnabled
     ? "Local Control"
     : hasAdminAccess
@@ -505,7 +508,18 @@ function App() {
         setSyncError(error instanceof Error ? error.message : "Unable to read live room update.");
       }
     }, (session) => {
-      if (!userId || session.actorId !== userId) applyRemoteSession(session);
+      if (userId && session.actorId === userId) return;
+      // A remote session mirrors the ACTOR's draft for spectators. Never let
+      // it overwrite a draft this client is composing itself (e.g. the owner
+      // opening the room from another device pushes an empty session, which
+      // would otherwise wipe the active player's placed-but-unsubmitted tiles).
+      if (
+        !readOnlyRef.current &&
+        (actionModeRef.current !== "none" || pendingsRef.current.length > 0)
+      ) {
+        return;
+      }
+      applyRemoteSession(session);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remoteEnabled, view, activeRoomId, userId]);
@@ -1751,20 +1765,24 @@ function App() {
     };
     setPendingPlacements((current) => [...current, placement]);
     const nextLayout = removeTileFromRackLayout(game.activeSide, tile.id);
-    setGame(
-      setRack(
+    // Functional update: startAction("place_equation") may have queued a
+    // phase change in this same batch — build on it instead of clobbering
+    // it with the stale closure copy of `game`.
+    setGame((current) => {
+      const base = current ?? game;
+      return setRack(
         {
-          ...game,
+          ...base,
           lastSavedAt: new Date().toISOString(),
         },
-        game.activeSide,
+        base.activeSide,
         rackFromSlots(
-          rack.filter((candidate) => candidate.id !== tile.id),
-          game.activeSide,
+          getRack(base, base.activeSide).filter((candidate) => candidate.id !== tile.id),
+          base.activeSide,
           nextLayout,
         ),
-      ),
-    );
+      );
+    });
     setSelectedRackTileId(null);
     setSelectedPendingTileId(null);
   }
@@ -1780,7 +1798,6 @@ function App() {
       ...pending.tile,
       assignedToken: pending.assignedToken ?? pending.tile.assignedToken,
     };
-    const nextRack = rack.map((candidate, index) => (index === rackIndex ? returningTile : candidate));
     const nextLayout = fillRackLayoutSlot(game.activeSide, rackSlot ?? pending.rackSlot ?? -1, returningTile.id);
     setPendingPlacements((current) =>
       current.map((placement) =>
@@ -1794,16 +1811,22 @@ function App() {
           : placement,
       ),
     );
-    setGame(
-      setRack(
+    // Functional update: keep any phase change startAction queued this batch.
+    setGame((current) => {
+      const base = current ?? game;
+      const baseRack = getRack(base, base.activeSide);
+      const nextRack = baseRack.map((candidate) =>
+        candidate.id === rackTile.id ? returningTile : candidate,
+      );
+      return setRack(
         {
-          ...game,
+          ...base,
           lastSavedAt: new Date().toISOString(),
         },
-        game.activeSide,
-        rackFromSlots(nextRack, game.activeSide, nextLayout),
-      ),
-    );
+        base.activeSide,
+        rackFromSlots(nextRack, base.activeSide, nextLayout),
+      );
+    });
     setSelectedRackTileId(null);
     setSelectedPendingTileId(null);
   }
@@ -3182,37 +3205,6 @@ function hasDuplicateTileIds(game: GameState): boolean {
   return false;
 }
 
-function makeRemoteStateKey(game: GameState): string {
-  return JSON.stringify({
-    activeSide: game.activeSide,
-    board: game.board,
-    gameId: game.gameId,
-    historyIndex: game.historyIndex,
-    logs: game.logs,
-    name: game.name,
-    phase: game.phase,
-    playerEmails: game.playerEmails,
-    players: game.players,
-    pendingExchangeReturn: aggregatePendingExchangeReturns(getPendingExchangeReturnBySide(game)),
-    pendingExchangeReturnBySide: getPendingExchangeReturnBySide(game),
-    rackA: game.rackA,
-    rackB: game.rackB,
-    scores: game.scores,
-    status: game.status,
-    tileDrawMode: getTileDrawMode(game),
-    tilebag: game.tilebag,
-    timers: {
-      initialSeconds: game.timers.initialSeconds,
-      initialSecondsBySide: game.timers.initialSecondsBySide,
-      sideUntimed: game.timers.sideUntimed,
-      minSeconds: game.timers.minSeconds,
-      paused: game.timers.paused,
-      untimed: game.timers.untimed,
-    },
-    turnNumber: game.turnNumber,
-  });
-}
-
 function upsertRoomMeta(rooms: RoomMeta[], incoming: RoomMeta): RoomMeta[] {
   const existing = rooms.find((room) => room.id === incoming.id);
   const merged = existing
@@ -3235,7 +3227,7 @@ function rememberRecentKey(keys: Set<string>, key: string): void {
 }
 
 function makeLiveSessionKey(session: LiveRoomSession): string {
-  return JSON.stringify({
+  return canonicalStringify({
     actionMode: session.actionMode,
     exchangeDraft: session.exchangeDraft,
     pendingPlacements: session.pendingPlacements,

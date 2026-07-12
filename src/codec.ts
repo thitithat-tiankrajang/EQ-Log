@@ -289,8 +289,14 @@ export function encodeGame(game: GameState): EncodedGameV2 {
 export function decodeGame(payload: EncodedGame): GameState {
   // One monotonic id counter for the whole game → every tile id is unique,
   // which keeps the current state valid (hasDuplicateTileIds) and React keys safe.
+  // The random generation prefix keeps ids from THIS decode distinct from ids
+  // minted by an earlier decode — a live draft (room_live session restored
+  // after a reload) can still reference old-generation tiles, and a bare
+  // counter would let "t42" collide with the new game's "t42", corrupting the
+  // state with duplicate tile ids the moment the draft is committed.
   let counter = 0;
-  const nextId: IdFactory = () => `t${(counter += 1)}`;
+  const generation = Math.random().toString(36).slice(2, 8);
+  const nextId: IdFactory = () => `t${generation}_${(counter += 1)}`;
   const current = decodeSnapshot(payload, nextId);
   if (payload.v === 1) {
     return {
