@@ -21,6 +21,8 @@ import { RailDivider } from "./components/rail/RailDivider";
 import { Rack } from "./components/board/Rack";
 import { Scoreboard } from "./components/game/Scoreboard";
 import { AssignmentModal, type AssignmentRequest } from "./components/modals/AssignmentModal";
+import { MobileActionBar } from "./components/mobile/MobileActionBar";
+import { TilebagSheet } from "./components/mobile/TilebagSheet";
 import { ResultModal } from "./components/modals/ResultModal";
 import { useAuth } from "./auth";
 import {
@@ -78,6 +80,9 @@ import {
   BOARD_RACK_CHROME_PX,
   BOARD_ROW_LABEL_WIDTH_PX,
   BOARD_SAFETY_INSET_PX,
+  MOBILE_BOARD_INSET_PX,
+  MOBILE_CHROME_BASE_PX,
+  MOBILE_LAYOUT_MAX_PX,
   RACK_HEIGHT_TO_CELL_RATIO,
 } from "./constants/layout";
 import {
@@ -311,6 +316,10 @@ function App() {
   const [showResult, setShowResult] = useState(false);
   const [assignmentRequest, setAssignmentRequest] = useState<AssignmentRequest | null>(null);
   const [boardCell, setBoardCell] = useState(34);
+  // Mobile tile-pick bottom sheet (manual draw mode). Auto-opens once per
+  // turn when the active player needs to refill; see the effect below.
+  const [mobileBagOpen, setMobileBagOpen] = useState(false);
+  const bagAutoOpenKeyRef = useRef<string>("");
   const refillBaselineRef = useRef<RefillBaseline | null>(null);
   const boardZoneRef = useRef<HTMLElement | null>(null);
   const rightRailRef = useRef<HTMLElement | null>(null);
@@ -675,6 +684,32 @@ function App() {
     setGame(refillRackFromQueue(game));
   }, [actionMode, game, readOnly, replayCursor, view]);
 
+  // Mobile tile-pick sheet lifecycle: auto-open ONCE per turn when the active
+  // player must refill by hand (manual draw mode); close whenever picking is
+  // no longer possible (rack full, action started, turn moved on, …).
+  useEffect(() => {
+    if (view !== "game" || !game) return;
+    const pickable =
+      getTileDrawMode(game) !== "play" &&
+      !readOnly &&
+      replayCursor === null &&
+      game.status === "playing" &&
+      game.phase === "refill" &&
+      actionMode === "none" &&
+      getRack(game, game.activeSide).length < RACK_SIZE &&
+      game.tilebag.length > 0;
+    if (!pickable) {
+      setMobileBagOpen(false);
+      return;
+    }
+    const key = `${game.gameId}:${game.turnNumber}:${game.activeSide}`;
+    if (bagAutoOpenKeyRef.current === key) return;
+    bagAutoOpenKeyRef.current = key;
+    if (window.matchMedia(`(max-width: ${MOBILE_LAYOUT_MAX_PX}px)`).matches) {
+      setMobileBagOpen(true);
+    }
+  }, [actionMode, game, readOnly, replayCursor, view]);
+
   // Size the board from the whole board zone so the bottom rack stays in the
   // same viewport while the board remains as large as the available height allows.
   useEffect(() => {
@@ -685,6 +720,22 @@ function App() {
       const w = el.clientWidth;
       const h = el.clientHeight;
       if (!w || !h) return;
+      // Phone layout: labels are hidden and the rack lives in a fixed bottom
+      // dock, so size purely from viewport width/height so the whole board is
+      // visible above the dock without scrolling.
+      if (window.matchMedia(`(max-width: ${MOBILE_LAYOUT_MAX_PX}px)`).matches) {
+        const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
+        const dockRackHeight = (window.innerWidth - 48) / RACK_SIZE;
+        const sizeByWidth = (w - BOARD_BORDER_TOTAL_PX - MOBILE_BOARD_INSET_PX) / BOARD_SIZE;
+        const sizeByHeight =
+          (viewportHeight - MOBILE_CHROME_BASE_PX - dockRackHeight) / BOARD_SIZE;
+        const size = Math.max(
+          BOARD_CELL_MIN_PX,
+          Math.min(BOARD_CELL_MAX_PX, Math.floor(Math.min(sizeByWidth, sizeByHeight))),
+        );
+        setBoardCell((prev) => (prev === size ? prev : size));
+        return;
+      }
       const labelGutterX = BOARD_ROW_LABEL_WIDTH_PX + BOARD_BORDER_TOTAL_PX;
       const labelGutterY = BOARD_COLUMN_LABEL_HEIGHT_PX + BOARD_BORDER_TOTAL_PX;
       const sizeByWidth = (w - labelGutterX - BOARD_SAFETY_INSET_PX * 2) / BOARD_SIZE;
@@ -702,11 +753,17 @@ function App() {
     };
     const observer = new ResizeObserver(measure);
     observer.observe(el);
+    // Mobile sizing reads window.innerHeight, which can change (URL bar,
+    // rotation) without resizing the observed element — listen directly.
+    window.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("resize", measure);
     measure();
     // Layout may not be stable on the first paint — measure again next frame.
     const rafId = window.requestAnimationFrame(measure);
     return () => {
       observer.disconnect();
+      window.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("resize", measure);
       window.cancelAnimationFrame(rafId);
     };
   }, [view, game?.gameId]);
@@ -3048,6 +3105,34 @@ function App() {
                 </span>
               )}
             </div>
+            <MobileActionBar
+              actionMode={actionMode}
+              canChooseAction={canChooseAction}
+              canExchange={canStartExchange}
+              canPickFromTilebag={canPickFromTilebag}
+              exchangeCount={exchangeDraft.outgoingIds.length}
+              exchangeReady={exchangeReady}
+              gameFinished={gameFinished}
+              gameStatus={game.status}
+              pendingCount={pendingPlacements.length}
+              rackCount={activeRack.length}
+              readOnly={readOnly}
+              refillNeeded={refillNeeded}
+              replayIndex={replayIndex}
+              replayTotalSteps={replayTotalSteps}
+              reviewing={reviewing}
+              tileDrawMode={getTileDrawMode(game)}
+              validation={validation}
+              onCancelAction={cancelAction}
+              onConfirmExchange={confirmExchange}
+              onConfirmPass={confirmPass}
+              onConfirmPlace={confirmPlace}
+              onOpenBag={() => setMobileBagOpen(true)}
+              onReplayExit={() => setReplayCursor(null)}
+              onReplayNext={() => replayStep(1)}
+              onReplayPrev={() => replayStep(-1)}
+              onStartAction={startAction}
+            />
             <Rack
               actionMode={actionMode}
               active={rackConfigs[0].active}
@@ -3125,6 +3210,18 @@ function App() {
           request={assignmentRequest}
           onCancel={() => setAssignmentRequest(null)}
           onSelect={confirmAssignment}
+        />
+      )}
+
+      {mobileBagOpen && canPickFromTilebag && (
+        <TilebagSheet
+          carriedOverTileIds={carriedOverTileIds}
+          rackSlots={displayRack}
+          remainingCount={tilebagView.remainingCount}
+          tilebag={tilebagView.tiles}
+          onClose={() => setMobileBagOpen(false)}
+          onPick={refillFromBag}
+          onReturn={returnRackTileToBag}
         />
       )}
 

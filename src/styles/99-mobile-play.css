@@ -1,0 +1,635 @@
+/* ============================================================================
+   99-mobile-play.css — phone layout for the game view (≤759px).
+   Loaded LAST so it wins every cascade tie.
+
+   Structure on a phone:
+     ┌ top bar (room name + icon-only actions, one row) ┐
+     ├ score strip: side A | side B (name · clock · pts) ┤
+     ├ board — full width, no R/C labels, fits viewport  ┤
+     ╞════════ fixed bottom dock (like a navbar) ════════╡
+     │ contextual action bar (Submit / Cancel / …)       │
+     │ rack: 8 big slots edge to edge                    │
+     └ safe-area inset ───────────────────────────────────┘
+   Tile picking (manual draw) opens a bottom sheet with large tap targets.
+   Keep the breakpoint in sync with MOBILE_LAYOUT_MAX_PX in constants/layout.ts.
+   ============================================================================ */
+
+/* Mobile-only elements stay out of the desktop layout entirely. */
+.mobile-action-bar,
+.bag-sheet-backdrop {
+  display: none;
+}
+
+@media (max-width: 759px) {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+
+  body {
+    overscroll-behavior-y: none;
+  }
+
+  button,
+  .board-cell,
+  .tile-button,
+  .rack-slot {
+    touch-action: manipulation;
+  }
+
+  .app-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 100svh;
+    padding: 8px;
+  }
+
+  /* ── Top bar: one slim row, icon-only actions, horizontal scroll ───────── */
+  .top-bar {
+    flex-wrap: nowrap;
+    gap: 8px;
+    min-height: 0;
+    padding: 6px 8px;
+    overflow: hidden;
+  }
+
+  .title-block {
+    flex: 1 1 auto;
+    min-width: 56px;
+    overflow: hidden;
+  }
+
+  .title-block h1 {
+    font-size: 15px;
+    line-height: 1.15;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .role-badge {
+    display: none;
+  }
+
+  .top-actions {
+    display: flex;
+    flex: 0 1 auto;
+    flex-wrap: nowrap;
+    gap: 6px;
+    width: auto;
+    min-width: 0;
+    justify-content: flex-end;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .top-actions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .top-actions .icon-button,
+  .top-actions .clock-button,
+  .top-actions .danger-button,
+  .top-actions .resume-button {
+    flex: 0 0 auto;
+    width: 40px !important;
+    min-width: 40px !important;
+    height: 40px !important;
+    min-height: 40px !important;
+    padding: 0 !important;
+    gap: 0;
+    overflow: hidden;
+    font-size: 0 !important;
+  }
+
+  /* ── Workspace: score strip → board; rails disappear ───────────────────── */
+  .workspace {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    height: auto;
+    overflow: visible;
+    /* Keep scrollable content clear of the fixed dock:
+       rack row ≈ (100vw − padding − gaps)/8, + action bar + paddings. */
+    padding-bottom: calc((100vw - 48px) / 8 + 128px + env(safe-area-inset-bottom));
+  }
+
+  .right-rail {
+    display: none !important;
+  }
+
+  .log-rail {
+    display: block;
+    order: -1;
+    min-height: 0;
+    overflow: visible;
+  }
+
+  .log-rail .log-panel {
+    display: none !important;
+  }
+
+  /* Score strip: two sides, name + clock + points, glanceable above board. */
+  .scoreboard {
+    grid-template-columns: 1fr !important;
+    margin: 0 !important;
+  }
+
+  .scoreboard-panels {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  .scoreboard-side {
+    gap: 2px !important;
+    min-height: 60px !important;
+    border-radius: 10px !important;
+    padding: 7px 9px !important;
+  }
+
+  .ss-label {
+    font-size: 11px !important;
+    letter-spacing: 0.04em !important;
+  }
+
+  .ss-clock {
+    color: var(--text, #17212b) !important;
+    font-size: 16px !important;
+    font-weight: 900 !important;
+  }
+
+  .ss-score {
+    gap: 4px !important;
+  }
+
+  .ss-score strong {
+    font-size: clamp(22px, 7vw, 30px) !important;
+  }
+
+  .ss-score span {
+    font-size: 9px !important;
+  }
+
+  /* ── Board: full width, labels off, frame collapses to the grid alone ──── */
+  .board-zone {
+    display: block;
+    overflow: visible;
+  }
+
+  .board-stage {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: auto;
+    aspect-ratio: auto;
+    min-height: 0;
+  }
+
+  .board-corner,
+  .board-col-labels,
+  .board-row-labels {
+    display: none !important;
+  }
+
+  .board-frame {
+    max-width: 100%;
+    grid-template-columns: max-content !important;
+    grid-template-rows: max-content !important;
+  }
+
+  .board-grid-wrap {
+    grid-column: 1 !important;
+    grid-row: 1 !important;
+    max-width: 100%;
+  }
+
+  /* ── Bottom dock: contextual action bar + rack, pinned like a navbar ───── */
+  .play-bar {
+    position: fixed;
+    z-index: 40;
+    inset: auto 0 0 0;
+    display: grid;
+    grid-template-rows: auto auto;
+    gap: 8px;
+    width: auto;
+    margin: 0;
+    border: 0;
+    border-top: 1px solid var(--border, #cfdae2);
+    border-radius: 14px 14px 0 0;
+    background: var(--surface-solid, #ffffff);
+    box-shadow: 0 -10px 30px rgba(23, 33, 43, 0.16);
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
+  }
+
+  .play-bar .play-caption {
+    display: none;
+  }
+
+  .play-bar .rack {
+    width: 100%;
+    gap: 4px;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .play-bar .rack-label {
+    display: none;
+  }
+
+  .play-bar .rack-tiles {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 4px;
+    width: 100%;
+    height: auto;
+    aspect-ratio: auto;
+    overflow: visible;
+  }
+
+  .play-bar .rack-cell {
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 2px;
+  }
+
+  .play-bar .rack-cell-index {
+    font-size: 9px;
+  }
+
+  .play-bar .rack-slot,
+  .play-bar .rack-tile {
+    display: grid;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    aspect-ratio: 1 / 1;
+    place-items: stretch;
+  }
+
+  .play-bar .rack-slot,
+  .play-bar .rack-tile .tile {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    aspect-ratio: 1 / 1;
+  }
+
+  .play-bar .rack-tile .tile b {
+    max-width: calc(100% - 10px) !important;
+    overflow: hidden !important;
+    font-size: clamp(16px, 5.6vw, 24px) !important;
+    line-height: 0.9;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .play-bar .rack-tile .tile small {
+    right: 3px;
+    bottom: 2px;
+    display: block;
+    font-size: 10px !important;
+    line-height: 1;
+  }
+
+  .play-bar .rack-tile .tile-heavyNumber b,
+  .play-bar .rack-tile .tile-choice b {
+    font-size: clamp(13px, 4.5vw, 20px) !important;
+  }
+
+  /* ── Contextual action bar inside the dock ─────────────────────────────── */
+  .mobile-action-bar {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+    min-height: 50px;
+  }
+
+  .mab-btn {
+    display: inline-flex;
+    flex: 1 1 0;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+    min-height: 50px;
+    padding: 6px 10px;
+    border: 1px solid var(--border, #cfdae2);
+    border-radius: 12px;
+    background: var(--surface-solid, #ffffff);
+    color: var(--text, #17212b);
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  .mab-btn:disabled {
+    opacity: 0.45;
+  }
+
+  .mab-btn.primary {
+    border-color: var(--accent, #0f766e);
+    background: var(--accent, #0f766e);
+    color: #ffffff;
+  }
+
+  .mab-btn.icon {
+    flex: 0 0 50px;
+    padding: 0;
+  }
+
+  .mab-btn.grow {
+    flex: 1.6 1 0;
+  }
+
+  .mab-status {
+    display: grid;
+    flex: 1.4 1 0;
+    align-content: center;
+    justify-items: center;
+    gap: 2px;
+    min-width: 0;
+    min-height: 50px;
+    padding: 4px 8px;
+    border-radius: 12px;
+    background: rgba(23, 33, 43, 0.05);
+    text-align: center;
+  }
+
+  .mab-status.wide {
+    flex: 1 1 100%;
+  }
+
+  .mab-status strong {
+    max-width: 100%;
+    overflow: hidden;
+    font-size: 15px;
+    line-height: 1.05;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .mab-status span {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    max-width: 100%;
+    overflow: hidden;
+    color: var(--muted, #5d6b78);
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+
+  .mab-status.valid {
+    background: var(--accent-soft, #dff4ee);
+  }
+
+  .mab-status.valid strong {
+    color: var(--accent, #0f766e);
+  }
+
+  .mab-status.invalid {
+    background: rgba(180, 35, 24, 0.08);
+  }
+
+  .mab-status.invalid span {
+    color: var(--danger, #b42318);
+  }
+
+  /* ── Tile-pick bottom sheet ─────────────────────────────────────────────── */
+  .bag-sheet-backdrop {
+    display: flex;
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    align-items: flex-end;
+    background: rgba(15, 23, 31, 0.45);
+    overscroll-behavior: contain;
+  }
+
+  .bag-sheet {
+    display: grid;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    gap: 10px;
+    width: 100%;
+    max-height: 86dvh;
+    border-radius: 18px 18px 0 0;
+    background: var(--surface-solid, #ffffff);
+    box-shadow: 0 -18px 50px rgba(15, 23, 31, 0.3);
+    padding: 8px 14px calc(10px + env(safe-area-inset-bottom));
+    animation: bag-sheet-up 0.22s ease-out;
+    outline: none;
+  }
+
+  @keyframes bag-sheet-up {
+    from {
+      transform: translateY(28px);
+      opacity: 0.5;
+    }
+
+    to {
+      transform: none;
+      opacity: 1;
+    }
+  }
+
+  .bag-sheet-grabber {
+    justify-self: center;
+    width: 44px;
+    height: 5px;
+    border-radius: 999px;
+    background: rgba(23, 33, 43, 0.18);
+  }
+
+  .bag-sheet-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .bag-sheet-title {
+    display: grid;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .bag-sheet-title strong {
+    font-size: 17px;
+    line-height: 1;
+  }
+
+  .bag-sheet-title span {
+    color: var(--muted, #5d6b78);
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .bag-sheet-close {
+    display: grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--border, #cfdae2);
+    border-radius: 12px;
+    background: var(--surface-solid, #ffffff);
+    color: var(--text, #17212b);
+    cursor: pointer;
+  }
+
+  /* Rack mirror inside the sheet: tap a freshly drawn tile to return it. */
+  .bag-sheet-rack {
+    display: grid;
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+    gap: 4px;
+  }
+
+  .bag-rack-slot {
+    position: relative;
+    display: grid;
+    place-items: stretch;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    min-width: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    padding: 0;
+  }
+
+  .bag-rack-slot .tile {
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    aspect-ratio: 1 / 1;
+  }
+
+  .bag-rack-slot.empty {
+    place-items: center;
+    border: 2px dashed rgba(23, 33, 43, 0.22);
+    color: var(--muted, #5d6b78);
+    font-size: 12px;
+    font-weight: 800;
+  }
+
+  .bag-rack-slot.locked {
+    opacity: 0.55;
+  }
+
+  .bag-rack-slot.drawn {
+    cursor: pointer;
+  }
+
+  .bag-rack-return {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    display: grid;
+    place-items: center;
+    width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    background: var(--danger, #b42318);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 900;
+    line-height: 1;
+    box-shadow: 0 1px 3px rgba(15, 23, 31, 0.35);
+  }
+
+  .bag-sheet-body {
+    display: grid;
+    gap: 10px;
+    align-content: start;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding-bottom: 4px;
+  }
+
+  .bag-sheet-body .tilebag-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .bag-sheet-body .tilebag-stat {
+    min-height: 46px;
+    border-radius: 10px;
+  }
+
+  .bag-sheet-body .tilebag-groups {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
+    gap: 8px;
+    overflow: visible;
+  }
+
+  .bag-sheet-body .tile-stack {
+    width: 100% !important;
+    aspect-ratio: 1 / 1;
+    min-height: 48px;
+    touch-action: manipulation;
+  }
+
+  .bag-sheet-body .tile-stack .tile b {
+    font-size: clamp(18px, 6vw, 24px);
+  }
+
+  .bag-sheet-body .tile-stack .tile small {
+    display: block;
+    font-size: 11px;
+  }
+
+  .bag-sheet-done {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 52px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--accent, #0f766e);
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 800;
+    cursor: pointer;
+  }
+
+  /* ── Assignment modal becomes a thumb-friendly bottom sheet ─────────────── */
+  .modal-backdrop:has(.assignment-modal) {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .assignment-modal {
+    width: 100% !important;
+    max-width: none !important;
+    border-radius: 18px 18px 0 0 !important;
+    padding-bottom: calc(10px + env(safe-area-inset-bottom)) !important;
+  }
+
+  .assignment-options {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+  }
+
+  .assignment-options button {
+    min-height: 52px !important;
+    border-radius: 10px !important;
+    font-size: 20px !important;
+    font-weight: 800 !important;
+  }
+
+  /* Log modal: single column, near-full height. */
+  .log-modal {
+    max-height: 94dvh;
+    max-width: calc(100vw - 12px);
+  }
+}

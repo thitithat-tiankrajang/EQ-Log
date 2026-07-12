@@ -21,3 +21,6 @@
 @import "./styles/tokens.css";
 @import "./styles/95-material-ai.css";
 @import "./styles/components/96-loading-activity.css";
+
+/* Phone layout for the game view — must stay LAST to win cascade ties. */
+@import "./styles/99-mobile-play.css";
