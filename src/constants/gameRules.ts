@@ -6,6 +6,8 @@ export const BINGO_BONUS = 40;
 export const EXCHANGE_MIN_RESERVE = 5;
 export const NO_SCORE_STREAK_LENGTH = 6;
 export const NO_SCORE_TURNS_PER_SIDE = 3;
+export const SOLO_NO_SCORE_STREAK_LENGTH = 3;
+export const PERFECT_GAME_BONUS = 100;
 export const RACK_OUT_MAX_REMAINING = RACK_SIZE;
 
 export const DEFAULT_TIMER_MINUTES = 22;

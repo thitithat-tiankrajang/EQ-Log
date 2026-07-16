@@ -95,6 +95,7 @@ export function ActionPanel({
         title={showViewPanel ? (reviewing ? "Replay" : "Live View") : "Actions"}
         detail={getPanelDetail({
           actionMode,
+          canEditRefill,
           game,
           readOnly,
           refillNeeded,
@@ -150,6 +151,7 @@ export function ActionPanel({
 
 function getPanelDetail({
   actionMode,
+  canEditRefill,
   game,
   readOnly,
   refillNeeded,
@@ -159,6 +161,7 @@ function getPanelDetail({
   reviewing,
 }: {
   actionMode: ActionMode;
+  canEditRefill: boolean;
   game: GameState;
   readOnly: boolean;
   refillNeeded: boolean;
@@ -172,6 +175,7 @@ function getPanelDetail({
     const phaseLabel = replayPhase === "before" ? "Rack" : "Action";
     return `${Math.max(1, replayIndex + 1)} / ${replayTotalSteps} · ${phaseLabel}`;
   }
+  if (canEditRefill) return "Rack Ready";
   if (readOnly) return "Watching";
   if (game.status === "finished") return "Finished";
   if (actionMode === "none") return refillNeeded ? "Refill Rack" : "Choose Action";
@@ -208,6 +212,17 @@ function ActionPicker({
             ? "Drawing tiles from the queue."
             : `Pick ${Math.max(0, RACK_SIZE - activeRackCount)} tile(s) from the tilebag to unlock actions.`}
         </span>
+      </div>
+    );
+  }
+
+  if (!canChooseAction && canEditRefill) {
+    return (
+      <div className="action-picker-ready">
+        <p className="action-picker-hint">The rack is ready for the player.</p>
+        <button className="edit-refill-button" type="button" onClick={onEditRefill}>
+          Edit Refill
+        </button>
       </div>
     );
   }

@@ -5,7 +5,7 @@
 // The old single-game save (amath-lab-board-state-v3) is migrated into a room
 // the first time the lobby is read, so nothing is lost.
 
-import { GameState, GameStatus, Side, deepClone } from "./game";
+import { GameState, GameStatus, Side, deepClone, getGameMode, type GameMode } from "./game";
 import { serializeGame, deserializeGame } from "./codec";
 import { ROOM_STORAGE_PREFIX, STORAGE_KEYS } from "./constants/storage";
 
@@ -13,11 +13,13 @@ export type RoomMeta = {
   id: string;
   ownerId?: string | null;
   ownerName?: string | null;
+  ownerEmail?: string | null;
   name: string;
   createdAt: string;
   updatedAt: string;
   playerA: string;
   playerB: string;
+  gameMode?: GameMode;
   memberAId?: string | null;
   memberBId?: string | null;
   inviteEmailA?: string | null;
@@ -51,6 +53,7 @@ function metaFromGame(id: string, game: GameState, createdAt: string): RoomMeta 
     updatedAt: new Date().toISOString(),
     playerA: game.players.A,
     playerB: game.players.B,
+    gameMode: getGameMode(game),
     memberAId: game.playerMembers?.A ?? null,
     memberBId: game.playerMembers?.B ?? null,
     inviteEmailA: game.playerEmails?.A ?? null,

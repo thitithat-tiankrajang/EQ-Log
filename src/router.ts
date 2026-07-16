@@ -1,26 +1,39 @@
 import { useEffect, useState } from "react";
 
-// Minimal hash-based router for two routes:
-//   #/         → lobby
-//   #/room/{id} → room
-// Hash routing avoids any server config and works on any static host.
+// Hash routing keeps shared room links working on static hosting without
+// requiring server-side rewrite rules.
 
 export type Route =
-  | { kind: "lobby" }
-  | { kind: "room"; roomId: string };
+  | { kind: "home" }
+  | { kind: "create"; preset?: "solo" }
+  | { kind: "join" }
+  | { kind: "room"; roomId: string }
+  | { kind: "play"; roomId: string };
 
 function parseHash(hash: string): Route {
   const cleaned = hash.replace(/^#\/?/, "");
-  if (!cleaned) return { kind: "lobby" };
-  const segments = cleaned.split("/").filter(Boolean);
+  if (!cleaned) return { kind: "home" };
+  const [path, query = ""] = cleaned.split("?", 2);
+  const segments = path.split("/").filter(Boolean);
+  if (segments[0] === "create") {
+    const params = new URLSearchParams(query);
+    return { kind: "create", preset: params.get("mode") === "solo" ? "solo" : undefined };
+  }
+  if (segments[0] === "join") return { kind: "join" };
   if (segments[0] === "room" && segments[1]) {
     return { kind: "room", roomId: decodeURIComponent(segments[1]) };
   }
-  return { kind: "lobby" };
+  if (segments[0] === "play" && segments[1]) {
+    return { kind: "play", roomId: decodeURIComponent(segments[1]) };
+  }
+  return { kind: "home" };
 }
 
 export function routeToHash(route: Route): string {
-  if (route.kind === "lobby") return "#/";
+  if (route.kind === "home") return "#/";
+  if (route.kind === "create") return route.preset === "solo" ? "#/create?mode=solo" : "#/create";
+  if (route.kind === "join") return "#/join";
+  if (route.kind === "play") return `#/play/${encodeURIComponent(route.roomId)}`;
   return `#/room/${encodeURIComponent(route.roomId)}`;
 }
 

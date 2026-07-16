@@ -25,8 +25,9 @@ export function RoomCard({
 }) {
   const memberA = room.memberAId ? members.find((m) => m.id === room.memberAId) ?? null : null;
   const memberB = room.memberBId ? members.find((m) => m.id === room.memberBId) ?? null : null;
+  const isSolo = room.gameMode === "solo";
   const startingSide: Side | null = room.startingSide ?? null;
-  const winner = room.status === "finished" && room.scoreA !== room.scoreB
+  const winner = !isSolo && room.status === "finished" && room.scoreA !== room.scoreB
     ? room.scoreA > room.scoreB
       ? "A"
       : "B"
@@ -43,19 +44,19 @@ export function RoomCard({
           <span className={`room-card-status status-${room.status}`}>{statusLabel}</span>
         </header>
 
-        <div className="room-card-players">
+        <div className={`room-card-players ${isSolo ? "solo" : ""}`}>
           <PlayerRow
             side="A"
             member={memberA}
             label={room.playerA}
             remote={Boolean(room.inviteEmailA)}
             score={room.scoreA}
-            starting={startingSide === "A"}
-            winner={winner === "A"}
+            starting={!isSolo && startingSide === "A"}
+            winner={!isSolo && winner === "A"}
             finished={room.status === "finished"}
           />
-          <span className="room-card-vs">vs</span>
-          <PlayerRow
+          {!isSolo && <span className="room-card-vs">vs</span>}
+          {!isSolo && <PlayerRow
             side="B"
             member={memberB}
             label={room.playerB}
@@ -64,7 +65,7 @@ export function RoomCard({
             starting={startingSide === "B"}
             winner={winner === "B"}
             finished={room.status === "finished"}
-          />
+          />}
         </div>
 
         <footer className="room-card-foot">
@@ -142,7 +143,7 @@ function PlayerRow({
           <MemberPlaceholderChip name={label} hint={starting ? "1st" : null} />
         )}
         {remote && (
-          <span className="room-card-remote" title="This side plays from another signed-in account">
+          <span className="room-card-remote" title="This side is assigned to a signed-in email account">
             <Mail size={11} />
             Email player
           </span>

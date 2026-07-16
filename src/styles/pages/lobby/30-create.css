@@ -96,6 +96,10 @@
   gap: 8px;
 }
 
+.create-timer-grid.solo {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .create-timer-grid label,
 .create-side-inputs label {
   display: grid;
@@ -165,6 +169,29 @@
   gap: 7px;
 }
 
+.create-playmode-segment {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.create-playmode-segment button:nth-child(odd) {
+  border-left: 0;
+}
+
+.create-playmode-segment button:nth-child(n + 3) {
+  border-top: 1px solid var(--lobby-border);
+}
+
+.create-playmode-segment button:last-child:nth-child(odd) {
+  grid-column: 1 / -1;
+}
+
+.create-rack-visibility-field .create-segment button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+
 .create-hint {
   grid-column: 1 / -1;
   margin: 0;
@@ -174,6 +201,24 @@
   padding: 8px 10px;
   font-size: 12px;
   line-height: 1.45;
+}
+
+.create-account-email {
+  margin: 0;
+  overflow: hidden;
+  color: var(--lobby-muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.create-side-inputs input[readonly] {
+  border-color: var(--brand-blue);
+  background: var(--accent-soft);
+  color: var(--lobby-text);
+  cursor: default;
 }
 
 /* Side picker — collapses cleanly onto its own row at narrow widths. */

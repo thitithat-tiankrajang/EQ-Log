@@ -2,12 +2,10 @@ import { useMemo, useState } from "react";
 import type { ChangeEvent } from "react";
 import { useRef } from "react";
 import { Plus, Upload } from "lucide-react";
-import type { GameState, NewGameSettings, Side } from "../../../game";
+import type { GameState, Side } from "../../../game";
 import type { RoomMeta } from "../../../rooms";
 import type { Member } from "../../../members";
 import { RoomCard } from "./RoomCard";
-import { CreateRoomPanel } from "./CreateRoomPanel";
-import { DEFAULT_NEW_GAME_SETTINGS } from "../../../constants/roomDefaults";
 import {
   RoomFilters,
   defaultRoomsFilter,
@@ -23,7 +21,7 @@ export function RoomsView({
   syncError,
   getRoomRole,
   onOpen,
-  onCreate,
+  onCreateRoom,
   onRename,
   onDuplicate,
   onDelete,
@@ -38,15 +36,13 @@ export function RoomsView({
   syncError?: string | null;
   getRoomRole: (room: RoomMeta) => { canManage: boolean; canCreate: boolean; label: string };
   onOpen: (id: string) => void;
-  onCreate: (settings: NewGameSettings) => void;
+  onCreateRoom: () => void;
   onRename: (id: string, name: string) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
   onExport: (id: string) => void;
   onImport: (game: GameState) => void;
 }) {
-  const [showCreate, setShowCreate] = useState(canCreate && rooms.length === 0);
-  const [settings, setSettings] = useState<NewGameSettings>(DEFAULT_NEW_GAME_SETTINGS);
   const [filter, setFilter] = useState<RoomsFilterState>(defaultRoomsFilter);
   const importRef = useRef<HTMLInputElement | null>(null);
 
@@ -64,16 +60,6 @@ export function RoomsView({
       })
       .catch(() => window.alert("This file is not an Equation Lab Board export."));
     event.target.value = "";
-  }
-
-  function handleCreate() {
-    onCreate({
-      ...settings,
-      playerA: settings.playerA.trim() || resolveMemberLabel(settings.playerAMemberId, members) || "Player A",
-      playerB: settings.playerB.trim() || resolveMemberLabel(settings.playerBMemberId, members) || "Player B",
-    });
-    setShowCreate(false);
-    setSettings(DEFAULT_NEW_GAME_SETTINGS);
   }
 
   return (
@@ -101,25 +87,16 @@ export function RoomsView({
           type="button"
           disabled={!canCreate}
           title={createDisabledReason ?? "Create a new room"}
-          onClick={() => setShowCreate((value) => !value)}
+          onClick={onCreateRoom}
         >
           <Plus size={15} />
-          {showCreate && canCreate ? "Hide form" : "New room"}
+          New room
         </button>
       </div>
 
       {syncError && <p className="sync-banner">{syncError}</p>}
       {!canCreate && createDisabledReason && (
         <p className="info-banner">{createDisabledReason}</p>
-      )}
-
-      {showCreate && canCreate && (
-        <CreateRoomPanel
-          settings={settings}
-          members={members}
-          onChange={setSettings}
-          onSubmit={handleCreate}
-        />
       )}
 
       <RoomFilters
@@ -162,13 +139,6 @@ export function RoomsView({
       )}
     </div>
   );
-}
-
-function resolveMemberLabel(memberId: string | null | undefined, members: Member[]): string | null {
-  if (!memberId) return null;
-  const member = members.find((entry) => entry.id === memberId);
-  if (!member) return null;
-  return member.name;
 }
 
 function filterRooms(rooms: RoomMeta[], filter: RoomsFilterState): RoomMeta[] {

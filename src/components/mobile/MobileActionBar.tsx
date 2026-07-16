@@ -4,6 +4,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Package,
+  RefreshCcw,
   SkipForward,
   X,
 } from "lucide-react";
@@ -21,6 +22,7 @@ type MobileActionBarProps = {
   actionMode: ActionMode;
   canChooseAction: boolean;
   canExchange: boolean;
+  canEditRefill: boolean;
   canPickFromTilebag: boolean;
   exchangeCount: number;
   exchangeReady: boolean;
@@ -39,6 +41,7 @@ type MobileActionBarProps = {
   onConfirmExchange: () => void;
   onConfirmPass: () => void;
   onConfirmPlace: () => void;
+  onEditRefill: () => void;
   onOpenBag: () => void;
   onReplayExit: () => void;
   onReplayNext: () => void;
@@ -53,6 +56,7 @@ export function MobileActionBar({
   actionMode,
   canChooseAction,
   canExchange,
+  canEditRefill,
   canPickFromTilebag,
   exchangeCount,
   exchangeReady,
@@ -71,6 +75,7 @@ export function MobileActionBar({
   onConfirmExchange,
   onConfirmPass,
   onConfirmPlace,
+  onEditRefill,
   onOpenBag,
   onReplayExit,
   onReplayNext,
@@ -130,6 +135,21 @@ export function MobileActionBar({
           <strong>Draft · paused</strong>
           <span>Press Resume in the top bar to continue.</span>
         </div>
+      </div>
+    );
+  }
+
+  if (canEditRefill) {
+    return (
+      <div className="mobile-action-bar">
+        <div className="mab-status info">
+          <strong>Rack ready</strong>
+          <span>Waiting for the player</span>
+        </div>
+        <button className="mab-btn primary grow" type="button" onClick={onEditRefill}>
+          <RefreshCcw size={18} />
+          Edit refill
+        </button>
       </div>
     );
   }

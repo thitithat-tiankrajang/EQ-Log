@@ -147,7 +147,7 @@ export function Board({
               );
             }),
           )}
-          {scoreAnchor && (
+          {scoreAnchor?.isValid && (
             <span
               className={`board-score-badge ${scoreAnchor.orientation} side-${scoreAnchor.side} align-x-${
                 scoreAnchor.alignX

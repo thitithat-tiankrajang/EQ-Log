@@ -1,5 +1,5 @@
 import { LayoutGrid, Play, Trophy, X } from "lucide-react";
-import type { GameState } from "../../game";
+import { getGameMode, type EndGameDetail, type GameState } from "../../game";
 
 export function ResultModal({
   game,
@@ -10,11 +10,16 @@ export function ResultModal({
   onClose: () => void;
   onReplay: () => void;
 }) {
+  const isSolo = getGameMode(game) === "solo";
   const { A, B } = game.scores;
-  const winner = A === B ? null : A > B ? "A" : "B";
+  const winner = isSolo || A === B ? null : A > B ? "A" : "B";
   const winnerName = winner ? game.players[winner] : null;
   const scoreMargin = Math.abs(A - B);
   const turnCount = Math.max(0, game.turnNumber - 1);
+  const endDetail = [...game.logs]
+    .reverse()
+    .find((log) => log.action === "end_game")?.actionDetail as EndGameDetail | undefined;
+  const perfectGame = isSolo && endDetail?.reason === "perfect_game";
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section
@@ -33,34 +38,35 @@ export function ResultModal({
           </button>
         </header>
 
-        <div className={`result-outcome ${winner ? `side-${winner.toLowerCase()}` : "draw"}`}>
+        <div className={`result-outcome ${isSolo ? "solo" : winner ? `side-${winner.toLowerCase()}` : "draw"}`}>
           <span className="result-outcome-icon" aria-hidden="true">
             <Trophy size={22} />
           </span>
           <div>
-            <span>{winner ? "Match winner" : "Match complete"}</span>
-            <strong>{winnerName ?? "Draw"}</strong>
+            <span>{isSolo ? (perfectGame ? "Perfect Game" : "Solo complete") : winner ? "Match winner" : "Match complete"}</span>
+            <strong>{isSolo ? game.players.A : winnerName ?? "Draw"}</strong>
           </div>
-          <em>{winner ? `+${scoreMargin} pts` : "Scores tied"}</em>
+          <em>{isSolo ? `${A} pts` : winner ? `+${scoreMargin} pts` : "Scores tied"}</em>
         </div>
 
-        <div className="result-body">
+        <div className={`result-body ${isSolo ? "solo" : ""}`}>
           <div className={`result-side side-a ${winner === "A" ? "win" : ""}`}>
-            <span className="result-side-label">Side A</span>
+            <span className="result-side-label">{isSolo ? "Solo score" : "Side A"}</span>
             <strong>{A}</strong>
             <span className="result-player-name">{game.players.A}</span>
             {winner === "A" && <em>Winner</em>}
+            {perfectGame && <em>Perfect Game +100</em>}
           </div>
-          <div className="result-vs">
+          {!isSolo && <div className="result-vs">
             <strong>{winner === null ? "=" : "–"}</strong>
             <span>Final</span>
-          </div>
-          <div className={`result-side side-b ${winner === "B" ? "win" : ""}`}>
+          </div>}
+          {!isSolo && <div className={`result-side side-b ${winner === "B" ? "win" : ""}`}>
             <span className="result-side-label">Side B</span>
             <strong>{B}</strong>
             <span className="result-player-name">{game.players.B}</span>
             {winner === "B" && <em>Winner</em>}
-          </div>
+          </div>}
         </div>
 
         <div className="result-meta">

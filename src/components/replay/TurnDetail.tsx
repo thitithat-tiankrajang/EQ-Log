@@ -159,6 +159,12 @@ function EndGameBody({ game, log }: { game: GameState; log: TurnLog }) {
           <strong>{detail.noScoreStreak ?? 0} no-score turns</strong>
         </div>
       )}
+      {detail.reason === "no_score_streak" && !detail.rackPoints && (
+        <div className="td-eq">
+          <span className="td-eq-text">Solo no-score limit reached</span>
+          <strong>{detail.noScoreStreak ?? 0} no-score turns</strong>
+        </div>
+      )}
       {detail.opponentRackPoints != null && (
         <div className="td-eq">
           <span className="td-eq-text">

@@ -24,7 +24,10 @@ export type { AmathToken, AmathTokenInfo, SlotType, TokenType };
 
 export type Side = "A" | "B";
 
+export type GameMode = "versus" | "solo";
 export type TileDrawMode = "manual" | "play";
+export type EmailPlayMode = "hosted" | "direct";
+export type RoomStage = "waiting" | "playing";
 export type SideTimerMinutes = Record<Side, number | null>;
 
 
@@ -103,7 +106,7 @@ export type PassDetail = {
   reason?: string;
 };
 
-export type EndGameReason = "rack_out" | "no_score_streak" | "manual";
+export type EndGameReason = "rack_out" | "no_score_streak" | "perfect_game" | "manual";
 
 export type EndGameDetail = {
   reason: EndGameReason;
@@ -170,15 +173,24 @@ export type GameSnapshot = {
   commitId: string;
   gameId: string;
   name: string;
+  /** versus alternates A/B; solo keeps every turn, score, and timer on A. */
+  gameMode?: GameMode;
   players: Record<Side, string>;
   /** Optional pointer to an organization member id per side. */
   playerMembers?: Partial<Record<Side, string>>;
   /**
-   * Email of the invited player per side (kept in lowercase). When set, a
-   * signed-in user whose email matches can play that side from a different
-   * device. Owner / admin can always play both sides regardless.
+   * Player email per side (kept in lowercase). Email modes assign each side
+   * to a separate signed-in account.
    */
   playerEmails?: Partial<Record<Side, string>>;
+  /** hosted = creator manages two remote players; direct = creator is one player. */
+  emailPlayMode?: EmailPlayMode;
+  /** Whether email players may see the active opponent's rack while waiting. */
+  emailPlayersCanSeeOpponentRack?: boolean;
+  /** Pre-game navigation state. Legacy saves without this field are already playing. */
+  roomStage?: RoomStage;
+  /** Ready state belongs to the waiting room and does not affect game turns. */
+  lobbyReadyBySide?: Partial<Record<Side, boolean>>;
   /** The side that went first this game; used for "starting position" filters. */
   startingSide?: Side;
   /** manual = record a physical bag; play = app draws from a shuffled queue. */
@@ -218,17 +230,19 @@ export type GameState = GameSnapshot & {
 
 export type NewGameSettings = {
   name: string;
+  gameMode?: GameMode;
   playerA: string;
   playerB: string;
   playerAMemberId?: string | null;
   playerBMemberId?: string | null;
   /**
-   * Optional invitee email per side. Setting either turns on "play vs email"
-   * mode for that side — the matching signed-in user can play that side from
-   * their own device.
+   * Player email per side. Both email modes require two different addresses;
+   * direct mode includes the creator, hosted mode excludes the creator.
    */
   playerAEmail?: string | null;
   playerBEmail?: string | null;
+  emailPlayMode?: EmailPlayMode;
+  emailPlayersCanSeeOpponentRack?: boolean;
   minutes?: number;
   timerMinutes?: SideTimerMinutes;
   startingSide: Side;
@@ -260,6 +274,10 @@ export function slotTypeAt(row: number, col: number): SlotType {
 
 export function otherSide(side: Side): Side {
   return side === "A" ? "B" : "A";
+}
+
+export function getGameMode(game: { gameMode?: GameMode }): GameMode {
+  return game.gameMode === "solo" ? "solo" : "versus";
 }
 
 export function createBoard(size = BOARD_SIZE): BoardSnapshot {
@@ -350,7 +368,23 @@ export function setRack<T extends GameState | GameSnapshot>(
 
 export function createNewGame(settings: NewGameSettings): GameState {
   const now = new Date().toISOString();
-  const timerMinutes = normalizeTimerMinutes(settings);
+  const gameMode = settings.gameMode ?? "versus";
+  const isSolo = gameMode === "solo";
+  const rawEmailA = normalizeEmail(settings.playerAEmail);
+  const rawEmailB = normalizeEmail(settings.playerBEmail);
+  const emailPlayMode: EmailPlayMode | undefined =
+    rawEmailA || (!isSolo && rawEmailB)
+      ? isSolo
+        ? "hosted"
+        : settings.emailPlayMode ?? "hosted"
+      : undefined;
+  const emailA = rawEmailA;
+  const emailB = isSolo ? null : rawEmailB;
+  const hasEmailPlayers = Boolean(emailA || emailB);
+  const configuredTimerMinutes = normalizeTimerMinutes(settings);
+  const timerMinutes: SideTimerMinutes = isSolo
+    ? { A: configuredTimerMinutes.A, B: null }
+    : configuredTimerMinutes;
   const secondsBySide: Record<Side, number> = {
     A: minutesToSeconds(timerMinutes.A),
     B: minutesToSeconds(timerMinutes.B),
@@ -361,7 +395,10 @@ export function createNewGame(settings: NewGameSettings): GameState {
   };
   const allUntimed = sideUntimed.A === true && sideUntimed.B === true;
   const initialSeconds = Math.max(secondsBySide.A, secondsBySide.B, 1);
-  const tileDrawMode = settings.tileDrawMode ?? "manual";
+  const tileDrawMode: TileDrawMode =
+    emailPlayMode === "direct" || (isSolo && !hasEmailPlayers)
+      ? "play"
+      : settings.tileDrawMode ?? "manual";
   const initialQueue = createInitialTilebag({ shuffleForPlay: tileDrawMode === "play" });
   const initialRack = tileDrawMode === "play" ? initialQueue.slice(0, RACK_SIZE) : [];
   const initialTilebag =
@@ -370,30 +407,41 @@ export function createNewGame(settings: NewGameSettings): GameState {
   if (settings.playerAMemberId) playerMembers.A = settings.playerAMemberId;
   if (settings.playerBMemberId) playerMembers.B = settings.playerBMemberId;
   const playerEmails: Partial<Record<Side, string>> = {};
-  const emailA = normalizeEmail(settings.playerAEmail);
-  const emailB = normalizeEmail(settings.playerBEmail);
   if (emailA) playerEmails.A = emailA;
   if (emailB) playerEmails.B = emailB;
   const base: Omit<GameState, "history" | "historyIndex" | "lastSavedAt"> = {
     commitId: crypto.randomUUID(),
     gameId: crypto.randomUUID(),
     name: settings.name.trim() || "EQuation Math",
+    gameMode,
     players: {
       A: settings.playerA.trim() || "A",
-      B: settings.playerB.trim() || "B",
+      B: isSolo ? "" : settings.playerB.trim() || "B",
     },
-    playerMembers: Object.keys(playerMembers).length > 0 ? playerMembers : undefined,
-    playerEmails: Object.keys(playerEmails).length > 0 ? playerEmails : undefined,
-    startingSide: settings.startingSide,
+    playerMembers: isSolo
+      ? playerMembers.A
+        ? { A: playerMembers.A }
+        : undefined
+      : Object.keys(playerMembers).length > 0
+        ? playerMembers
+        : undefined,
+    playerEmails: hasEmailPlayers ? playerEmails : undefined,
+    emailPlayMode,
+    emailPlayersCanSeeOpponentRack: !isSolo && hasEmailPlayers
+      ? settings.emailPlayersCanSeeOpponentRack ?? false
+      : undefined,
+    roomStage: "playing",
+    lobbyReadyBySide: {},
+    startingSide: isSolo ? "A" : settings.startingSide,
     tileDrawMode,
     turnNumber: 1,
-    activeSide: settings.startingSide,
+    activeSide: isSolo ? "A" : settings.startingSide,
     phase: tileDrawMode === "play" ? "choose_action" : "refill",
     status: "playing",
     boardSize: BOARD_SIZE,
     board: createBoard(BOARD_SIZE),
-    rackA: settings.startingSide === "A" ? initialRack : [],
-    rackB: settings.startingSide === "B" ? initialRack : [],
+    rackA: isSolo || settings.startingSide === "A" ? initialRack : [],
+    rackB: !isSolo && settings.startingSide === "B" ? initialRack : [],
     tilebag: initialTilebag,
     pendingExchangeReturn: [],
     pendingExchangeReturnBySide: { A: [], B: [] },
@@ -457,9 +505,14 @@ export function makeSnapshot(game: GameState | Omit<GameState, "history" | "hist
     commitId: crypto.randomUUID(),
     gameId: game.gameId,
     name: game.name,
+    gameMode: getGameMode(game),
     players: game.players,
     playerMembers: game.playerMembers,
     playerEmails: game.playerEmails,
+    emailPlayMode: game.emailPlayMode,
+    emailPlayersCanSeeOpponentRack: game.emailPlayersCanSeeOpponentRack,
+    roomStage: game.roomStage,
+    lobbyReadyBySide: game.lobbyReadyBySide,
     startingSide: game.startingSide,
     tileDrawMode: getTileDrawMode(game),
     turnNumber: game.turnNumber,

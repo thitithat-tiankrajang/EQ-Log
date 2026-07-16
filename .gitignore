@@ -6,4 +6,6 @@ dist/
 SUPABASE_SETUP.md
 BACKEND.md
 .claude/
-supabase/
+supabase/*
+!supabase/email_players_migration.sql
+!supabase/solo_mode_migration.sql

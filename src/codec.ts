@@ -28,7 +28,12 @@ import type {
   TurnLog,
 } from "./game";
 import { BOARD_SIZE } from "./constants/gameRules";
-import { aggregatePendingExchangeReturns, getPendingExchangeReturnBySide, getTileDrawMode } from "./game";
+import {
+  aggregatePendingExchangeReturns,
+  getGameMode,
+  getPendingExchangeReturnBySide,
+  getTileDrawMode,
+} from "./game";
 
 export const STORAGE_PREFIX = "c1:";
 
@@ -154,9 +159,14 @@ function encodeSnapshot(snapshot: GameSnapshot): EncodedSnapshot {
     commitId: snapshot.commitId,
     gameId: snapshot.gameId,
     name: snapshot.name,
+    gameMode: getGameMode(snapshot),
     players: snapshot.players,
     playerMembers: snapshot.playerMembers,
     playerEmails: snapshot.playerEmails,
+    emailPlayMode: snapshot.emailPlayMode,
+    emailPlayersCanSeeOpponentRack: snapshot.emailPlayersCanSeeOpponentRack,
+    roomStage: snapshot.roomStage,
+    lobbyReadyBySide: snapshot.lobbyReadyBySide,
     startingSide: snapshot.startingSide,
     tileDrawMode: getTileDrawMode(snapshot),
     turnNumber: snapshot.turnNumber,
@@ -186,9 +196,14 @@ function decodeSnapshot(snapshot: EncodedSnapshot, nextId: IdFactory): GameSnaps
     commitId: snapshot.commitId,
     gameId: snapshot.gameId,
     name: snapshot.name,
+    gameMode: getGameMode(snapshot),
     players: snapshot.players,
     playerMembers: snapshot.playerMembers,
     playerEmails: snapshot.playerEmails,
+    emailPlayMode: snapshot.emailPlayMode,
+    emailPlayersCanSeeOpponentRack: snapshot.emailPlayersCanSeeOpponentRack,
+    roomStage: snapshot.roomStage,
+    lobbyReadyBySide: snapshot.lobbyReadyBySide,
     startingSide: snapshot.startingSide ?? (snapshot.activeSide as Side),
     tileDrawMode: snapshot.tileDrawMode ?? "manual",
     turnNumber: snapshot.turnNumber,

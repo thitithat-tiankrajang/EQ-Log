@@ -46,7 +46,7 @@ function scoreFor(room: RoomMeta, side: Side): number {
 }
 
 function outcomeFor(room: RoomMeta, side: Side): GameOutcome | null {
-  if (room.status !== "finished") return null;
+  if (room.status !== "finished" || room.gameMode === "solo") return null;
   const mine = scoreFor(room, side);
   const theirs = scoreFor(room, side === "A" ? "B" : "A");
   if (mine === theirs) return "draw";
@@ -127,8 +127,9 @@ export function computeMemberStats(memberId: string, rooms: RoomMeta[]): MemberS
   }
 
   if (stats.games > 0) stats.avgScore = stats.pointsFor / stats.games;
-  if (stats.finished > 0) {
-    stats.winRate = stats.wins / stats.finished;
+  const competitiveFinished = stats.wins + stats.losses + stats.draws;
+  if (competitiveFinished > 0) {
+    stats.winRate = stats.wins / competitiveFinished;
   }
 
   stats.opponents = [...opponentMap.values()]

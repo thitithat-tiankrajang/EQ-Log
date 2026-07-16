@@ -6,6 +6,7 @@ import {
 import {
   aggregatePendingExchangeReturns,
   getPendingExchangeReturnBySide,
+  getGameMode,
   getRack,
   otherSide,
   setRack,
@@ -79,6 +80,13 @@ export function getTilebagView({
     };
   }
 
+  if (getGameMode(game) === "solo") {
+    return {
+      tiles: game.tilebag,
+      remainingCount: game.tilebag.length,
+    };
+  }
+
   const opponentSide = otherSide(game.activeSide);
   return getActionTilebagView({
     board: game.board,
@@ -99,6 +107,12 @@ export function getExchangeRule(game: GameState): ExchangeRule {
 }
 
 function getReplayTilebagView(game: GameState, selectedLog: TurnLog): TilebagView {
+  if (getGameMode(game) === "solo") {
+    return {
+      tiles: selectedLog.tilebagBefore,
+      remainingCount: selectedLog.tilebagBefore.length,
+    };
+  }
   const logIndex = game.logs.findIndex((log) => log.id === selectedLog.id);
   const previousLog = getLastPlayableLogBefore(game.logs, logIndex);
   const opponent = otherSide(selectedLog.side);

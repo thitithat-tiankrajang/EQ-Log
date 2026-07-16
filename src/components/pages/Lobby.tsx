@@ -1,20 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
-import { BarChart3, LayoutGrid, Users } from "lucide-react";
-import type { GameState, NewGameSettings } from "../../game";
+import { useMemo, useState } from "react";
+import { BarChart3, LayoutGrid, LogIn, Plus, User, Users } from "lucide-react";
+import type { GameState } from "../../game";
 import type { RoomMeta } from "../../rooms";
 import { AccountChip, useAuth } from "../../auth";
 import { AdminButton } from "../../admin";
-import {
-  loadMembers,
-  listMembers,
-  subscribeMembers,
-  type Member,
-} from "../../members";
-import { isSupabaseConfigured } from "../../supabaseClient";
 import { computeAllMemberStats } from "../../stats";
 import { RoomsView } from "./lobby/RoomsView";
 import { MembersView } from "./lobby/MembersView";
 import { StatsView } from "./lobby/StatsView";
+import { useMembersCatalog } from "./lobby/useMembersCatalog";
 
 type LobbyTab = "rooms" | "members" | "stats";
 
@@ -27,7 +21,9 @@ export function Lobby({
   canManageMembers,
   getRoomRole,
   onOpen,
-  onCreate,
+  onCreateRoom,
+  onJoinRoom,
+  onPlayAlone,
   onRename,
   onDuplicate,
   onDelete,
@@ -42,7 +38,9 @@ export function Lobby({
   canManageMembers: boolean;
   getRoomRole: (room: RoomMeta) => { canManage: boolean; canCreate: boolean; label: string };
   onOpen: (id: string) => void;
-  onCreate: (settings: NewGameSettings) => void;
+  onCreateRoom: () => void;
+  onJoinRoom: () => void;
+  onPlayAlone: () => void;
   onRename: (id: string, name: string) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
@@ -51,36 +49,12 @@ export function Lobby({
 }) {
   const { userId } = useAuth();
   const [tab, setTab] = useState<LobbyTab>("rooms");
-  const [members, setMembers] = useState<Member[]>(() => (isSupabaseConfigured ? [] : listMembers()));
-  const [membersLoading, setMembersLoading] = useState(isSupabaseConfigured);
-  const [membersError, setMembersError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let active = true;
-    async function refresh(showLoading = false) {
-      if (showLoading) setMembersLoading(true);
-      try {
-        const next = await loadMembers(userId);
-        if (!active) return;
-        setMembers(next);
-        setMembersError(null);
-      } catch (error) {
-        if (!active) return;
-        setMembers([]);
-        setMembersError(error instanceof Error ? error.message : "Unable to load members.");
-      } finally {
-        if (active && showLoading) setMembersLoading(false);
-      }
-    }
-
-    setMembers(isSupabaseConfigured ? [] : listMembers());
-    void refresh(true);
-    const unsubscribe = subscribeMembers(userId, () => void refresh());
-    return () => {
-      active = false;
-      unsubscribe();
-    };
-  }, [userId]);
+  const {
+    error: membersError,
+    loading: membersLoading,
+    members,
+    setMembers,
+  } = useMembersCatalog(userId);
 
   const statsByMember = useMemo(
     () => computeAllMemberStats(members, rooms),
@@ -108,6 +82,24 @@ export function Lobby({
             <AdminButton />
           </div>
         </header>
+
+        <section className="home-actions" aria-label="Start playing">
+          <button className="home-action primary" type="button" disabled={!canCreate} onClick={onPlayAlone}>
+            <span><User size={21} /></span>
+            <strong>Play Alone</strong>
+            <em>Start a solo board with system draw</em>
+          </button>
+          <button className="home-action" type="button" disabled={!canCreate} onClick={onCreateRoom}>
+            <span><Plus size={21} /></span>
+            <strong>Create Room</strong>
+            <em>Configure local or email play</em>
+          </button>
+          <button className="home-action" type="button" onClick={onJoinRoom}>
+            <span><LogIn size={21} /></span>
+            <strong>Join Room</strong>
+            <em>Use a room code or shared link</em>
+          </button>
+        </section>
 
         <nav className="lobby-tabs" aria-label="Lobby sections">
           <TabButton
@@ -145,7 +137,7 @@ export function Lobby({
               syncError={syncError}
               getRoomRole={getRoomRole}
               onOpen={onOpen}
-              onCreate={onCreate}
+              onCreateRoom={onCreateRoom}
               onRename={onRename}
               onDuplicate={onDuplicate}
               onDelete={onDelete}

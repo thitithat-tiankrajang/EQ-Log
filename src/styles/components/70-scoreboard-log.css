@@ -430,6 +430,10 @@ button.turn-record-summary:hover {
   min-width: 0;
 }
 
+.scoreboard.solo .scoreboard-panels {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
 .scoreboard-side {
   position: relative;
   display: grid;

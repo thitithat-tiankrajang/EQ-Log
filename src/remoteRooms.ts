@@ -1,6 +1,6 @@
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { decodeGame, encodeGame } from "./codec";
-import type { ActionType, GameState, GameStatus, PendingPlacement } from "./game";
+import { getGameMode, type ActionType, type GameMode, type GameState, type GameStatus, type PendingPlacement } from "./game";
 import type { RoomMeta } from "./rooms";
 import { supabase } from "./supabaseClient";
 import { REMOTE_CAPABILITIES_TTL_MS } from "./constants/network";
@@ -30,6 +30,7 @@ export type RemoteRoomRecord = {
   player_b: string;
   status: GameState["status"];
   lifecycle_status?: GameState["status"] | null;
+  game_mode?: GameMode | null;
   member_a_id?: string | null;
   member_b_id?: string | null;
   invite_email_a?: string | null;
@@ -83,7 +84,7 @@ export type RoomSessionEvent =
 const META_FIELDS =
   "id,owner_id,name,player_a,player_b,status,turn_number,score_a,score_b,created_at,updated_at,profiles:owner_id(display_name,email)";
 const SUMMARY_FIELDS =
-  "id,owner_id,name,player_a,player_b,status,lifecycle_status,member_a_id,member_b_id,starting_side,turn_number,score_a,score_b,created_at,updated_at,profiles:owner_id(display_name,email)";
+  "id,owner_id,name,player_a,player_b,status,lifecycle_status,game_mode,member_a_id,member_b_id,starting_side,turn_number,score_a,score_b,created_at,updated_at,profiles:owner_id(display_name,email)";
 const INVITE_FIELDS = "invite_email_a,invite_email_b";
 const READ_ROOM_FIELDS = `${META_FIELDS},state`;
 
@@ -337,6 +338,23 @@ export function updateRoomSession(id: string, session: LiveRoomSession): Promise
   return drain;
 }
 
+export async function updateRoomReady(id: string, side: "A" | "B", ready: boolean): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.rpc("set_room_ready", {
+    target_ready: ready,
+    target_room_id: id,
+    target_side: side,
+  });
+  if (error) {
+    if (/set_room_ready|PGRST202|42883/i.test(`${error.code ?? ""} ${error.message}`)) {
+      throw new Error(
+        "Waiting-room readiness is not enabled in Supabase yet. Run supabase/email_players_migration.sql.",
+      );
+    }
+    throw error;
+  }
+}
+
 export async function deleteRoom(id: string): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.from("rooms").delete().eq("id", id);
@@ -400,6 +418,7 @@ function roomStatePayload(game: GameState, status: GameStatus) {
 function roomSummaryPayload(game: GameState) {
   return {
     lifecycle_status: game.status,
+    game_mode: getGameMode(game),
     member_a_id: game.playerMembers?.A ?? null,
     member_b_id: game.playerMembers?.B ?? null,
     starting_side: game.startingSide ?? game.activeSide,
@@ -419,7 +438,7 @@ function hasRoomInvites(game: GameState): boolean {
 
 function missingInviteSchemaError(): Error {
   return new Error(
-    "Email play is not enabled in Supabase yet. Run supabase/invite_email_migration.sql, then try again.",
+    "Email play is not enabled in Supabase yet. Run supabase/email_players_migration.sql, then try again.",
   );
 }
 
@@ -481,11 +500,13 @@ function metaFromRow(row: RemoteRoomRecord): RoomMeta {
     id: row.id,
     ownerId: row.owner_id,
     ownerName: owner?.display_name ?? owner?.email ?? null,
+    ownerEmail: owner?.email ?? null,
     name: row.name,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     playerA: row.player_a,
     playerB: row.player_b,
+    gameMode: normalizeGameMode(row.game_mode) ?? legacy.gameMode ?? "versus",
     memberAId: row.member_a_id ?? legacy.memberAId,
     memberBId: row.member_b_id ?? legacy.memberBId,
     inviteEmailA: row.invite_email_a ?? legacy.inviteEmailA,
@@ -505,6 +526,7 @@ function extractSummaryFromState(state: unknown): {
   inviteEmailB: string | null;
   startingSide: "A" | "B" | null;
   status: GameStatus | null;
+  gameMode: GameMode | null;
 } {
   if (!state || typeof state !== "object") {
     return {
@@ -514,6 +536,7 @@ function extractSummaryFromState(state: unknown): {
       inviteEmailB: null,
       startingSide: null,
       status: null,
+      gameMode: null,
     };
   }
   const obj = state as {
@@ -523,6 +546,7 @@ function extractSummaryFromState(state: unknown): {
     activeSide?: "A" | "B";
     history?: { activeSide?: "A" | "B" }[];
     status?: GameStatus;
+    gameMode?: GameMode;
   };
   return {
     memberAId: obj.playerMembers?.A ?? null,
@@ -531,7 +555,12 @@ function extractSummaryFromState(state: unknown): {
     inviteEmailB: obj.playerEmails?.B ?? null,
     startingSide: obj.startingSide ?? obj.history?.[0]?.activeSide ?? obj.activeSide ?? null,
     status: normalizeGameStatus(obj.status),
+    gameMode: normalizeGameMode(obj.gameMode),
   };
+}
+
+function normalizeGameMode(mode: unknown): GameMode | null {
+  return mode === "solo" || mode === "versus" ? mode : null;
 }
 
 function normalizeGameStatus(status: unknown): GameStatus | null {
@@ -586,7 +615,7 @@ function getDatabaseStatus(status: GameStatus): GameStatus {
 
 function isMissingSummarySchemaError(error: { code?: string; message?: string } | null): boolean {
   const text = `${error?.code ?? ""} ${error?.message ?? ""}`;
-  return /42703|PGRST204|lifecycle_status|member_a_id|member_b_id|starting_side|schema cache/i.test(text);
+  return /42703|PGRST204|lifecycle_status|game_mode|member_a_id|member_b_id|starting_side|schema cache/i.test(text);
 }
 
 function isMissingInviteColumnsError(error: { code?: string; message?: string } | null): boolean {

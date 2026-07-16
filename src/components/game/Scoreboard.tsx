@@ -1,4 +1,4 @@
-import { formatSeconds, type GameState, type Side } from "../../game";
+import { formatSeconds, getGameMode, type GameState, type Side } from "../../game";
 
 type ScoreboardProps = {
   game: GameState;
@@ -13,10 +13,11 @@ type ScoreboardProps = {
 // During replay we can override scores/timers so the values reflect the state
 // at the replayed half-step, not the live state.
 export function Scoreboard({ game, scoresOverride, timersOverride }: ScoreboardProps) {
-  const sides: Side[] = ["A", "B"];
+  const isSolo = getGameMode(game) === "solo";
+  const sides: Side[] = isSolo ? ["A"] : ["A", "B"];
   const allUntimed = game.timers.untimed || (game.timers.sideUntimed?.A && game.timers.sideUntimed?.B);
   return (
-    <section className={`scoreboard ${allUntimed ? "untimed" : "timed"}`}>
+    <section className={`scoreboard ${allUntimed ? "untimed" : "timed"} ${isSolo ? "solo" : ""}`}>
       <div className="scoreboard-panels">
         {sides.map((side) => (
           <SidePanel

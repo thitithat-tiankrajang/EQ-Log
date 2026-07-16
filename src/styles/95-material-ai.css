@@ -1517,6 +1517,15 @@ textarea:focus {
   padding: 18px !important;
 }
 
+.result-body.solo {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+.result-outcome.solo .result-outcome-icon {
+  background: var(--brand-green);
+  color: #ffffff;
+}
+
 .result-side {
   display: grid;
   grid-template-rows: auto auto minmax(20px, auto) 18px;
