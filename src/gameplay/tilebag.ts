@@ -96,6 +96,16 @@ export function getTilebagView({
 }
 
 export function getExchangeRule(game: GameState): ExchangeRule {
+  if (getGameMode(game) === "solo") {
+    const reserve = game.tilebag.length;
+    if (reserve >= EXCHANGE_MIN_RESERVE) return { allowed: true, reserve };
+    return {
+      allowed: false,
+      reserve,
+      reason: `Exchange locked: tilebag (${game.tilebag.length}) = ${reserve}; minimum is ${EXCHANGE_MIN_RESERVE}.`,
+    };
+  }
+
   const opponentRackCount = getRack(game, otherSide(game.activeSide)).length;
   const reserve = game.tilebag.length + opponentRackCount - RACK_SIZE;
   if (reserve >= EXCHANGE_MIN_RESERVE) return { allowed: true, reserve };
