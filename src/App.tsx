@@ -1,12 +1,15 @@
 import {
+  Ban,
+  Clock3,
   Coffee,
   Download,
   Flag,
   List,
   LogOut,
-  Pause,
   Play,
   Redo2,
+  Send,
+  Square,
   Trophy,
   Undo2,
 } from "lucide-react";
@@ -3849,7 +3852,24 @@ function App() {
           </button>
           {!gameFinished && game.status === "playing" && canStopLifecycle && (
             <button
-              className="icon-button top-stop-time running"
+              aria-label={
+                stopRequestBlocked
+                  ? `Stop requests blocked for ${stopBlockSeconds} seconds`
+                  : stopRequestedByMe
+                    ? "Stop request pending"
+                    : isDirectEmailRoom
+                      ? "Request to stop game"
+                      : "Stop game"
+              }
+              className={`icon-button top-stop-time running ${
+                stopRequestBlocked
+                  ? "stop-blocked"
+                  : stopRequestedByMe
+                    ? "stop-requested"
+                    : isDirectEmailRoom
+                      ? "stop-request"
+                      : "stop-immediate"
+              }`}
               disabled={Boolean(stopRequest) || stopRequestBlocked}
               title={
                 stopRequestBlocked
@@ -3863,8 +3883,22 @@ function App() {
               type="button"
               onClick={requestOrStopGame}
             >
-              <Pause size={18} />
-              {stopRequestedByMe ? "Requested" : stopRequestBlocked ? `${stopBlockSeconds}s` : "Stop"}
+              {stopRequestBlocked ? (
+                <Ban size={18} />
+              ) : stopRequestedByMe ? (
+                <Clock3 size={18} />
+              ) : isDirectEmailRoom ? (
+                <Send size={18} />
+              ) : (
+                <Square size={18} />
+              )}
+              {stopRequestedByMe
+                ? "Requested"
+                : stopRequestBlocked
+                  ? `${stopBlockSeconds}s`
+                  : isDirectEmailRoom
+                    ? "Request"
+                    : "Stop"}
             </button>
           )}
           {!gameFinished && game.status === "draft" && canResumeLifecycle && (

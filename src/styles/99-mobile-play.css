@@ -885,4 +885,10 @@
     font-size: calc(var(--cell) * 0.33 + 1px) !important;
     line-height: 1 !important;
   }
+
+  .top-actions .top-stop-time svg {
+    width: 20px;
+    height: 20px;
+    stroke-width: 2.4;
+  }
 }
