@@ -34,6 +34,7 @@ export function TilebagSheet({
   return (
     <div
       className="bag-sheet-backdrop"
+      ref={sheet.backdropRef}
       role="presentation"
       style={sheet.backdropStyle}
       onClick={sheet.requestClose}

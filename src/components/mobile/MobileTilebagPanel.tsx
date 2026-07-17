@@ -41,6 +41,7 @@ export function MobileTilebagPanel({
       {open && (
         <div
           className="bag-sheet-backdrop mobile-tilebag-backdrop"
+          ref={sheet.backdropRef}
           role="presentation"
           style={sheet.backdropStyle}
           onClick={sheet.requestClose}

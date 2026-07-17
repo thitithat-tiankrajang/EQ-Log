@@ -6,10 +6,6 @@ type ScoreboardProps = {
   timersOverride?: Record<Side, number>;
 };
 
-// Two-side scoreboard. Score is the focal element (large, bold). The clock is
-// a subdued secondary line — and disappears entirely in untimed rooms (no
-// infinity glyph). Stop Time control lives in the top navbar, not here.
-//
 // During replay we can override scores/timers so the values reflect the state
 // at the replayed half-step, not the live state.
 export function Scoreboard({ game, scoresOverride, timersOverride }: ScoreboardProps) {
@@ -55,10 +51,11 @@ function SidePanel({
         isNegative ? "negative" : ""
       }`}
     >
-      <div className="ss-head">
-        <span className="ss-label">{game.players[side]}</span>
-        {!isUntimed && <span className="ss-clock">{formatSeconds(timer)}</span>}
-      </div>
+      <span className="ss-label">{game.players[side]}</span>
+      <span aria-hidden="true" className="ss-reserved" />
+      <span aria-hidden={isUntimed} className={`ss-clock ${isUntimed ? "empty" : ""}`}>
+        {isUntimed ? "" : formatSeconds(timer)}
+      </span>
       <div className="ss-score">
         <strong>{score}</strong>
         <span>pts</span>

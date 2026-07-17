@@ -199,13 +199,14 @@
 
   .scoreboard-side {
     grid-template-columns: minmax(0, 1fr) auto !important;
-    grid-template-rows: 1fr !important;
-    align-items: center !important;
-    gap: 2px !important;
-    min-height: 58px !important;
-    padding: 7px 10px !important;
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) !important;
+    align-items: stretch !important;
+    gap: 4px 8px !important;
+    min-height: 68px !important;
+    padding: 8px 10px !important;
     border-radius: 8px !important;
     box-shadow: none !important;
+    container-type: inline-size;
   }
 
   .scoreboard-side.side-a,
@@ -213,37 +214,29 @@
     border-radius: 8px !important;
   }
 
-  .ss-head {
-    display: grid !important;
-    align-content: center !important;
-    justify-content: start !important;
-    gap: 2px !important;
-    min-width: 0 !important;
+  .scoreboard-side .ss-label {
+    font-size: clamp(10px, 7.5cqi, 15px) !important;
+    letter-spacing: 0 !important;
   }
 
-  .ss-label {
-    font-size: 11px !important;
-    letter-spacing: 0.04em !important;
-  }
-
-  .ss-clock {
+  .scoreboard-side .ss-clock {
     color: var(--text, #17212b) !important;
-    font-size: clamp(14px, 4.2vw, 18px) !important;
+    font-size: clamp(13px, 10cqi, 20px) !important;
     font-weight: 900 !important;
   }
 
-  .ss-score {
+  .scoreboard-side .ss-score {
     gap: 4px !important;
     justify-self: end !important;
     white-space: nowrap !important;
   }
 
-  .ss-score strong {
-    font-size: clamp(21px, 6.5vw, 29px) !important;
+  .scoreboard-side .ss-score strong {
+    font-size: clamp(21px, 18cqi, 34px) !important;
   }
 
-  .ss-score span {
-    font-size: 9px !important;
+  .scoreboard-side .ss-score span {
+    font-size: clamp(8px, 5cqi, 10px) !important;
   }
 
   /* ── Board: full width, labels off, frame collapses to the grid alone ──── */
@@ -275,6 +268,16 @@
     max-width: 100%;
     grid-template-columns: max-content !important;
     grid-template-rows: max-content !important;
+  }
+
+  .board-cell > .tile,
+  .board-cell.filled > .tile,
+  .board-cell.pending > .tile {
+    width: 100% !important;
+    height: 100% !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
   }
 
   .board-grid-wrap {
@@ -314,6 +317,11 @@
 
   .premium-label {
     font-size: calc(var(--cell) * 0.28 + 1px) !important;
+  }
+
+  body.mobile-sheet-open .play-bar {
+    visibility: hidden !important;
+    pointer-events: none !important;
   }
 
   /* ── Bottom dock: contextual action bar + rack, pinned like a navbar ───── */
@@ -848,5 +856,33 @@
 
   .mobile-action-bar .mab-btn.icon {
     flex-basis: 44px;
+  }
+}
+
+@media (max-width: 759px) and (orientation: portrait) {
+  :root {
+    --board-border: 1px;
+    --board-border-total: calc(var(--board-border) * 2);
+  }
+
+  .board-cell > .tile.compact b {
+    font-size: calc(var(--cell) * 0.48 + 2px) !important;
+  }
+
+  .board-cell > .tile.compact.tile-heavyNumber b {
+    font-size: calc(var(--cell) * 0.44 + 2px) !important;
+  }
+
+  .board-cell > .tile.compact.tile-choice b {
+    font-size: calc(var(--cell) * 0.35 + 1px) !important;
+  }
+
+  .board-cell > .tile.compact small {
+    font-size: calc(var(--cell) * 0.24 + 1px) !important;
+  }
+
+  .premium-label {
+    font-size: calc(var(--cell) * 0.33 + 1px) !important;
+    line-height: 1 !important;
   }
 }

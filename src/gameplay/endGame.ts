@@ -152,6 +152,25 @@ export function createAutomaticEndGameLog({
   return null;
 }
 
+export function createSurrenderEndGameLog(game: GameState, surrenderedSide: Side): TurnLog {
+  const winner = otherSide(surrenderedSide);
+  const now = new Date().toISOString();
+  return createEndGameLog({
+    boardAfter: game.board,
+    detail: {
+      reason: "surrender",
+      description: `${game.players[surrenderedSide]} surrendered. ${game.players[winner]} wins the match.`,
+      bonusPoints: 0,
+      surrenderedSide,
+    },
+    endedAt: now,
+    game,
+    rack: getRack(game, surrenderedSide),
+    side: surrenderedSide,
+    tilebagAfter: game.tilebag,
+  });
+}
+
 function hasSoloGameStarted(logs: TurnLog[]): boolean {
   return logs
     .filter((log) => log.action !== "end_game")

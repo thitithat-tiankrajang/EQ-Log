@@ -1304,7 +1304,8 @@ textarea:focus {
   min-height: 0 !important;
   box-sizing: border-box !important;
   margin: 0 !important;
-  border: 1px solid var(--tile-border) !important;
+  /* Board tiles are the cell surface, so an inner frame would shrink them. */
+  border: 0 !important;
   border-radius: 0 !important;
   background-color: var(--tile-face) !important;
   background-image: linear-gradient(180deg, var(--tile-face-top), var(--tile-face)) !important;

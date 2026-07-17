@@ -1,4 +1,5 @@
 import {
+  Coffee,
   Download,
   Flag,
   List,
@@ -28,6 +29,7 @@ import { MobileActionBar } from "./components/mobile/MobileActionBar";
 import { MobileTilebagPanel } from "./components/mobile/MobileTilebagPanel";
 import { TilebagSheet } from "./components/mobile/TilebagSheet";
 import { ResultModal } from "./components/modals/ResultModal";
+import { Sheet } from "./components/ui/Sheet";
 import { useAuth } from "./auth";
 import {
   ActionType,
@@ -83,6 +85,7 @@ import { ACTION_LABELS } from "./uiText";
 import {
   BOARD_SIZE,
   RACK_SIZE,
+  STOP_REQUEST_BLOCK_MS,
 } from "./constants/gameRules";
 import {
   BOARD_CELL_MAX_PX,
@@ -102,8 +105,10 @@ import {
   LIVE_SESSION_SYNC_DEBOUNCE_MS,
   TIMER_TICK_MS,
 } from "./constants/network";
-import { createAutomaticEndGameLog } from "./gameplay/endGame";
+import { STORAGE_KEYS } from "./constants/storage";
+import { createAutomaticEndGameLog, createSurrenderEndGameLog } from "./gameplay/endGame";
 import { getExchangeRule, getTilebagView, refillRackFromQueue } from "./gameplay/tilebag";
+import { advanceRunningClock } from "./gameplay/timer";
 import { clearTileAssignment } from "./gameplay/tiles";
 
 type ActionMode = "none" | ActionType;
@@ -263,6 +268,27 @@ function normalizeFinishedGame(game: GameState): GameState {
   };
 }
 
+function CoffeeReturnButton({
+  roomName,
+  onReturn,
+}: {
+  roomName: string;
+  onReturn: () => void;
+}) {
+  return (
+    <button
+      aria-label={`Return to ${roomName}`}
+      className="coffee-return-button"
+      title={`Return to ${roomName}`}
+      type="button"
+      onClick={onReturn}
+    >
+      <Coffee size={20} />
+      <span>Return to game</span>
+    </button>
+  );
+}
+
 function App() {
   const { configured: authConfigured, isApproved, profile, userId } = useAuth();
   const remoteEnabled = isSupabaseConfigured;
@@ -279,7 +305,9 @@ function App() {
     const id = routeRoomId ?? roomStore.getActiveRoomId();
     if (!id) return null;
     const saved = roomStore.readRoom(id);
-    return saved && !hasDuplicateTileIds(saved) ? normalizeFinishedGame(saved) : null;
+    return saved && !hasDuplicateTileIds(saved)
+      ? advanceRunningClock(normalizeFinishedGame(saved))
+      : null;
   });
   const [activeRoomId, setActiveRoomId] = useState<string | null>(() => {
     if (routeRoomId) return routeRoomId;
@@ -333,6 +361,10 @@ function App() {
   // Mobile tile-pick bottom sheet (manual draw mode). Auto-opens once per
   // turn when the active player needs to refill; see the effect below.
   const [mobileBagOpen, setMobileBagOpen] = useState(false);
+  const [coffeeRoomId, setCoffeeRoomId] = useState<string | null>(() =>
+    window.localStorage.getItem(STORAGE_KEYS.coffeeRoom),
+  );
+  const [lifecycleNow, setLifecycleNow] = useState(() => Date.now());
   const bagAutoOpenKeyRef = useRef<string>("");
   const refillBaselineRef = useRef<RefillBaseline | null>(null);
   const boardZoneRef = useRef<HTMLElement | null>(null);
@@ -386,6 +418,7 @@ function App() {
         ...(inviteEmailB === accountEmail ? (["B"] as Side[]) : []),
       ]
     : [];
+  const accountPlayerSide = invitedSides.length === 1 ? invitedSides[0] : null;
   const canManageActiveRoom =
     !remoteEnabled || Boolean(userId && (hasAdminAccess || activeRoomMeta?.ownerId === userId));
   const isActiveRoomOwner =
@@ -399,6 +432,17 @@ function App() {
   // Direct email matches keep database ownership for persistence, but have no
   // host/admin gameplay controller. Both accounts are ordinary side players.
   const canControlActiveGame = canManageActiveRoom && !isDirectEmailRoom;
+  const isSelfDirectedSolo = Boolean(
+    game && getGameMode(game) === "solo" && !isEmailRoom,
+  );
+  const hasGameplayHost = Boolean(game && !isDirectEmailRoom && !isSelfDirectedSolo);
+  const canHostLifecycleControl = hasGameplayHost && canManageActiveRoom;
+  const canSoloLifecycleControl = isSelfDirectedSolo && canManageActiveRoom;
+  const canDirectLifecycleControl = isDirectEmailRoom && accountPlayerSide !== null;
+  const canStopLifecycle =
+    canHostLifecycleControl || canSoloLifecycleControl || canDirectLifecycleControl;
+  const canEndLifecycle =
+    canHostLifecycleControl || canSoloLifecycleControl || canDirectLifecycleControl;
   const canConfigureWaitingRoom =
     canManageActiveRoom && (!isDirectEmailRoom || isActiveRoomOwner);
   // Existing rooms showed the active rack, so undefined remains backward-compatible.
@@ -576,7 +620,7 @@ function App() {
           navigate({ kind: "home" }, true);
           return;
         }
-        const saved = normalizeFinishedGame(storedGame);
+        const saved = advanceRunningClock(normalizeFinishedGame(storedGame));
         resetRemoteRoomTracking();
         if (!remoteEnabled) roomStore.setActiveRoomId(routeRoomId);
         setActiveRoomId(routeRoomId);
@@ -700,23 +744,26 @@ function App() {
     if (view !== "game" || !game || game.status !== "playing" || game.timers.paused) return;
     if (game.timers.untimed || game.timers.sideUntimed?.[game.activeSide]) return;
     const intervalId = window.setInterval(() => {
-      setGame((current) => {
-        if (!current || current.status !== "playing" || current.timers.paused) return current;
-        const side = current.activeSide;
-        if (current.timers.untimed || current.timers.sideUntimed?.[side]) return current;
-        const nextValue = Math.max(current.timers[side] - 1, current.timers.minSeconds);
-        if (nextValue === current.timers[side]) return current;
-        return {
-          ...current,
-          timers: {
-            ...current.timers,
-            [side]: nextValue,
-          },
-        };
-      });
+      setGame((current) => (current ? advanceRunningClock(current) : current));
     }, TIMER_TICK_MS);
     return () => window.clearInterval(intervalId);
   }, [view, game?.activeSide, game?.status, game?.timers.paused, game?.timers.untimed, game?.timers.sideUntimed]);
+
+  useEffect(() => {
+    if (view !== "game" || !game?.matchControl) return;
+    const blockedUntil = Object.values(game.matchControl.stopBlockedUntilBySide ?? {})
+      .map((value) => Date.parse(value ?? ""))
+      .filter(Number.isFinite);
+    if (!game.matchControl.stopRequest && !blockedUntil.some((value) => value > Date.now())) return;
+    setLifecycleNow(Date.now());
+    const intervalId = window.setInterval(() => setLifecycleNow(Date.now()), 1000);
+    return () => window.clearInterval(intervalId);
+  }, [
+    view,
+    game?.matchControl?.stopRequest?.id,
+    game?.matchControl?.stopBlockedUntilBySide?.A,
+    game?.matchControl?.stopBlockedUntilBySide?.B,
+  ]);
 
   // Persist the active room's full state locally on every change (incl. timer ticks).
   useEffect(() => {
@@ -864,9 +911,9 @@ function App() {
     setGame(refillRackFromQueue(game));
   }, [actionMode, game, readOnly, replayCursor, view]);
 
-  // Mobile tile-pick sheet lifecycle: auto-open ONCE per turn when the active
-  // player must refill by hand (manual draw mode); close whenever picking is
-  // no longer possible (rack full, action started, turn moved on, …).
+  // Mobile tile-pick sheet lifecycle: auto-open once per manual refill. The
+  // sheet owns its close animation, so a completed rack must not unmount it
+  // from here before the downward transition has finished.
   useEffect(() => {
     if (view !== "game" || !game) return;
     const pickable =
@@ -879,7 +926,6 @@ function App() {
       getRack(game, game.activeSide).length < RACK_SIZE &&
       game.tilebag.length > 0;
     if (!pickable) {
-      setMobileBagOpen(false);
       return;
     }
     const key = `${game.gameId}:${game.turnNumber}:${game.activeSide}`;
@@ -1309,6 +1355,14 @@ function App() {
     setReplayCursor(idx * 2 + 1);
   }
 
+  const coffeeReturn =
+    coffeeRoomId && !(route.kind === "play" && route.roomId === coffeeRoomId) ? (
+      <CoffeeReturnButton
+        roomName={rooms.find((room) => room.id === coffeeRoomId)?.name ?? "paused game"}
+        onReturn={() => void returnToCoffeeRoom()}
+      />
+    ) : null;
+
   if (route.kind === "home") {
     return (
       <>
@@ -1334,6 +1388,7 @@ function App() {
           onImport={importRoomGame}
         />
         <GlobalActivity foreground={foregroundLoading} syncing={backgroundSyncCount > 0} />
+        {coffeeReturn}
       </>
     );
   }
@@ -1351,6 +1406,7 @@ function App() {
           onCreate={createAndOpenRoom}
         />
         <GlobalActivity foreground={foregroundLoading} syncing={backgroundSyncCount > 0} />
+        {coffeeReturn}
       </>
     );
   }
@@ -1365,6 +1421,7 @@ function App() {
           onJoin={joinRoomByCode}
         />
         <GlobalActivity foreground={foregroundLoading} syncing={backgroundSyncCount > 0} />
+        {coffeeReturn}
       </>
     );
   }
@@ -1391,6 +1448,7 @@ function App() {
           foreground={foregroundLoading}
           syncing={backgroundSyncCount > 0}
         />
+        {coffeeReturn}
       </>
     );
   }
@@ -1426,7 +1484,7 @@ function App() {
         window.alert("This room cannot be opened because its data is damaged.");
         return false;
       }
-      const saved = normalizeFinishedGame(storedGame);
+      const saved = advanceRunningClock(normalizeFinishedGame(storedGame));
       resetRemoteRoomTracking();
       cancelDraftOnly();
       setReplayCursor(null);
@@ -1714,6 +1772,38 @@ function App() {
     navigate({ kind: "home" });
   }
 
+  function rememberCoffeeRoom(roomId: string | null) {
+    setCoffeeRoomId(roomId);
+    if (roomId) window.localStorage.setItem(STORAGE_KEYS.coffeeRoom, roomId);
+    else window.localStorage.removeItem(STORAGE_KEYS.coffeeRoom);
+  }
+
+  async function takeCoffeeBreak() {
+    if (!activeRoomId || !game || game.status !== "playing") return;
+    if (remoteEnabled && canPlayActiveRoom && !isEmptyLiveSession(liveSession)) {
+      const session = remoteRooms.emptyLiveSession(userId);
+      const finishLoading = startForegroundLoading("Leaving the board open...");
+      try {
+        await remoteRooms.updateRoomSession(activeRoomId, session);
+        lastAppliedSessionKeyRef.current = makeLiveSessionKey(session);
+        setSyncError(null);
+      } catch (error) {
+        setSyncError(error instanceof Error ? error.message : "Unable to leave this board cleanly.");
+        finishLoading();
+        return;
+      }
+      finishLoading();
+    }
+    rememberCoffeeRoom(activeRoomId);
+    goToLobby();
+  }
+
+  async function returnToCoffeeRoom() {
+    if (!coffeeRoomId) return;
+    const opened = await openRoom(coffeeRoomId);
+    if (opened) rememberCoffeeRoom(null);
+  }
+
   async function renameRoomById(id: string, name: string) {
     if (!canManageRoom(id)) return;
     const trimmed = name.trim();
@@ -1922,7 +2012,7 @@ function App() {
     options: { allowRollback?: boolean } = {},
   ) {
     if (hasDuplicateTileIds(payload.game)) throw new Error("Live room data is damaged.");
-    const remoteGame = normalizeFinishedGame(payload.game);
+    const remoteGame = advanceRunningClock(normalizeFinishedGame(payload.game));
     const key = makeRemoteStateKey(remoteGame);
     setRooms((current) => upsertRoomMeta(current, payload.meta));
     const localGame = gameRef.current;
@@ -1947,6 +2037,7 @@ function App() {
       if (!localGame || makeRemoteStateKey(localGame) !== key) {
         setGame(remoteGame);
         cancelDraftOnly();
+        if (isFinishedGame(remoteGame)) setShowResult(true);
       }
       applyDeferredRemoteSession(remoteGame);
       setSyncError(null);
@@ -1963,6 +2054,7 @@ function App() {
       lastAppliedStateKeyRef.current = key;
       setGame(remoteGame);
       cancelDraftOnly();
+      if (isFinishedGame(remoteGame)) setShowResult(true);
       applyDeferredRemoteSession(remoteGame);
     }
     setSyncError(null);
@@ -3216,8 +3308,19 @@ function App() {
     setAssignmentRequest(null);
     setReplayCursor(null);
     setShowResult(false);
-    // Keep the live clock — undo rewinds the play, not the timer.
-    setGame(game ? { ...snap.game, timers: game.timers, lastSavedAt: new Date().toISOString() } : snap.game);
+    // Keep the live clock. Reset its timestamp anchor so restoring an older
+    // snapshot cannot charge the elapsed time a second time.
+    const now = new Date().toISOString();
+    setGame(
+      game
+        ? {
+            ...snap.game,
+            timers: game.timers,
+            currentTurnStartedAt: now,
+            lastSavedAt: now,
+          }
+        : snap.game,
+    );
   }
 
   function undo() {
@@ -3290,38 +3393,136 @@ function App() {
     });
   }
 
-  function toggleTimer() {
-    if (!game || !canControlActiveGame || game.status !== "playing") return;
-    pendingSessionEventRef.current = "timer_toggle";
-    setGame({
-      ...game,
-      timers: {
-        ...game.timers,
-        paused: !game.timers.paused,
-      },
-      lastSavedAt: new Date().toISOString(),
-    });
-  }
-
-  function endGame() {
-    if (!game || !canControlActiveGame) return;
-    pendingSessionEventRef.current = "end_game";
-    const confirmed = window.confirm(
-      "End this game? It will be locked as finished — you can replay it later but cannot continue playing.",
-    );
-    if (!confirmed) return;
+  function lifecycleBaseGame(): GameState | null {
+    if (!game) return null;
     shouldFlushEmptyLiveSessionRef.current = true;
     const canceled = buildGameAfterCancelingAction(game);
     rackLayoutRef.current = canceled.layout;
     setRackLayout(canceled.layout);
     cancelDraftOnly();
     setReplayCursor(null);
-    // Snapshot the finish so undo/redo can step across it.
+    return canceled.game;
+  }
+
+  function stopGameImmediately(stoppedBy: Side | "host") {
+    if (!game) return;
+    const base = lifecycleBaseGame();
+    if (!base) return;
+    pendingSessionEventRef.current = "stop_game";
+    const now = new Date().toISOString();
     setGame(
       pushActionSnapshot({
-        ...canceled.game,
+        ...base,
+        status: "draft",
+        timers: { ...base.timers, paused: true },
+        matchControl: {
+          ...base.matchControl,
+          stopRequest: undefined,
+          stoppedBy,
+        },
+        lastSavedAt: now,
+      }),
+    );
+  }
+
+  function requestOrStopGame() {
+    if (!game || game.status !== "playing" || !canStopLifecycle) return;
+    if (canHostLifecycleControl || canSoloLifecycleControl) {
+      if (!window.confirm("Stop this game and save its current state?")) return;
+      stopGameImmediately(canHostLifecycleControl ? "host" : "A");
+      return;
+    }
+    if (!isDirectEmailRoom || !accountPlayerSide) return;
+    const blockedUntil = Date.parse(
+      game.matchControl?.stopBlockedUntilBySide?.[accountPlayerSide] ?? "",
+    );
+    if (Number.isFinite(blockedUntil) && blockedUntil > Date.now()) return;
+    if (game.matchControl?.stopRequest) return;
+    const base = lifecycleBaseGame();
+    if (!base) return;
+    pendingSessionEventRef.current = "stop_request";
+    const now = new Date().toISOString();
+    setGame({
+      ...base,
+      matchControl: {
+        ...base.matchControl,
+        stopRequest: {
+          id: crypto.randomUUID(),
+          requestedBy: accountPlayerSide,
+          requestedAt: now,
+        },
+      },
+      lastSavedAt: now,
+    });
+  }
+
+  function respondToStopRequest(accept: boolean, blockFiveMinutes = false) {
+    if (!game || !accountPlayerSide || !isDirectEmailRoom) return;
+    const request = game.matchControl?.stopRequest;
+    if (!request || request.requestedBy === accountPlayerSide) return;
+    if (accept) {
+      stopGameImmediately(accountPlayerSide);
+      return;
+    }
+    pendingSessionEventRef.current = "stop_response";
+    const blockedUntil = blockFiveMinutes
+      ? new Date(Date.now() + STOP_REQUEST_BLOCK_MS).toISOString()
+      : undefined;
+    setGame({
+      ...game,
+      matchControl: {
+        ...game.matchControl,
+        stopRequest: undefined,
+        stopBlockedUntilBySide: blockedUntil
+          ? {
+              ...game.matchControl?.stopBlockedUntilBySide,
+              [request.requestedBy]: blockedUntil,
+            }
+          : game.matchControl?.stopBlockedUntilBySide,
+      },
+      lastSavedAt: new Date().toISOString(),
+    });
+  }
+
+  function endGame() {
+    if (!game || !canEndLifecycle) return;
+    const isSurrender = !hasGameplayHost && getGameMode(game) !== "solo";
+    const confirmed = window.confirm(
+      isSurrender
+        ? "Surrender this match? Your opponent will win immediately."
+        : "End this game? It will be locked as finished and cannot be resumed.",
+    );
+    if (!confirmed) return;
+    const base = lifecycleBaseGame();
+    if (!base) return;
+    pendingSessionEventRef.current = isSurrender ? "surrender" : "end_game";
+    if (isSurrender && accountPlayerSide) {
+      const surrenderLog = createSurrenderEndGameLog(base, accountPlayerSide);
+      const logs = [...base.logs, surrenderLog];
+      setGame(
+        pushActionSnapshot({
+          ...base,
+          logs,
+          scores: calculateTotals(logs),
+          status: "finished",
+          timers: { ...base.timers, paused: true },
+          matchControl: {
+            ...base.matchControl,
+            stopRequest: undefined,
+            surrenderedSide: accountPlayerSide,
+          },
+          lastSavedAt: new Date().toISOString(),
+        }),
+      );
+      setShowResult(true);
+      return;
+    }
+    setGame(
+      pushActionSnapshot({
+        ...base,
         status: "finished",
-        timers: { ...canceled.game.timers, paused: true },
+        timers: { ...base.timers, paused: true },
+        matchControl: { ...base.matchControl, stopRequest: undefined },
         lastSavedAt: new Date().toISOString(),
       }),
     );
@@ -3331,7 +3532,7 @@ function App() {
   // Resume a *drafted* game (the user previously hit Save & Exit). Finished
   // games are locked and never come back through here.
   function resumeGame() {
-    if (!game || !canControlActiveGame) return;
+    if (!game || !(canHostLifecycleControl || canSoloLifecycleControl || canDirectLifecycleControl)) return;
     if (isFinishedGame(game) || game.status !== "draft") return;
     pendingSessionEventRef.current = "resume_game";
     setShowResult(false);
@@ -3343,6 +3544,7 @@ function App() {
         status: "playing",
         // Wake the clock up so the side whose turn it is starts ticking again.
         timers: { ...game.timers, paused: false },
+        matchControl: { ...game.matchControl, stoppedBy: undefined },
         currentTurnStartedAt: new Date().toISOString(),
         lastSavedAt: new Date().toISOString(),
       }),
@@ -3467,7 +3669,6 @@ function App() {
     );
     return new Set(latestActiveSideLog?.rackAfter.map((tile) => tile.id) ?? []);
   })();
-  const accountPlayerSide = invitedSides.length === 1 ? invitedSides[0] : null;
   const concealDirectOpponentRack =
     isDirectEmailRoom && !emailPlayersCanSeeOpponentRack;
   const tilebagView = getTilebagView({
@@ -3554,6 +3755,23 @@ function App() {
       .flatMap((eq) => eq.cells.map((cell) => `${cell.row}:${cell.col}`)),
   );
   const gameFinished = isFinishedGame(game);
+  const stopRequest = game.matchControl?.stopRequest;
+  const incomingStopRequest = Boolean(
+    stopRequest && accountPlayerSide && stopRequest.requestedBy !== accountPlayerSide,
+  );
+  const ownStopBlockedUntil = accountPlayerSide
+    ? Date.parse(game.matchControl?.stopBlockedUntilBySide?.[accountPlayerSide] ?? "")
+    : Number.NaN;
+  const stopRequestBlocked =
+    Number.isFinite(ownStopBlockedUntil) && ownStopBlockedUntil > lifecycleNow;
+  const stopBlockSeconds = stopRequestBlocked
+    ? Math.max(1, Math.ceil((ownStopBlockedUntil - lifecycleNow) / 1000))
+    : 0;
+  const stopRequestedByMe = Boolean(
+    stopRequest && accountPlayerSide && stopRequest.requestedBy === accountPlayerSide,
+  );
+  const canResumeLifecycle =
+    canHostLifecycleControl || canSoloLifecycleControl || canDirectLifecycleControl;
 
   return (
     <main className="app-shell">
@@ -3574,98 +3792,100 @@ function App() {
           >
             {roleLabel}
           </span>
-          <button
-            className="icon-button"
-            disabled={!canControlActiveGame || undoStackRef.current.length === 0}
-            title="Undo"
-            type="button"
-            onClick={undo}
-          >
-            <Undo2 size={18} />
-            Undo
-          </button>
-          <button
-            className="icon-button"
-            disabled={!canControlActiveGame || redoStackRef.current.length === 0}
-            title="Redo"
-            type="button"
-            onClick={redo}
-          >
-            <Redo2 size={18} />
-            Redo
-          </button>
-          <button className="icon-button" type="button" onClick={exportGame}>
-            <Download size={18} />
-            Export
-          </button>
-          <button
-            className="icon-button top-save-exit"
-            type="button"
-            title={
-              gameFinished
-                ? "Exit this finished game and return to the lobby."
-                : isEmailRoom
-                  ? "Leave this email room running so its players can continue."
-                : !canManageActiveRoom
-                ? "Leave this room and return to the lobby."
-                : game.status === "playing"
-                  ? "Pause the clock, save the room as a draft, and go back to the lobby."
-                  : "Save and return to the lobby."
-            }
-            onClick={saveAndExit}
-          >
-            <LogOut size={18} />
-            {gameFinished || isEmailRoom || !canManageActiveRoom ? "Exit" : "Save or Exit"}
-          </button>
+          {hasGameplayHost && (
+            <>
+              <button
+                className="icon-button"
+                disabled={!canControlActiveGame || undoStackRef.current.length === 0}
+                title="Undo"
+                type="button"
+                onClick={undo}
+              >
+                <Undo2 size={18} />
+                Undo
+              </button>
+              <button
+                className="icon-button"
+                disabled={!canControlActiveGame || redoStackRef.current.length === 0}
+                title="Redo"
+                type="button"
+                onClick={redo}
+              >
+                <Redo2 size={18} />
+                Redo
+              </button>
+            </>
+          )}
+          {gameFinished && (
+            <button className="icon-button" type="button" onClick={exportGame}>
+              <Download size={18} />
+              Export
+            </button>
+          )}
+          {game.status === "playing" ? (
+            <button
+              className="icon-button top-save-exit top-coffee-break"
+              title="Leave this board open and browse other games."
+              type="button"
+              onClick={() => void takeCoffeeBreak()}
+            >
+              <Coffee size={18} />
+              Break
+            </button>
+          ) : (
+            <button
+              className="icon-button top-save-exit"
+              type="button"
+              title={gameFinished ? "Exit this finished game." : "Exit and keep this stopped game saved."}
+              onClick={saveAndExit}
+            >
+              <LogOut size={18} />
+              {gameFinished ? "Exit" : "Exit & Save"}
+            </button>
+          )}
           <button className="icon-button" type="button" onClick={() => setLogModalOpen(true)}>
             <List size={18} />
             Log
           </button>
-          {!(game.timers.untimed || (game.timers.sideUntimed?.A && game.timers.sideUntimed?.B)) && (
+          {!gameFinished && game.status === "playing" && canStopLifecycle && (
             <button
-              className={`icon-button top-stop-time ${game.timers.paused ? "paused" : "running"}`}
-              disabled={!canControlActiveGame || game.status !== "playing"}
+              className="icon-button top-stop-time running"
+              disabled={Boolean(stopRequest) || stopRequestBlocked}
               title={
-                !canControlActiveGame
-                  ? isDirectEmailRoom
-                    ? "Direct email matches have no host clock control."
-                    : "Only the room owner can control the clock."
-                  : game.timers.paused
-                    ? "Resume the clock"
-                    : "Stop the clock"
+                stopRequestBlocked
+                  ? `Stop requests are blocked for ${stopBlockSeconds} more second(s).`
+                  : stopRequestedByMe
+                    ? "Waiting for the other player."
+                    : isDirectEmailRoom
+                      ? "Ask the other player to stop the game."
+                      : "Stop and save the game."
               }
               type="button"
-              onClick={toggleTimer}
+              onClick={requestOrStopGame}
             >
-              {game.timers.paused ? <Play size={18} /> : <Pause size={18} />}
-              {game.timers.paused ? "Resume" : "Stop"}
+              <Pause size={18} />
+              {stopRequestedByMe ? "Requested" : stopRequestBlocked ? `${stopBlockSeconds}s` : "Stop"}
             </button>
           )}
-          {/* Lifecycle button — its meaning depends on game.status.
-              playing  → "End Game"        (danger, ends the match)
-              draft    → "Resume"          (un-pauses + flips back to playing)
-              finished → "Result + Replay" (no resume; this match is locked in) */}
-          {!gameFinished && game.status === "playing" && (
+          {!gameFinished && game.status === "draft" && canResumeLifecycle && (
             <button
-              className="danger-button top-end-game"
-              disabled={!canControlActiveGame}
+              className="resume-button top-stop-time paused"
               type="button"
-              onClick={endGame}
-            >
-              <Flag size={18} />
-              End Game
-            </button>
-          )}
-          {!gameFinished && game.status === "draft" && (
-            <button
-              className="resume-button top-end-game"
-              disabled={!canControlActiveGame}
-              type="button"
-              title="Resume this drafted game and start the clock again."
+              title="Resume this stopped game."
               onClick={resumeGame}
             >
               <Play size={18} />
               Resume
+            </button>
+          )}
+          {!gameFinished && game.status === "playing" && canEndLifecycle && (
+            <button
+              className="danger-button top-end-game"
+              type="button"
+              onClick={endGame}
+            >
+              <Flag size={18} />
+              {!hasGameplayHost && getGameMode(game) !== "solo" ? "Surrender" : "End Game"}
             </button>
           )}
           {gameFinished && (
@@ -3941,6 +4161,32 @@ function App() {
           }}
         />
       )}
+
+      <Sheet
+        dismissible={false}
+        open={incomingStopRequest}
+        title="Stop game request"
+        onClose={() => undefined}
+      >
+        <p className="ui-confirm-consequence">
+          {stopRequest
+            ? `${game.players[stopRequest.requestedBy]} wants to stop and save this game.`
+            : "The other player wants to stop this game."}
+        </p>
+        <div className="ui-sheet-actions stop-request-actions">
+          <button className="ui-button-primary" type="button" onClick={() => respondToStopRequest(true)}>
+            Accept stop
+          </button>
+          <button className="ui-button-ghost" type="button" onClick={() => respondToStopRequest(false)}>
+            Reject
+          </button>
+          <button className="ui-button-danger" type="button" onClick={() => respondToStopRequest(false, true)}>
+            Reject for 5 min
+          </button>
+        </div>
+      </Sheet>
+
+      {coffeeReturn}
     </main>
   );
 }

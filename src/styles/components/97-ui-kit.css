@@ -356,6 +356,55 @@
   color: var(--muted, #5f6368);
 }
 
+.coffee-return-button {
+  position: fixed;
+  z-index: 500;
+  right: max(16px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 46px;
+  padding: 0 14px;
+  border: 1px solid var(--accent, #4285f4);
+  border-radius: 8px;
+  background: var(--accent, #4285f4);
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(60, 64, 67, 0.2);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.coffee-return-button:active {
+  background: var(--accent-strong, #185abc);
+}
+
+.stop-request-actions {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+@media (max-width: 759px) {
+  body[data-route="play"] .coffee-return-button {
+    bottom: calc(132px + env(safe-area-inset-bottom));
+  }
+
+  .coffee-return-button span {
+    display: none;
+  }
+
+  .coffee-return-button {
+    width: 48px;
+    min-width: 48px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .stop-request-actions {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── FieldRow ─────────────────────────────────────────────────────────────── */
 .field-row {
   display: grid;

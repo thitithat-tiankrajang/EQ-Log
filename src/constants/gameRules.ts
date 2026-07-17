@@ -1,5 +1,6 @@
 export const BOARD_SIZE = 15;
 export const RACK_SIZE = 8;
+export const STOP_REQUEST_BLOCK_MS = 5 * 60 * 1000;
 export const ACTION_HIDDEN_TILE_BASE_COUNT = 84;
 
 export const BINGO_BONUS = 40;

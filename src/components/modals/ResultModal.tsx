@@ -1,5 +1,5 @@
 import { LayoutGrid, Play, Trophy, X } from "lucide-react";
-import { getGameMode, type EndGameDetail, type GameState } from "../../game";
+import { getGameMode, otherSide, type EndGameDetail, type GameState } from "../../game";
 
 export function ResultModal({
   game,
@@ -12,13 +12,22 @@ export function ResultModal({
 }) {
   const isSolo = getGameMode(game) === "solo";
   const { A, B } = game.scores;
-  const winner = isSolo || A === B ? null : A > B ? "A" : "B";
-  const winnerName = winner ? game.players[winner] : null;
-  const scoreMargin = Math.abs(A - B);
-  const turnCount = Math.max(0, game.turnNumber - 1);
   const endDetail = [...game.logs]
     .reverse()
     .find((log) => log.action === "end_game")?.actionDetail as EndGameDetail | undefined;
+  const surrenderedSide = game.matchControl?.surrenderedSide ?? endDetail?.surrenderedSide;
+  const winner = isSolo
+    ? null
+    : surrenderedSide
+      ? otherSide(surrenderedSide)
+      : A === B
+        ? null
+        : A > B
+          ? "A"
+          : "B";
+  const winnerName = winner ? game.players[winner] : null;
+  const scoreMargin = Math.abs(A - B);
+  const turnCount = Math.max(0, game.turnNumber - 1);
   const perfectGame = isSolo && endDetail?.reason === "perfect_game";
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
@@ -46,7 +55,7 @@ export function ResultModal({
             <span>{isSolo ? (perfectGame ? "Perfect Game" : "Solo complete") : winner ? "Match winner" : "Match complete"}</span>
             <strong>{isSolo ? game.players.A : winnerName ?? "Draw"}</strong>
           </div>
-          <em>{isSolo ? `${A} pts` : winner ? `+${scoreMargin} pts` : "Scores tied"}</em>
+          <em>{isSolo ? `${A} pts` : surrenderedSide ? "By surrender" : winner ? `+${scoreMargin} pts` : "Scores tied"}</em>
         </div>
 
         <div className={`result-body ${isSolo ? "solo" : ""}`}>

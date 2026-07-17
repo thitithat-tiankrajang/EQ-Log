@@ -106,7 +106,7 @@ export type PassDetail = {
   reason?: string;
 };
 
-export type EndGameReason = "rack_out" | "no_score_streak" | "perfect_game" | "manual";
+export type EndGameReason = "rack_out" | "no_score_streak" | "perfect_game" | "manual" | "surrender";
 
 export type EndGameDetail = {
   reason: EndGameReason;
@@ -117,6 +117,18 @@ export type EndGameDetail = {
   opponentRackPoints?: number;
   tilebagPoints?: number;
   noScoreStreak?: number;
+  surrenderedSide?: Side;
+};
+
+export type MatchControl = {
+  stopRequest?: {
+    id: string;
+    requestedBy: Side;
+    requestedAt: string;
+  };
+  stopBlockedUntilBySide?: Partial<Record<Side, string>>;
+  stoppedBy?: Side | "host";
+  surrenderedSide?: Side;
 };
 
 export type TurnActionDetail = PlaceEquationDetail | ExchangeDetail | PassDetail | EndGameDetail;
@@ -187,6 +199,8 @@ export type GameSnapshot = {
   emailPlayMode?: EmailPlayMode;
   /** Whether email players may see the active opponent's rack while waiting. */
   emailPlayersCanSeeOpponentRack?: boolean;
+  /** Pause consensus and surrender metadata; synchronized with the room state. */
+  matchControl?: MatchControl;
   /** Pre-game navigation state. Legacy saves without this field are already playing. */
   roomStage?: RoomStage;
   /** Ready state belongs to the waiting room and does not affect game turns. */
@@ -511,6 +525,7 @@ export function makeSnapshot(game: GameState | Omit<GameState, "history" | "hist
     playerEmails: game.playerEmails,
     emailPlayMode: game.emailPlayMode,
     emailPlayersCanSeeOpponentRack: game.emailPlayersCanSeeOpponentRack,
+    matchControl: game.matchControl,
     roomStage: game.roomStage,
     lobbyReadyBySide: game.lobbyReadyBySide,
     startingSide: game.startingSide,

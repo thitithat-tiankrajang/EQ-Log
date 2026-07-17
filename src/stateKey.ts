@@ -48,6 +48,7 @@ export function makeRemoteStateKey(game: GameState): string {
     playerEmails: game.playerEmails,
     emailPlayMode: game.emailPlayMode,
     emailPlayersCanSeeOpponentRack: game.emailPlayersCanSeeOpponentRack,
+    matchControl: game.matchControl,
     roomStage: game.roomStage,
     lobbyReadyBySide: game.lobbyReadyBySide,
     players: game.players,

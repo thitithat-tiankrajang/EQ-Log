@@ -2323,9 +2323,11 @@ button.tilebag-stat.active .ts-count {
 .scoreboard-side {
   position: relative !important;
   display: grid !important;
-  grid-template-rows: auto auto !important;
+  grid-template-columns: minmax(0, 1fr) auto !important;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) !important;
   align-content: stretch !important;
-  gap: 4px !important;
+  gap: 6px 10px !important;
+  min-height: 82px !important;
   border: 1px solid var(--border-soft, rgba(214, 221, 213, 0.65)) !important;
   border-left-width: 4px !important;
   border-radius: 10px !important;
@@ -2334,6 +2336,7 @@ button.tilebag-stat.active .ts-count {
   padding: 10px 12px !important;
   overflow: hidden !important;
   min-width: 0 !important;
+  container-type: inline-size;
   transition: box-shadow 0.18s ease, border-color 0.18s ease !important;
 }
 
@@ -2358,18 +2361,16 @@ button.tilebag-stat.active .ts-count {
 .scoreboard-side.active.side-a { color: var(--side-a, #dc2626) !important; }
 .scoreboard-side.active.side-b { color: var(--side-b, #2563eb) !important; }
 
-.ss-head {
-  display: flex !important;
-  align-items: baseline !important;
-  justify-content: space-between !important;
-  gap: 8px !important;
-  min-width: 0 !important;
-}
-
-.ss-label {
-  font-size: 11px !important;
+.scoreboard-side .ss-label {
+  grid-column: 1 !important;
+  grid-row: 1 !important;
+  align-self: start !important;
+  justify-self: start !important;
+  max-width: 100% !important;
+  font-size: clamp(11px, 8cqi, 15px) !important;
   font-weight: 800 !important;
-  letter-spacing: 0.1em !important;
+  line-height: 1.15 !important;
+  letter-spacing: 0 !important;
   text-transform: uppercase !important;
   color: var(--text, #18211d) !important;
   overflow: hidden !important;
@@ -2377,11 +2378,24 @@ button.tilebag-stat.active .ts-count {
   white-space: nowrap !important;
 }
 
-.ss-clock {
-  font-size: 12px !important;
-  font-weight: 700 !important;
+.scoreboard-side .ss-reserved {
+  grid-column: 2 !important;
+  grid-row: 1 !important;
+  min-width: 1px;
+  min-height: 1em;
+}
+
+.scoreboard-side .ss-clock {
+  grid-column: 1 !important;
+  grid-row: 2 !important;
+  align-self: end !important;
+  justify-self: start !important;
+  min-height: 1em;
+  font-size: clamp(13px, 11cqi, 20px) !important;
+  font-weight: 800 !important;
   font-variant-numeric: tabular-nums !important;
-  letter-spacing: -0.01em !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
   color: var(--muted, #5a675f) !important;
   white-space: nowrap !important;
 }
@@ -2391,37 +2405,42 @@ button.tilebag-stat.active .ts-count {
   font-weight: 800 !important;
 }
 
-/* Score is the hero: big bold number with subdued unit. */
-.ss-score {
+.scoreboard-side .ss-score {
   display: flex !important;
+  grid-column: 2 !important;
+  grid-row: 2 !important;
   align-items: baseline !important;
-  gap: 6px !important;
+  align-self: end !important;
+  justify-self: end !important;
+  gap: 4px !important;
   min-width: 0 !important;
+  line-height: 1 !important;
+  letter-spacing: 0 !important;
 }
 
-.ss-score strong {
-  font-size: clamp(28px, 8cqi, 40px) !important;
+.scoreboard-side .ss-score strong {
+  font-size: clamp(22px, 18cqi, 36px) !important;
   font-weight: 900 !important;
   font-variant-numeric: tabular-nums !important;
   line-height: 1 !important;
-  letter-spacing: -0.025em !important;
+  letter-spacing: 0 !important;
   color: var(--text, #18211d) !important;
 }
 
 .scoreboard-side.side-a .ss-score strong { color: var(--side-a, #dc2626) !important; }
 .scoreboard-side.side-b .ss-score strong { color: var(--side-b, #2563eb) !important; }
 
-.ss-score span {
-  font-size: 11px !important;
+.scoreboard-side .ss-score span {
+  font-size: clamp(8px, 5.5cqi, 11px) !important;
   font-weight: 800 !important;
-  letter-spacing: 0.08em !important;
+  letter-spacing: 0 !important;
   text-transform: uppercase !important;
   color: var(--muted, #5a675f) !important;
 }
 
 /* Untimed scoreboard: a touch more vertical padding since the clock row is gone. */
 .scoreboard.untimed .scoreboard-side {
-  padding: 14px 12px !important;
+  padding: 10px 12px !important;
 }
 
 /* ---- Top-bar Stop/Resume button (was in scoreboard). ---- */
@@ -3418,6 +3437,16 @@ button.tilebag-stat.active .ts-count {
    Final pass v18 — Plain pending tile + pressed selection + matching-color
    cursor/arrow cells + score badge "corner mark" only.
    ============================================================================ */
+
+/* A placed tile is the cell surface itself. Removing its decorative frame
+   keeps every tile flush with the board grid at every viewport size. */
+.board-cell > .tile {
+  width: 100% !important;
+  height: 100% !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
 
 /* ---- Pending tile: plain look, thin neutral border, no glow ---- */
 .board-cell.pending {
