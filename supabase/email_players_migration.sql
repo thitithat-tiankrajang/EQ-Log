@@ -9,6 +9,22 @@ alter table public.rooms
   add column if not exists invite_email_a text,
   add column if not exists invite_email_b text;
 
+-- Repair rooms created while the frontend's schema-capability cache was stale:
+-- the compact game state had playerEmails, but the relational invite columns
+-- were accidentally omitted on the draft-status retry.
+drop trigger if exists protect_invited_room_update on public.rooms;
+update public.rooms
+set invite_email_a = coalesce(
+      invite_email_a,
+      nullif(btrim(state #>> '{playerEmails,A}'), '')
+    ),
+    invite_email_b = coalesce(
+      invite_email_b,
+      nullif(btrim(state #>> '{playerEmails,B}'), '')
+    )
+where (invite_email_a is null and nullif(btrim(state #>> '{playerEmails,A}'), '') is not null)
+   or (invite_email_b is null and nullif(btrim(state #>> '{playerEmails,B}'), '') is not null);
+
 create table if not exists public.room_live (
   room_id     uuid primary key references public.rooms(id) on delete cascade,
   actor_id    uuid references public.profiles(id) on delete set null,
@@ -78,8 +94,14 @@ begin
   end if;
 
   target_email := case target_side
-    when 'A' then target_room.invite_email_a
-    else target_room.invite_email_b
+    when 'A' then coalesce(
+      target_room.invite_email_a,
+      target_room.state #>> '{playerEmails,A}'
+    )
+    else coalesce(
+      target_room.invite_email_b,
+      target_room.state #>> '{playerEmails,B}'
+    )
   end;
   if target_email is null
     or lower(btrim(target_email)) is distinct from public.my_email_lower()

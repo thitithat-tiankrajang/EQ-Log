@@ -67,6 +67,7 @@ export type RemoteRoomPayload = {
   meta: RoomMeta;
   session: LiveRoomSession;
   needsCompaction: boolean;
+  needsInviteRepair: boolean;
 };
 
 export type RoomSessionEvent =
@@ -198,6 +199,7 @@ export async function readRoom(id: string): Promise<RemoteRoomPayload | null> {
     meta: metaFromRow(row),
     session,
     needsCompaction: getEncodedVersion(row.state) < 2,
+    needsInviteRepair: rowNeedsInviteRepair(row),
   };
 }
 
@@ -239,27 +241,25 @@ export async function createRoom(
 
   if (isDraftStatusConstraintError(result.error, databaseStatus)) {
     setRemoteCapability("draftStatus", false);
-    const retryPayload =
-      remoteCapabilities.inviteColumns === false
-        ? { ...basePayload, ...summaryFields, status: "playing" }
-        : { ...insertPayload, status: "playing" };
+    // An old capability cache may say invite columns are unavailable even
+    // though this insert just proved only the draft status was rejected.
+    // Email rooms must retain their relational invite columns on retry.
+    const retryPayload = useInvite
+      ? { ...insertPayload, status: "playing" }
+      : { ...basePayload, ...summaryFields, status: "playing" };
     result = await supabase
       .from("rooms")
       .insert(retryPayload)
-      .select(
-        buildSelectFields({
-          summary: useSummary,
-          invite: useInvite && remoteCapabilities.inviteColumns !== false,
-        }),
-      )
+      .select(buildSelectFields({ summary: useSummary, invite: useInvite }))
       .single();
+    if (useInvite && !result.error) setRemoteCapability("inviteColumns", true);
   } else if (databaseStatus === "draft" && !result.error) {
     setRemoteCapability("draftStatus", true);
   }
 
   if (useSummary && result.error && isMissingSummarySchemaError(result.error)) {
     setRemoteCapability("summaryColumns", false);
-    const legacyInvite = useInvite && remoteCapabilities.inviteColumns !== false;
+    const legacyInvite = useInvite;
     const legacyPayload = legacyInvite ? { ...basePayload, ...inviteFields } : basePayload;
     const legacyFields = legacyInvite ? `${META_FIELDS},${INVITE_FIELDS}` : META_FIELDS;
     let legacy = await supabase.from("rooms").insert(legacyPayload).select(legacyFields).single();
@@ -308,21 +308,18 @@ export function updateRoomState(args: {
 
     if (isDraftStatusConstraintError(result.error, databaseStatus)) {
       setRemoteCapability("draftStatus", false);
-      const retryPayload =
-        remoteCapabilities.inviteColumns === false
-          ? { ...basePayload, ...summaryFields, status: "playing" }
-          : { ...updatePayload, status: "playing" };
+      const retryPayload = useInvite
+        ? { ...updatePayload, status: "playing" }
+        : { ...basePayload, ...summaryFields, status: "playing" };
       result = await supabase.from("rooms").update(retryPayload).eq("id", args.id);
+      if (useInvite && !result.error) setRemoteCapability("inviteColumns", true);
     } else if (databaseStatus === "draft" && !result.error) {
       setRemoteCapability("draftStatus", true);
     }
 
     if (useSummary && result.error && isMissingSummarySchemaError(result.error)) {
       setRemoteCapability("summaryColumns", false);
-      const legacyPayload =
-        useInvite && remoteCapabilities.inviteColumns !== false
-          ? { ...basePayload, ...inviteFields }
-          : basePayload;
+      const legacyPayload = useInvite ? { ...basePayload, ...inviteFields } : basePayload;
       let legacy = await supabase.from("rooms").update(legacyPayload).eq("id", args.id);
       if (isDraftStatusConstraintError(legacy.error, databaseStatus)) {
         setRemoteCapability("draftStatus", false);
@@ -363,8 +360,19 @@ export async function updateRoomReady(id: string, side: "A" | "B", ready: boolea
         "Waiting-room readiness is not enabled in Supabase yet. Run supabase/email_players_migration.sql.",
       );
     }
-    throw error;
+    throw new Error(error.message || "Unable to update ready status.");
   }
+}
+
+export async function repairRoomInvites(id: string, game: GameState): Promise<void> {
+  if (!supabase || !hasRoomInvites(game)) return;
+  const { error } = await supabase
+    .from("rooms")
+    .update(roomInvitePayload(game))
+    .eq("id", id);
+  if (error && isMissingInviteColumnsError(error)) throw missingInviteSchemaError();
+  if (error) throw new Error(error.message || "Unable to repair room email assignments.");
+  setRemoteCapability("inviteColumns", true);
 }
 
 export async function deleteRoom(id: string): Promise<void> {
@@ -410,6 +418,7 @@ export function payloadFromRow(row: RemoteRoomRecord): RemoteRoomPayload {
     meta: metaFromRow(row),
     session: emptyLiveSession(),
     needsCompaction: getEncodedVersion(row.state) < 2,
+    needsInviteRepair: rowNeedsInviteRepair(row),
   };
 }
 
@@ -569,6 +578,19 @@ function extractSummaryFromState(state: unknown): {
     status: normalizeGameStatus(obj.status),
     gameMode: normalizeGameMode(obj.gameMode),
   };
+}
+
+function rowNeedsInviteRepair(row: RemoteRoomRecord): boolean {
+  const expected = extractSummaryFromState(row.state);
+  return (
+    emailValuesDiffer(expected.inviteEmailA, row.invite_email_a) ||
+    emailValuesDiffer(expected.inviteEmailB, row.invite_email_b)
+  );
+}
+
+function emailValuesDiffer(expected: string | null, actual: string | null | undefined): boolean {
+  if (!expected) return false;
+  return expected.trim().toLowerCase() !== (actual ?? "").trim().toLowerCase();
 }
 
 function normalizeGameMode(mode: unknown): GameMode | null {

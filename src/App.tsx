@@ -364,6 +364,7 @@ function App() {
   const foregroundOperationRef = useRef(0);
   const liveSessionSyncTimerRef = useRef<number | null>(null);
   const compactedRoomIdsRef = useRef(new Set<string>());
+  const inviteRepairRoomIdsRef = useRef(new Set<string>());
   const undoStackRef = useRef<UndoSnap[]>([]);
   const redoStackRef = useRef<UndoSnap[]>([]);
   const lastSnapRef = useRef<UndoSnap | null>(null);
@@ -506,6 +507,40 @@ function App() {
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId;
   }, [activeRoomId]);
+
+  // Direct-room creators still own the database row, but not the gameplay.
+  // Repair only the relational email mapping here so legacy malformed rooms
+  // become joinable without overwriting a player's concurrent Ready update.
+  useEffect(() => {
+    if (
+      !remoteEnabled ||
+      route.kind !== "room" ||
+      !activeRoomId ||
+      !game ||
+      !isDirectEmailRoom ||
+      !canConfigureWaitingRoom ||
+      inviteRepairRoomIdsRef.current.has(activeRoomId)
+    ) {
+      return;
+    }
+    inviteRepairRoomIdsRef.current.add(activeRoomId);
+    setBackgroundSyncCount((count) => count + 1);
+    void remoteRooms
+      .repairRoomInvites(activeRoomId, game)
+      .then(() => setSyncError(null))
+      .catch((error: Error) => {
+        inviteRepairRoomIdsRef.current.delete(activeRoomId);
+        setSyncError(error.message);
+      })
+      .finally(() => setBackgroundSyncCount((count) => Math.max(0, count - 1)));
+  }, [
+    activeRoomId,
+    canConfigureWaitingRoom,
+    game,
+    isDirectEmailRoom,
+    remoteEnabled,
+    route.kind,
+  ]);
 
   // Stamp the route on <body> so page-scoped CSS (e.g. the play-view scroll
   // lock in 99-mobile-play.css) can't leak into other pages.
@@ -1878,17 +1913,24 @@ function App() {
   }
 
   function compactRemoteRoomIfNeeded(payload: remoteRooms.RemoteRoomPayload, saved: GameState) {
-    if (!payload.needsCompaction || compactedRoomIdsRef.current.has(payload.meta.id)) return;
+    if (
+      (!payload.needsCompaction && !payload.needsInviteRepair) ||
+      compactedRoomIdsRef.current.has(payload.meta.id)
+    ) {
+      return;
+    }
     if (!userId || (!hasAdminAccess && payload.meta.ownerId !== userId)) return;
     compactedRoomIdsRef.current.add(payload.meta.id);
     setBackgroundSyncCount((count) => count + 1);
-    void remoteRooms
-      .updateRoomState({
-        id: payload.meta.id,
-        game: saved,
-        session: payload.session,
-        event: "state",
-      })
+    const repair = payload.needsCompaction
+      ? remoteRooms.updateRoomState({
+          id: payload.meta.id,
+          game: saved,
+          session: payload.session,
+          event: "state",
+        })
+      : remoteRooms.repairRoomInvites(payload.meta.id, saved);
+    void repair
       .then(() => setSyncError(null))
       .catch((error: Error) => {
         compactedRoomIdsRef.current.delete(payload.meta.id);
