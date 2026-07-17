@@ -69,6 +69,7 @@ import * as remoteRooms from "./remoteRooms";
 import type { LiveRoomSession, RoomSessionEvent } from "./remoteRooms";
 import { navigate, useRoute } from "./router";
 import { getRoomActorCapabilities } from "./roomAccess";
+import { isRemoteGameAhead, isRemoteGameStale } from "./gameSync";
 import {
   createWaitingGame,
   getRoomStage,
@@ -353,8 +354,13 @@ function App() {
   const pendingSessionEventRef = useRef<RoomSessionEvent | null>(null);
   const lastAppliedStateKeyRef = useRef<string>("");
   const lastAppliedSessionKeyRef = useRef<string>("");
+  const lastAppliedSessionUpdatedAtRef = useRef("");
+  const lastAppliedSessionScopeRef = useRef("");
+  const lastAppliedSessionActorIdRef = useRef<string | null>(null);
+  const deferredRemoteSessionRef = useRef<LiveRoomSession | null>(null);
   const shouldFlushEmptyLiveSessionRef = useRef(false);
   const localStateWriteKeysRef = useRef(new Set<string>());
+  const latestRequestedStateKeyRef = useRef("");
   const foregroundOperationRef = useRef(0);
   const liveSessionSyncTimerRef = useRef<number | null>(null);
   const compactedRoomIdsRef = useRef(new Set<string>());
@@ -440,13 +446,26 @@ function App() {
     () =>
       remoteRooms.makeLiveSession({
         actorId: userId,
+        gameId: game?.gameId ?? null,
+        turnNumber: game?.turnNumber ?? null,
+        activeSide: game?.activeSide ?? null,
         actionMode,
         pendingPlacements,
         exchangeDraft,
         selectedRackTileId,
         selectedPendingTileId,
       }),
-    [actionMode, exchangeDraft, pendingPlacements, selectedPendingTileId, selectedRackTileId, userId],
+    [
+      actionMode,
+      exchangeDraft,
+      game?.activeSide,
+      game?.gameId,
+      game?.turnNumber,
+      pendingPlacements,
+      selectedPendingTileId,
+      selectedRackTileId,
+      userId,
+    ],
   );
   const liveSessionKey = useMemo(() => makeLiveSessionKey(liveSession), [liveSession]);
   const remoteStateKey = useMemo(() => (game ? makeRemoteStateKey(game) : ""), [game]);
@@ -499,13 +518,14 @@ function App() {
           return;
         }
         const saved = normalizeFinishedGame(storedGame);
+        resetRemoteRoomTracking();
         if (!remoteEnabled) roomStore.setActiveRoomId(routeRoomId);
         setActiveRoomId(routeRoomId);
         setGame(saved);
         lastAppliedStateKeyRef.current = makeRemoteStateKey(saved);
         if (remotePayload) {
           setRooms((current) => upsertRoomMeta(current, remotePayload.meta));
-          applyRemoteSession(remotePayload.session);
+          applyRemoteSession(remotePayload.session, saved);
           compactRemoteRoomIfNeeded(remotePayload, saved);
         }
         setShowResult(isFinishedGame(saved));
@@ -633,7 +653,6 @@ function App() {
             ...current.timers,
             [side]: nextValue,
           },
-          lastSavedAt: new Date().toISOString(),
         };
       });
     }, TIMER_TICK_MS);
@@ -664,6 +683,7 @@ function App() {
     pendingSessionEventRef.current = null;
     lastAppliedStateKeyRef.current = remoteStateKey;
     rememberRecentKey(localStateWriteKeysRef.current, remoteStateKey);
+    latestRequestedStateKeyRef.current = remoteStateKey;
     setBackgroundSyncCount((count) => count + 1);
     void remoteRooms
       .updateRoomState({
@@ -699,10 +719,13 @@ function App() {
       })
       .catch(async (error: Error) => {
         localStateWriteKeysRef.current.delete(remoteStateKey);
+        if (latestRequestedStateKeyRef.current === remoteStateKey) {
+          latestRequestedStateKeyRef.current = "";
+        }
         setSyncError(error.message);
         try {
           const authoritative = await remoteRooms.readRoom(activeRoomId);
-          if (authoritative) applyRemotePayload(authoritative);
+          if (authoritative) applyRemotePayload(authoritative, { allowRollback: true });
         } catch {
           // Keep the original write error visible when recovery cannot load.
         }
@@ -1213,20 +1236,7 @@ function App() {
     setRackLayout((current) => {
       const next: Record<Side, (string | null)[]> = { A: current.A.slice(), B: current.B.slice() };
       for (const side of ["A", "B"] as Side[]) {
-        const rack = getRack(game, side);
-        const presentIds = new Set(rack.map((tile) => tile.id));
-        // Vacate slots whose tiles are no longer in the rack.
-        next[side] = next[side].map((id) => (id && presentIds.has(id) ? id : null));
-        // Add new tiles to the first empty slot.
-        const knownIds = new Set(next[side].filter(Boolean) as string[]);
-        for (const tile of rack) {
-          if (knownIds.has(tile.id)) continue;
-          const emptyIdx = next[side].indexOf(null);
-          if (emptyIdx >= 0) {
-            next[side][emptyIdx] = tile.id;
-            knownIds.add(tile.id);
-          }
-        }
+        next[side] = reconcileRackLayout(current[side], getRack(game, side));
       }
       return next;
     });
@@ -1369,6 +1379,16 @@ function App() {
     };
   }
 
+  function resetRemoteRoomTracking() {
+    localStateWriteKeysRef.current.clear();
+    latestRequestedStateKeyRef.current = "";
+    lastAppliedSessionKeyRef.current = "";
+    lastAppliedSessionUpdatedAtRef.current = "";
+    lastAppliedSessionScopeRef.current = "";
+    lastAppliedSessionActorIdRef.current = null;
+    deferredRemoteSessionRef.current = null;
+  }
+
   async function openRoom(id: string): Promise<boolean> {
     const finishLoading = startForegroundLoading("Opening room...");
     try {
@@ -1379,6 +1399,7 @@ function App() {
         return false;
       }
       const saved = normalizeFinishedGame(storedGame);
+      resetRemoteRoomTracking();
       cancelDraftOnly();
       setReplayCursor(null);
       if (!remoteEnabled) roomStore.setActiveRoomId(id);
@@ -1387,7 +1408,7 @@ function App() {
       lastAppliedStateKeyRef.current = makeRemoteStateKey(saved);
       if (remotePayload) {
         setRooms((current) => upsertRoomMeta(current, remotePayload.meta));
-        applyRemoteSession(remotePayload.session);
+        applyRemoteSession(remotePayload.session, saved);
         compactRemoteRoomIfNeeded(remotePayload, saved);
       }
       navigate(
@@ -1457,6 +1478,7 @@ function App() {
         if (!userId) return;
         const session = remoteRooms.emptyLiveSession(userId);
         const { id, meta } = await remoteRooms.createRoom(created, userId, session);
+        resetRemoteRoomTracking();
         setRooms((current) => [meta, ...current.filter((room) => room.id !== id)]);
         setActiveRoomId(id);
         lastAppliedStateKeyRef.current = makeRemoteStateKey(created);
@@ -1469,6 +1491,7 @@ function App() {
         return;
       }
       const { id, index } = roomStore.createRoom(created);
+      resetRemoteRoomTracking();
       setRooms(index);
       roomStore.setActiveRoomId(id);
       setActiveRoomId(id);
@@ -1848,12 +1871,38 @@ function App() {
     return !isRemoteGameAhead(localGame, remoteGame);
   }
 
-  function applyRemotePayload(payload: remoteRooms.RemoteRoomPayload) {
+  function applyRemotePayload(
+    payload: remoteRooms.RemoteRoomPayload,
+    options: { allowRollback?: boolean } = {},
+  ) {
     if (hasDuplicateTileIds(payload.game)) throw new Error("Live room data is damaged.");
     const remoteGame = normalizeFinishedGame(payload.game);
     const key = makeRemoteStateKey(remoteGame);
     setRooms((current) => upsertRoomMeta(current, payload.meta));
-    if (localStateWriteKeysRef.current.delete(key)) {
+    const localGame = gameRef.current;
+    const ownWriteEcho = localStateWriteKeysRef.current.delete(key);
+    if (!options.allowRollback && localGame && isRemoteGameStale(localGame, remoteGame)) {
+      // Realtime delivery can lag behind local writes. Never let an older turn
+      // or rack snapshot replace a move that is already visible locally.
+      setSyncError(null);
+      return;
+    }
+    if (ownWriteEcho) {
+      if (
+        latestRequestedStateKeyRef.current &&
+        key !== latestRequestedStateKeyRef.current
+      ) {
+        setSyncError(null);
+        return;
+      }
+      lastAppliedStateKeyRef.current = key;
+      // Usually the local state already equals this echo. If another delayed
+      // event displaced it, restore the confirmed write instead of skipping it.
+      if (!localGame || makeRemoteStateKey(localGame) !== key) {
+        setGame(remoteGame);
+        cancelDraftOnly();
+      }
+      applyDeferredRemoteSession(remoteGame);
       setSyncError(null);
       return;
     }
@@ -1868,12 +1917,50 @@ function App() {
       lastAppliedStateKeyRef.current = key;
       setGame(remoteGame);
       cancelDraftOnly();
+      applyDeferredRemoteSession(remoteGame);
     }
     setSyncError(null);
   }
 
-  function applyRemoteSession(session: LiveRoomSession) {
+  function applyRemoteSession(session: LiveRoomSession, targetGame = gameRef.current) {
+    const currentGame = targetGame;
+    if (
+      currentGame &&
+      ((session.gameId !== null && session.gameId !== currentGame.gameId) ||
+        (session.turnNumber !== null && session.turnNumber !== currentGame.turnNumber) ||
+        (session.activeSide !== null && session.activeSide !== currentGame.activeSide))
+    ) {
+      if (
+        session.gameId === currentGame.gameId &&
+        session.turnNumber !== null &&
+        session.turnNumber > currentGame.turnNumber
+      ) {
+        deferredRemoteSessionRef.current = session;
+      }
+      return;
+    }
+    // Older/empty sessions do not carry turn metadata. Treat them as scoped to
+    // the game currently being viewed so a clear event still orders correctly
+    // against delayed draft events from that same turn.
+    const scope = `${session.gameId ?? currentGame?.gameId ?? "legacy"}:${
+      session.turnNumber ?? currentGame?.turnNumber ?? "legacy"
+    }:${session.activeSide ?? currentGame?.activeSide ?? "legacy"}`;
+    if (scope !== lastAppliedSessionScopeRef.current) {
+      lastAppliedSessionScopeRef.current = scope;
+      lastAppliedSessionUpdatedAtRef.current = "";
+      lastAppliedSessionKeyRef.current = "";
+      lastAppliedSessionActorIdRef.current = null;
+    }
+    if (
+      session.actorId === lastAppliedSessionActorIdRef.current &&
+      lastAppliedSessionUpdatedAtRef.current &&
+      Date.parse(session.updatedAt) <= Date.parse(lastAppliedSessionUpdatedAtRef.current)
+    ) {
+      return;
+    }
     const key = makeLiveSessionKey(session);
+    lastAppliedSessionUpdatedAtRef.current = session.updatedAt;
+    lastAppliedSessionActorIdRef.current = session.actorId;
     if (key === lastAppliedSessionKeyRef.current) return;
     lastAppliedSessionKeyRef.current = key;
     setActionMode(session.actionMode);
@@ -1883,6 +1970,25 @@ function App() {
     setSelectedPendingTileId(session.selectedPendingTileId);
     setAssignmentRequest(null);
     setActionStart(null);
+  }
+
+  function applyDeferredRemoteSession(targetGame: GameState) {
+    const deferred = deferredRemoteSessionRef.current;
+    if (!deferred) return;
+    if (
+      deferred.gameId !== targetGame.gameId ||
+      (deferred.turnNumber !== null && deferred.turnNumber < targetGame.turnNumber)
+    ) {
+      deferredRemoteSessionRef.current = null;
+      return;
+    }
+    if (
+      deferred.turnNumber === targetGame.turnNumber &&
+      (deferred.activeSide === null || deferred.activeSide === targetGame.activeSide)
+    ) {
+      deferredRemoteSessionRef.current = null;
+      applyRemoteSession(deferred, targetGame);
+    }
   }
 
   function rackSlotsFrom(
@@ -3211,6 +3317,7 @@ function App() {
           lastAppliedStateKeyRef.current = draftKey;
           lastAppliedSessionKeyRef.current = makeLiveSessionKey(session);
           rememberRecentKey(localStateWriteKeysRef.current, draftKey);
+          latestRequestedStateKeyRef.current = draftKey;
           setSyncError(null);
         } catch (error) {
           setSyncError(error instanceof Error ? error.message : "Unable to save this room.");
@@ -3312,7 +3419,12 @@ function App() {
     }
     const live = getRack(game, rackSide);
     const tilesById = new Map(live.map((tile) => [tile.id, tile]));
-    const slots = rackLayout[rackSide].map((id) => (id ? tilesById.get(id) ?? null : null));
+    // Supabase decoding intentionally creates fresh tile ids. Reconcile here,
+    // not only in the effect above, so the first remote render never shows an
+    // empty/incomplete rack while React waits to run that effect.
+    const slots = reconcileRackLayout(rackLayout[rackSide], live).map((id) =>
+      id ? tilesById.get(id) ?? null : null,
+    );
     if (rackSide === game.activeSide && actionMode === "place_equation") {
       for (const placement of pendingPlacements) {
         if (placement.rackSlot !== undefined && placement.rackSlot >= 0 && placement.rackSlot < RACK_SIZE) {
@@ -3840,24 +3952,35 @@ function rememberRecentKey(keys: Set<string>, key: string): void {
   }
 }
 
-function isRemoteGameAhead(localGame: GameState, remoteGame: GameState): boolean {
-  if (remoteGame.gameId !== localGame.gameId) return true;
-  if (remoteGame.status !== localGame.status) return true;
-  if (remoteGame.logs.length > localGame.logs.length) return true;
-  if (remoteGame.turnNumber > localGame.turnNumber) return true;
-  if (remoteGame.historyIndex > localGame.historyIndex && remoteGame.logs.length > localGame.logs.length) {
-    return true;
+function reconcileRackLayout(
+  current: (string | null)[],
+  rack: TileInstance[],
+): (string | null)[] {
+  const presentIds = new Set(rack.map((tile) => tile.id));
+  const next = [...current, ...Array<string | null>(RACK_SIZE).fill(null)]
+    .slice(0, RACK_SIZE)
+    .map((id) => (id && presentIds.has(id) ? id : null));
+  const knownIds = new Set(next.filter((id): id is string => id !== null));
+  for (const tile of rack) {
+    if (knownIds.has(tile.id)) continue;
+    const emptyIndex = next.indexOf(null);
+    if (emptyIndex < 0) break;
+    next[emptyIndex] = tile.id;
+    knownIds.add(tile.id);
   }
-  return false;
+  return next;
 }
 
 function makeLiveSessionKey(session: LiveRoomSession): string {
   return canonicalStringify({
+    activeSide: session.activeSide,
     actionMode: session.actionMode,
     exchangeDraft: session.exchangeDraft,
+    gameId: session.gameId,
     pendingPlacements: session.pendingPlacements,
     selectedPendingTileId: session.selectedPendingTileId,
     selectedRackTileId: session.selectedRackTileId,
+    turnNumber: session.turnNumber,
   });
 }
 

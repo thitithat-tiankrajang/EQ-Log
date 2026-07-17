@@ -1,6 +1,6 @@
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { decodeGame, encodeGame } from "./codec";
-import { getGameMode, type ActionType, type GameMode, type GameState, type GameStatus, type PendingPlacement } from "./game";
+import { getGameMode, type ActionType, type GameMode, type GameState, type GameStatus, type PendingPlacement, type Side } from "./game";
 import type { RoomMeta } from "./rooms";
 import { supabase } from "./supabaseClient";
 import { REMOTE_CAPABILITIES_TTL_MS } from "./constants/network";
@@ -11,6 +11,9 @@ type ActionMode = "none" | ActionType;
 export type LiveRoomSession = {
   version: 1;
   actorId: string | null;
+  gameId: string | null;
+  turnNumber: number | null;
+  activeSide: Side | null;
   actionMode: ActionMode;
   pendingPlacements: PendingPlacement[];
   exchangeDraft: {
@@ -103,6 +106,9 @@ const liveWriteDrains = new Map<string, Promise<void>>();
 
 export function makeLiveSession(args: {
   actorId: string | null;
+  gameId: string | null;
+  turnNumber: number | null;
+  activeSide: Side | null;
   actionMode: ActionMode;
   pendingPlacements: PendingPlacement[];
   exchangeDraft: LiveRoomSession["exchangeDraft"];
@@ -112,6 +118,9 @@ export function makeLiveSession(args: {
   return {
     version: 1,
     actorId: args.actorId,
+    gameId: args.gameId,
+    turnNumber: args.turnNumber,
+    activeSide: args.activeSide,
     actionMode: args.actionMode,
     pendingPlacements: args.pendingPlacements,
     exchangeDraft: args.exchangeDraft,
@@ -124,6 +133,9 @@ export function makeLiveSession(args: {
 export function emptyLiveSession(actorId: string | null = null): LiveRoomSession {
   return makeLiveSession({
     actorId,
+    gameId: null,
+    turnNumber: null,
+    activeSide: null,
     actionMode: "none",
     pendingPlacements: [],
     exchangeDraft: { outgoingIds: [], incomingTiles: [] },
@@ -573,6 +585,9 @@ function parseSession(value: unknown): LiveRoomSession {
   return {
     version: 1,
     actorId: session.actorId ?? null,
+    gameId: session.gameId ?? null,
+    turnNumber: typeof session.turnNumber === "number" ? session.turnNumber : null,
+    activeSide: session.activeSide === "A" || session.activeSide === "B" ? session.activeSide : null,
     actionMode: session.actionMode ?? "none",
     pendingPlacements: Array.isArray(session.pendingPlacements) ? session.pendingPlacements : [],
     exchangeDraft: {
