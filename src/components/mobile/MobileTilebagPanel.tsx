@@ -44,7 +44,7 @@ export function MobileTilebagPanel({
           ref={sheet.backdropRef}
           role="presentation"
           style={sheet.backdropStyle}
-          onClick={sheet.requestClose}
+          {...sheet.backdropGestureProps}
         >
           <section
             aria-label="Tiles not yet visible"
@@ -54,13 +54,10 @@ export function MobileTilebagPanel({
             role="dialog"
             style={sheet.sheetStyle}
             tabIndex={-1}
+            {...sheet.dragSurfaceProps}
             onClick={(event) => event.stopPropagation()}
           >
-            <div
-              aria-label="Drag down to close tilebag"
-              className="bag-sheet-drag-zone"
-              {...sheet.dragHandleProps}
-            >
+            <div aria-label="Drag tilebag up or down" className="bag-sheet-drag-zone">
               <div aria-hidden="true" className="bag-sheet-grabber" />
               <header className="bag-sheet-head">
                 <div className="bag-sheet-title">

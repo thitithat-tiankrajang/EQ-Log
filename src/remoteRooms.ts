@@ -385,10 +385,14 @@ export async function deleteRoom(id: string): Promise<void> {
   if (error) throw error;
 }
 
+/** Realtime channel lifecycle, surfaced so callers can heal dead channels. */
+export type RoomChannelStatus = "SUBSCRIBED" | "CHANNEL_ERROR" | "TIMED_OUT" | "CLOSED";
+
 export function subscribeToRoom(
   id: string,
   onState: (payload: RealtimePostgresChangesPayload<RemoteRoomRecord>) => void,
   onSession: (session: LiveRoomSession) => void,
+  onStatus?: (status: RoomChannelStatus) => void,
 ): () => void {
   const client = supabase;
   if (!client) return () => undefined;
@@ -409,7 +413,13 @@ export function subscribeToRoom(
       },
     );
   }
-  channel.subscribe();
+  // Phones drop the websocket whenever the screen turns off or the tab is
+  // backgrounded, and missed postgres_changes are never replayed. Reporting
+  // the status lets App re-read the room on SUBSCRIBED and rebuild the
+  // channel on CHANNEL_ERROR / TIMED_OUT / CLOSED.
+  channel.subscribe((status) => {
+    onStatus?.(status as RoomChannelStatus);
+  });
 
   return () => {
     void client.removeChannel(channel);

@@ -123,13 +123,14 @@ export function WaitingRoomPage({
 
   async function copyCode() {
     const code = formatRoomCode(meta.id);
-    if (navigator.clipboard?.writeText) {
+    try {
       await navigator.clipboard.writeText(code);
-    } else {
-      window.prompt("Room code", code);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      // Clipboard unavailable (http / permission denied). The code is already
+      // rendered full-size on this card, so there is nothing more to show.
     }
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 1600);
   }
 
   const solo = getGameMode(game) === "solo";

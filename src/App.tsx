@@ -32,7 +32,7 @@ import { MobileActionBar } from "./components/mobile/MobileActionBar";
 import { MobileTilebagPanel } from "./components/mobile/MobileTilebagPanel";
 import { TilebagSheet } from "./components/mobile/TilebagSheet";
 import { ResultModal } from "./components/modals/ResultModal";
-import { Sheet } from "./components/ui/Sheet";
+import { ConfirmSheet, Sheet } from "./components/ui/Sheet";
 import { useAuth } from "./auth";
 import {
   ActionType,
@@ -40,6 +40,7 @@ import {
   EquationDetection,
   ExchangeDetail,
   GameState,
+  MatchControl,
   NewGameSettings,
   PassDetail,
   PendingPlacement,
@@ -106,7 +107,9 @@ import {
 } from "./constants/layout";
 import {
   LIVE_SESSION_SYNC_DEBOUNCE_MS,
+  REALTIME_RETRY_MS,
   TIMER_TICK_MS,
+  WAKE_DEBOUNCE_MS,
 } from "./constants/network";
 import { STORAGE_KEYS } from "./constants/storage";
 import { createAutomaticEndGameLog, createSurrenderEndGameLog } from "./gameplay/endGame";
@@ -359,6 +362,11 @@ function App() {
   const [replayCursor, setReplayCursor] = useState<number | null>(null);
   const [logModalOpen, setLogModalOpen] = useState(false);
   const [showResult, setShowResult] = useState(false);
+  // In-app confirmations for lifecycle actions (never window.confirm — native
+  // dialogs are blocked in some in-app browsers and can't explain outcomes).
+  const [lifecycleConfirm, setLifecycleConfirm] = useState<"stop" | "end" | null>(null);
+  // Stop-response the requester has already acknowledged (local only).
+  const [seenStopResponseId, setSeenStopResponseId] = useState<string | null>(null);
   const [assignmentRequest, setAssignmentRequest] = useState<AssignmentRequest | null>(null);
   const [boardCell, setBoardCell] = useState(34);
   // Mobile tile-pick bottom sheet (manual draw mode). Auto-opens once per
@@ -599,6 +607,85 @@ function App() {
     };
   }, [route.kind]);
 
+  // ── Sync resilience ───────────────────────────────────────────────────────
+  // Phones freeze JS and drop the realtime websocket when the screen turns
+  // off, the tab is swiped to the app switcher, or the browser is
+  // backgrounded — and missed postgres_changes are never replayed. Every
+  // "wake" signal therefore (1) catches the local clock up, (2) rebuilds the
+  // realtime channel, and (3) re-reads the authoritative room row.
+  const [subscriptionEpoch, setSubscriptionEpoch] = useState(0);
+  const reconcilingRef = useRef(false);
+  const resubscribeTimerRef = useRef<number | null>(null);
+  const lastWakeAtRef = useRef(0);
+  const routeRef = useRef(route);
+  routeRef.current = route;
+  const coffeeRoomIdRef = useRef<string | null>(coffeeRoomId);
+  coffeeRoomIdRef.current = coffeeRoomId;
+
+  useEffect(() => {
+    const wake = () => {
+      if (document.visibilityState === "hidden") return;
+      const now = Date.now();
+      if (now - lastWakeAtRef.current < WAKE_DEBOUNCE_MS) return;
+      lastWakeAtRef.current = now;
+      // Catch the visible clock up immediately so the pre-sleep time never
+      // flashes while the network round-trip is in flight.
+      setGame((current) => (current ? advanceRunningClock(current) : current));
+      const currentRoute = routeRef.current;
+      if (!remoteEnabled) return;
+      if (currentRoute.kind === "play" || currentRoute.kind === "room") {
+        setSubscriptionEpoch((epoch) => epoch + 1);
+        void reconcileActiveRoom();
+        if (currentRoute.kind === "play" && coffeeRoomIdRef.current === currentRoute.roomId) {
+          // Back at the board — the implicit coffee break is over.
+          rememberCoffeeRoom(null);
+        }
+      } else if (currentRoute.kind === "home") {
+        void remoteRooms
+          .listRooms()
+          .then(setRooms)
+          .catch(() => undefined);
+      }
+    };
+    const hide = () => {
+      // Swiping the web away or turning the screen off mid-game counts as a
+      // coffee break, exactly like pressing the Break button. Only
+      // localStorage is reliable inside pagehide, so mark the room here and
+      // let the next launch show the return chip.
+      const currentRoute = routeRef.current;
+      const currentGame = gameRef.current;
+      if (
+        currentRoute.kind === "play" &&
+        currentGame?.status === "playing" &&
+        !readOnlyRef.current &&
+        activeRoomIdRef.current
+      ) {
+        rememberCoffeeRoom(activeRoomIdRef.current);
+      }
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") wake();
+      else hide();
+    };
+    const onPageShow = (event: PageTransitionEvent) => {
+      // bfcache restore: the JS heap is pre-sleep state; treat it as a wake.
+      if (event.persisted) wake();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", wake);
+    window.addEventListener("online", wake);
+    window.addEventListener("pageshow", onPageShow);
+    window.addEventListener("pagehide", hide);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", wake);
+      window.removeEventListener("online", wake);
+      window.removeEventListener("pageshow", onPageShow);
+      window.removeEventListener("pagehide", hide);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remoteEnabled]);
+
   // Reconcile route changes (browser back/forward, manual hash edit) with state.
   // Owner-initiated openRoom/createAndOpenRoom already sync everything *before*
   // calling navigate(), so this effect mostly handles external hash changes.
@@ -677,7 +764,8 @@ function App() {
 
   useEffect(() => {
     if (!remoteEnabled || view !== "game" || !activeRoomId) return;
-    return remoteRooms.subscribeToRoom(activeRoomId, (payload) => {
+    let disposed = false;
+    const unsubscribe = remoteRooms.subscribeToRoom(activeRoomId, (payload) => {
       const newRecord = payload.new as { id?: string } | null | undefined;
       const oldRecord = payload.old as { id?: string } | null | undefined;
       const changedId = newRecord?.id ?? oldRecord?.id;
@@ -708,15 +796,20 @@ function App() {
         return;
       }
       applyRemoteSession(session);
-    });
+    }, (status) => handleChannelStatus(status, () => disposed));
+    return () => {
+      disposed = true;
+      unsubscribe();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remoteEnabled, view, activeRoomId, userId]);
+  }, [remoteEnabled, view, activeRoomId, userId, subscriptionEpoch]);
 
   // Waiting rooms reuse the existing room-row subscription. Gameplay keeps
   // its original subscription above; this listener exists only before Start.
   useEffect(() => {
     if (!remoteEnabled || route.kind !== "room" || !activeRoomId) return;
-    return remoteRooms.subscribeToRoom(
+    let disposed = false;
+    const unsubscribe = remoteRooms.subscribeToRoom(
       activeRoomId,
       (payload) => {
         const record = payload.new as remoteRooms.RemoteRoomRecord | null | undefined;
@@ -740,8 +833,14 @@ function App() {
         }
       },
       () => undefined,
+      (status) => handleChannelStatus(status, () => disposed),
     );
-  }, [activeRoomId, remoteEnabled, route.kind]);
+    return () => {
+      disposed = true;
+      unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRoomId, remoteEnabled, route.kind, subscriptionEpoch]);
 
   useEffect(() => {
     if (view !== "game" || !game || game.status !== "playing" || game.timers.paused) return;
@@ -1484,7 +1583,7 @@ function App() {
       const remotePayload = remoteEnabled ? await remoteRooms.readRoom(id) : null;
       const storedGame = remotePayload?.game ?? roomStore.readRoom(id);
       if (!storedGame || hasDuplicateTileIds(storedGame)) {
-        window.alert("This room cannot be opened because its data is damaged.");
+        setSyncError("This room cannot be opened because its data is damaged.");
         return false;
       }
       const saved = advanceRunningClock(normalizeFinishedGame(storedGame));
@@ -1518,7 +1617,7 @@ function App() {
 
   async function createAndOpenRoom(newSettings: NewGameSettings) {
     if (!canCreateRoom) {
-      window.alert(createDisabledReason ?? "You cannot create a room right now.");
+      setSyncError(createDisabledReason ?? "You cannot create a room right now.");
       return;
     }
     const isSoloRoom = getGameMode(newSettings) === "solo";
@@ -1678,8 +1777,8 @@ function App() {
 
   async function cancelWaitingRoom() {
     if (!activeRoomId || !canConfigureWaitingRoom) return;
-    if (!window.confirm(`Cancel "${game?.name ?? "this room"}"? This removes the waiting room.`)) return;
-    await deleteRoomById(activeRoomId, true);
+    // WaitingRoomPage's in-app ConfirmSheet already asked; don't ask twice.
+    await deleteRoomById(activeRoomId);
   }
 
   async function leaveActiveWaitingRoom() {
@@ -1864,10 +1963,10 @@ function App() {
     }
   }
 
-  async function deleteRoomById(id: string, confirmed = false) {
+  // Every caller confirms through an in-app ConfirmSheet first (RoomCard's
+  // "⋯ → Delete" and the waiting room's Delete option).
+  async function deleteRoomById(id: string) {
     if (!canManageRoom(id)) return;
-    const meta = rooms.find((room) => room.id === id);
-    if (!confirmed && !window.confirm(`Delete "${meta?.name ?? ""}"? This cannot be undone.`)) return;
     const finishLoading = startForegroundLoading("Deleting room...");
     try {
       if (remoteEnabled) {
@@ -1908,7 +2007,7 @@ function App() {
 
   async function importRoomGame(imported: GameState) {
     if (!canCreateRoom) {
-      window.alert(createDisabledReason ?? "You cannot import a room right now.");
+      setSyncError(createDisabledReason ?? "You cannot import a room right now.");
       return;
     }
     const finishLoading = startForegroundLoading("Importing room...");
@@ -2007,7 +2106,55 @@ function App() {
     if (!localGame || readOnlyRef.current || localGame.status !== "playing") return false;
     const composing = actionModeRef.current !== "none" || pendingsRef.current.length > 0;
     if (!composing) return false;
+    // Lifecycle flips (the opponent stopped, paused, or finished the game)
+    // must be adopted immediately — the draft belongs to a game that is no
+    // longer running.
+    if (remoteGame.status !== localGame.status) return false;
+    if (remoteGame.timers.paused !== localGame.timers.paused) return false;
     return !isRemoteGameAhead(localGame, remoteGame);
+  }
+
+  // Channel lifecycle from Supabase realtime. SUBSCRIBED (first connect OR a
+  // silent reconnect) pulls anything the socket missed; error states rebuild
+  // the channel after a short backoff instead of leaving the room deaf.
+  function handleChannelStatus(status: remoteRooms.RoomChannelStatus, isDisposed: () => boolean) {
+    if (isDisposed()) return;
+    if (status === "SUBSCRIBED") {
+      void reconcileActiveRoom();
+      return;
+    }
+    if (resubscribeTimerRef.current !== null) return;
+    resubscribeTimerRef.current = window.setTimeout(() => {
+      resubscribeTimerRef.current = null;
+      setSubscriptionEpoch((epoch) => epoch + 1);
+    }, REALTIME_RETRY_MS);
+  }
+
+  // Fetch the authoritative room row and fold it in. applyRemotePayload keeps
+  // local state that is ahead (its write is still pending) and adopts remote
+  // state that is ahead — the same rules the realtime path applies, so a
+  // reconcile can never lose a committed turn.
+  async function reconcileActiveRoom() {
+    const id = activeRoomIdRef.current;
+    if (!remoteEnabled || !id || reconcilingRef.current) return;
+    reconcilingRef.current = true;
+    try {
+      const payload = await remoteRooms.readRoom(id);
+      if (payload && activeRoomIdRef.current === id) {
+        applyRemotePayload(payload);
+        const stage = getRoomStage(payload.game);
+        const currentRoute = routeRef.current;
+        if (currentRoute.kind === "room" && currentRoute.roomId === id && stage === "playing") {
+          navigate({ kind: "play", roomId: id }, true);
+        } else if (currentRoute.kind === "play" && currentRoute.roomId === id && stage === "waiting") {
+          navigate({ kind: "room", roomId: id }, true);
+        }
+      }
+    } catch (error) {
+      setSyncError(error instanceof Error ? error.message : "Unable to refresh this room.");
+    } finally {
+      reconcilingRef.current = false;
+    }
   }
 
   function applyRemotePayload(
@@ -2036,8 +2183,14 @@ function App() {
       }
       lastAppliedStateKeyRef.current = key;
       // Usually the local state already equals this echo. If another delayed
-      // event displaced it, restore the confirmed write instead of skipping it.
-      if (!localGame || makeRemoteStateKey(localGame) !== key) {
+      // event displaced it, restore the confirmed write instead of skipping
+      // it — EXCEPT while composing: lifecycle writes (stop request/response)
+      // intentionally publish a sanitized board while the local draft keeps
+      // its placed tiles, and the echo must not wipe that draft.
+      if (
+        (!localGame || makeRemoteStateKey(localGame) !== key) &&
+        !shouldDeferRemoteGameWhileComposing(remoteGame)
+      ) {
         setGame(remoteGame);
         cancelDraftOnly();
         if (isFinishedGame(remoteGame)) setShowResult(true);
@@ -2047,6 +2200,22 @@ function App() {
       return;
     }
     if (shouldDeferRemoteGameWhileComposing(remoteGame)) {
+      // Board and rack stay local while composing, but match-control metadata
+      // (an incoming stop request, or the answer to ours) must land
+      // immediately — otherwise the two players deadlock waiting on each
+      // other whenever one of them has tiles on the board.
+      const localGame = gameRef.current;
+      if (
+        localGame &&
+        canonicalStringify(localGame.matchControl ?? null) !==
+          canonicalStringify(remoteGame.matchControl ?? null)
+      ) {
+        setGame({
+          ...localGame,
+          matchControl: remoteGame.matchControl,
+          lastSavedAt: remoteGame.lastSavedAt,
+        });
+      }
       setSyncError(null);
       return;
     }
@@ -3428,11 +3597,42 @@ function App() {
     );
   }
 
+  // Write a lifecycle-only change (stop request / response) NOW, even while a
+  // move is being composed. The regular sync effect refuses to write during
+  // composition because the draft-shaped game has tiles missing from the
+  // rack; this helper writes a sanitized copy (draft returned to the rack)
+  // and leaves the local draft untouched — so a player who is mid-move can
+  // still send and answer stop requests, on any device.
+  async function writeLifecycleStateNow(nextGame: GameState, event: RoomSessionEvent) {
+    const roomId = activeRoomIdRef.current;
+    if (!remoteEnabled || !roomId || !canWriteActiveRoom) return;
+    const key = makeRemoteStateKey(nextGame);
+    lastAppliedStateKeyRef.current = key;
+    rememberRecentKey(localStateWriteKeysRef.current, key);
+    latestRequestedStateKeyRef.current = key;
+    setBackgroundSyncCount((count) => count + 1);
+    try {
+      await remoteRooms.updateRoomState({ id: roomId, game: nextGame, session: liveSession, event });
+      setSyncError(null);
+    } catch (error) {
+      localStateWriteKeysRef.current.delete(key);
+      if (latestRequestedStateKeyRef.current === key) latestRequestedStateKeyRef.current = "";
+      setSyncError(error instanceof Error ? error.message : "Unable to sync the stop request.");
+      try {
+        const authoritative = await remoteRooms.readRoom(roomId);
+        if (authoritative) applyRemotePayload(authoritative, { allowRollback: true });
+      } catch {
+        // Keep the original write error visible when recovery cannot load.
+      }
+    } finally {
+      setBackgroundSyncCount((count) => Math.max(0, count - 1));
+    }
+  }
+
   function requestOrStopGame() {
     if (!game || game.status !== "playing" || !canStopLifecycle) return;
     if (canHostLifecycleControl || canSoloLifecycleControl) {
-      if (!window.confirm("Stop this game and save its current state?")) return;
-      stopGameImmediately(canHostLifecycleControl ? "host" : "A");
+      setLifecycleConfirm("stop");
       return;
     }
     if (!isDirectEmailRoom || !accountPlayerSide) return;
@@ -3441,22 +3641,24 @@ function App() {
     );
     if (Number.isFinite(blockedUntil) && blockedUntil > Date.now()) return;
     if (game.matchControl?.stopRequest) return;
-    const base = lifecycleBaseGame();
-    if (!base) return;
-    pendingSessionEventRef.current = "stop_request";
     const now = new Date().toISOString();
-    setGame({
-      ...base,
-      matchControl: {
-        ...base.matchControl,
-        stopRequest: {
-          id: crypto.randomUUID(),
-          requestedBy: accountPlayerSide,
-          requestedAt: now,
-        },
+    const nextMatchControl: MatchControl = {
+      ...game.matchControl,
+      stopRequest: {
+        id: crypto.randomUUID(),
+        requestedBy: accountPlayerSide,
+        requestedAt: now,
       },
-      lastSavedAt: now,
-    });
+      stopResponse: undefined,
+    };
+    // Metadata-only change: keep any placed-but-unsubmitted tiles on the board.
+    pendingSessionEventRef.current = null;
+    setGame({ ...game, matchControl: nextMatchControl, lastSavedAt: now });
+    const sanitized = buildGameAfterCancelingAction(game).game;
+    void writeLifecycleStateNow(
+      { ...sanitized, matchControl: nextMatchControl, lastSavedAt: now },
+      "stop_request",
+    );
   }
 
   function respondToStopRequest(accept: boolean, blockFiveMinutes = false) {
@@ -3467,35 +3669,69 @@ function App() {
       stopGameImmediately(accountPlayerSide);
       return;
     }
-    pendingSessionEventRef.current = "stop_response";
+    const now = new Date().toISOString();
     const blockedUntil = blockFiveMinutes
       ? new Date(Date.now() + STOP_REQUEST_BLOCK_MS).toISOString()
       : undefined;
-    setGame({
-      ...game,
-      matchControl: {
-        ...game.matchControl,
-        stopRequest: undefined,
-        stopBlockedUntilBySide: blockedUntil
-          ? {
-              ...game.matchControl?.stopBlockedUntilBySide,
-              [request.requestedBy]: blockedUntil,
-            }
-          : game.matchControl?.stopBlockedUntilBySide,
+    const nextMatchControl: MatchControl = {
+      ...game.matchControl,
+      stopRequest: undefined,
+      // The requester's device may be asleep right now — the response is
+      // persisted, not just broadcast, so they see it whenever they wake.
+      stopResponse: {
+        id: crypto.randomUUID(),
+        requestId: request.id,
+        requestedBy: request.requestedBy,
+        respondedBy: accountPlayerSide,
+        accepted: false,
+        blockedForMs: blockFiveMinutes ? STOP_REQUEST_BLOCK_MS : undefined,
+        respondedAt: now,
       },
-      lastSavedAt: new Date().toISOString(),
-    });
+      stopBlockedUntilBySide: blockedUntil
+        ? {
+            ...game.matchControl?.stopBlockedUntilBySide,
+            [request.requestedBy]: blockedUntil,
+          }
+        : game.matchControl?.stopBlockedUntilBySide,
+    };
+    pendingSessionEventRef.current = null;
+    setGame({ ...game, matchControl: nextMatchControl, lastSavedAt: now });
+    const sanitized = buildGameAfterCancelingAction(game).game;
+    void writeLifecycleStateNow(
+      { ...sanitized, matchControl: nextMatchControl, lastSavedAt: now },
+      "stop_response",
+    );
+  }
+
+  // Requester taps "Keep playing" on the declined notice: clear the persisted
+  // response so it never pops up again (e.g. after a reload on any device).
+  function acknowledgeStopResponse() {
+    const response = game?.matchControl?.stopResponse;
+    if (!game || !response) return;
+    setSeenStopResponseId(response.id);
+    if (!accountPlayerSide || response.requestedBy !== accountPlayerSide) return;
+    const now = new Date().toISOString();
+    const nextMatchControl: MatchControl = {
+      ...game.matchControl,
+      stopResponse: undefined,
+    };
+    pendingSessionEventRef.current = null;
+    setGame({ ...game, matchControl: nextMatchControl, lastSavedAt: now });
+    const sanitized = buildGameAfterCancelingAction(game).game;
+    void writeLifecycleStateNow(
+      { ...sanitized, matchControl: nextMatchControl, lastSavedAt: now },
+      "stop_response",
+    );
   }
 
   function endGame() {
     if (!game || !canEndLifecycle) return;
+    setLifecycleConfirm("end");
+  }
+
+  function performEndGame() {
+    if (!game || !canEndLifecycle) return;
     const isSurrender = !hasGameplayHost && getGameMode(game) !== "solo";
-    const confirmed = window.confirm(
-      isSurrender
-        ? "Surrender this match? Your opponent will win immediately."
-        : "End this game? It will be locked as finished and cannot be resumed.",
-    );
-    if (!confirmed) return;
     const base = lifecycleBaseGame();
     if (!base) return;
     pendingSessionEventRef.current = isSurrender ? "surrender" : "end_game";
@@ -3773,6 +4009,16 @@ function App() {
   const stopRequestedByMe = Boolean(
     stopRequest && accountPlayerSide && stopRequest.requestedBy === accountPlayerSide,
   );
+  const stopResponse = game.matchControl?.stopResponse;
+  const stopResponseForMe = Boolean(
+    stopResponse &&
+      !stopResponse.accepted &&
+      accountPlayerSide &&
+      stopResponse.requestedBy === accountPlayerSide &&
+      stopResponse.id !== seenStopResponseId &&
+      game.status === "playing",
+  );
+  const endIsSurrender = !hasGameplayHost && getGameMode(game) !== "solo";
   const canResumeLifecycle =
     canHostLifecycleControl || canSoloLifecycleControl || canDirectLifecycleControl;
 
@@ -4219,6 +4465,56 @@ function App() {
           </button>
         </div>
       </Sheet>
+
+      {/* The answer to MY stop request — persisted in matchControl so it
+          still arrives if this device was asleep when the opponent replied. */}
+      <Sheet
+        open={stopResponseForMe}
+        title="Stop request declined"
+        onClose={acknowledgeStopResponse}
+      >
+        <p className="ui-confirm-consequence">
+          {stopResponse
+            ? `${game.players[stopResponse.respondedBy] || `Side ${stopResponse.respondedBy}`} wants to keep playing.`
+            : "The other player wants to keep playing."}
+          {stopResponse?.blockedForMs
+            ? " New stop requests are blocked for 5 minutes."
+            : ""}
+        </p>
+        <div className="ui-sheet-actions">
+          <button className="ui-button-primary" type="button" onClick={acknowledgeStopResponse}>
+            Keep playing
+          </button>
+        </div>
+      </Sheet>
+
+      <ConfirmSheet
+        open={lifecycleConfirm === "stop"}
+        title="Stop game"
+        consequence="Stop this game and save its current state? You can resume it later."
+        confirmLabel="Stop & save"
+        onCancel={() => setLifecycleConfirm(null)}
+        onConfirm={() => {
+          setLifecycleConfirm(null);
+          stopGameImmediately(canHostLifecycleControl ? "host" : "A");
+        }}
+      />
+
+      <ConfirmSheet
+        open={lifecycleConfirm === "end"}
+        title={endIsSurrender ? "Surrender match" : "End game"}
+        consequence={
+          endIsSurrender
+            ? "Surrender this match? Your opponent wins immediately."
+            : "End this game? It will be locked as finished and cannot be resumed."
+        }
+        confirmLabel={endIsSurrender ? "Surrender" : "End game"}
+        onCancel={() => setLifecycleConfirm(null)}
+        onConfirm={() => {
+          setLifecycleConfirm(null);
+          performEndGame();
+        }}
+      />
 
       {coffeeReturn}
     </main>

@@ -126,6 +126,20 @@ export type MatchControl = {
     requestedBy: Side;
     requestedAt: string;
   };
+  /**
+   * Answer to the last stop request, kept until the next request replaces
+   * it, so the requester always receives an explicit response even if their
+   * device was asleep when the opponent answered.
+   */
+  stopResponse?: {
+    id: string;
+    requestId: string;
+    requestedBy: Side;
+    respondedBy: Side;
+    accepted: boolean;
+    blockedForMs?: number;
+    respondedAt: string;
+  };
   stopBlockedUntilBySide?: Partial<Record<Side, string>>;
   stoppedBy?: Side | "host";
   surrenderedSide?: Side;
