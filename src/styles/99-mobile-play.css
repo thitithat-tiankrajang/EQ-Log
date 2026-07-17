@@ -530,11 +530,12 @@
     align-items: flex-end;
     background: rgba(15, 23, 31, 0.45);
     overscroll-behavior: contain;
+    transition: background-color 80ms linear;
   }
 
   .bag-sheet {
     display: grid;
-    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
     gap: 10px;
     width: 100%;
     max-height: 86dvh;
@@ -544,12 +545,18 @@
     padding: 8px 14px calc(10px + env(safe-area-inset-bottom));
     animation: bag-sheet-up 0.22s ease-out;
     outline: none;
+    will-change: transform;
+  }
+
+  .bag-sheet.is-dragging,
+  .bag-sheet.is-closing {
+    animation: none;
   }
 
   @keyframes bag-sheet-up {
     from {
-      transform: translateY(28px);
-      opacity: 0.5;
+      transform: translateY(100%);
+      opacity: 0.72;
     }
 
     to {
@@ -564,6 +571,20 @@
     height: 5px;
     border-radius: 999px;
     background: rgba(23, 33, 43, 0.18);
+  }
+
+  .bag-sheet-drag-zone {
+    display: grid;
+    gap: 8px;
+    margin: -2px -6px 0;
+    padding: 2px 6px 0;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+  }
+
+  .bag-sheet.is-dragging .bag-sheet-drag-zone {
+    cursor: grabbing;
   }
 
   .bag-sheet-head {
@@ -590,17 +611,23 @@
     font-weight: 700;
   }
 
-  .bag-sheet-close {
+  .mobile-tilebag-rack-block {
     display: grid;
-    flex: 0 0 auto;
-    place-items: center;
-    width: 44px;
-    height: 44px;
-    border: 1px solid var(--border, #cfdae2);
-    border-radius: 12px;
-    background: var(--surface-solid, #ffffff);
+    gap: 5px;
+  }
+
+  .bag-sheet-rack-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: var(--muted, #5d6b78);
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .bag-sheet-rack-label strong {
     color: var(--text, #17212b);
-    cursor: pointer;
+    font-size: 12px;
   }
 
   /* Rack mirror inside the sheet: tap a freshly drawn tile to return it. */
@@ -686,8 +713,9 @@
 
   .bag-sheet-body .tilebag-groups {
     display: grid !important;
-    grid-template-columns: repeat(auto-fill, minmax(56px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(10, minmax(0, 1fr));
+    column-gap: 3px;
+    row-gap: 12px;
     overflow: visible;
   }
 
@@ -697,9 +725,17 @@
     grid-template-rows: minmax(0, 1fr) !important;
     width: 100% !important;
     aspect-ratio: 1 / 1;
-    min-height: 48px;
-    margin-bottom: 7px;
+    min-height: 0;
+    margin-bottom: 5px;
     touch-action: manipulation;
+  }
+
+  .bag-sheet-body .tile-stack .tile {
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    border-radius: 4px !important;
   }
 
   .bag-sheet-body .tile-stack-readonly:disabled {
@@ -712,18 +748,18 @@
     position: absolute !important;
     z-index: 2;
     left: 50% !important;
-    bottom: -7px !important;
+    bottom: -6px !important;
     display: grid !important;
     width: auto !important;
-    min-width: 22px !important;
-    height: 17px !important;
-    padding: 0 6px !important;
+    min-width: 16px !important;
+    height: 13px !important;
+    padding: 0 3px !important;
     place-items: center !important;
     border: 1px solid rgba(255, 255, 255, 0.72) !important;
-    border-radius: 8px !important;
+    border-radius: 6px !important;
     background: #24313d !important;
     color: #ffffff !important;
-    font-size: 10px !important;
+    font-size: 8px !important;
     font-weight: 900 !important;
     line-height: 1 !important;
     transform: translateX(-50%) !important;
@@ -737,16 +773,22 @@
   }
 
   .mobile-tilebag-sheet-body .tilebag-groups {
-    row-gap: 15px !important;
+    row-gap: 12px !important;
   }
 
   .bag-sheet-body .tile-stack .tile b {
-    font-size: clamp(18px, 6vw, 24px);
+    font-size: clamp(10px, 3.4vw, 14px) !important;
+    line-height: 1 !important;
+  }
+
+  .bag-sheet-body .tile-stack-choice .tile b {
+    font-size: clamp(8px, 2.8vw, 11px) !important;
   }
 
   .bag-sheet-body .tile-stack .tile small {
     display: block;
-    font-size: 11px;
+    font-size: 7px !important;
+    line-height: 1 !important;
   }
 
   .bag-sheet-done {

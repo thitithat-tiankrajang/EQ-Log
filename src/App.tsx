@@ -3706,6 +3706,7 @@ function App() {
             timersOverride={replayOverrides?.timers}
           />
           <MobileTilebagPanel
+            rackSlots={displayRack}
             remainingCount={tilebagView.remainingCount}
             tiles={tilebagView.tiles}
           />
@@ -3918,7 +3919,7 @@ function App() {
         />
       )}
 
-      {mobileBagOpen && canPickFromTilebag && (
+      {mobileBagOpen && (
         <TilebagSheet
           carriedOverTileIds={carriedOverTileIds}
           rackSlots={displayRack}
