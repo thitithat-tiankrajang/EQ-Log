@@ -628,3 +628,200 @@
     grid-column: 1 / -1;
   }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   Waiting-room redesign (design.md §4.5): room code first, one-sentence
+   status line, readable settings summary, ActionDock for the primary action.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.pregame-heading-actions {
+  margin-left: auto;
+  align-self: flex-start;
+}
+
+.code-card {
+  display: grid;
+  gap: 10px;
+  justify-items: stretch;
+}
+
+.code-card-code {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 16px;
+  border: 2px solid var(--text, #3c4043);
+  background: var(--surface-solid, #ffffff);
+  cursor: pointer;
+}
+
+.code-card-code:active {
+  background: var(--surface-2, #f8f9fa);
+}
+
+.code-card-code strong {
+  font-family: var(--font-mono, monospace);
+  font-size: clamp(22px, 7vw, 30px);
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  font-variant-numeric: tabular-nums;
+  color: var(--text, #3c4043);
+}
+
+.code-card-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent-strong, #185abc);
+}
+
+.code-card-role {
+  font-size: 12.5px;
+  color: var(--muted, #5f6368);
+}
+
+.waiting-status-line {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border, #dadce0);
+  background: var(--surface-solid, #ffffff);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text, #3c4043);
+}
+
+.waiting-status-dot {
+  flex: 0 0 auto;
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--gold, #fbbc05);
+}
+
+.participant-you {
+  margin-left: 8px;
+  padding: 1px 6px;
+  background: var(--text, #3c4043);
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.waiting-edit-button {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--border, #dadce0);
+  background: var(--surface-solid, #ffffff);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--accent-strong, #185abc);
+  cursor: pointer;
+}
+
+.waiting-edit-button:active {
+  background: var(--surface-2, #f8f9fa);
+}
+
+.settings-summary {
+  display: grid;
+  margin: 0;
+}
+
+.settings-summary-row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: 10px;
+  padding: 9px 2px;
+}
+
+.settings-summary-row + .settings-summary-row {
+  border-top: 1px solid var(--divider, rgba(60, 64, 67, 0.1));
+}
+
+.settings-summary-row dt {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, #5f6368);
+  align-self: center;
+}
+
+.settings-summary-row dd {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text, #3c4043);
+}
+
+.waiting-viewer-note {
+  margin: 0;
+  padding: 6px 4px;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--muted, #5f6368);
+  text-align: center;
+}
+
+/* Waiting-room sections stack in one column; the dock carries the action. */
+.waiting-section-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+@media (max-width: 767px) {
+  .pregame-header h1 {
+    font-size: 22px;
+  }
+
+  .pregame-header {
+    gap: 8px;
+  }
+}
+
+/* Join page: big verifiable code input + paste (codes arrive via chat). */
+.join-input-row {
+  display: flex;
+  gap: 8px;
+}
+
+.join-code-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 54px;
+  font-family: var(--font-mono, monospace);
+  font-size: 20px !important;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.join-paste-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-height: 54px;
+  padding: 0 14px;
+  border: 1px solid var(--border, #dadce0);
+  background: var(--surface-2, #f8f9fa);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text, #3c4043);
+  cursor: pointer;
+}
+
+.join-paste-button:active {
+  background: var(--border, #dadce0);
+}

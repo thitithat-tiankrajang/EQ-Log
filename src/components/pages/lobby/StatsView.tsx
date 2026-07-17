@@ -8,11 +8,13 @@ import { MemberAvatar, MemberChip } from "./MemberChip";
 export function StatsView({
   members,
   statsByMember,
+  initialFocusId = null,
 }: {
   members: Member[];
   statsByMember: Map<string, MemberStats>;
+  initialFocusId?: string | null;
 }) {
-  const [focusedId, setFocusedId] = useState<string | null>(null);
+  const [focusedId, setFocusedId] = useState<string | null>(initialFocusId);
 
   const rows = useMemo(() => {
     return members
@@ -51,11 +53,35 @@ export function StatsView({
     <div className="stats-view">
       <header className="stats-view-head">
         <h2>Member statistics</h2>
-        <p>
-          Stats are derived from finished rooms in the lobby. Tap a row to see the head-to-head
-          breakdown with every opponent.
-        </p>
+        <p>Counted from finished rooms only. Tap a member for the head-to-head breakdown.</p>
       </header>
+
+      {/* Phone: ranked list (an 8-column table can't fit 375px without
+          horizontal scrolling). Desktop keeps the full table below. */}
+      <ol className="stats-ranked">
+        {rows.map(({ member, stats }, index) => (
+          <li key={member.id}>
+            <button
+              type="button"
+              className="stats-ranked-row"
+              disabled={!stats || stats.games === 0}
+              onClick={() => setFocusedId(member.id)}
+            >
+              <span className="stats-ranked-pos">{index + 1}</span>
+              <MemberAvatar member={member} />
+              <span className="stats-ranked-copy">
+                <strong>{member.name}</strong>
+                <span>
+                  {stats?.games ?? 0} games
+                  {stats && stats.games > 0 && ` · ${formatWinRate(stats.winRate)} win`}
+                  {stats && stats.games > 0 && ` · avg ${formatAverage(stats.avgScore)}`}
+                </span>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ol>
+
       <div className="stats-table-wrap">
         <table className="stats-table">
           <thead>

@@ -9,6 +9,8 @@ import {
 } from "../../../members";
 import type { MemberStats } from "../../../stats";
 import { formatAverage, formatWinRate } from "../../../stats";
+import { OverflowMenu } from "../../ui/OverflowMenu";
+import { ConfirmSheet, Sheet } from "../../ui/Sheet";
 
 export function MembersView({
   members,
@@ -18,6 +20,7 @@ export function MembersView({
   loading,
   ownerId,
   onChange,
+  onShowStats,
 }: {
   members: Member[];
   statsByMember: Map<string, MemberStats>;
@@ -26,9 +29,11 @@ export function MembersView({
   loading: boolean;
   ownerId: string | null;
   onChange: (next: Member[]) => void;
+  onShowStats?: (memberId: string) => void;
 }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draftOpen, setDraftOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [operation, setOperation] = useState<string | null>(null);
   const [operationError, setOperationError] = useState<string | null>(null);
   const institutions = useMemo(
@@ -38,9 +43,11 @@ export function MembersView({
       ),
     [members],
   );
+  const editingMember = editingId ? members.find((entry) => entry.id === editingId) ?? null : null;
+  const deletingMember = deletingId ? members.find((entry) => entry.id === deletingId) ?? null : null;
 
   async function handleCreate(input: { name: string; institution?: string }) {
-    setOperation("Saving member...");
+    setOperation("Saving member…");
     setOperationError(null);
     try {
       onChange(await createMember(input, ownerId));
@@ -53,7 +60,7 @@ export function MembersView({
   }
 
   async function handleUpdate(id: string, patch: Parameters<typeof updateMember>[1]) {
-    setOperation("Saving changes...");
+    setOperation("Saving changes…");
     setOperationError(null);
     try {
       onChange(await updateMember(id, patch, ownerId));
@@ -66,12 +73,7 @@ export function MembersView({
   }
 
   async function handleDelete(id: string) {
-    const member = members.find((entry) => entry.id === id);
-    if (!member) return;
-    if (!window.confirm(`Remove ${member.name} from the directory?\nExisting game records keep the name on file.`)) {
-      return;
-    }
-    setOperation("Deleting member...");
+    setOperation("Deleting member…");
     setOperationError(null);
     try {
       onChange(await deleteMember(id, ownerId));
@@ -86,15 +88,20 @@ export function MembersView({
     <div className="members-view">
       <div className="members-view-head">
         <div>
-          <h2>Organization members</h2>
+          <h2>Members</h2>
           <p>
             {canManage
-              ? "This is your private player directory. Only your account can use these members when creating rooms."
-              : "Sign in with an approved account to manage your private player directory."}
+              ? "Private directory — link members when creating rooms to track their stats."
+              : "Sign in with an approved account to manage your player directory."}
           </p>
         </div>
-        {canManage && !draftOpen && (
-          <button className="solid-button" disabled={Boolean(operation)} type="button" onClick={() => setDraftOpen(true)}>
+        {canManage && (
+          <button
+            className="solid-button"
+            disabled={Boolean(operation)}
+            type="button"
+            onClick={() => setDraftOpen(true)}
+          >
             <Plus size={15} />
             Add member
           </button>
@@ -104,19 +111,9 @@ export function MembersView({
       {(operationError ?? error) && <p className="sync-banner">{operationError ?? error}</p>}
       {operation && <p className="info-banner member-operation" role="status">{operation}</p>}
 
-      {draftOpen && canManage && (
-        <MemberFormCard
-          busy={Boolean(operation)}
-          onCancel={() => setDraftOpen(false)}
-          institutions={institutions}
-          onSave={handleCreate}
-          submitLabel="Add to directory"
-        />
-      )}
-
       {loading ? (
-        <p className="empty-state" role="status">Loading your members...</p>
-      ) : members.length === 0 && !draftOpen ? (
+        <p className="empty-state" role="status">Loading your members…</p>
+      ) : members.length === 0 ? (
         <p className="empty-state">
           {canManage
             ? "Your directory is empty. Add the first member to get started."
@@ -126,73 +123,102 @@ export function MembersView({
         <ul className="member-list">
           {members.map((member) => {
             const stats = statsByMember.get(member.id);
-            if (editingId === member.id && canManage) {
-              return (
-                <li key={member.id}>
-                  <MemberFormCard
-                    busy={Boolean(operation)}
-                    initial={member}
-                    institutions={institutions}
-                    onCancel={() => setEditingId(null)}
-                    onSave={(patch) => handleUpdate(member.id, patch)}
-                    submitLabel="Save changes"
-                  />
-                </li>
-              );
-            }
             return (
-              <li key={member.id} className="member-card">
-                <span className="member-card-avatar" aria-hidden>
-                  {getMemberInitials(member)}
-                </span>
-                <div className="member-card-body">
-                  <div className="member-card-title">
+              <li key={member.id} className="member-row">
+                <button
+                  type="button"
+                  className="member-row-open"
+                  onClick={() => onShowStats?.(member.id)}
+                >
+                  <span className="member-card-avatar" aria-hidden>
+                    {getMemberInitials(member)}
+                  </span>
+                  <span className="member-row-copy">
                     <strong>{member.name}</strong>
-                  </div>
-                  <div className="member-card-institution">
-                    {member.institution ?? "No institution"}
-                  </div>
-                </div>
-                <div className="member-card-stats">
-                  <span>
-                    <em>{stats?.games ?? 0}</em>
-                    games
+                    <span>
+                      {member.institution ?? "No institution"}
+                      {" · "}
+                      {stats?.games ?? 0} games
+                      {stats && stats.games > 0 && ` · ${formatWinRate(stats.winRate)} win`}
+                      {stats && stats.games > 0 && ` · avg ${formatAverage(stats.avgScore)}`}
+                    </span>
                   </span>
-                  <span>
-                    <em>{stats ? formatWinRate(stats.winRate) : "—"}</em>
-                    win rate
-                  </span>
-                  <span>
-                    <em>{stats ? formatAverage(stats.avgScore) : "—"}</em>
-                    avg score
-                  </span>
-                </div>
+                </button>
                 {canManage && (
-                  <div className="member-card-actions">
-                    <button disabled={Boolean(operation)} type="button" aria-label="Edit member" onClick={() => setEditingId(member.id)}>
-                      <Pencil size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      className="danger"
-                      disabled={Boolean(operation)}
-                      aria-label="Delete member"
-                      onClick={() => handleDelete(member.id)}
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
+                  <OverflowMenu
+                    label={`Member actions · ${member.name}`}
+                    items={[
+                      {
+                        icon: <Pencil size={16} />,
+                        label: "Edit",
+                        disabled: Boolean(operation),
+                        onSelect: () => setEditingId(member.id),
+                      },
+                      {
+                        icon: <Trash2 size={16} />,
+                        label: "Delete",
+                        danger: true,
+                        disabled: Boolean(operation),
+                        onSelect: () => setDeletingId(member.id),
+                      },
+                    ]}
+                  />
                 )}
               </li>
             );
           })}
         </ul>
       )}
+
+      <Sheet
+        open={draftOpen && canManage}
+        title="Add member"
+        onClose={() => setDraftOpen(false)}
+      >
+        <MemberForm
+          busy={Boolean(operation)}
+          institutions={institutions}
+          onCancel={() => setDraftOpen(false)}
+          onSave={handleCreate}
+          submitLabel="Add to directory"
+        />
+      </Sheet>
+
+      <Sheet
+        open={Boolean(editingMember) && canManage}
+        title={`Edit ${editingMember?.name ?? "member"}`}
+        onClose={() => setEditingId(null)}
+      >
+        {editingMember && (
+          <MemberForm
+            busy={Boolean(operation)}
+            initial={editingMember}
+            institutions={institutions}
+            onCancel={() => setEditingId(null)}
+            onSave={(patch) => handleUpdate(editingMember.id, patch)}
+            submitLabel="Save changes"
+          />
+        )}
+      </Sheet>
+
+      <ConfirmSheet
+        open={Boolean(deletingMember)}
+        title="Delete member"
+        consequence={`Remove ${deletingMember?.name ?? "this member"} from the directory? Existing game records keep the name on file.`}
+        confirmLabel="Delete member"
+        busy={Boolean(operation)}
+        onCancel={() => setDeletingId(null)}
+        onConfirm={() => {
+          const id = deletingId;
+          setDeletingId(null);
+          if (id) void handleDelete(id);
+        }}
+      />
     </div>
   );
 }
 
-function MemberFormCard({
+function MemberForm({
   busy,
   initial,
   institutions,
@@ -262,7 +288,7 @@ function MemberFormCard({
                   {institution}
                 </option>
               ))}
-              <option value="__new__">New institution...</option>
+              <option value="__new__">New institution…</option>
             </select>
             {institutionMode === "new" && (
               <input
@@ -273,7 +299,7 @@ function MemberFormCard({
               />
             )}
           </div>
-          <small>Choose an existing institution or type a new one to create its group.</small>
+          <small>Pick an existing institution or type a new one to create its group.</small>
         </div>
       </div>
       <div className="member-form-actions">

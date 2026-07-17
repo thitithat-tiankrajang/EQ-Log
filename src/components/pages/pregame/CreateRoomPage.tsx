@@ -45,22 +45,26 @@ export function CreateRoomPage({
           <CreateRoomPanel
             settings={settings}
             members={members}
+            busy={submitting}
             onChange={setSettings}
             onSubmit={() => {
               if (!canCreate || submitting) return;
-              onCreate({
-                ...settings,
-                playerA:
-                  settings.playerA.trim() ||
-                  resolveMemberLabel(settings.playerAMemberId, members) ||
-                  "Player A",
-                playerB:
-                  settings.gameMode === "solo"
-                    ? ""
-                    : settings.playerB.trim() ||
-                      resolveMemberLabel(settings.playerBMemberId, members) ||
-                      "Player B",
-              });
+              const playerA =
+                settings.playerA.trim() ||
+                resolveMemberLabel(settings.playerAMemberId, members) ||
+                "Player A";
+              const playerB =
+                settings.gameMode === "solo"
+                  ? ""
+                  : settings.playerB.trim() ||
+                    resolveMemberLabel(settings.playerBMemberId, members) ||
+                    "Player B";
+              // Blank names fall back to the players — "Namfon vs Mek" makes
+              // the rooms list searchable, unlike a repeated app name.
+              const name =
+                settings.name.trim() ||
+                (settings.gameMode === "solo" ? `${playerA} · solo` : `${playerA} vs ${playerB}`);
+              onCreate({ ...settings, name, playerA, playerB });
             }}
           />
         </div>

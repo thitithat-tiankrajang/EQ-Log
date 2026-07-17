@@ -30,7 +30,7 @@ export function getRoomActorCapabilities({
     return { canAct: false, canInteract: false, canRefill: false };
   }
 
-  if (!remoteEnabled || isAdmin) {
+  if (!remoteEnabled) {
     return {
       canAct: true,
       canInteract: true,
@@ -44,6 +44,15 @@ export function getRoomActorCapabilities({
       : game.playerEmails?.A || game.playerEmails?.B
         ? game.emailPlayMode ?? "hosted"
         : null;
+  // A direct email room has no gameplay host. Room ownership and admin status
+  // must never grant access to the other player's turn or rack.
+  if (isAdmin && emailMode !== "direct") {
+    return {
+      canAct: true,
+      canInteract: true,
+      canRefill: getTileDrawMode(game) === "manual",
+    };
+  }
   const assignedToActiveSide = invitedSides.includes(game.activeSide);
   const canAct = emailMode ? assignedToActiveSide : isOwner;
   const canRefill =

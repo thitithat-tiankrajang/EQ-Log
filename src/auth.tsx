@@ -198,9 +198,7 @@ function LoginScreen() {
   return (
     <AuthShell>
       <h1>Sign in</h1>
-      <p className="auth-sub">
-        Sign in with Google to create rooms and play. After registering, an admin approves your account.
-      </p>
+      <p className="auth-sub">Record and replay equation board matches.</p>
       <button
         className="primary-action google-button"
         type="button"
@@ -217,6 +215,9 @@ function LoginScreen() {
         <GoogleMark />
         Continue with Google
       </button>
+      <p className="auth-footnote">
+        New accounts need admin approval before creating rooms — you can still join and watch right away.
+      </p>
     </AuthShell>
   );
 }
@@ -270,7 +271,7 @@ function PendingApproval() {
       <h1>Waiting for approval</h1>
       <p className="auth-sub">
         Thanks, <strong>{profile?.display_name}</strong>. An admin needs to approve your account before you
-        can create rooms and play.
+        can create rooms and play. Ask your club admin to approve you.
       </p>
       <button className="primary-action" type="button" onClick={refreshProfile}>
         Check again

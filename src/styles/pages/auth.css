@@ -277,3 +277,44 @@
   border-color: var(--danger, #b23b30);
   color: var(--danger, #b23b30);
 }
+
+/* Mobile: admin panel behaves like the app's bottom sheets — full width,
+   anchored to the bottom, big scroll area (design.md §4.9). */
+@media (max-width: 759px) {
+  .modal-backdrop:has(.admin-modal) {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  .admin-modal {
+    width: 100vw;
+    max-height: 92dvh;
+    border-radius: 0;
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .admin-row {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .admin-actions button {
+    min-height: 44px;
+    flex: 1 1 auto;
+  }
+}
+
+.auth-footnote {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted, #5f6368);
+}

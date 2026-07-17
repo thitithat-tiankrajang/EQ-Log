@@ -8,12 +8,15 @@ export function PreGameShell({
   eyebrow,
   title,
   subtitle,
+  actions,
   onBack,
 }: {
   children: ReactNode;
   eyebrow: string;
   title: string;
   subtitle?: string;
+  /** Page-level controls (e.g. an overflow menu) shown beside the title. */
+  actions?: ReactNode;
   onBack?: () => void;
 }) {
   return (
@@ -31,6 +34,7 @@ export function PreGameShell({
               <h1>{title}</h1>
               {subtitle && <p>{subtitle}</p>}
             </div>
+            {actions && <div className="pregame-heading-actions">{actions}</div>}
           </div>
           <div className="pregame-account-actions">
             <AccountChip />

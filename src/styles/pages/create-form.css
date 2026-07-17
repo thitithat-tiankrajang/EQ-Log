@@ -1,0 +1,361 @@
+/* ============================================================================
+   create-form.css — guided Create Room form (design.md §4.3).
+   Numbered sections, choice cards, side player cards, timer chips, Advanced
+   accordion whose closed header still shows the current values.
+   ============================================================================ */
+
+.create-form {
+  display: grid;
+  gap: 22px;
+  border: 1px solid var(--border, #dadce0);
+  background: var(--surface-solid, #ffffff);
+  padding: 16px 14px 18px;
+}
+
+.create-section {
+  display: grid;
+  gap: 10px;
+}
+
+.create-section-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text, #3c4043);
+}
+
+.create-section-title span {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  background: var(--text, #3c4043);
+  color: #ffffff;
+  font-size: 12px;
+}
+
+.create-subquestion {
+  display: grid;
+  gap: 8px;
+  margin-left: 10px;
+  padding-left: 12px;
+  border-left: 2px solid var(--accent-soft, #e8f0fe);
+}
+
+.create-subquestion-title {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted, #5f6368);
+}
+
+.create-signed-in {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted, #5f6368);
+}
+
+/* Segmented control (kept for tiny 2-value choices like "You play: A/B"). */
+.create-form .create-segment {
+  display: flex;
+  border: 1px solid var(--border, #dadce0);
+  background: var(--surface-solid, #ffffff);
+}
+
+.create-form .create-segment button {
+  flex: 1 1 0;
+  min-height: 44px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text, #3c4043);
+  cursor: pointer;
+}
+
+.create-form .create-segment button + button {
+  border-left: 1px solid var(--border, #dadce0);
+}
+
+.create-form .create-segment button:active {
+  background: var(--surface-2, #f8f9fa);
+}
+
+.create-form .create-segment button.active {
+  background: var(--accent, #4285f4);
+  color: #ffffff;
+}
+
+/* ── Side player cards ────────────────────────────────────────────────────── */
+.side-card {
+  border: 1px solid var(--border, #dadce0);
+  background: var(--surface-solid, #ffffff);
+}
+
+.side-card + .side-card {
+  margin-top: 10px;
+}
+
+.side-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--divider, rgba(60, 64, 67, 0.1));
+  background: var(--surface-2, #f8f9fa);
+}
+
+.side-card-head strong {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.side-card-head .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.side-card-head .dot-a {
+  background: var(--lobby-side-a, #ea4335);
+}
+
+.side-card-head .dot-b {
+  background: var(--lobby-side-b, #4285f4);
+}
+
+.side-card-you,
+.side-card-first {
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.side-card-you {
+  background: var(--text, #3c4043);
+  color: #ffffff;
+}
+
+.side-card-first {
+  margin-left: auto;
+  background: var(--accent-soft, #e8f0fe);
+  color: var(--accent-strong, #185abc);
+}
+
+.side-card-fields {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+}
+
+.create-swap-first {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  margin-top: 10px;
+  border: 1px dashed var(--border-strong, #a8afb8);
+  background: var(--surface-solid, #ffffff);
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text, #3c4043);
+  cursor: pointer;
+  width: 100%;
+}
+
+.create-swap-first:active {
+  background: var(--surface-2, #f8f9fa);
+}
+
+/* ── Timer chips ──────────────────────────────────────────────────────────── */
+.timer-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.timer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--border, #dadce0);
+  border-radius: 0;
+  background: var(--surface-solid, #ffffff);
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--text, #3c4043);
+  cursor: pointer;
+}
+
+.timer-chip em {
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, #5f6368);
+}
+
+.timer-chip:active {
+  background: var(--surface-2, #f8f9fa);
+}
+
+.timer-chip.active {
+  border-color: var(--accent, #4285f4);
+  background: var(--accent, #4285f4);
+  color: #ffffff;
+}
+
+.timer-chip.active em {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.timer-side-row {
+  display: grid;
+  gap: 6px;
+}
+
+.timer-side-row + .timer-side-row {
+  margin-top: 10px;
+}
+
+.timer-side-label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted, #5f6368);
+}
+
+.timer-per-side-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted, #5f6368);
+  cursor: pointer;
+}
+
+.timer-per-side-toggle input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent, #4285f4);
+}
+
+/* ── Advanced accordion ───────────────────────────────────────────────────── */
+.create-advanced {
+  border: 1px solid var(--border, #dadce0);
+  background: var(--surface-2, #f8f9fa);
+}
+
+.create-advanced summary {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.create-advanced summary::-webkit-details-marker {
+  display: none;
+}
+
+.create-advanced summary:active {
+  background: var(--surface-solid, #ffffff);
+}
+
+.create-advanced-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.create-advanced-title::after {
+  content: "▾";
+  margin-left: auto;
+  color: var(--muted, #5f6368);
+}
+
+.create-advanced[open] .create-advanced-title::after {
+  content: "▴";
+}
+
+.create-advanced-title em {
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--muted, #5f6368);
+}
+
+.create-advanced-values {
+  display: grid;
+  gap: 2px;
+  font-size: 12.5px;
+  color: var(--muted, #5f6368);
+}
+
+.create-advanced[open] .create-advanced-values {
+  display: none;
+}
+
+.create-advanced-body {
+  display: grid;
+  gap: 16px;
+  padding: 4px 12px 14px;
+}
+
+.create-advanced-group {
+  display: grid;
+  gap: 6px;
+}
+
+.create-locked-note {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px dashed var(--border, #dadce0);
+  background: var(--surface-solid, #ffffff);
+  font-size: 13px;
+  color: var(--muted, #5f6368);
+}
+
+@media (max-width: 759px) {
+  .create-form {
+    border-left: 0;
+    border-right: 0;
+    margin-inline: -12px;
+    padding-inline: 12px;
+  }
+}
+
+@media (min-width: 760px) {
+  .create-form {
+    padding: 22px;
+  }
+
+  .side-card-fields {
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    align-items: start;
+  }
+}

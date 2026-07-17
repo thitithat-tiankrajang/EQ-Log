@@ -2,7 +2,9 @@ import type { NewGameSettings } from "../game";
 import { DEFAULT_TIMER_MINUTES } from "./gameRules";
 
 export const DEFAULT_NEW_GAME_SETTINGS: NewGameSettings = {
-  name: "Equation Lab",
+  // Blank on purpose: CreateRoomPage derives "A vs B" from the player names
+  // at submit time, so every room gets a searchable, distinct name.
+  name: "",
   gameMode: "versus",
   playerA: "",
   playerB: "",

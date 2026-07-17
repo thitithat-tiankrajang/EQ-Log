@@ -394,10 +394,21 @@ function App() {
     ? game?.emailPlayMode ?? (canManageActiveRoom && invitedSides.length > 0 ? "direct" : "hosted")
     : null;
   const isDirectEmailRoom = emailPlayMode === "direct";
+  // Direct email matches keep database ownership for persistence, but have no
+  // host/admin gameplay controller. Both accounts are ordinary side players.
+  const canControlActiveGame = canManageActiveRoom && !isDirectEmailRoom;
+  const canConfigureWaitingRoom =
+    canManageActiveRoom && (!isDirectEmailRoom || isActiveRoomOwner);
   // Existing rooms showed the active rack, so undefined remains backward-compatible.
   const emailPlayersCanSeeOpponentRack = game?.emailPlayersCanSeeOpponentRack ?? true;
   const canWriteActiveRoom =
-    !remoteEnabled || Boolean(userId && (canManageActiveRoom || invitedSides.length > 0));
+    !remoteEnabled ||
+    Boolean(
+      userId &&
+        (isDirectEmailRoom
+          ? invitedSides.length > 0
+          : canManageActiveRoom || invitedSides.length > 0),
+    );
   const actorCapabilities = getRoomActorCapabilities({
     game,
     emailPlayMode,
@@ -411,30 +422,33 @@ function App() {
   const canPlayActiveRoom = actorCapabilities.canInteract;
   const readOnly = remoteEnabled && !canPlayActiveRoom;
   readOnlyRef.current = readOnly;
-  const roleLabel = !remoteEnabled
-    ? "Local Control"
-    : hasAdminAccess
-      ? "Admin Control"
-      : isDirectEmailRoom && invitedSides.length > 0
-        ? game && game.status === "playing" && invitedSides.includes(game.activeSide)
-          ? `${canManageActiveRoom ? "Owner · " : ""}Side ${game.activeSide} · Your turn`
-          : `${canManageActiveRoom ? "Owner · " : ""}Side ${invitedSides.join("/")} · Waiting`
-      : emailPlayMode === "hosted" && canManageActiveRoom
-        ? game?.phase === "refill" && getTileDrawMode(game) === "manual"
-          ? `Host · Refill Side ${game.activeSide}`
-          : `Host · Waiting for Side ${game?.activeSide ?? "A"}`
-      : canManageActiveRoom
-        ? "Owner Control"
-        : invitedSides.length > 0
-          ? game &&
-            game.status === "playing" &&
-            invitedSides.includes(game.activeSide) &&
-            game.phase !== "refill"
-            ? `Side ${game.activeSide} · Your turn`
-            : game?.phase === "refill" && getTileDrawMode(game) === "manual"
-              ? `Side ${invitedSides.join("/")} · Waiting for host refill`
-              : `Side ${invitedSides.join("/")} · Waiting`
-        : "Spectator Live";
+  const roleLabel = (() => {
+    if (!remoteEnabled) return "Local Control";
+    if (isDirectEmailRoom) {
+      if (invitedSides.length === 0) return "Spectator Live";
+      return game?.status === "playing" && invitedSides.includes(game.activeSide)
+        ? `Side ${game.activeSide} · Your turn`
+        : `Side ${invitedSides.join("/")} · Waiting`;
+    }
+    if (hasAdminAccess) return "Admin Control";
+    if (emailPlayMode === "hosted" && canManageActiveRoom) {
+      return game?.phase === "refill" && getTileDrawMode(game) === "manual"
+        ? `Host · Refill Side ${game.activeSide}`
+        : `Host · Waiting for Side ${game?.activeSide ?? "A"}`;
+    }
+    if (canManageActiveRoom) return "Owner Control";
+    if (invitedSides.length === 0) return "Spectator Live";
+    if (
+      game?.status === "playing" &&
+      invitedSides.includes(game.activeSide) &&
+      game.phase !== "refill"
+    ) {
+      return `Side ${game.activeSide} · Your turn`;
+    }
+    return game?.phase === "refill" && getTileDrawMode(game) === "manual"
+      ? `Side ${invitedSides.join("/")} · Waiting for host refill`
+      : `Side ${invitedSides.join("/")} · Waiting`;
+  })();
   const createDisabledReason = authConfigured
     ? !userId
       ? "Sign in to create a room."
@@ -492,6 +506,15 @@ function App() {
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId;
   }, [activeRoomId]);
+
+  // Stamp the route on <body> so page-scoped CSS (e.g. the play-view scroll
+  // lock in 99-mobile-play.css) can't leak into other pages.
+  useEffect(() => {
+    document.body.dataset.route = route.kind;
+    return () => {
+      delete document.body.dataset.route;
+    };
+  }, [route.kind]);
 
   // Reconcile route changes (browser back/forward, manual hash edit) with state.
   // Owner-initiated openRoom/createAndOpenRoom already sync everything *before*
@@ -1524,7 +1547,7 @@ function App() {
       }
     }
     if (!id) {
-      setJoinError("Room code not found. Check the code or ask the host for a new link.");
+      setJoinError("Room code not found. Check the code or ask the room creator for a new link.");
       return;
     }
     const opened = await openRoom(id);
@@ -1532,7 +1555,7 @@ function App() {
   }
 
   async function saveWaitingRoomConfig(settings: NewGameSettings) {
-    if (!game || !activeRoomId || !canManageActiveRoom || getRoomStage(game) !== "waiting") return;
+    if (!game || !activeRoomId || !canConfigureWaitingRoom || getRoomStage(game) !== "waiting") return;
     const finishLoading = startForegroundLoading("Saving configuration...");
     try {
       const next = markOwnerSideReady(updateWaitingGame(game, settings), accountEmail);
@@ -1547,7 +1570,7 @@ function App() {
 
   async function updateWaitingReady(side: Side, ready: boolean) {
     if (!game || !activeRoomId || getRoomStage(game) !== "waiting") return;
-    if (!invitedSides.includes(side) || canManageActiveRoom) return;
+    if (!invitedSides.includes(side) || canConfigureWaitingRoom) return;
     const finishLoading = startForegroundLoading(ready ? "Marking ready..." : "Updating status...");
     const previous = game;
     const next = {
@@ -1568,7 +1591,7 @@ function App() {
   }
 
   async function startActiveWaitingRoom() {
-    if (!game || !activeRoomId || !canManageActiveRoom || getRoomStage(game) !== "waiting") return;
+    if (!game || !activeRoomId || !canConfigureWaitingRoom || getRoomStage(game) !== "waiting") return;
     const ownerEmail = normalizeEmail(activeRoomMeta?.ownerEmail);
     const waitingSides = getRequiredReadySides(game, ownerEmail).filter(
       (side) => !game.lobbyReadyBySide?.[side],
@@ -1588,13 +1611,13 @@ function App() {
   }
 
   async function cancelWaitingRoom() {
-    if (!activeRoomId || !canManageActiveRoom) return;
+    if (!activeRoomId || !canConfigureWaitingRoom) return;
     if (!window.confirm(`Cancel "${game?.name ?? "this room"}"? This removes the waiting room.`)) return;
     await deleteRoomById(activeRoomId, true);
   }
 
   async function leaveActiveWaitingRoom() {
-    if (!game || !activeRoomId || canManageActiveRoom || invitedSides.length === 0) {
+    if (!game || !activeRoomId || canConfigureWaitingRoom || invitedSides.length === 0) {
       navigate({ kind: "home" });
       return;
     }
@@ -1818,11 +1841,22 @@ function App() {
           ...(normalizeEmail(room.inviteEmailB) === accountEmail ? (["B"] as Side[]) : []),
         ]
       : [];
+    const roomOwnerEmail = normalizeEmail(room.ownerEmail);
+    const isDirectRoom = Boolean(
+      roomOwnerEmail &&
+        [normalizeEmail(room.inviteEmailA), normalizeEmail(room.inviteEmailB)].includes(
+          roomOwnerEmail,
+        ),
+    );
     return {
       canManage,
       canCreate: canCreateRoom,
       label: !remoteEnabled
         ? "Local"
+        : isDirectRoom
+          ? roomInviteSides.length > 0
+            ? `Player ${roomInviteSides.join("/")}${room.ownerId === userId ? " · Creator" : ""}`
+            : "Spectator"
         : hasAdminAccess
           ? room.ownerId === userId
             ? "Admin · Owner"
@@ -3130,7 +3164,7 @@ function App() {
   }
 
   function undo() {
-    if (!canManageActiveRoom || undoStackRef.current.length === 0) return;
+    if (!canControlActiveGame || undoStackRef.current.length === 0) return;
     pendingSessionEventRef.current = "undo";
     const target = undoStackRef.current.pop()!;
     if (lastSnapRef.current) redoStackRef.current.push(lastSnapRef.current);
@@ -3139,7 +3173,7 @@ function App() {
   }
 
   function redo() {
-    if (!canManageActiveRoom || redoStackRef.current.length === 0) return;
+    if (!canControlActiveGame || redoStackRef.current.length === 0) return;
     pendingSessionEventRef.current = "redo";
     const target = redoStackRef.current.pop()!;
     if (lastSnapRef.current) undoStackRef.current.push(lastSnapRef.current);
@@ -3169,7 +3203,7 @@ function App() {
 
 
   function updateNote(logId: string, note: string) {
-    if (!game || !canManageActiveRoom) return;
+    if (!game || !canControlActiveGame) return;
     pendingSessionEventRef.current = "note";
     const logs = updateLogNote(game.logs, logId, note);
     const history = game.history.map((snapshot) => {
@@ -3184,7 +3218,7 @@ function App() {
 
   // Self-review star rating saved on the turn log (does NOT change the game score).
   function updateLogStars(logId: string, stars: number) {
-    if (!game || !canManageActiveRoom) return;
+    if (!game || !canControlActiveGame) return;
     pendingSessionEventRef.current = "note";
     const apply = (log: TurnLog) => (log.id === logId ? { ...log, stars } : log);
     setGame({
@@ -3200,7 +3234,7 @@ function App() {
   }
 
   function toggleTimer() {
-    if (!game || !canManageActiveRoom || game.status !== "playing") return;
+    if (!game || !canControlActiveGame || game.status !== "playing") return;
     pendingSessionEventRef.current = "timer_toggle";
     setGame({
       ...game,
@@ -3213,7 +3247,7 @@ function App() {
   }
 
   function endGame() {
-    if (!game || !canManageActiveRoom) return;
+    if (!game || !canControlActiveGame) return;
     pendingSessionEventRef.current = "end_game";
     const confirmed = window.confirm(
       "End this game? It will be locked as finished — you can replay it later but cannot continue playing.",
@@ -3240,7 +3274,7 @@ function App() {
   // Resume a *drafted* game (the user previously hit Save & Exit). Finished
   // games are locked and never come back through here.
   function resumeGame() {
-    if (!game || !canManageActiveRoom) return;
+    if (!game || !canControlActiveGame) return;
     if (isFinishedGame(game) || game.status !== "draft") return;
     pendingSessionEventRef.current = "resume_game";
     setShowResult(false);
@@ -3398,7 +3432,8 @@ function App() {
     pendingPlacements.find((placement) => placement.tile.id === selectedPendingTileId)?.tile;
   const currentTurnLogRack = actionStart?.rackBefore ?? activeRack;
   // Email players either follow the active rack (sharing on) or keep their own
-  // rack visible while waiting (sharing off). Host/admin views follow the turn.
+  // rack visible while waiting (sharing off). Direct matches never grant an
+  // owner/admin exception because they have no gameplay host.
   const accountPlayerSide = invitedSides.length === 1 ? invitedSides[0] : null;
   const rackSide: Side =
     reviewing && selectedLog
@@ -3406,7 +3441,7 @@ function App() {
       : isEmailRoom &&
           !emailPlayersCanSeeOpponentRack &&
           accountPlayerSide &&
-          !hasAdminAccess
+          (isDirectEmailRoom || !hasAdminAccess)
         ? accountPlayerSide
         : game.activeSide;
   // Build the 8-slot display rack from the layout so empty slots stay in
@@ -3468,14 +3503,14 @@ function App() {
         <div className="top-actions">
           <span
             className={`role-badge ${
-              canManageActiveRoom ? "owner" : invitedSides.length > 0 ? "invitee" : "spectator"
+              canControlActiveGame ? "owner" : invitedSides.length > 0 ? "invitee" : "spectator"
             }`}
           >
             {roleLabel}
           </span>
           <button
             className="icon-button"
-            disabled={!canManageActiveRoom || undoStackRef.current.length === 0}
+            disabled={!canControlActiveGame || undoStackRef.current.length === 0}
             title="Undo"
             type="button"
             onClick={undo}
@@ -3485,7 +3520,7 @@ function App() {
           </button>
           <button
             className="icon-button"
-            disabled={!canManageActiveRoom || redoStackRef.current.length === 0}
+            disabled={!canControlActiveGame || redoStackRef.current.length === 0}
             title="Redo"
             type="button"
             onClick={redo}
@@ -3523,10 +3558,12 @@ function App() {
           {!(game.timers.untimed || (game.timers.sideUntimed?.A && game.timers.sideUntimed?.B)) && (
             <button
               className={`icon-button top-stop-time ${game.timers.paused ? "paused" : "running"}`}
-              disabled={!canManageActiveRoom || game.status !== "playing"}
+              disabled={!canControlActiveGame || game.status !== "playing"}
               title={
-                !canManageActiveRoom
-                  ? "Only the room owner can control the clock."
+                !canControlActiveGame
+                  ? isDirectEmailRoom
+                    ? "Direct email matches have no host clock control."
+                    : "Only the room owner can control the clock."
                   : game.timers.paused
                     ? "Resume the clock"
                     : "Stop the clock"
@@ -3545,7 +3582,7 @@ function App() {
           {!gameFinished && game.status === "playing" && (
             <button
               className="danger-button top-end-game"
-              disabled={!canManageActiveRoom}
+              disabled={!canControlActiveGame}
               type="button"
               onClick={endGame}
             >
@@ -3556,7 +3593,7 @@ function App() {
           {!gameFinished && game.status === "draft" && (
             <button
               className="resume-button top-end-game"
-              disabled={!canManageActiveRoom}
+              disabled={!canControlActiveGame}
               type="button"
               title="Resume this drafted game and start the clock again."
               onClick={resumeGame}
@@ -3609,7 +3646,7 @@ function App() {
             onStarsChange={updateLogStars}
             onNoteChange={updateNote}
             currentTurnRack={currentTurnLogRack}
-            readOnly={!canManageActiveRoom}
+            readOnly={!canControlActiveGame}
           />
         </aside>
 
@@ -3797,7 +3834,7 @@ function App() {
         onStarsChange={updateLogStars}
         currentTurnRack={currentTurnLogRack}
         onNoteChange={updateNote}
-        readOnly={!canManageActiveRoom}
+        readOnly={!canControlActiveGame}
         onSelectLog={selectLog}
       />
 

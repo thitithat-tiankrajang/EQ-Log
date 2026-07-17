@@ -1,5 +1,7 @@
-import { Link, LogIn } from "lucide-react";
+import { ClipboardPaste, LogIn } from "lucide-react";
 import { useState } from "react";
+import { FieldRow } from "../../ui/FieldRow";
+import { ActionDock } from "../../ui/ActionDock";
 import { PreGameShell } from "./PreGameShell";
 
 export function JoinRoomPage({
@@ -14,42 +16,71 @@ export function JoinRoomPage({
   onJoin: (value: string) => void;
 }) {
   const [value, setValue] = useState("");
+  const canPaste = typeof navigator !== "undefined" && Boolean(navigator.clipboard?.readText);
+
+  async function pasteFromClipboard() {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (text.trim()) setValue(text.trim());
+    } catch {
+      // Clipboard permission denied — typing still works.
+    }
+  }
+
   return (
     <PreGameShell
-      eyebrow="Room access"
-      title="Join room"
-      subtitle="Enter a room code or paste a shared room link."
+      eyebrow="Join"
+      title="Join with a code"
+      subtitle="Codes and links come from the person who created the room."
       onBack={onBack}
     >
       <section className="pregame-card join-card">
-        <div className="join-card-icon" aria-hidden="true">
-          <Link size={22} />
-        </div>
-        <label className="pregame-field">
-          <span>Room code or shared link</span>
-          <input
-            autoCapitalize="characters"
-            autoComplete="off"
-            autoFocus
-            value={value}
-            placeholder="AB12CD34"
-            onChange={(event) => setValue(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && value.trim()) onJoin(value);
-            }}
-          />
-        </label>
-        {error && <p className="join-error">{error}</p>}
+        <FieldRow
+          label="Room code or link"
+          error={
+            error
+              ? "Room not found — check the code with the person who shared it."
+              : null
+          }
+        >
+          <div className="join-input-row">
+            <input
+              className="join-code-input"
+              autoCapitalize="characters"
+              autoComplete="off"
+              autoFocus
+              value={value}
+              placeholder="AB12CD34"
+              onChange={(event) => setValue(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && value.trim()) onJoin(value);
+              }}
+            />
+            {canPaste && (
+              <button
+                type="button"
+                className="join-paste-button"
+                onClick={() => void pasteFromClipboard()}
+              >
+                <ClipboardPaste size={16} />
+                Paste
+              </button>
+            )}
+          </div>
+        </FieldRow>
+      </section>
+
+      <ActionDock>
         <button
-          className="pregame-primary"
+          className="ui-button-primary"
           type="button"
           disabled={busy || !value.trim()}
           onClick={() => onJoin(value)}
         >
-          <LogIn size={18} />
-          {busy ? "Opening room..." : "Join room"}
+          <LogIn size={17} />
+          {busy ? "Opening room…" : "Join room"}
         </button>
-      </section>
+      </ActionDock>
     </PreGameShell>
   );
 }

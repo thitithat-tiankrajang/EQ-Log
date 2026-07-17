@@ -1,7 +1,5 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
-import { useRef } from "react";
-import { Plus, Upload } from "lucide-react";
 import type { GameState, Side } from "../../../game";
 import type { RoomMeta } from "../../../rooms";
 import type { Member } from "../../../members";
@@ -21,7 +19,7 @@ export function RoomsView({
   syncError,
   getRoomRole,
   onOpen,
-  onCreateRoom,
+  onCreateRoom: _onCreateRoom,
   onRename,
   onDuplicate,
   onDelete,
@@ -44,6 +42,7 @@ export function RoomsView({
   onImport: (game: GameState) => void;
 }) {
   const [filter, setFilter] = useState<RoomsFilterState>(defaultRoomsFilter);
+  const [importError, setImportError] = useState<string | null>(null);
   const importRef = useRef<HTMLInputElement | null>(null);
 
   const filtered = useMemo(() => filterRooms(rooms, filter), [rooms, filter]);
@@ -56,80 +55,62 @@ export function RoomsView({
       .then((text) => {
         const parsed = JSON.parse(text) as GameState;
         if (!parsed.gameId || !Array.isArray(parsed.history)) throw new Error("invalid");
+        setImportError(null);
         onImport(parsed);
       })
-      .catch(() => window.alert("This file is not an Equation Lab Board export."));
+      .catch(() =>
+        setImportError("That file is not an Equation Lab export — pick a file saved with Export."),
+      );
     event.target.value = "";
   }
 
   return (
     <div className="rooms-view">
-      <div className="rooms-view-actions">
-        <input
-          ref={importRef}
-          accept="application/json"
-          className="hidden-input"
-          type="file"
-          onChange={handleImport}
-        />
-        <button
-          className="ghost-button"
-          type="button"
-          disabled={!canCreate}
-          title={createDisabledReason ?? "Import a saved game"}
-          onClick={() => importRef.current?.click()}
-        >
-          <Upload size={15} />
-          Import
-        </button>
-        <button
-          className="solid-button"
-          type="button"
-          disabled={!canCreate}
-          title={createDisabledReason ?? "Create a new room"}
-          onClick={onCreateRoom}
-        >
-          <Plus size={15} />
-          New room
-        </button>
-      </div>
+      <input
+        ref={importRef}
+        accept="application/json"
+        className="hidden-input"
+        type="file"
+        onChange={handleImport}
+      />
 
       {syncError && <p className="sync-banner">{syncError}</p>}
-      {!canCreate && createDisabledReason && (
-        <p className="info-banner">{createDisabledReason}</p>
-      )}
+      {importError && <p className="sync-banner">{importError}</p>}
 
       <RoomFilters
         filter={filter}
         members={members}
         totalCount={rooms.length}
         visibleCount={filtered.length}
+        importDisabledReason={canCreate ? null : createDisabledReason}
         onChange={setFilter}
+        onImportClick={() => importRef.current?.click()}
       />
 
       {loading ? (
-        <p className="empty-state">Loading rooms…</p>
+        <p className="empty-state" role="status">Loading rooms…</p>
       ) : rooms.length === 0 ? (
-        <p className="empty-state">
-          No rooms yet. Tap <strong>New room</strong> to record your first match.
-        </p>
+        <p className="empty-state">No matches yet. Start your first one above.</p>
       ) : filtered.length === 0 ? (
-        <p className="empty-state">
-          No rooms match these filters. Try clearing them or broadening the search.
-        </p>
+        <div className="empty-state">
+          <p>No rooms match these filters.</p>
+          <button
+            type="button"
+            className="ui-button-ghost"
+            onClick={() => setFilter(defaultRoomsFilter())}
+          >
+            Clear filters
+          </button>
+        </div>
       ) : (
         <div className="room-grid">
           {filtered.map((room) => (
             <RoomCard
               key={room.id}
               room={room}
-              members={members}
               role={getRoomRole(room)}
               onOpen={() => onOpen(room.id)}
-              onRename={() => {
-                const name = window.prompt("Rename room", room.name);
-                if (name && name.trim()) onRename(room.id, name.trim());
-              }}
+              onRename={(name) => onRename(room.id, name)}
               onDuplicate={() => onDuplicate(room.id)}
               onDelete={() => onDelete(room.id)}
               onExport={() => onExport(room.id)}

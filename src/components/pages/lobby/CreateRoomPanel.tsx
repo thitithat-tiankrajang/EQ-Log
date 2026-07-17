@@ -1,61 +1,88 @@
-import { Eye, EyeOff, Mail, Play, User, UserCog, Users } from "lucide-react";
+import {
+  ArrowLeftRight,
+  Globe,
+  Play,
+  User,
+  UserCog,
+  Users,
+} from "lucide-react";
 import { useState } from "react";
 import { normalizeEmail, type NewGameSettings, type Side, type TileDrawMode } from "../../../game";
 import type { Member } from "../../../members";
 import { DEFAULT_TIMER_MINUTES, TIMER_MINUTE_OPTIONS } from "../../../constants/gameRules";
 import { isSupabaseConfigured } from "../../../supabaseClient";
 import { useAuth } from "../../../auth";
+import { ActionDock } from "../../ui/ActionDock";
+import { ChoiceCardGroup } from "../../ui/ChoiceCardGroup";
+import { FieldRow } from "../../ui/FieldRow";
+import { CREATE_TEXT, PLAY_MODE_TEXT, TILE_DRAW_TEXT, TIMER_TEXT } from "../../../uiText";
 
 type PlayMode = "hotseat" | "solo" | "hosted_email" | "hosted_solo" | "direct_email";
+type WhoPlays = "pass_play" | "solo" | "online";
+type OnlineRole = "direct_email" | "hosted_email" | "hosted_solo";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function playModeFromSettings(settings: NewGameSettings): PlayMode {
+  if (settings.gameMode === "solo") return settings.playerAEmail ? "hosted_solo" : "solo";
+  if (settings.playerAEmail || settings.playerBEmail) {
+    return settings.emailPlayMode === "direct" ? "direct_email" : "hosted_email";
+  }
+  return "hotseat";
+}
 
 export function CreateRoomPanel({
   settings,
   members,
+  busy = false,
+  submitLabel,
   onChange,
   onSubmit,
 }: {
   settings: NewGameSettings;
   members: Member[];
+  busy?: boolean;
+  submitLabel?: string;
   onChange: (next: NewGameSettings) => void;
   onSubmit: () => void;
 }) {
   const { profile } = useAuth();
   const accountEmail = normalizeEmail(profile?.email);
-  const [playMode, setPlayModeState] = useState<PlayMode>(() =>
-    settings.gameMode === "solo"
-      ? settings.playerAEmail
-        ? "hosted_solo"
-        : "solo"
-      : settings.playerAEmail || settings.playerBEmail
-      ? settings.emailPlayMode === "direct"
-        ? "direct_email"
-        : "hosted_email"
-      : "hotseat",
+  const [playMode, setPlayModeState] = useState<PlayMode>(() => playModeFromSettings(settings));
+  const [lastOnlineRole, setLastOnlineRole] = useState<OnlineRole>(
+    playMode === "hosted_email" || playMode === "hosted_solo" ? playMode : "direct_email",
   );
+  const [perSideTimers, setPerSideTimers] = useState<boolean>(
+    () => timerValueOf(settings, "A") !== timerValueOf(settings, "B") && settings.gameMode !== "solo",
+  );
+
+  const whoPlays: WhoPlays =
+    playMode === "hotseat" ? "pass_play" : playMode === "solo" ? "solo" : "online";
+  const onlineRole: OnlineRole | null =
+    whoPlays === "online" ? (playMode as OnlineRole) : null;
   const isSolo = playMode === "solo" || playMode === "hosted_solo";
   const isHostedSolo = playMode === "hosted_solo";
   const drawModeLocked = playMode === "solo" || playMode === "direct_email";
-  const tileDrawOptions: Array<[TileDrawMode, string]> = drawModeLocked
-    ? [["play", "System draw"]]
-    : [
-        ["manual", usesHostDraw(playMode) ? "Host picks tiles" : "Manual fill"],
-        ["play", "System draw"],
-      ];
 
   function timerValue(side: Side): number | null {
-    if (settings.timerMinutes) return settings.timerMinutes[side];
-    if (settings.untimed) return null;
-    return settings.minutes ?? DEFAULT_TIMER_MINUTES;
+    return timerValueOf(settings, side);
   }
 
-  function setTimerValue(side: Side, value: string) {
-    const minutes = value === "none" ? null : Number(value);
+  function setTimerBoth(value: number | null) {
+    const timerMinutes = { A: value, B: value } as Record<Side, number | null>;
+    onChange({
+      ...settings,
+      minutes: value ?? settings.minutes ?? DEFAULT_TIMER_MINUTES,
+      timerMinutes,
+      untimed: value === null,
+    });
+  }
+
+  function setTimerValue(side: Side, minutes: number | null) {
     const timerMinutes = {
       A: timerValue("A"),
       B: timerValue("B"),
-      [side]: Number.isFinite(minutes) || minutes === null ? minutes : DEFAULT_TIMER_MINUTES,
+      [side]: minutes,
     } as Record<Side, number | null>;
     onChange({
       ...settings,
@@ -68,6 +95,9 @@ export function CreateRoomPanel({
   function setPlayMode(mode: PlayMode) {
     if (mode !== "hotseat" && mode !== "solo" && !isSupabaseConfigured) return;
     setPlayModeState(mode);
+    if (mode === "hosted_email" || mode === "hosted_solo" || mode === "direct_email") {
+      setLastOnlineRole(mode);
+    }
     if (mode === "hotseat" || mode === "solo") {
       onChange({
         ...settings,
@@ -185,6 +215,23 @@ export function CreateRoomPanel({
     normalizedEmailA !== accountEmail &&
     normalizedEmailB !== accountEmail;
 
+  // Always-visible reason why Create is disabled (design.md D3 — no tooltips).
+  const blockedReason = !submitBlocked
+    ? null
+    : !accountEmail
+      ? "Sign in first — online rooms need your account email."
+      : emailDuplicate
+        ? "Side A and Side B must use different email accounts."
+        : creatorNotAssigned
+          ? "One side must use your signed-in email — tap the side you play."
+          : (playMode === "hosted_email" || playMode === "hosted_solo") && creatorAssigned
+            ? "As host you can't also be a player — use a different player email."
+            : playMode === "hosted_solo"
+              ? "Enter the invited player's email."
+              : playMode === "hosted_email"
+                ? "Enter both invited players' emails."
+                : "Enter your opponent's email.";
+
   function setCreatorSide(side: Side) {
     if (!accountEmail || side === creatorSide) return;
     const opponentEmail =
@@ -200,106 +247,91 @@ export function CreateRoomPanel({
     });
   }
 
+  const startingSide: Side = settings.startingSide ?? "A";
+  const otherStartingSide: Side = startingSide === "A" ? "B" : "A";
+  const tileDrawMode: TileDrawMode = settings.tileDrawMode ?? "manual";
+  const manualLabel = usesEmailPlay ? TILE_DRAW_TEXT.hostEnters : TILE_DRAW_TEXT.realTiles;
+  const manualDesc = usesEmailPlay ? TILE_DRAW_TEXT.hostEntersDesc : TILE_DRAW_TEXT.realTilesDesc;
+  const tileDrawSummary = tileDrawMode === "play" ? TILE_DRAW_TEXT.appDraws : manualLabel;
+  const showRackVisibility = usesEmailPlay && !isSolo;
+  const defaultRoomName = buildDefaultRoomName(settings, isSolo);
+
+  const submitText = busy
+    ? CREATE_TEXT.submitBusy
+    : submitLabel ?? (usesEmailPlay ? CREATE_TEXT.submitOnline : CREATE_TEXT.submit);
+
   return (
-    <section className="create-panel" aria-label="Create a new room">
-      <div className="create-panel-head">
-        <span className="create-eyebrow">New room</span>
-        <h2>Set up a recording for this match</h2>
-        <p>Each room is one match. Tag the players to roll the result into the stats page.</p>
-      </div>
-      <div className="create-grid">
-        <label className="create-field">
-          <span>Room name</span>
-          <input
-            value={settings.name}
-            onChange={(event) => onChange({ ...settings, name: event.target.value })}
-            placeholder="Friday night practice"
-          />
-        </label>
-
-        <fieldset className="create-field create-segment-field">
-          <legend>Play mode</legend>
-          <div className="create-segment create-playmode-segment">
-            <button
-              type="button"
-              className={playMode === "hotseat" ? "active" : ""}
-              onClick={() => setPlayMode("hotseat")}
-              title="Both players share this device"
-            >
-              <Users size={14} />
-              Hot-seat (this device)
-            </button>
-            <button
-              type="button"
-              className={playMode === "solo" ? "active" : ""}
-              onClick={() => setPlayMode("solo")}
-              title="Create and play a one-side room with automatic draw"
-            >
-              <User size={14} />
-              Solo · System draw
-            </button>
-            <button
-              type="button"
-              disabled={!isSupabaseConfigured}
-              className={playMode === "hosted_email" ? "active" : ""}
-              onClick={() => setPlayMode("hosted_email")}
-              title={
-                isSupabaseConfigured
-                  ? "Create a room managed by a host who is not one of the two players"
-                  : "Configure Supabase to play across accounts"
-              }
-            >
-              <UserCog size={14} />
-              Email with host
-            </button>
-            <button
-              type="button"
-              disabled={!isSupabaseConfigured}
-              className={playMode === "hosted_solo" ? "active" : ""}
-              onClick={() => setPlayMode("hosted_solo")}
-              title={
-                isSupabaseConfigured
-                  ? "Host a one-side game for one invited email player"
-                  : "Configure Supabase to play across accounts"
-              }
-            >
-              <UserCog size={14} />
-              Hosted solo
-            </button>
-            <button
-              type="button"
-              disabled={!isSupabaseConfigured}
-              className={playMode === "direct_email" ? "active" : ""}
-              onClick={() => setPlayMode("direct_email")}
-              title={
-                isSupabaseConfigured
-                  ? "The room creator is one of the two email players"
-                  : "Configure Supabase to play across accounts"
-              }
-            >
-              <Mail size={14} />
-              Direct email
-            </button>
+    <section className="create-form" aria-label="Room setup">
+      {/* 1 · Who is playing? */}
+      <div className="create-section">
+        <h3 className="create-section-title">
+          <span>1</span>
+          {PLAY_MODE_TEXT.question}
+        </h3>
+        <ChoiceCardGroup<WhoPlays>
+          label={PLAY_MODE_TEXT.question}
+          value={whoPlays}
+          choices={[
+            {
+              value: "pass_play",
+              icon: <Users size={17} />,
+              label: PLAY_MODE_TEXT.passPlay,
+              description: PLAY_MODE_TEXT.passPlayDesc,
+            },
+            {
+              value: "solo",
+              icon: <User size={17} />,
+              label: PLAY_MODE_TEXT.solo,
+              description: PLAY_MODE_TEXT.soloDesc,
+            },
+            {
+              value: "online",
+              icon: <Globe size={17} />,
+              label: PLAY_MODE_TEXT.online,
+              description: PLAY_MODE_TEXT.onlineDesc,
+              disabled: !isSupabaseConfigured,
+              disabledReason: PLAY_MODE_TEXT.onlineNeedsSetup,
+            },
+          ]}
+          onChange={(who) => {
+            if (who === "pass_play") setPlayMode("hotseat");
+            else if (who === "solo") setPlayMode("solo");
+            else setPlayMode(lastOnlineRole);
+          }}
+        />
+        {whoPlays === "online" && (
+          <div className="create-subquestion">
+            <h4 className="create-subquestion-title">{PLAY_MODE_TEXT.roleQuestion}</h4>
+            <ChoiceCardGroup<OnlineRole>
+              label={PLAY_MODE_TEXT.roleQuestion}
+              value={onlineRole}
+              choices={[
+                {
+                  value: "direct_email",
+                  icon: <Play size={17} />,
+                  label: PLAY_MODE_TEXT.rolePlayer,
+                  description: PLAY_MODE_TEXT.rolePlayerDesc,
+                },
+                {
+                  value: "hosted_email",
+                  icon: <UserCog size={17} />,
+                  label: PLAY_MODE_TEXT.roleHostTwo,
+                  description: PLAY_MODE_TEXT.roleHostTwoDesc,
+                },
+                {
+                  value: "hosted_solo",
+                  icon: <UserCog size={17} />,
+                  label: PLAY_MODE_TEXT.roleHostOne,
+                  description: PLAY_MODE_TEXT.roleHostOneDesc,
+                },
+              ]}
+              onChange={(role) => setPlayMode(role)}
+            />
           </div>
-          {usesEmailPlay && (
-            <p className="create-hint">
-              {isHostedSolo
-                ? "You are the host. The invited player controls the only side; manual draw is handled by you."
-                : isDirectEmail
-                ? "You are one player. Each account controls only its assigned side."
-                : "You manage the room while two other email accounts play their assigned sides."}
-            </p>
-          )}
-          {playMode === "solo" && (
-            <p className="create-hint">
-              You draw automatically and play every turn. Only your score and timer are used.
-            </p>
-          )}
-        </fieldset>
-
+        )}
         {isDirectEmail && (
-          <fieldset className="create-field create-segment-field create-owner-side-field">
-            <legend>Your side</legend>
+          <div className="create-subquestion">
+            <h4 className="create-subquestion-title">You play</h4>
             <div className="create-segment">
               {(["A", "B"] as Side[]).map((side) => (
                 <button
@@ -312,104 +344,20 @@ export function CreateRoomPanel({
                 </button>
               ))}
             </div>
-            <p className="create-account-email">Signed in as {accountEmail ?? "an unavailable account"}</p>
-          </fieldset>
-        )}
-
-        {usesEmailPlay && !isSolo && (
-          <fieldset className="create-field create-segment-field create-rack-visibility-field">
-            <legend>Show opponent rack</legend>
-            <div className="create-segment">
-              <button
-                type="button"
-                aria-pressed={!settings.emailPlayersCanSeeOpponentRack}
-                className={!settings.emailPlayersCanSeeOpponentRack ? "active" : ""}
-                onClick={() => onChange({ ...settings, emailPlayersCanSeeOpponentRack: false })}
-              >
-                <EyeOff size={14} />
-                Off
-              </button>
-              <button
-                type="button"
-                aria-pressed={Boolean(settings.emailPlayersCanSeeOpponentRack)}
-                className={settings.emailPlayersCanSeeOpponentRack ? "active" : ""}
-                onClick={() => onChange({ ...settings, emailPlayersCanSeeOpponentRack: true })}
-              >
-                <Eye size={14} />
-                On
-              </button>
-            </div>
-            <p className="create-account-email">
-              {settings.emailPlayersCanSeeOpponentRack
-                ? "Players see the active player's rack."
-                : "Players see only their own rack."}
-            </p>
-          </fieldset>
-        )}
-
-        <fieldset className="create-field create-timer-field">
-          <legend>
-            {isHostedSolo
-              ? "Solo player timer (minutes)"
-              : isSolo
-                ? "Your timer (minutes)"
-                : "Time per side (minutes)"}
-          </legend>
-          <div className={`create-timer-grid ${isSolo ? "solo" : ""}`}>
-            {(isSolo ? (["A"] as Side[]) : (["A", "B"] as Side[])).map((side) => (
-              <label key={side}>
-                <span>{isHostedSolo ? "Player timer" : isSolo ? "Solo timer" : `Side ${side}`}</span>
-                <select
-                  value={timerValue(side) === null ? "none" : String(timerValue(side))}
-                  onChange={(event) => setTimerValue(side, event.target.value)}
-                >
-                  {TIMER_MINUTE_OPTIONS.map((option) => (
-                    <option key={option ?? "none"} value={option ?? "none"}>
-                      {option === null ? "No timer" : option}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ))}
+            <p className="create-signed-in">Signed in as {accountEmail ?? "an unavailable account"}</p>
           </div>
-        </fieldset>
-
-        <fieldset className="create-field create-segment-field">
-          <legend>Tile draw</legend>
-          <div className="create-segment">
-            {tileDrawOptions.map(([mode, label]) => (
-              <button
-                key={mode}
-                type="button"
-                className={(settings.tileDrawMode ?? "manual") === mode ? "active" : ""}
-                onClick={() => onChange({ ...settings, tileDrawMode: mode })}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </fieldset>
-
-        {!isSolo && (
-          <fieldset className="create-field create-segment-field">
-            <legend>Starting side</legend>
-            <div className="create-segment">
-              {(["A", "B"] as Side[]).map((side) => (
-                <button
-                  key={side}
-                  type="button"
-                  className={settings.startingSide === side ? "active" : ""}
-                  onClick={() => onChange({ ...settings, startingSide: side })}
-                >
-                  Side {side}
-                </button>
-              ))}
-            </div>
-          </fieldset>
         )}
+      </div>
 
-        <SidePlayerField
+      {/* 2 · Players */}
+      <div className="create-section">
+        <h3 className="create-section-title">
+          <span>2</span>
+          {CREATE_TEXT.playersHeading}
+        </h3>
+        <SidePlayerCard
           side="A"
+          heading={isHostedSolo ? "Solo player" : "Side A"}
           members={members}
           name={settings.playerA}
           selectedId={settings.playerAMemberId ?? null}
@@ -425,19 +373,22 @@ export function CreateRoomPanel({
                   : "The host account cannot also be Side A."
               : !normalizedEmailA
                 ? isHostedSolo
-                  ? "Enter the email used by the solo player."
-                  : "Enter the email used to sign in for Side A."
+                  ? "Enter the email the solo player signs in with."
+                  : "Enter the email this player signs in with."
                 : undefined
           }
           emailLocked={isDirectEmail && creatorSide === "A"}
           emailLabel={
             isDirectEmail
-              ? undefined
+              ? creatorSide === "A"
+                ? "Your signed-in email"
+                : "Opponent email"
               : isHostedSolo
                 ? "Solo player email"
-                : "Player email for Side A"
+                : "Player email"
           }
-          starts={settings.startingSide === "A"}
+          isYou={isDirectEmail && creatorSide === "A"}
+          playsFirst={!isSolo && startingSide === "A"}
           onNameChange={(value) => onChange({ ...settings, playerA: value })}
           onMemberChange={(id) => {
             const member = members.find((entry) => entry.id === id);
@@ -449,74 +400,246 @@ export function CreateRoomPanel({
           }}
           onEmailChange={(value) => onChange({ ...settings, playerAEmail: value })}
         />
-
-        {!isSolo && <SidePlayerField
-          side="B"
-          members={members}
-          name={settings.playerB}
-          selectedId={settings.playerBMemberId ?? null}
-          email={settings.playerBEmail ?? ""}
-          showEmail={usesEmailPlay}
-          emailInvalid={emailBInvalid || emailDuplicate || emailBIsHost}
-          emailError={
-            emailDuplicate
-              ? "Side A and Side B must use different email accounts."
-              : emailBIsHost
-                ? "The host account cannot also be Side B."
-              : !normalizedEmailB
-                ? "Enter the email used to sign in for Side B."
-                : undefined
-          }
-          emailLocked={isDirectEmail && creatorSide === "B"}
-          emailLabel={isDirectEmail ? undefined : "Player email for Side B"}
-          starts={settings.startingSide === "B"}
-          onNameChange={(value) => onChange({ ...settings, playerB: value })}
-          onMemberChange={(id) => {
-            const member = members.find((entry) => entry.id === id);
-            onChange({
-              ...settings,
-              playerBMemberId: id,
-              playerB: member ? member.name : settings.playerB,
-            });
-          }}
-          onEmailChange={(value) => onChange({ ...settings, playerBEmail: value })}
-        />}
+        {!isSolo && (
+          <SidePlayerCard
+            side="B"
+            heading="Side B"
+            members={members}
+            name={settings.playerB}
+            selectedId={settings.playerBMemberId ?? null}
+            email={settings.playerBEmail ?? ""}
+            showEmail={usesEmailPlay}
+            emailInvalid={emailBInvalid || emailDuplicate || emailBIsHost}
+            emailError={
+              emailDuplicate
+                ? "Side A and Side B must use different email accounts."
+                : emailBIsHost
+                  ? "The host account cannot also be Side B."
+                : !normalizedEmailB
+                  ? "Enter the email this player signs in with."
+                  : undefined
+            }
+            emailLocked={isDirectEmail && creatorSide === "B"}
+            emailLabel={
+              isDirectEmail
+                ? creatorSide === "B"
+                  ? "Your signed-in email"
+                  : "Opponent email"
+                : "Player email"
+            }
+            isYou={isDirectEmail && creatorSide === "B"}
+            playsFirst={startingSide === "B"}
+            onNameChange={(value) => onChange({ ...settings, playerB: value })}
+            onMemberChange={(id) => {
+              const member = members.find((entry) => entry.id === id);
+              onChange({
+                ...settings,
+                playerBMemberId: id,
+                playerB: member ? member.name : settings.playerB,
+              });
+            }}
+            onEmailChange={(value) => onChange({ ...settings, playerBEmail: value })}
+          />
+        )}
+        {!isSolo && (
+          <button
+            type="button"
+            className="create-swap-first"
+            onClick={() => onChange({ ...settings, startingSide: otherStartingSide })}
+          >
+            <ArrowLeftRight size={15} />
+            {CREATE_TEXT.swapFirst(otherStartingSide)}
+          </button>
+        )}
       </div>
 
-      <button
-        className="create-submit"
-        type="button"
-        onClick={onSubmit}
-        disabled={submitBlocked}
-        title={
-          submitBlocked
-            ? emailDuplicate
-              ? "Use a different email for each side."
-              : creatorNotAssigned
-                ? "The signed-in account must be assigned to Side A or Side B."
-                : (playMode === "hosted_email" || playMode === "hosted_solo") && creatorAssigned
-                  ? "The host account cannot also be a player."
-                : playMode === "hosted_solo"
-                  ? "Enter one valid player email that is different from the host account."
-                : playMode === "hosted_email"
-                  ? "Enter two valid player emails that are different from the host account."
-                  : "Enter two valid player emails, including your signed-in account."
-            : undefined
-        }
-      >
-        <Play size={16} />
-        Start room
-      </button>
+      {/* 3 · Time per side */}
+      <div className="create-section">
+        <h3 className="create-section-title">
+          <span>3</span>
+          {isHostedSolo
+            ? "Solo player timer"
+            : isSolo
+              ? "Your timer"
+              : TIMER_TEXT.label}
+        </h3>
+        {!perSideTimers || isSolo ? (
+          <TimerChips
+            value={timerValue("A")}
+            onSelect={(minutes) => (isSolo ? setTimerValue("A", minutes) : setTimerBoth(minutes))}
+          />
+        ) : (
+          (["A", "B"] as Side[]).map((side) => (
+            <div key={side} className="timer-side-row">
+              <span className="timer-side-label">Side {side}</span>
+              <TimerChips
+                value={timerValue(side)}
+                onSelect={(minutes) => setTimerValue(side, minutes)}
+              />
+            </div>
+          ))
+        )}
+        {!isSolo && (
+          <label className="timer-per-side-toggle">
+            <input
+              type="checkbox"
+              checked={perSideTimers}
+              onChange={(event) => {
+                setPerSideTimers(event.target.checked);
+                if (!event.target.checked) setTimerBoth(timerValue("A"));
+              }}
+            />
+            {TIMER_TEXT.perSide}
+          </label>
+        )}
+      </div>
+
+      {/* Advanced — header always shows current values, so the closed state
+          is a summary, not a black box (design.md D5). */}
+      <details className="create-advanced">
+        <summary>
+          <span className="create-advanced-title">
+            {CREATE_TEXT.advancedHeading}
+            <em>{CREATE_TEXT.advancedNote}</em>
+          </span>
+          <span className="create-advanced-values">
+            <span>{CREATE_TEXT.roomNameLabel} · {settings.name.trim() || defaultRoomName}</span>
+            <span>{TILE_DRAW_TEXT.label} · {tileDrawSummary}</span>
+            {showRackVisibility && (
+              <span>
+                {CREATE_TEXT.opponentRack} ·{" "}
+                {settings.emailPlayersCanSeeOpponentRack ? CREATE_TEXT.rackVisible : CREATE_TEXT.rackHidden}
+              </span>
+            )}
+          </span>
+        </summary>
+        <div className="create-advanced-body">
+          <FieldRow label={CREATE_TEXT.roomNameLabel} hint="Shown in the rooms list — named after the players by default.">
+            <input
+              value={settings.name}
+              placeholder={defaultRoomName}
+              onChange={(event) => onChange({ ...settings, name: event.target.value })}
+            />
+          </FieldRow>
+          <div className="create-advanced-group">
+            <span className="field-row-label">{TILE_DRAW_TEXT.label}</span>
+            {drawModeLocked ? (
+              <p className="create-locked-note">
+                {TILE_DRAW_TEXT.appDraws} — {TILE_DRAW_TEXT.setByMode.toLowerCase()}
+              </p>
+            ) : (
+              <ChoiceCardGroup<TileDrawMode>
+                label={TILE_DRAW_TEXT.label}
+                value={tileDrawMode}
+                choices={[
+                  {
+                    value: "play",
+                    label: TILE_DRAW_TEXT.appDraws,
+                    description: TILE_DRAW_TEXT.appDrawsDesc,
+                  },
+                  {
+                    value: "manual",
+                    label: manualLabel,
+                    description: manualDesc,
+                  },
+                ]}
+                onChange={(mode) => onChange({ ...settings, tileDrawMode: mode })}
+              />
+            )}
+          </div>
+          {showRackVisibility && (
+            <div className="create-advanced-group">
+              <span className="field-row-label">{CREATE_TEXT.opponentRack}</span>
+              <ChoiceCardGroup<"hidden" | "visible">
+                label={CREATE_TEXT.opponentRack}
+                value={settings.emailPlayersCanSeeOpponentRack ? "visible" : "hidden"}
+                choices={[
+                  {
+                    value: "hidden",
+                    label: CREATE_TEXT.rackHidden,
+                    description: CREATE_TEXT.rackHiddenDesc,
+                  },
+                  {
+                    value: "visible",
+                    label: CREATE_TEXT.rackVisible,
+                    description: CREATE_TEXT.rackVisibleDesc,
+                  },
+                ]}
+                onChange={(value) =>
+                  onChange({ ...settings, emailPlayersCanSeeOpponentRack: value === "visible" })
+                }
+              />
+            </div>
+          )}
+        </div>
+      </details>
+
+      <ActionDock reason={blockedReason}>
+        <button
+          className="ui-button-primary"
+          type="button"
+          disabled={submitBlocked || busy}
+          onClick={onSubmit}
+        >
+          <Play size={16} />
+          {submitText}
+        </button>
+      </ActionDock>
     </section>
   );
 }
 
-function usesHostDraw(mode: PlayMode): boolean {
-  return mode === "hosted_email" || mode === "hosted_solo";
+function timerValueOf(settings: NewGameSettings, side: Side): number | null {
+  if (settings.timerMinutes) return settings.timerMinutes[side];
+  if (settings.untimed) return null;
+  return settings.minutes ?? DEFAULT_TIMER_MINUTES;
 }
 
-function SidePlayerField({
+function buildDefaultRoomName(settings: NewGameSettings, isSolo: boolean): string {
+  const a = settings.playerA.trim() || "Player A";
+  if (isSolo) return `${a} · solo`;
+  const b = settings.playerB.trim() || "Player B";
+  return `${a} vs ${b}`;
+}
+
+function TimerChips({
+  value,
+  onSelect,
+}: {
+  value: number | null;
+  onSelect: (minutes: number | null) => void;
+}) {
+  return (
+    <div className="timer-chips" role="radiogroup" aria-label={TIMER_TEXT.label}>
+      {TIMER_MINUTE_OPTIONS.map((option) => {
+        const active = value === option;
+        return (
+          <button
+            key={option ?? "none"}
+            type="button"
+            role="radio"
+            aria-checked={active}
+            className={`timer-chip ${active ? "active" : ""}`}
+            onClick={() => onSelect(option)}
+          >
+            {option === null ? (
+              TIMER_TEXT.noTimer
+            ) : (
+              <>
+                {option}
+                {option === DEFAULT_TIMER_MINUTES && <em>{TIMER_TEXT.tournamentTag}</em>}
+              </>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function SidePlayerCard({
   side,
+  heading,
   members,
   name,
   selectedId,
@@ -526,12 +649,14 @@ function SidePlayerField({
   emailError,
   emailLocked,
   emailLabel,
-  starts,
+  isYou,
+  playsFirst,
   onNameChange,
   onMemberChange,
   onEmailChange,
 }: {
   side: Side;
+  heading: string;
   members: Member[];
   name: string;
   selectedId: string | null;
@@ -540,63 +665,54 @@ function SidePlayerField({
   emailInvalid: boolean;
   emailError?: string;
   emailLocked: boolean;
-  emailLabel?: string;
-  starts: boolean;
+  emailLabel: string;
+  isYou: boolean;
+  playsFirst: boolean;
   onNameChange: (value: string) => void;
   onMemberChange: (id: string | null) => void;
   onEmailChange: (value: string) => void;
 }) {
   return (
-    <div className="create-field create-side-field">
-      <span className="create-side-label">
+    <div className={`side-card side-card-${side.toLowerCase()}`}>
+      <div className="side-card-head">
         <em className={`dot dot-${side.toLowerCase()}`} />
-        Side {side}
-        {starts && <small>starts</small>}
-      </span>
-      <div className="create-side-inputs">
-        <label>
-          <span>Player name for Side {side}</span>
+        <strong>{heading}</strong>
+        {isYou && <span className="side-card-you">you</span>}
+        {playsFirst && <span className="side-card-first">{CREATE_TEXT.playsFirst}</span>}
+      </div>
+      <div className="side-card-fields">
+        <FieldRow label="Name">
           <input
             value={name}
             onChange={(event) => onNameChange(event.target.value)}
-            placeholder={`Type Side ${side} player name`}
+            placeholder={`Player ${side}`}
           />
-        </label>
-        <label>
-          <span>Choose member</span>
+        </FieldRow>
+        <FieldRow label={CREATE_TEXT.linkMember} hint={CREATE_TEXT.linkMemberHint}>
           <select
             value={selectedId ?? ""}
             onChange={(event) => onMemberChange(event.target.value || null)}
           >
-            <option value="">No linked member</option>
+            <option value="">{CREATE_TEXT.notLinked}</option>
             {members.map((member) => (
               <option key={member.id} value={member.id}>
                 {member.institution ? `${member.name} · ${member.institution}` : member.name}
               </option>
             ))}
           </select>
-        </label>
+        </FieldRow>
         {showEmail && (
-          <label className={emailInvalid ? "has-error" : ""}>
-            <span>
-              {emailLabel ?? (emailLocked ? "Your signed-in email" : `Opponent email for Side ${side}`)}
-            </span>
+          <FieldRow label={emailLabel} error={emailInvalid ? emailError ?? "Enter the email this player uses for Google sign-in." : null}>
             <input
               type="email"
               autoComplete="off"
               readOnly={emailLocked}
               value={email}
               onChange={(event) => onEmailChange(event.target.value)}
-              placeholder={emailLocked ? "" : "opponent@example.com"}
+              placeholder={emailLocked ? "" : "player@example.com"}
               aria-invalid={emailInvalid}
             />
-            {emailInvalid && (
-              <em className="create-error">
-                {emailError ??
-                  "Enter the valid email this player uses for Google sign-in."}
-              </em>
-            )}
-          </label>
+          </FieldRow>
         )}
       </div>
     </div>

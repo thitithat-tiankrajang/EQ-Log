@@ -27,7 +27,10 @@
     min-height: 100%;
   }
 
-  body {
+  /* Pull-to-refresh / scroll-chaining lock is a PLAY-page behavior only.
+     App.tsx stamps data-route on <body>; every other route must scroll
+     normally. */
+  body[data-route="play"] {
     overscroll-behavior-y: none;
   }
 

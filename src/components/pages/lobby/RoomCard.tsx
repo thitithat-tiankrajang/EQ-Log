@@ -1,12 +1,16 @@
-import { Copy, Download, Mail, Pencil, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { Copy, Download, Pencil, Trash2 } from "lucide-react";
 import type { RoomMeta } from "../../../rooms";
-import type { Member } from "../../../members";
-import type { Side } from "../../../game";
-import { MemberChip, MemberPlaceholderChip } from "./MemberChip";
+import { ROOM_STATUS_TEXT } from "../../../uiText";
+import { OverflowMenu } from "../../ui/OverflowMenu";
+import { ConfirmSheet, TextPromptSheet } from "../../ui/Sheet";
 
+/**
+ * Compact 3-line room card: the whole surface opens the room; rare actions
+ * live behind "⋯" with labels and confirmations (design.md §4.2).
+ */
 export function RoomCard({
   room,
-  members,
   role,
   onOpen,
   onRename,
@@ -15,142 +19,120 @@ export function RoomCard({
   onExport,
 }: {
   room: RoomMeta;
-  members: Member[];
   role: { canManage: boolean; canCreate: boolean; label: string };
   onOpen: () => void;
-  onRename: () => void;
+  onRename: (name: string) => void;
   onDuplicate: () => void;
   onDelete: () => void;
   onExport: () => void;
 }) {
-  const memberA = room.memberAId ? members.find((m) => m.id === room.memberAId) ?? null : null;
-  const memberB = room.memberBId ? members.find((m) => m.id === room.memberBId) ?? null : null;
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const isSolo = room.gameMode === "solo";
-  const startingSide: Side | null = room.startingSide ?? null;
-  const winner = !isSolo && room.status === "finished" && room.scoreA !== room.scoreB
-    ? room.scoreA > room.scoreB
-      ? "A"
-      : "B"
-    : null;
+  const winner =
+    !isSolo && room.status === "finished" && room.scoreA !== room.scoreB
+      ? room.scoreA > room.scoreB
+        ? "A"
+        : "B"
+      : null;
 
   const statusLabel =
-    room.status === "finished" ? "Finished" : room.status === "draft" ? "Draft" : "Playing";
+    room.status === "finished"
+      ? ROOM_STATUS_TEXT.finished
+      : room.status === "draft"
+        ? ROOM_STATUS_TEXT.waiting
+        : ROOM_STATUS_TEXT.playing;
 
   return (
     <article className={`room-card status-${room.status}`}>
       <button className="room-card-open" type="button" onClick={onOpen}>
-        <header className="room-card-head">
+        <span className="room-card-line head">
           <span className="room-card-name">{room.name}</span>
-          <span className={`room-card-status status-${room.status}`}>{statusLabel}</span>
-        </header>
-
-        <div className={`room-card-players ${isSolo ? "solo" : ""}`}>
-          <PlayerRow
-            side="A"
-            member={memberA}
-            label={room.playerA}
-            remote={Boolean(room.inviteEmailA)}
-            score={room.scoreA}
-            starting={!isSolo && startingSide === "A"}
-            winner={!isSolo && winner === "A"}
-            finished={room.status === "finished"}
-          />
-          {!isSolo && <span className="room-card-vs">vs</span>}
-          {!isSolo && <PlayerRow
-            side="B"
-            member={memberB}
-            label={room.playerB}
-            remote={Boolean(room.inviteEmailB)}
-            score={room.scoreB}
-            starting={startingSide === "B"}
-            winner={winner === "B"}
-            finished={room.status === "finished"}
-          />}
-        </div>
-
-        <footer className="room-card-foot">
+          <span className={`room-status-pill status-${room.status}`}>{statusLabel}</span>
+        </span>
+        <span className="room-card-line score">
+          <span className="room-card-players">
+            <em className={winner === "A" ? "winner" : ""}>
+              {room.playerA} <b>{room.scoreA}</b>
+            </em>
+            {!isSolo && (
+              <>
+                <span className="room-card-sep">·</span>
+                <em className={winner === "B" ? "winner" : ""}>
+                  {room.playerB} <b>{room.scoreB}</b>
+                </em>
+              </>
+            )}
+          </span>
           <span className="room-card-turn">Turn {room.turnNumber}</span>
+        </span>
+        <span className="room-card-line meta">
           <span className="room-card-owner">
-            {room.ownerName ? room.ownerName : "Local"}
-            <em>{role.label}</em>
+            {room.ownerName ? `Hosted by ${room.ownerName}` : "Local room"}
+            <i>{role.label}</i>
           </span>
           <span className="room-card-time">{formatRelative(room.updatedAt)}</span>
-        </footer>
+        </span>
       </button>
 
-      <div className="room-card-actions">
-        <button
-          type="button"
-          disabled={!role.canManage}
-          title="Rename room"
-          aria-label="Rename room"
-          onClick={onRename}
-        >
-          <Pencil size={14} />
-        </button>
-        <button
-          type="button"
-          disabled={!role.canManage || !role.canCreate}
-          title="Duplicate room"
-          aria-label="Duplicate room"
-          onClick={onDuplicate}
-        >
-          <Copy size={14} />
-        </button>
-        <button type="button" title="Export room" aria-label="Export room" onClick={onExport}>
-          <Download size={14} />
-        </button>
-        <button
-          className="danger"
-          type="button"
-          disabled={!role.canManage}
-          title="Delete room"
-          aria-label="Delete room"
-          onClick={onDelete}
-        >
-          <Trash2 size={14} />
-        </button>
-      </div>
-    </article>
-  );
-}
+      <OverflowMenu
+        label={`Room actions · ${room.name}`}
+        items={[
+          {
+            icon: <Pencil size={16} />,
+            label: "Rename",
+            disabled: !role.canManage,
+            disabledReason: "Only the room owner can rename it",
+            onSelect: () => setRenameOpen(true),
+          },
+          {
+            icon: <Copy size={16} />,
+            label: "Duplicate",
+            disabled: !role.canManage || !role.canCreate,
+            disabledReason: "Only the room owner can duplicate it",
+            onSelect: onDuplicate,
+          },
+          {
+            icon: <Download size={16} />,
+            label: "Export file",
+            onSelect: onExport,
+          },
+          {
+            icon: <Trash2 size={16} />,
+            label: "Delete room",
+            danger: true,
+            disabled: !role.canManage,
+            disabledReason: "Only the room owner can delete it",
+            onSelect: () => setDeleteOpen(true),
+          },
+        ]}
+      />
 
-function PlayerRow({
-  side,
-  member,
-  label,
-  remote,
-  score,
-  starting,
-  winner,
-  finished,
-}: {
-  side: Side;
-  member: Member | null;
-  label: string;
-  remote: boolean;
-  score: number;
-  starting: boolean;
-  winner: boolean;
-  finished: boolean;
-}) {
-  return (
-    <div className={`room-card-player side-${side.toLowerCase()} ${winner ? "winner" : ""}`}>
-      <div className="room-card-player-chip">
-        {member ? (
-          <MemberChip member={member} hint={starting ? "1st" : null} />
-        ) : (
-          <MemberPlaceholderChip name={label} hint={starting ? "1st" : null} />
-        )}
-        {remote && (
-          <span className="room-card-remote" title="This side is assigned to a signed-in email account">
-            <Mail size={11} />
-            Email player
-          </span>
-        )}
-      </div>
-      <div className={`room-card-player-score ${finished ? "final" : ""}`}>{score}</div>
-    </div>
+      <TextPromptSheet
+        open={renameOpen}
+        title="Rename room"
+        label="Room name"
+        initialValue={room.name}
+        submitLabel="Save name"
+        onCancel={() => setRenameOpen(false)}
+        onSubmit={(name) => {
+          setRenameOpen(false);
+          onRename(name);
+        }}
+      />
+
+      <ConfirmSheet
+        open={deleteOpen}
+        title="Delete room"
+        consequence={`Delete "${room.name}"? The board and its full turn history will be gone for everyone.`}
+        confirmLabel="Delete room"
+        onCancel={() => setDeleteOpen(false)}
+        onConfirm={() => {
+          setDeleteOpen(false);
+          onDelete();
+        }}
+      />
+    </article>
   );
 }
 

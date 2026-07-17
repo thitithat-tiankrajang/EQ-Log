@@ -1,10 +1,12 @@
 import { useMemo, useState } from "react";
-import { BarChart3, LayoutGrid, LogIn, Plus, User, Users } from "lucide-react";
+import { BarChart3, ChevronRight, KeyRound, LayoutGrid, Plus, User, Users } from "lucide-react";
 import type { GameState } from "../../game";
 import type { RoomMeta } from "../../rooms";
 import { AccountChip, useAuth } from "../../auth";
 import { AdminButton } from "../../admin";
 import { computeAllMemberStats } from "../../stats";
+import { HOME_TEXT, ROOM_STATUS_TEXT } from "../../uiText";
+import { Sheet } from "../ui/Sheet";
 import { RoomsView } from "./lobby/RoomsView";
 import { MembersView } from "./lobby/MembersView";
 import { StatsView } from "./lobby/StatsView";
@@ -47,8 +49,10 @@ export function Lobby({
   onExport: (id: string) => void;
   onImport: (game: GameState) => void;
 }) {
-  const { userId } = useAuth();
+  const { userId, signInWithGoogle } = useAuth();
   const [tab, setTab] = useState<LobbyTab>("rooms");
+  const [signInSheetOpen, setSignInSheetOpen] = useState(false);
+  const [statsFocusId, setStatsFocusId] = useState<string | null>(null);
   const {
     error: membersError,
     loading: membersLoading,
@@ -66,38 +70,86 @@ export function Lobby({
     [rooms],
   );
 
+  // The most recent unfinished room this account participates in. Opening the
+  // app to resume a running match is the most common visit, so it gets a
+  // one-tap card above everything else.
+  const continueRoom = useMemo(() => {
+    return (
+      rooms
+        .filter((room) => room.status !== "finished")
+        .filter((room) => {
+          const role = getRoomRole(room);
+          return role.canManage || /player/i.test(role.label);
+        })
+        .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1))[0] ?? null
+    );
+  }, [rooms, getRoomRole]);
+
+  // Tapping a create action while signed out opens an explanation + sign-in
+  // sheet instead of showing a dead greyed-out button.
+  function guardCreate(action: () => void) {
+    if (canCreate) action();
+    else setSignInSheetOpen(true);
+  }
+
   return (
     <main className="lobby">
       <div className="lobby-inner">
-        <header className="lobby-head">
-          <div className="lobby-brand">
-            <span className="lobby-brand-eyebrow">Equation Board</span>
-            <h1>Match Lab</h1>
-            <p className="lobby-brand-sub">
-              Record real-life matches and review the numbers behind your organization.
-            </p>
-          </div>
-          <div className="lobby-head-actions">
+        <header className="lobby-topbar">
+          <span className="lobby-logo">EQ Lab</span>
+          <div className="lobby-topbar-actions">
             <AccountChip />
             <AdminButton />
           </div>
         </header>
 
-        <section className="home-actions" aria-label="Start playing">
-          <button className="home-action primary" type="button" disabled={!canCreate} onClick={onPlayAlone}>
-            <span><User size={21} /></span>
-            <strong>Play Alone</strong>
-            <em>Start a solo board with system draw</em>
-          </button>
-          <button className="home-action" type="button" disabled={!canCreate} onClick={onCreateRoom}>
-            <span><Plus size={21} /></span>
-            <strong>Create Room</strong>
-            <em>Configure local or email play</em>
-          </button>
-          <button className="home-action" type="button" onClick={onJoinRoom}>
-            <span><LogIn size={21} /></span>
-            <strong>Join Room</strong>
-            <em>Use a room code or shared link</em>
+        {continueRoom && (
+          <section className="home-block" aria-label="Continue">
+            <span className="home-eyebrow">{HOME_TEXT.continueEyebrow}</span>
+            <button className="continue-card" type="button" onClick={() => onOpen(continueRoom.id)}>
+              <span className="continue-card-row">
+                <strong className="continue-card-name">{continueRoom.name}</strong>
+                <span className={`room-status-pill status-${continueRoom.status}`}>
+                  {continueRoom.status === "draft"
+                    ? ROOM_STATUS_TEXT.waiting
+                    : continueRoom.status === "finished"
+                      ? ROOM_STATUS_TEXT.finished
+                      : ROOM_STATUS_TEXT.playing}
+                </span>
+              </span>
+              <span className="continue-card-row muted">
+                <span className="continue-card-players">
+                  {continueRoom.gameMode === "solo"
+                    ? `${continueRoom.playerA} ${continueRoom.scoreA}`
+                    : `${continueRoom.playerA} ${continueRoom.scoreA} · ${continueRoom.playerB} ${continueRoom.scoreB}`}
+                </span>
+                <span className="continue-card-turn">
+                  Turn {continueRoom.turnNumber}
+                  <ChevronRight size={16} />
+                </span>
+              </span>
+            </button>
+          </section>
+        )}
+
+        <section className="home-block" aria-label="Start">
+          <span className="home-eyebrow">{HOME_TEXT.startEyebrow}</span>
+          <div className="start-grid">
+            <button className="start-card primary" type="button" onClick={() => guardCreate(onCreateRoom)}>
+              <span className="start-card-icon"><Plus size={19} /></span>
+              <strong>{HOME_TEXT.newMatch}</strong>
+              <em>{HOME_TEXT.newMatchSub}</em>
+            </button>
+            <button className="start-card" type="button" onClick={onJoinRoom}>
+              <span className="start-card-icon"><KeyRound size={19} /></span>
+              <strong>{HOME_TEXT.joinWithCode}</strong>
+              <em>{HOME_TEXT.joinWithCodeSub}</em>
+            </button>
+          </div>
+          <button className="start-row" type="button" onClick={() => guardCreate(onPlayAlone)}>
+            <span className="start-card-icon"><User size={17} /></span>
+            <strong>{HOME_TEXT.practiceAlone}</strong>
+            <em>{HOME_TEXT.practiceAloneSub}</em>
           </button>
         </section>
 
@@ -106,23 +158,25 @@ export function Lobby({
             active={tab === "rooms"}
             count={rooms.length}
             label="Rooms"
-            icon={<LayoutGrid size={15} />}
+            icon={<LayoutGrid size={16} />}
             onClick={() => setTab("rooms")}
           />
           <TabButton
             active={tab === "members"}
             count={members.length}
             label="Members"
-            icon={<Users size={15} />}
+            icon={<Users size={16} />}
             onClick={() => setTab("members")}
           />
           <TabButton
             active={tab === "stats"}
             count={finishedCount}
-            countLabel={finishedCount === 1 ? "finished" : "finished"}
             label="Stats"
-            icon={<BarChart3 size={15} />}
-            onClick={() => setTab("stats")}
+            icon={<BarChart3 size={16} />}
+            onClick={() => {
+              setStatsFocusId(null);
+              setTab("stats");
+            }}
           />
         </nav>
 
@@ -154,13 +208,46 @@ export function Lobby({
               loading={membersLoading}
               ownerId={userId}
               onChange={setMembers}
+              onShowStats={(memberId) => {
+                setStatsFocusId(memberId);
+                setTab("stats");
+              }}
             />
           )}
           {tab === "stats" && (
-            <StatsView members={members} statsByMember={statsByMember} />
+            <StatsView
+              key={statsFocusId ?? "overview"}
+              members={members}
+              statsByMember={statsByMember}
+              initialFocusId={statsFocusId}
+            />
           )}
         </section>
       </div>
+
+      <Sheet
+        open={signInSheetOpen}
+        title={HOME_TEXT.signInSheetTitle}
+        onClose={() => setSignInSheetOpen(false)}
+      >
+        <p className="ui-confirm-consequence">
+          {createDisabledReason ?? HOME_TEXT.signInSheetBody}
+        </p>
+        {!userId && (
+          <div className="ui-sheet-actions">
+            <button
+              type="button"
+              className="ui-button-primary"
+              onClick={() => {
+                setSignInSheetOpen(false);
+                void signInWithGoogle();
+              }}
+            >
+              Continue with Google
+            </button>
+          </div>
+        )}
+      </Sheet>
     </main>
   );
 }
@@ -168,14 +255,12 @@ export function Lobby({
 function TabButton({
   active,
   count,
-  countLabel,
   icon,
   label,
   onClick,
 }: {
   active: boolean;
   count: number;
-  countLabel?: string;
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
@@ -189,10 +274,9 @@ function TabButton({
       onClick={onClick}
     >
       <span className="lobby-tab-icon">{icon}</span>
-      <span className="lobby-tab-label">{label}</span>
-      <span className="lobby-tab-count">
-        {count}
-        {countLabel && <em> {countLabel}</em>}
+      <span className="lobby-tab-label">
+        {label}
+        <span className="lobby-tab-count">{count}</span>
       </span>
     </button>
   );

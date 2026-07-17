@@ -104,6 +104,12 @@
     align-items: stretch;
   }
 
+  /* In column direction the 240px flex-basis (meant as a row-axis width)
+     becomes a 240px HEIGHT — reset it so the search bar is one input row. */
+  .room-filters-search {
+    flex-basis: auto;
+  }
+
   .room-filters-segment {
     width: 100%;
   }

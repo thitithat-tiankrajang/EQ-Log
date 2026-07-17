@@ -19,9 +19,13 @@
 @import "./styles/pages/lobby/60-filters.css";
 @import "./styles/pages/lobby/70-responsive.css";
 @import "./styles/pages/pregame.css";
+@import "./styles/pages/create-form.css";
 @import "./styles/tokens.css";
 @import "./styles/95-material-ai.css";
 @import "./styles/components/96-loading-activity.css";
+@import "./styles/components/97-ui-kit.css";
+/* Home/Rooms redesign — after material-ai so it wins its lobby overrides. */
+@import "./styles/pages/lobby/80-redesign.css";
 
 /* Phone layout for the game view — must stay LAST to win cascade ties. */
 @import "./styles/99-mobile-play.css";
