@@ -7,6 +7,7 @@ import { REMOTE_CAPABILITIES_TTL_MS } from "./constants/network";
 import { STORAGE_KEYS } from "./constants/storage";
 
 type ActionMode = "none" | ActionType;
+type RoomInviteStorage = "none" | "user" | "legacy";
 
 export type LiveRoomSession = {
   version: 1;
@@ -222,6 +223,20 @@ function buildSelectFields({
   return legacyInvite ? `${base},${LEGACY_INVITE_FIELDS}` : base;
 }
 
+function roomInviteStorage(game: GameState): RoomInviteStorage {
+  if (game.playerUserIds?.A || game.playerUserIds?.B) return "user";
+  if (game.playerEmails?.A || game.playerEmails?.B) return "legacy";
+  return "none";
+}
+
+function roomSelectFields(summary: boolean, inviteStorage: RoomInviteStorage): string {
+  return buildSelectFields({
+    summary,
+    userInvite: inviteStorage === "user",
+    legacyInvite: inviteStorage === "legacy",
+  });
+}
+
 export async function readRoom(id: string): Promise<RemoteRoomPayload | null> {
   if (!supabase) return null;
   const sessionPromise = readLiveSession(id);
@@ -270,28 +285,21 @@ export async function createRoom(
     ...roomStatePayload(game, databaseStatus),
     owner_id: ownerId,
   };
-  const requiresInvite = hasRoomInvites(game);
+  const inviteStorage = roomInviteStorage(game);
   const useSummary = remoteCapabilities.summaryColumns !== false;
-  const useInvite = requiresInvite || remoteCapabilities.userInviteColumns !== false;
   const summaryFields = useSummary ? roomSummaryPayload(game) : {};
-  const inviteFields = useInvite ? roomInvitePayload(game) : {};
+  const inviteFields = inviteStorage === "none" ? {} : roomInvitePayload(game);
   const insertPayload = { ...basePayload, ...summaryFields, ...inviteFields };
   let result: DatabaseResult = await supabase
     .from("rooms")
     .insert(insertPayload)
-    .select(buildSelectFields({ summary: useSummary, userInvite: useInvite }))
+    .select(roomSelectFields(useSummary, inviteStorage))
     .single();
 
-  if (useInvite && result.error && isMissingUserInviteColumnsError(result.error)) {
+  if (inviteStorage === "user" && result.error && isMissingUserInviteColumnsError(result.error)) {
     setRemoteCapability("userInviteColumns", false);
-    if (requiresInvite) throw missingInviteSchemaError();
-    const fallbackPayload = { ...basePayload, ...summaryFields };
-    result = await supabase
-      .from("rooms")
-      .insert(fallbackPayload)
-      .select(buildSelectFields({ summary: useSummary, userInvite: false, legacyInvite: true }))
-      .single();
-  } else if (useInvite && !result.error) {
+    throw missingInviteSchemaError();
+  } else if (inviteStorage === "user" && !result.error) {
     setRemoteCapability("userInviteColumns", true);
   }
 
@@ -300,34 +308,42 @@ export async function createRoom(
     // An old capability cache may say invite columns are unavailable even
     // though this insert just proved only the draft status was rejected.
     // Email rooms must retain their relational invite columns on retry.
-    const retryPayload = useInvite
-      ? { ...insertPayload, status: "playing" }
-      : { ...basePayload, ...summaryFields, status: "playing" };
+    const retryPayload = { ...insertPayload, status: "playing" };
     result = await supabase
       .from("rooms")
       .insert(retryPayload)
-      .select(buildSelectFields({ summary: useSummary, userInvite: useInvite }))
+      .select(roomSelectFields(useSummary, inviteStorage))
       .single();
-    if (useInvite && !result.error) setRemoteCapability("userInviteColumns", true);
+    if (inviteStorage === "user" && !result.error) setRemoteCapability("userInviteColumns", true);
   } else if (databaseStatus === "draft" && !result.error) {
     setRemoteCapability("draftStatus", true);
   }
 
   if (useSummary && result.error && isMissingSummarySchemaError(result.error)) {
     setRemoteCapability("summaryColumns", false);
-    const legacyInvite = useInvite;
-    const legacyPayload = legacyInvite ? { ...basePayload, ...inviteFields } : basePayload;
-    const legacyFields = legacyInvite ? `${LEGACY_META_FIELDS},${LEGACY_INVITE_FIELDS}` : LEGACY_META_FIELDS;
-    let legacy = await supabase.from("rooms").insert(legacyPayload).select(legacyFields).single();
-    if (isDraftStatusConstraintError(legacy.error, databaseStatus)) {
+    const compatibilityPayload = { ...basePayload, ...inviteFields };
+    const compatibilityFields = roomSelectFields(false, inviteStorage);
+    let compatibility = await supabase
+      .from("rooms")
+      .insert(compatibilityPayload)
+      .select(compatibilityFields)
+      .single();
+    if (isDraftStatusConstraintError(compatibility.error, databaseStatus)) {
       setRemoteCapability("draftStatus", false);
-      legacy = await supabase
+      compatibility = await supabase
         .from("rooms")
-        .insert({ ...legacyPayload, status: "playing" })
-        .select(legacyFields)
+        .insert({ ...compatibilityPayload, status: "playing" })
+        .select(compatibilityFields)
         .single();
     }
-    result = legacy;
+    result = compatibility;
+  }
+  if (inviteStorage === "user" && result.error && isMissingUserInviteColumnsError(result.error)) {
+    setRemoteCapability("userInviteColumns", false);
+    throw missingInviteSchemaError();
+  }
+  if (inviteStorage === "legacy" && result.error && isMissingLegacyInviteColumnsError(result.error)) {
+    throw missingLegacyInviteSchemaError();
   }
   if (result.error) throw result.error;
   const meta = metaFromRow(result.data as unknown as RemoteRoomRecord);
@@ -345,46 +361,48 @@ export function updateRoomState(args: {
     if (!supabase) return;
     const databaseStatus = getDatabaseStatus(args.game.status);
     const basePayload = roomStatePayload(args.game, databaseStatus);
-    const requiresInvite = hasRoomInvites(args.game);
+    const inviteStorage = roomInviteStorage(args.game);
     const useSummary = remoteCapabilities.summaryColumns !== false;
-    const useInvite = requiresInvite || remoteCapabilities.userInviteColumns !== false;
     const summaryFields = useSummary ? roomSummaryPayload(args.game) : {};
-    const inviteFields = useInvite ? roomInvitePayload(args.game) : {};
+    const inviteFields = inviteStorage === "none" ? {} : roomInvitePayload(args.game);
     const updatePayload = { ...basePayload, ...summaryFields, ...inviteFields };
     let result = await supabase.from("rooms").update(updatePayload).eq("id", args.id);
 
-    if (useInvite && result.error && isMissingUserInviteColumnsError(result.error)) {
+    if (inviteStorage === "user" && result.error && isMissingUserInviteColumnsError(result.error)) {
       setRemoteCapability("userInviteColumns", false);
-      if (requiresInvite) throw missingInviteSchemaError();
-      const fallbackPayload = { ...basePayload, ...summaryFields };
-      result = await supabase.from("rooms").update(fallbackPayload).eq("id", args.id);
-    } else if (useInvite && !result.error) {
+      throw missingInviteSchemaError();
+    } else if (inviteStorage === "user" && !result.error) {
       setRemoteCapability("userInviteColumns", true);
     }
 
     if (isDraftStatusConstraintError(result.error, databaseStatus)) {
       setRemoteCapability("draftStatus", false);
-      const retryPayload = useInvite
-        ? { ...updatePayload, status: "playing" }
-        : { ...basePayload, ...summaryFields, status: "playing" };
+      const retryPayload = { ...updatePayload, status: "playing" };
       result = await supabase.from("rooms").update(retryPayload).eq("id", args.id);
-      if (useInvite && !result.error) setRemoteCapability("userInviteColumns", true);
+      if (inviteStorage === "user" && !result.error) setRemoteCapability("userInviteColumns", true);
     } else if (databaseStatus === "draft" && !result.error) {
       setRemoteCapability("draftStatus", true);
     }
 
     if (useSummary && result.error && isMissingSummarySchemaError(result.error)) {
       setRemoteCapability("summaryColumns", false);
-      const legacyPayload = useInvite ? { ...basePayload, ...inviteFields } : basePayload;
-      let legacy = await supabase.from("rooms").update(legacyPayload).eq("id", args.id);
-      if (isDraftStatusConstraintError(legacy.error, databaseStatus)) {
+      const compatibilityPayload = { ...basePayload, ...inviteFields };
+      let compatibility = await supabase.from("rooms").update(compatibilityPayload).eq("id", args.id);
+      if (isDraftStatusConstraintError(compatibility.error, databaseStatus)) {
         setRemoteCapability("draftStatus", false);
-        legacy = await supabase
+        compatibility = await supabase
           .from("rooms")
-          .update({ ...legacyPayload, status: "playing" })
+          .update({ ...compatibilityPayload, status: "playing" })
           .eq("id", args.id);
       }
-      result = legacy;
+      result = compatibility;
+    }
+    if (inviteStorage === "user" && result.error && isMissingUserInviteColumnsError(result.error)) {
+      setRemoteCapability("userInviteColumns", false);
+      throw missingInviteSchemaError();
+    }
+    if (inviteStorage === "legacy" && result.error && isMissingLegacyInviteColumnsError(result.error)) {
+      throw missingLegacyInviteSchemaError();
     }
     if (result.error) throw result.error;
   });
@@ -413,7 +431,7 @@ export async function updateRoomReady(id: string, side: "A" | "B", ready: boolea
   if (error) {
     if (/set_room_ready|PGRST202|42883/i.test(`${error.code ?? ""} ${error.message}`)) {
       throw new Error(
-        "Waiting-room readiness is not enabled in Supabase yet. Run supabase/email_players_migration.sql.",
+        "Waiting-room readiness is not enabled in Supabase yet. Run supabase/user_invites_migration.sql.",
       );
     }
     throw new Error(error.message || "Unable to update ready status.");
@@ -426,9 +444,15 @@ export async function repairRoomInvites(id: string, game: GameState): Promise<vo
     .from("rooms")
     .update(roomInvitePayload(game))
     .eq("id", id);
-  if (error && isMissingUserInviteColumnsError(error)) throw missingInviteSchemaError();
+  const inviteStorage = roomInviteStorage(game);
+  if (error && inviteStorage === "user" && isMissingUserInviteColumnsError(error)) {
+    throw missingInviteSchemaError();
+  }
+  if (error && inviteStorage === "legacy" && isMissingLegacyInviteColumnsError(error)) {
+    throw missingLegacyInviteSchemaError();
+  }
   if (error) throw new Error(error.message || "Unable to repair room player assignments.");
-  setRemoteCapability("userInviteColumns", true);
+  if (inviteStorage === "user") setRemoteCapability("userInviteColumns", true);
 }
 
 export async function deleteRoom(id: string): Promise<void> {
@@ -537,6 +561,12 @@ function hasRoomInvites(game: GameState): boolean {
 function missingInviteSchemaError(): Error {
   return new Error(
     "Registered-player rooms are not enabled yet. Run supabase/user_invites_migration.sql, then try again.",
+  );
+}
+
+function missingLegacyInviteSchemaError(): Error {
+  return new Error(
+    "Email-player rooms are not enabled yet. Run supabase/user_invites_migration.sql, then try again.",
   );
 }
 
@@ -766,12 +796,17 @@ function getDatabaseStatus(status: GameStatus): GameStatus {
 
 function isMissingSummarySchemaError(error: { code?: string; message?: string } | null): boolean {
   const text = `${error?.code ?? ""} ${error?.message ?? ""}`;
-  return /42703|PGRST204|lifecycle_status|game_mode|member_a_id|member_b_id|starting_side|schema cache/i.test(text);
+  return /lifecycle_status|game_mode|member_a_id|member_b_id|starting_side/i.test(text);
 }
 
 function isMissingUserInviteColumnsError(error: { code?: string; message?: string } | null): boolean {
   const text = `${error?.code ?? ""} ${error?.message ?? ""}`;
-  return /42703|PGRST204|invite_user_a_id|invite_user_b_id/i.test(text);
+  return /invite_user_a_id|invite_user_b_id/i.test(text);
+}
+
+function isMissingLegacyInviteColumnsError(error: { code?: string; message?: string } | null): boolean {
+  const text = `${error?.code ?? ""} ${error?.message ?? ""}`;
+  return /invite_email_a|invite_email_b/i.test(text);
 }
 
 function isPrivateLegacyInviteError(error: { code?: string; message?: string } | null): boolean {

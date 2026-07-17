@@ -1,46 +1,78 @@
--- UUID-based registered-player rooms and a privacy-safe username directory.
--- Run once in Supabase SQL Editor. Safe to run more than once.
+-- Complete room-creation schema for local, hosted, direct, and solo rooms.
+-- Run in Supabase SQL Editor. Safe to run more than once.
+--
+-- This installer intentionally does not backfill old email rooms. A large
+-- backfill in the same transaction can hit statement_timeout and roll back the
+-- new columns as well, leaving PostgREST with PGRST204. Existing email rooms
+-- continue to work through the legacy columns; new rooms use account UUIDs.
 
 set statement_timeout = '120s';
 set lock_timeout = '15s';
 
 alter table public.rooms
+  add column if not exists lifecycle_status text,
+  add column if not exists game_mode text,
+  add column if not exists member_a_id text,
+  add column if not exists member_b_id text,
+  add column if not exists starting_side text,
+  add column if not exists invite_email_a text,
+  add column if not exists invite_email_b text,
   add column if not exists invite_user_a_id uuid references public.profiles(id) on delete set null,
   add column if not exists invite_user_b_id uuid references public.profiles(id) on delete set null;
 
--- Convert existing email assignments without exposing those addresses to the
--- frontend. New rooms write only these UUID columns.
-drop trigger if exists protect_invited_room_update on public.rooms;
-create index if not exists profiles_email_lower_idx on public.profiles (lower(btrim(email)));
+alter table public.rooms alter column game_mode set default 'versus';
 
-update public.rooms r
-set invite_user_a_id = p.id
-from public.profiles p
-where r.invite_user_a_id is null
-  and r.invite_email_a is not null
-  and lower(btrim(p.email)) = lower(btrim(r.invite_email_a));
+-- NOT VALID avoids a full historical-table scan during installation while the
+-- constraint still applies immediately to every new or changed row.
+alter table public.rooms drop constraint if exists rooms_status_check;
+alter table public.rooms add constraint rooms_status_check
+  check (status in ('playing', 'draft', 'finished')) not valid;
 
-update public.rooms r
-set invite_user_b_id = p.id
-from public.profiles p
-where r.invite_user_b_id is null
-  and r.invite_email_b is not null
-  and lower(btrim(p.email)) = lower(btrim(r.invite_email_b));
+create table if not exists public.room_live (
+  room_id     uuid primary key references public.rooms(id) on delete cascade,
+  actor_id    uuid references public.profiles(id) on delete set null,
+  session     jsonb not null default '{}'::jsonb,
+  updated_at  timestamptz not null default now()
+);
 
--- Avoid rewriting every large game-state JSON blob in one migration. The app
--- hydrates these UUIDs and removes legacy addresses from state/history when an
--- old room is next opened and saved.
+alter table public.profiles enable row level security;
+alter table public.rooms enable row level security;
+alter table public.room_live enable row level security;
 
--- Once an address has been resolved to a UUID it no longer needs to remain on
--- the room row. Unresolved legacy values stay server-side for one more rerun.
-update public.rooms
-set invite_email_a = case when invite_user_a_id is not null then null else invite_email_a end,
-    invite_email_b = case when invite_user_b_id is not null then null else invite_email_b end
-where (invite_user_a_id is not null and invite_email_a is not null)
-   or (invite_user_b_id is not null and invite_email_b is not null);
+create or replace function public.is_approved()
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and status = 'approved'
+  )
+$$;
+
+create or replace function public.is_admin()
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from public.profiles
+    where id = auth.uid() and is_admin
+  )
+$$;
+
+create or replace function public.my_email_lower()
+returns text language sql stable security definer set search_path = public as $$
+  select lower(btrim(email)) from public.profiles where id = auth.uid()
+$$;
+
+create or replace function public.is_room_invitee(email_a text, email_b text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce(
+    public.my_email_lower() is not null
+      and public.my_email_lower() in (lower(btrim(email_a)), lower(btrim(email_b))),
+    false
+  )
+$$;
 
 create index if not exists rooms_invite_user_a_idx on public.rooms (invite_user_a_id);
 create index if not exists rooms_invite_user_b_idx on public.rooms (invite_user_b_id);
+create index if not exists rooms_invite_email_a_idx on public.rooms (lower(btrim(invite_email_a)));
+create index if not exists rooms_invite_email_b_idx on public.rooms (lower(btrim(invite_email_b)));
 
 do $$
 begin
@@ -52,6 +84,26 @@ begin
       or invite_user_b_id is null
       or invite_user_a_id <> invite_user_b_id
     );
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'rooms_game_mode_check'
+  ) then
+    alter table public.rooms add constraint rooms_game_mode_check
+      check (game_mode is null or game_mode in ('versus', 'solo')) not valid;
+  end if;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'rooms_starting_side_check'
+  ) then
+    alter table public.rooms add constraint rooms_starting_side_check
+      check (starting_side is null or starting_side in ('A', 'B')) not valid;
   end if;
 end $$;
 
@@ -115,14 +167,20 @@ grant execute on function public.list_profiles_admin() to authenticated;
 revoke select on table public.profiles from anon, authenticated;
 grant select (id, display_name) on table public.profiles to anon, authenticated;
 
+drop policy if exists profiles_read on public.profiles;
+create policy profiles_read on public.profiles for select using (true);
+
 -- Room state is public for spectators, but legacy invite-address columns are
 -- not. New identity columns contain opaque account ids only.
 revoke select on table public.rooms from anon, authenticated;
 grant select (
   id, owner_id, name, player_a, player_b, status, turn_number, score_a, score_b,
-  lifecycle_status, member_a_id, member_b_id, starting_side,
+  lifecycle_status, game_mode, member_a_id, member_b_id, starting_side,
   invite_user_a_id, invite_user_b_id, state, created_at, updated_at
 ) on table public.rooms to anon, authenticated;
+grant insert, update, delete on table public.rooms to authenticated;
+grant select on table public.room_live to anon, authenticated;
+grant insert, update on table public.room_live to authenticated;
 
 create or replace function public.is_room_player(
   user_a uuid,
@@ -223,7 +281,14 @@ grant execute on function public.set_room_ready(uuid, text, boolean) to authenti
 create or replace function public.protect_invited_room_update()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
-  if old.owner_id = auth.uid() or public.is_admin() then
+  -- A direct room has no host. Its creator remains owner_id for persistence,
+  -- but must obey the same active-side restrictions as the other player.
+  if public.is_admin()
+    or (
+      old.owner_id = auth.uid()
+      and coalesce(old.state ->> 'emailPlayMode', 'hosted') <> 'direct'
+    )
+  then
     return new;
   end if;
 
@@ -299,6 +364,9 @@ create trigger protect_invited_room_update
   before update on public.rooms
   for each row execute function public.protect_invited_room_update();
 
+drop policy if exists rooms_read on public.rooms;
+create policy rooms_read on public.rooms for select using (true);
+
 drop policy if exists rooms_insert on public.rooms;
 create policy rooms_insert on public.rooms for insert
   with check (
@@ -373,13 +441,23 @@ create policy rooms_update on public.rooms for update
     )
   );
 
+drop policy if exists rooms_delete on public.rooms;
+create policy rooms_delete on public.rooms for delete
+  using (owner_id = auth.uid() or public.is_admin());
+
+drop policy if exists room_live_read on public.room_live;
+create policy room_live_read on public.room_live for select using (true);
+
 drop policy if exists room_live_insert on public.room_live;
 create policy room_live_insert on public.room_live for insert
   with check (exists (
     select 1 from public.rooms r
     where r.id = room_id
       and (
-        r.owner_id = auth.uid()
+        (
+          r.owner_id = auth.uid()
+          and coalesce(r.state ->> 'emailPlayMode', 'hosted') <> 'direct'
+        )
         or public.is_admin()
         or public.is_room_player(
           r.invite_user_a_id, r.invite_user_b_id,
@@ -394,7 +472,10 @@ create policy room_live_update on public.room_live for update
     select 1 from public.rooms r
     where r.id = room_id
       and (
-        r.owner_id = auth.uid()
+        (
+          r.owner_id = auth.uid()
+          and coalesce(r.state ->> 'emailPlayMode', 'hosted') <> 'direct'
+        )
         or public.is_admin()
         or public.is_room_player(
           r.invite_user_a_id, r.invite_user_b_id,
@@ -406,7 +487,10 @@ create policy room_live_update on public.room_live for update
     select 1 from public.rooms r
     where r.id = room_id
       and (
-        r.owner_id = auth.uid()
+        (
+          r.owner_id = auth.uid()
+          and coalesce(r.state ->> 'emailPlayMode', 'hosted') <> 'direct'
+        )
         or public.is_admin()
         or public.is_room_player(
           r.invite_user_a_id, r.invite_user_b_id,
@@ -414,5 +498,43 @@ create policy room_live_update on public.room_live for update
         )
       )
   ));
+
+do $$
+begin
+  alter publication supabase_realtime add table public.rooms;
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  alter publication supabase_realtime add table public.room_live;
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$
+begin
+  if not exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'rooms'
+      and column_name in (
+        'game_mode', 'invite_user_a_id', 'invite_user_b_id',
+        'invite_email_a', 'invite_email_b'
+      )
+    group by table_schema, table_name
+    having count(*) = 5
+  ) then
+    raise exception 'room creation schema verification failed';
+  end if;
+
+  if to_regprocedure('public.list_registered_players()') is null
+    or to_regprocedure('public.set_room_ready(uuid,text,boolean)') is null
+  then
+    raise exception 'room creation RPC verification failed';
+  end if;
+end $$;
 
 notify pgrst, 'reload schema';
