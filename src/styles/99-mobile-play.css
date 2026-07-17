@@ -107,19 +107,46 @@
     display: none;
   }
 
+  /* Icon + tiny label, stacked. font-size:0 (icon-only) hid the button text
+     AND dynamic states like the stop-request countdown ("5s") — on a touch
+     screen with no hover there was no way to tell Request from Surrender. */
   .top-actions .icon-button,
   .top-actions .clock-button,
   .top-actions .danger-button,
   .top-actions .resume-button {
+    display: inline-flex;
     flex: 0 0 auto;
-    width: 40px !important;
-    min-width: 40px !important;
-    height: 40px !important;
-    min-height: 40px !important;
-    padding: 0 !important;
-    gap: 0;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    width: auto !important;
+    min-width: 46px !important;
+    height: 46px !important;
+    min-height: 46px !important;
+    padding: 4px 7px !important;
     overflow: hidden;
-    font-size: 0 !important;
+    font-size: 9.5px !important;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+  }
+
+  .top-actions .icon-button svg,
+  .top-actions .clock-button svg,
+  .top-actions .danger-button svg,
+  .top-actions .resume-button svg {
+    width: 17px;
+    height: 17px;
+    flex: 0 0 auto;
+  }
+
+  .top-actions .icon-button:active,
+  .top-actions .clock-button:active,
+  .top-actions .danger-button:active,
+  .top-actions .resume-button:active {
+    background: var(--surface-2, #eef3ef);
   }
 
   /* ── Workspace: score strip → board; rails disappear ───────────────────── */
@@ -202,8 +229,8 @@
     grid-template-rows: minmax(0, 1fr) minmax(0, 1fr) !important;
     align-items: stretch !important;
     gap: 4px 8px !important;
-    min-height: 68px !important;
-    padding: 8px 10px !important;
+    min-height: 58px !important;
+    padding: 7px 10px !important;
     border-radius: 8px !important;
     box-shadow: none !important;
     container-type: inline-size;
@@ -231,8 +258,10 @@
     white-space: nowrap !important;
   }
 
+  /* Score reads at a glance without dominating the strip — the clock and the
+     board matter more mid-game than a giant point total. */
   .scoreboard-side .ss-score strong {
-    font-size: clamp(21px, 18cqi, 34px) !important;
+    font-size: clamp(17px, 13cqi, 25px) !important;
   }
 
   .scoreboard-side .ss-score span {
@@ -309,6 +338,13 @@
      viewport width, while preserving the board's cell-based scale. */
   .board-cell > .tile.compact b {
     font-size: calc(var(--cell) * 0.36 + 1.5px) !important;
+  }
+
+  /* Assigned choice tiles show a single operator; never let the 3-character
+     choice shrink apply to them (portrait block refines this further). */
+  .board-cell > .tile.compact.assigned-choice b {
+    font-size: calc(var(--cell) * 0.5 + 2px) !important;
+    letter-spacing: 0 !important;
   }
 
   .board-cell > .tile.compact small {
@@ -424,9 +460,22 @@
     line-height: 1;
   }
 
-  .play-bar .rack-tile .tile-heavyNumber b,
-  .play-bar .rack-tile .tile-choice b {
+  .play-bar .rack-tile .tile-heavyNumber b {
     font-size: clamp(13px, 4.5vw, 20px) !important;
+  }
+
+  /* Unassigned choice tiles (+/- and ×/÷) are 3 characters wide, but they
+     are the tiles the player must recognize fastest — keep them as large as
+     the slot allows instead of shrinking them into a smudge. */
+  .play-bar .rack-tile .tile-choice b {
+    font-size: clamp(14px, 5vw, 21px) !important;
+    letter-spacing: -0.05em;
+  }
+
+  /* Once assigned, the choice tile shows a single operator — full size. */
+  .play-bar .rack-tile .assigned-choice b {
+    font-size: clamp(18px, 6vw, 25px) !important;
+    letter-spacing: 0;
   }
 
   /* ── Contextual action bar inside the dock ─────────────────────────────── */
@@ -459,10 +508,19 @@
     opacity: 0.45;
   }
 
+  /* Phones have no hover — a pressed fill is the only touch feedback. */
+  .mab-btn:active:not(:disabled) {
+    background: var(--surface-2, #eef3ef);
+  }
+
   .mab-btn.primary {
     border-color: var(--accent, #0f766e);
     background: var(--accent, #0f766e);
     color: #ffffff;
+  }
+
+  .mab-btn.primary:active:not(:disabled) {
+    background: var(--accent-strong, #0b5f58);
   }
 
   .mab-btn.icon {
@@ -843,11 +901,17 @@
     gap: 8px !important;
   }
 
+  /* Operator glyphs (+ − × ÷) are the whole content of these buttons — big
+     enough to tell − from ÷ at arm's length. */
   .assignment-options button {
-    min-height: 52px !important;
+    min-height: 56px !important;
     border-radius: 10px !important;
-    font-size: 20px !important;
+    font-size: 26px !important;
     font-weight: 800 !important;
+  }
+
+  .assignment-options button:active {
+    background: var(--surface-2, #eef3ef) !important;
   }
 
   /* Log modal: single column, near-full height. */
@@ -884,7 +948,18 @@
   }
 
   .board-cell > .tile.compact.tile-choice b {
-    font-size: calc(var(--cell) * 0.35 + 1px) !important;
+    font-size: calc(var(--cell) * 0.38 + 1px) !important;
+  }
+
+  /* An ASSIGNED choice tile shows one character (+ − × ÷). It also carries
+     .tile-choice, so without this override it inherits the 3-character
+     shrink above and the operator becomes unreadably small (~9px) — but the
+     operator is exactly what gives the equation its meaning. Render it a
+     touch larger than digits (operator glyphs are visually lighter). */
+  .board-cell > .tile.compact.assigned-choice b {
+    font-size: calc(var(--cell) * 0.52 + 2px) !important;
+    font-weight: 800;
+    letter-spacing: 0 !important;
   }
 
   .board-cell > .tile.compact small {
