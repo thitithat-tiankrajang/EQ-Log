@@ -7,8 +7,9 @@ import {
   Users,
 } from "lucide-react";
 import { useState } from "react";
-import { normalizeEmail, type NewGameSettings, type Side, type TileDrawMode } from "../../../game";
+import { type NewGameSettings, type Side, type TileDrawMode } from "../../../game";
 import type { Member } from "../../../members";
+import type { RegisteredPlayer } from "../../../profiles";
 import { DEFAULT_TIMER_MINUTES, TIMER_MINUTE_OPTIONS } from "../../../constants/gameRules";
 import { isSupabaseConfigured } from "../../../supabaseClient";
 import { useAuth } from "../../../auth";
@@ -21,11 +22,15 @@ type PlayMode = "hotseat" | "solo" | "hosted_email" | "hosted_solo" | "direct_em
 type WhoPlays = "pass_play" | "solo" | "online";
 type OnlineRole = "direct_email" | "hosted_email" | "hosted_solo";
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 function playModeFromSettings(settings: NewGameSettings): PlayMode {
-  if (settings.gameMode === "solo") return settings.playerAEmail ? "hosted_solo" : "solo";
-  if (settings.playerAEmail || settings.playerBEmail) {
+  const hasOnlinePlayer = Boolean(
+    settings.playerAUserId ||
+      settings.playerBUserId ||
+      settings.playerAEmail ||
+      settings.playerBEmail,
+  );
+  if (settings.gameMode === "solo") return hasOnlinePlayer ? "hosted_solo" : "solo";
+  if (hasOnlinePlayer) {
     return settings.emailPlayMode === "direct" ? "direct_email" : "hosted_email";
   }
   return "hotseat";
@@ -34,6 +39,7 @@ function playModeFromSettings(settings: NewGameSettings): PlayMode {
 export function CreateRoomPanel({
   settings,
   members,
+  registeredPlayers,
   busy = false,
   submitLabel,
   onChange,
@@ -41,13 +47,15 @@ export function CreateRoomPanel({
 }: {
   settings: NewGameSettings;
   members: Member[];
+  registeredPlayers: RegisteredPlayer[];
   busy?: boolean;
   submitLabel?: string;
   onChange: (next: NewGameSettings) => void;
   onSubmit: () => void;
 }) {
-  const { profile } = useAuth();
-  const accountEmail = normalizeEmail(profile?.email);
+  const { profile, userId } = useAuth();
+  const accountUsername = profile?.display_name?.trim() || "Your account";
+  const accountPlayers = mergeAccountPlayer(registeredPlayers, userId, accountUsername);
   const [playMode, setPlayModeState] = useState<PlayMode>(() => playModeFromSettings(settings));
   const [lastOnlineRole, setLastOnlineRole] = useState<OnlineRole>(
     playMode === "hosted_email" || playMode === "hosted_solo" ? playMode : "direct_email",
@@ -104,6 +112,8 @@ export function CreateRoomPanel({
         gameMode: mode === "solo" ? "solo" : "versus",
         playerB: mode === "solo" ? "" : settings.playerB,
         playerBMemberId: mode === "solo" ? null : settings.playerBMemberId,
+        playerAUserId: null,
+        playerBUserId: null,
         playerAEmail: null,
         playerBEmail: null,
         emailPlayMode: undefined,
@@ -112,17 +122,19 @@ export function CreateRoomPanel({
       });
       return;
     }
-    const emailA = normalizeEmail(settings.playerAEmail);
-    const emailB = normalizeEmail(settings.playerBEmail);
+    const playerAUserId = settings.playerAUserId?.trim() || null;
+    const playerBUserId = settings.playerBUserId?.trim() || null;
     if (mode === "hosted_solo") {
-      const creatorWasA = Boolean(accountEmail && emailA === accountEmail);
+      const creatorWasA = Boolean(userId && playerAUserId === userId);
       onChange({
         ...settings,
         playerA: creatorWasA ? "" : settings.playerA,
         playerB: "",
         playerAMemberId: creatorWasA ? null : settings.playerAMemberId,
         playerBMemberId: null,
-        playerAEmail: creatorWasA ? "" : emailA ?? "",
+        playerAUserId: creatorWasA ? null : playerAUserId,
+        playerBUserId: null,
+        playerAEmail: null,
         playerBEmail: null,
         gameMode: "solo",
         emailPlayMode: "hosted",
@@ -131,134 +143,166 @@ export function CreateRoomPanel({
       return;
     }
     if (mode === "hosted_email") {
-      const creatorWasA = Boolean(accountEmail && emailA === accountEmail);
-      const creatorWasB = Boolean(accountEmail && emailB === accountEmail);
+      const creatorWasA = Boolean(userId && playerAUserId === userId);
+      const creatorWasB = Boolean(userId && playerBUserId === userId);
       onChange({
         ...settings,
         playerA: creatorWasA ? "" : settings.playerA,
         playerB: creatorWasB ? "" : settings.playerB,
         playerAMemberId: creatorWasA ? null : settings.playerAMemberId,
         playerBMemberId: creatorWasB ? null : settings.playerBMemberId,
-        playerAEmail: emailA === accountEmail ? "" : emailA ?? "",
-        playerBEmail: emailB === accountEmail ? "" : emailB ?? "",
+        playerAUserId: creatorWasA ? null : playerAUserId,
+        playerBUserId: creatorWasB ? null : playerBUserId,
+        playerAEmail: null,
+        playerBEmail: null,
         gameMode: "versus",
         emailPlayMode: "hosted",
       });
       return;
     }
     const side: Side =
-      emailB === accountEmail
+      playerBUserId === userId
         ? "B"
-        : emailA === accountEmail
+        : playerAUserId === userId
           ? "A"
-          : emailA && !emailB
+          : playerAUserId && !playerBUserId
             ? "B"
             : "A";
-    const creatorAlreadyAssigned = emailA === accountEmail || emailB === accountEmail;
-    const opponentEmail = (side === "A" ? emailB : emailA) ?? "";
+    const creatorAlreadyAssigned = playerAUserId === userId || playerBUserId === userId;
+    const opponentUserId = (side === "A" ? playerBUserId : playerAUserId) ?? null;
     onChange({
       ...settings,
       playerA:
         side === "A" && !creatorAlreadyAssigned
-          ? profile?.display_name ?? ""
+          ? accountUsername
           : settings.playerA,
       playerB:
         side === "B" && !creatorAlreadyAssigned
-          ? profile?.display_name ?? ""
+          ? accountUsername
           : settings.playerB,
       playerAMemberId:
         side === "A" && !creatorAlreadyAssigned ? null : settings.playerAMemberId,
       playerBMemberId:
         side === "B" && !creatorAlreadyAssigned ? null : settings.playerBMemberId,
-      playerAEmail: side === "A" ? accountEmail ?? "" : opponentEmail,
-      playerBEmail: side === "B" ? accountEmail ?? "" : opponentEmail,
+      playerAUserId: side === "A" ? userId : opponentUserId,
+      playerBUserId: side === "B" ? userId : opponentUserId,
+      playerAEmail: null,
+      playerBEmail: null,
       gameMode: "versus",
       emailPlayMode: "direct",
       tileDrawMode: "play",
     });
   }
 
-  const usesEmailPlay =
+  const usesOnlinePlay =
     playMode === "hosted_email" ||
     playMode === "hosted_solo" ||
     playMode === "direct_email";
-  const isDirectEmail = playMode === "direct_email";
-  const normalizedEmailA = normalizeEmail(settings.playerAEmail);
-  const normalizedEmailB = normalizeEmail(settings.playerBEmail);
-  const creatorSide: Side = accountEmail && normalizedEmailB === accountEmail ? "B" : "A";
-  const emailAInvalid = usesEmailPlay && (!normalizedEmailA || isInvalidEmail(normalizedEmailA));
-  const emailBRequired = !isSolo && usesEmailPlay;
-  const emailBInvalid = emailBRequired && (!normalizedEmailB || isInvalidEmail(normalizedEmailB));
-  const emailDuplicate =
-    Boolean(normalizedEmailA) && normalizedEmailA === normalizedEmailB;
+  const isDirectOnline = playMode === "direct_email";
+  const playerAUserId = settings.playerAUserId?.trim() || null;
+  const playerBUserId = settings.playerBUserId?.trim() || null;
+  const creatorSide: Side = userId && playerBUserId === userId ? "B" : "A";
+  const playerAInvalid = usesOnlinePlay && !playerAUserId;
+  const playerBRequired = !isSolo && usesOnlinePlay;
+  const playerBInvalid = playerBRequired && !playerBUserId;
+  const playerDuplicate = Boolean(playerAUserId) && playerAUserId === playerBUserId;
   const creatorAssigned =
-    Boolean(accountEmail) &&
-    (normalizedEmailA === accountEmail || normalizedEmailB === accountEmail);
-  const emailAIsHost =
+    Boolean(userId) && (playerAUserId === userId || playerBUserId === userId);
+  const playerAIsHost =
     (playMode === "hosted_email" || playMode === "hosted_solo") &&
-    normalizedEmailA === accountEmail;
-  const emailBIsHost = playMode === "hosted_email" && normalizedEmailB === accountEmail;
+    playerAUserId === userId;
+  const playerBIsHost = playMode === "hosted_email" && playerBUserId === userId;
   const creatorAssignmentInvalid =
-    usesEmailPlay &&
-    (isDirectEmail ? !creatorAssigned : creatorAssigned);
+    usesOnlinePlay && (isDirectOnline ? !creatorAssigned : creatorAssigned);
   const submitBlocked =
-    usesEmailPlay &&
-    (!accountEmail ||
-      emailAInvalid ||
-      emailBInvalid ||
-      emailDuplicate ||
+    usesOnlinePlay &&
+    (!userId ||
+      playerAInvalid ||
+      playerBInvalid ||
+      playerDuplicate ||
       creatorAssignmentInvalid);
 
   const creatorNotAssigned =
-    isDirectEmail &&
-    Boolean(accountEmail) &&
-    normalizedEmailA !== accountEmail &&
-    normalizedEmailB !== accountEmail;
+    isDirectOnline && Boolean(userId) && playerAUserId !== userId && playerBUserId !== userId;
 
   // Always-visible reason why Create is disabled (design.md D3 — no tooltips).
   const blockedReason = !submitBlocked
     ? null
-    : !accountEmail
-      ? "Sign in first — online rooms need your account email."
-      : emailDuplicate
-        ? "Side A and Side B must use different email accounts."
-        : creatorNotAssigned
-          ? "One side must use your signed-in email — tap the side you play."
-          : (playMode === "hosted_email" || playMode === "hosted_solo") && creatorAssigned
-            ? "As host you can't also be a player — use a different player email."
+    : !userId
+      ? "Sign in first to create an online room."
+      : playerDuplicate
+        ? "Side A and Side B must use different registered accounts."
+      : creatorNotAssigned
+          ? "Choose which side uses your account."
+        : (playMode === "hosted_email" || playMode === "hosted_solo") && creatorAssigned
+            ? "As host you can't also be a player — choose another registered user."
             : playMode === "hosted_solo"
-              ? "Enter the invited player's email."
+              ? "Choose the solo player."
               : playMode === "hosted_email"
-                ? "Enter both invited players' emails."
-                : "Enter your opponent's email.";
+                ? "Choose both registered players."
+                : "Choose your opponent.";
 
   function setCreatorSide(side: Side) {
-    if (!accountEmail || side === creatorSide) return;
-    const opponentEmail =
-      [normalizedEmailA, normalizedEmailB].find((email) => email && email !== accountEmail) ?? "";
+    if (!userId || side === creatorSide) return;
+    const opponentUserId =
+      [playerAUserId, playerBUserId].find((id) => id && id !== userId) ?? null;
     onChange({
       ...settings,
       playerA: settings.playerB,
       playerB: settings.playerA,
       playerAMemberId: settings.playerBMemberId,
       playerBMemberId: settings.playerAMemberId,
-      playerAEmail: side === "A" ? accountEmail : opponentEmail,
-      playerBEmail: side === "B" ? accountEmail : opponentEmail,
+      playerAUserId: side === "A" ? userId : opponentUserId,
+      playerBUserId: side === "B" ? userId : opponentUserId,
+      playerAEmail: null,
+      playerBEmail: null,
     });
   }
 
   const startingSide: Side = settings.startingSide ?? "A";
   const otherStartingSide: Side = startingSide === "A" ? "B" : "A";
   const tileDrawMode: TileDrawMode = settings.tileDrawMode ?? "manual";
-  const manualLabel = usesEmailPlay ? TILE_DRAW_TEXT.hostEnters : TILE_DRAW_TEXT.realTiles;
-  const manualDesc = usesEmailPlay ? TILE_DRAW_TEXT.hostEntersDesc : TILE_DRAW_TEXT.realTilesDesc;
+  const manualLabel = usesOnlinePlay ? TILE_DRAW_TEXT.hostEnters : TILE_DRAW_TEXT.realTiles;
+  const manualDesc = usesOnlinePlay ? TILE_DRAW_TEXT.hostEntersDesc : TILE_DRAW_TEXT.realTilesDesc;
   const tileDrawSummary = tileDrawMode === "play" ? TILE_DRAW_TEXT.appDraws : manualLabel;
-  const showRackVisibility = usesEmailPlay && !isSolo;
+  const showRackVisibility = usesOnlinePlay && !isSolo;
   const defaultRoomName = buildDefaultRoomName(settings, isSolo);
 
   const submitText = busy
     ? CREATE_TEXT.submitBusy
-    : submitLabel ?? (usesEmailPlay ? CREATE_TEXT.submitOnline : CREATE_TEXT.submit);
+    : submitLabel ?? (usesOnlinePlay ? CREATE_TEXT.submitOnline : CREATE_TEXT.submit);
+
+  function playerOptionsFor(side: Side): RegisteredPlayer[] {
+    const selectedId = side === "A" ? playerAUserId : playerBUserId;
+    const otherId = side === "A" ? playerBUserId : playerAUserId;
+    const hostMustStaySeparate = playMode === "hosted_email" || playMode === "hosted_solo";
+    return accountPlayers.filter(
+      (player) =>
+        player.id === selectedId ||
+        (player.id !== otherId && (!hostMustStaySeparate || player.id !== userId)),
+    );
+  }
+
+  function assignRegisteredPlayer(side: Side, id: string | null) {
+    const selected = accountPlayers.find((player) => player.id === id);
+    if (side === "A") {
+      onChange({
+        ...settings,
+        playerAUserId: id,
+        playerAEmail: null,
+        playerAMemberId: null,
+        playerA: selected?.username ?? "",
+      });
+      return;
+    }
+    onChange({
+      ...settings,
+      playerBUserId: id,
+      playerBEmail: null,
+      playerBMemberId: null,
+      playerB: selected?.username ?? "",
+    });
+  }
 
   return (
     <section className="create-form" aria-label="Room setup">
@@ -329,7 +373,7 @@ export function CreateRoomPanel({
             />
           </div>
         )}
-        {isDirectEmail && (
+        {isDirectOnline && (
           <div className="create-subquestion">
             <h4 className="create-subquestion-title">You play</h4>
             <div className="create-segment">
@@ -344,7 +388,7 @@ export function CreateRoomPanel({
                 </button>
               ))}
             </div>
-            <p className="create-signed-in">Signed in as {accountEmail ?? "an unavailable account"}</p>
+            <p className="create-signed-in">Signed in as {accountUsername}</p>
           </div>
         )}
       </div>
@@ -361,33 +405,34 @@ export function CreateRoomPanel({
           members={members}
           name={settings.playerA}
           selectedId={settings.playerAMemberId ?? null}
-          email={settings.playerAEmail ?? ""}
-          showEmail={usesEmailPlay}
-          emailInvalid={emailAInvalid || emailDuplicate || emailAIsHost}
-          emailError={
-            emailDuplicate
-              ? "Side A and Side B must use different email accounts."
-              : emailAIsHost
+          accountId={playerAUserId}
+          accountOptions={playerOptionsFor("A")}
+          showRegisteredAccount={usesOnlinePlay}
+          accountInvalid={playerAInvalid || playerDuplicate || playerAIsHost}
+          accountError={
+            playerDuplicate
+              ? "Side A and Side B must use different registered accounts."
+              : playerAIsHost
                 ? isHostedSolo
                   ? "The host account cannot also be the solo player."
                   : "The host account cannot also be Side A."
-              : !normalizedEmailA
+              : !playerAUserId
                 ? isHostedSolo
-                  ? "Enter the email the solo player signs in with."
-                  : "Enter the email this player signs in with."
+                  ? "Choose the registered user who will play solo."
+                  : "Choose the registered user for this side."
                 : undefined
           }
-          emailLocked={isDirectEmail && creatorSide === "A"}
-          emailLabel={
-            isDirectEmail
+          accountLocked={isDirectOnline && creatorSide === "A"}
+          accountLabel={
+            isDirectOnline
               ? creatorSide === "A"
-                ? "Your signed-in email"
-                : "Opponent email"
+                ? "Your account"
+                : "Opponent username"
               : isHostedSolo
-                ? "Solo player email"
-                : "Player email"
+                ? "Solo player username"
+                : "Player username"
           }
-          isYou={isDirectEmail && creatorSide === "A"}
+          isYou={isDirectOnline && creatorSide === "A"}
           playsFirst={!isSolo && startingSide === "A"}
           onNameChange={(value) => onChange({ ...settings, playerA: value })}
           onMemberChange={(id) => {
@@ -398,7 +443,7 @@ export function CreateRoomPanel({
               playerA: member ? member.name : settings.playerA,
             });
           }}
-          onEmailChange={(value) => onChange({ ...settings, playerAEmail: value })}
+          onAccountChange={(id) => assignRegisteredPlayer("A", id)}
         />
         {!isSolo && (
           <SidePlayerCard
@@ -407,27 +452,28 @@ export function CreateRoomPanel({
             members={members}
             name={settings.playerB}
             selectedId={settings.playerBMemberId ?? null}
-            email={settings.playerBEmail ?? ""}
-            showEmail={usesEmailPlay}
-            emailInvalid={emailBInvalid || emailDuplicate || emailBIsHost}
-            emailError={
-              emailDuplicate
-                ? "Side A and Side B must use different email accounts."
-                : emailBIsHost
+            accountId={playerBUserId}
+            accountOptions={playerOptionsFor("B")}
+            showRegisteredAccount={usesOnlinePlay}
+            accountInvalid={playerBInvalid || playerDuplicate || playerBIsHost}
+            accountError={
+              playerDuplicate
+                ? "Side A and Side B must use different registered accounts."
+                : playerBIsHost
                   ? "The host account cannot also be Side B."
-                : !normalizedEmailB
-                  ? "Enter the email this player signs in with."
+                : !playerBUserId
+                  ? "Choose the registered user for this side."
                   : undefined
             }
-            emailLocked={isDirectEmail && creatorSide === "B"}
-            emailLabel={
-              isDirectEmail
+            accountLocked={isDirectOnline && creatorSide === "B"}
+            accountLabel={
+              isDirectOnline
                 ? creatorSide === "B"
-                  ? "Your signed-in email"
-                  : "Opponent email"
-                : "Player email"
+                  ? "Your account"
+                  : "Opponent username"
+                : "Player username"
             }
-            isYou={isDirectEmail && creatorSide === "B"}
+            isYou={isDirectOnline && creatorSide === "B"}
             playsFirst={startingSide === "B"}
             onNameChange={(value) => onChange({ ...settings, playerB: value })}
             onMemberChange={(id) => {
@@ -438,7 +484,7 @@ export function CreateRoomPanel({
                 playerB: member ? member.name : settings.playerB,
               });
             }}
-            onEmailChange={(value) => onChange({ ...settings, playerBEmail: value })}
+            onAccountChange={(id) => assignRegisteredPlayer("B", id)}
           />
         )}
         {!isSolo && (
@@ -643,34 +689,36 @@ function SidePlayerCard({
   members,
   name,
   selectedId,
-  email,
-  showEmail,
-  emailInvalid,
-  emailError,
-  emailLocked,
-  emailLabel,
+  accountId,
+  accountOptions,
+  showRegisteredAccount,
+  accountInvalid,
+  accountError,
+  accountLocked,
+  accountLabel,
   isYou,
   playsFirst,
   onNameChange,
   onMemberChange,
-  onEmailChange,
+  onAccountChange,
 }: {
   side: Side;
   heading: string;
   members: Member[];
   name: string;
   selectedId: string | null;
-  email: string;
-  showEmail: boolean;
-  emailInvalid: boolean;
-  emailError?: string;
-  emailLocked: boolean;
-  emailLabel: string;
+  accountId: string | null;
+  accountOptions: RegisteredPlayer[];
+  showRegisteredAccount: boolean;
+  accountInvalid: boolean;
+  accountError?: string;
+  accountLocked: boolean;
+  accountLabel: string;
   isYou: boolean;
   playsFirst: boolean;
   onNameChange: (value: string) => void;
   onMemberChange: (id: string | null) => void;
-  onEmailChange: (value: string) => void;
+  onAccountChange: (id: string | null) => void;
 }) {
   return (
     <div className={`side-card side-card-${side.toLowerCase()}`}>
@@ -681,46 +729,60 @@ function SidePlayerCard({
         {playsFirst && <span className="side-card-first">{CREATE_TEXT.playsFirst}</span>}
       </div>
       <div className="side-card-fields">
-        <FieldRow label="Name">
-          <input
-            value={name}
-            onChange={(event) => onNameChange(event.target.value)}
-            placeholder={`Player ${side}`}
-          />
-        </FieldRow>
-        <FieldRow label={CREATE_TEXT.linkMember} hint={CREATE_TEXT.linkMemberHint}>
-          <select
-            value={selectedId ?? ""}
-            onChange={(event) => onMemberChange(event.target.value || null)}
+        {showRegisteredAccount ? (
+          <FieldRow
+            label={accountLabel}
+            hint="Only usernames are shared; private sign-in details stay hidden."
+            error={accountInvalid ? accountError ?? "Choose a registered user." : null}
           >
-            <option value="">{CREATE_TEXT.notLinked}</option>
-            {members.map((member) => (
-              <option key={member.id} value={member.id}>
-                {member.institution ? `${member.name} · ${member.institution}` : member.name}
-              </option>
-            ))}
-          </select>
-        </FieldRow>
-        {showEmail && (
-          <FieldRow label={emailLabel} error={emailInvalid ? emailError ?? "Enter the email this player uses for Google sign-in." : null}>
-            <input
-              type="email"
-              autoComplete="off"
-              readOnly={emailLocked}
-              value={email}
-              onChange={(event) => onEmailChange(event.target.value)}
-              placeholder={emailLocked ? "" : "player@example.com"}
-              aria-invalid={emailInvalid}
-            />
+            <select
+              value={accountId ?? ""}
+              disabled={accountLocked}
+              onChange={(event) => onAccountChange(event.target.value || null)}
+              aria-invalid={accountInvalid}
+            >
+              <option value="">Choose a username</option>
+              {accountOptions.map((player) => (
+                <option key={player.id} value={player.id}>
+                  {player.username}
+                </option>
+              ))}
+            </select>
           </FieldRow>
+        ) : (
+          <>
+            <FieldRow label="Name">
+              <input
+                value={name}
+                onChange={(event) => onNameChange(event.target.value)}
+                placeholder={`Player ${side}`}
+              />
+            </FieldRow>
+            <FieldRow label={CREATE_TEXT.linkMember} hint={CREATE_TEXT.linkMemberHint}>
+              <select
+                value={selectedId ?? ""}
+                onChange={(event) => onMemberChange(event.target.value || null)}
+              >
+                <option value="">{CREATE_TEXT.notLinked}</option>
+                {members.map((member) => (
+                  <option key={member.id} value={member.id}>
+                    {member.institution ? `${member.name} · ${member.institution}` : member.name}
+                  </option>
+                ))}
+              </select>
+            </FieldRow>
+          </>
         )}
       </div>
     </div>
   );
 }
 
-function isInvalidEmail(value: string | null | undefined): boolean {
-  const trimmed = (value ?? "").trim();
-  if (!trimmed) return false;
-  return !EMAIL_PATTERN.test(trimmed);
+function mergeAccountPlayer(
+  players: RegisteredPlayer[],
+  userId: string | null,
+  username: string,
+): RegisteredPlayer[] {
+  if (!userId || players.some((player) => player.id === userId)) return players;
+  return [{ id: userId, username }, ...players];
 }

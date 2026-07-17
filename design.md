@@ -54,8 +54,8 @@
    กินพื้นที่ ~40% ก่อนถึงปุ่ม Play Alone และไม่มีทาง "กลับเข้าเกมที่ค้างอยู่"
    โดยไม่เลื่อนหารายการห้องเอง ทั้งที่ use case ที่บ่อยที่สุดคือเปิดแอปกลับเข้าห้องเดิม
 5. **Play mode 5 ตัวเลือกเป็นศัพท์ภายใน ไม่มีคำอธิบายบนจอ** —
-   "Hot-seat (this device)", "Solo · System draw", "Email with host", "Hosted solo",
-   "Direct email" ผู้ใช้ต้องเดาก่อนเลือก แล้วค่อยเห็น hint หลังเลือกแล้ว
+   "Hot-seat (this device)", "Solo · System draw", "Online with host", "Hosted solo",
+   "Direct online" ผู้ใช้ต้องเดาก่อนเลือก แล้วค่อยเห็น hint หลังเลือกแล้ว
    (เทียบ-ก่อน-เลือกไม่ได้เลย)
 6. **ฟอร์ม Create ยาว ~3 จอโดยทุกอย่างสำคัญเท่ากันหมด** — room name ขึ้นก่อนทั้งที่
    ไม่มีผลต่อเกม, ปุ่ม submit อยู่ล่างสุด, ไม่มีสรุปว่าสร้างแล้วจะเกิดอะไรต่อ
@@ -427,11 +427,11 @@ viewer: รู้ว่าตัวเองรอดูได้ ทุกอ�
 | ที่ | เดิม | ใหม่ | เหตุผล |
 |---|---|---|---|
 | Home action | Play Alone / Start a solo board with system draw | Practice alone / Just you — the app draws tiles | "Practice" บอก use case; "system draw" เป็นศัพท์ภายใน |
-| Home action | Create Room / Configure local or email play | New match / Play or record a real game | ผู้ใช้คิดเป็นแมตช์ ไม่ใช่ห้อง; "local or email play" คือ config ไม่ใช่เหตุผลที่จะกด |
+| Home action | Create Room / Configure local or online play | New match / Play or record a real game | ผู้ใช้คิดเป็นแมตช์ ไม่ใช่ห้อง; play mode คือ config ไม่ใช่เหตุผลที่จะกด |
 | Home action | Join Room / Use a room code or shared link | Join with a code / Enter a code or paste a link | บอกของที่ต้องมีในมือ |
 | Play mode | Hot-seat (this device) | Pass & play — Two players, this phone | ศัพท์เกมสากล + ประโยคผลลัพธ์บนจอ (ไม่อยู่ใน tooltip) |
 | Play mode | Solo · System draw | Solo practice — Just you; app draws tiles | รวมเหตุผลการมีอยู่ของโหมดไว้ในคำอธิบาย |
-| Play mode | Email with host / Hosted solo / Direct email | Online → I play one side / I host two players / I host one player | เปลี่ยนจากชื่อฟีเจอร์เป็นบทบาทที่ผู้ใช้เลือกตอบเองได้ |
+| Play mode | Online with host / Hosted solo / Direct online | Online → I play one side / I host two players / I host one player | เปลี่ยนจากชื่อฟีเจอร์เป็นบทบาทที่ผู้ใช้เลือกตอบเองได้ และเลือกบัญชีด้วย username ไม่แสดง email |
 | Tile draw | Manual fill | Enter real tiles — record draws from a physical bag | บอกว่าโหมดนี้มีไว้บันทึกเกมจริง (จุดขายหลักของแอปที่ของเดิมไม่เคยพูด) |
 | Tile draw | System draw | App draws — shuffles and deals for you | ประธานคือ app ไม่ใช่ "system"; บอกสิ่งที่มันทำแทนเรา |
 | Timer | (dropdown มี "No timer" ท้ายลิสต์) | chips: 22 · tournament / 20 / 15 / 12 / 10 / 8 / No timer | 22 คือกติกาแข่งจริง — ติด label เพื่ออธิบาย default; No timer มองเห็นเสมอ |
@@ -466,16 +466,20 @@ viewer: รู้ว่าตัวเองรอดูได้ ทุกอ�
 
 ---
 
-## 8. Visual language (สืบทอดจาก Flat Material เดิม + กติกามือถือใหม่)
+## 8. Visual language (Material glass สำหรับ Lobby + กติกามือถือ)
 
 ยกมาจาก design system เดิมเฉพาะที่บังคับใช้ต่อ:
 
 - โทน: ขาว/เทาอ่อน `#F8F9FA`, ตัวหนังสือ `#3C4043`, น้ำเงิน `#4285F4` = primary,
   แดง `#EA4335` = destructive/error เท่านั้น, เขียว `#34A853` = สำเร็จ/ready,
   เหลือง `#FBBC05` = คำเตือน; ห้ามใช้สีเดี่ยวสื่อสถานะโดยไม่มีคำ (D8)
-- **มุมเหลี่ยม (radius 0) สำหรับ control ภายในแอป**, ไม่ใช้เงาตกแต่ง ใช้เส้นขอบ
-  และพื้นทึบแทน; ปุ่ม/แท็บ active = เติมน้ำเงินเต็มเซลล์; ทุก control มี `:active`
-  เป็นพื้นเข้มขึ้น (มือถือไม่มี hover — pressed state คือ feedback เดียวที่มี)
+- หน้า Home/Lobby ใช้กระจกใสที่อ่านง่าย: พื้นขาวโปร่ง, `backdrop-filter`, เส้นขอบขาว
+  และเงาระดับต่ำ โดยใช้ radius ไม่เกิน 8px; หน้า Play และ control เชิงงานยังคงพื้นทึบเดิม
+- **แยก action ออกจาก state ชัดเจน**: `New match` เป็น CTA น้ำเงินเต็มพื้นที่และมี elevation,
+  ส่วน tab/filter ที่เลือกเป็นพื้นขาว/charcoal พร้อม indicator จึงห้ามใช้สีเดียวกับ CTA
+- ทุก control มี `:active` แบบกดจมลงเล็กน้อย (`translate/scale + brightness`) และ hover
+  ใช้เฉพาะอุปกรณ์ที่รองรับ hover; effect เคลื่อนไหวเฉพาะ transform/opacity และเคารพ
+  `prefers-reduced-motion`
 - Focus: standalone input ใช้ outline 2px `outline-offset: -2px`; wrapper ที่หุ้ม
   input (search ฯลฯ) วาด focus ที่ wrapper เท่านั้น
 - Typography: sans-serif เดิม; ตัวเลขใช้ tabular numerals ในสกอร์/ตาราง/โค้ดห้อง

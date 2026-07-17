@@ -10,6 +10,8 @@ export const DEFAULT_NEW_GAME_SETTINGS: NewGameSettings = {
   playerB: "",
   playerAMemberId: null,
   playerBMemberId: null,
+  playerAUserId: null,
+  playerBUserId: null,
   playerAEmail: null,
   playerBEmail: null,
   emailPlayMode: undefined,

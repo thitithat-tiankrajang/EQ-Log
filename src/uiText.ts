@@ -57,13 +57,13 @@ export const PLAY_MODE_TEXT = {
   solo: "Solo practice",
   soloDesc: "Just you; the app draws tiles",
   online: "Online",
-  onlineDesc: "Invite by email — each player on their own device",
+  onlineDesc: "Choose registered players — each uses their own device",
   onlineNeedsSetup: "Needs online setup (Supabase) before it can be used",
   roleQuestion: "Your role",
   rolePlayer: "I play one side",
-  rolePlayerDesc: "Invite your opponent's email",
+  rolePlayerDesc: "Choose your opponent by username",
   roleHostTwo: "I host two players",
-  roleHostTwoDesc: "You referee; two invited emails play",
+  roleHostTwoDesc: "You referee; two registered players compete",
   roleHostOne: "I host one player",
   roleHostOneDesc: "A solo board you supervise",
 } as const;
@@ -134,4 +134,3 @@ export const WAITING_TEXT = {
   statusHost: "Host",
   statusHostBoard: "Plays on host's board",
 } as const;
-

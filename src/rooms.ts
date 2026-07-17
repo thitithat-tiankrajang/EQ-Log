@@ -22,6 +22,8 @@ export type RoomMeta = {
   gameMode?: GameMode;
   memberAId?: string | null;
   memberBId?: string | null;
+  inviteUserAId?: string | null;
+  inviteUserBId?: string | null;
   inviteEmailA?: string | null;
   inviteEmailB?: string | null;
   startingSide?: Side | null;
@@ -56,6 +58,8 @@ function metaFromGame(id: string, game: GameState, createdAt: string): RoomMeta 
     gameMode: getGameMode(game),
     memberAId: game.playerMembers?.A ?? null,
     memberBId: game.playerMembers?.B ?? null,
+    inviteUserAId: game.playerUserIds?.A ?? null,
+    inviteUserBId: game.playerUserIds?.B ?? null,
     inviteEmailA: game.playerEmails?.A ?? null,
     inviteEmailB: game.playerEmails?.B ?? null,
     startingSide: game.startingSide ?? game.history[0]?.activeSide ?? null,

@@ -13,11 +13,13 @@ export function AdminButton() {
     if (!profile?.is_admin || !supabase) return;
     let active = true;
     supabase
-      .from("profiles")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "pending")
-      .then(({ count }) => {
-        if (active) setPendingCount(count ?? 0);
+      .rpc("list_profiles_admin")
+      .then(({ data }) => {
+        if (active) {
+          setPendingCount(
+            Array.isArray(data) ? data.filter((row) => row.status === "pending").length : 0,
+          );
+        }
       });
     return () => {
       active = false;
@@ -30,7 +32,7 @@ export function AdminButton() {
     <>
       <button className="icon-button admin-open" type="button" onClick={() => setOpen(true)}>
         <Shield size={16} />
-        Approvals
+        <span className="admin-open-label">Approvals</span>
         {pendingCount > 0 && <span className="admin-badge">{pendingCount}</span>}
       </button>
       {open && <AdminPanel onClose={() => setOpen(false)} />}
@@ -46,12 +48,12 @@ function AdminPanel({ onClose }: { onClose: () => void }) {
 
   async function load() {
     if (!supabase) return;
-    const { data, error: err } = await supabase
-      .from("profiles")
-      .select("*")
-      .order("created_at", { ascending: true });
-    if (err) setError(err.message);
-    setRows((data as Profile[]) ?? []);
+    let result = await supabase.rpc("list_profiles_admin");
+    if (result.error && /PGRST202|42883|list_profiles_admin/i.test(`${result.error.code ?? ""} ${result.error.message}`)) {
+      result = await supabase.from("profiles").select("*").order("created_at", { ascending: true });
+    }
+    if (result.error) setError(result.error.message);
+    setRows((result.data as Profile[]) ?? []);
   }
 
   useEffect(() => {
@@ -157,7 +159,12 @@ function AdminRow({
       <span className={`admin-status admin-status-${profile.status}`}>{profile.status}</span>
       <div className="admin-actions">
         {profile.status !== "approved" && (
-          <button type="button" disabled={busy} onClick={() => onPatch(profile.id, { status: "approved" })}>
+          <button
+            className="approve"
+            type="button"
+            disabled={busy}
+            onClick={() => onPatch(profile.id, { status: "approved" })}
+          >
             <Check size={14} />
             Approve
           </button>

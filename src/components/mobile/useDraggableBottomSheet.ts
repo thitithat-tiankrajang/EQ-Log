@@ -11,6 +11,7 @@ import {
 
 const CLOSE_DURATION_MS = 240;
 const DRAG_START_THRESHOLD_PX = 5;
+const OPEN_DURATION_MS = 220;
 const SNAP_DURATION_MS = 210;
 
 type DragSession = {
@@ -45,11 +46,13 @@ export function useDraggableBottomSheet({
   const backdropScrollRef = useRef<BackdropScrollSession | null>(null);
   const suppressSheetClickRef = useRef(false);
   const closeTimerRef = useRef<number | null>(null);
+  const openTimerRef = useRef<number | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const closingRef = useRef(false);
   const sheetHeightRef = useRef(640);
   const [dragging, setDragging] = useState(false);
   const [closing, setClosing] = useState(false);
+  const [opening, setOpening] = useState(active);
   onCloseRef.current = onClose;
 
   // Pointer moves paint directly to compositor-only styles. Re-rendering the
@@ -86,7 +89,12 @@ export function useDraggableBottomSheet({
     dragRef.current = null;
     backdropScrollRef.current = null;
     setDragging(false);
+    setOpening(false);
     setClosing(true);
+    if (openTimerRef.current !== null) {
+      window.clearTimeout(openTimerRef.current);
+      openTimerRef.current = null;
+    }
     const sheetHeight = sheetRef.current?.getBoundingClientRect().height ?? window.innerHeight;
     sheetHeightRef.current = sheetHeight;
     paintNextFrame(sheetHeight + 32);
@@ -102,11 +110,18 @@ export function useDraggableBottomSheet({
       backdropScrollRef.current = null;
       setClosing(false);
       setDragging(false);
+      setOpening(false);
       paintOffset(0);
       return;
     }
 
     document.body.classList.add("mobile-sheet-open");
+    setOpening(true);
+    if (openTimerRef.current !== null) window.clearTimeout(openTimerRef.current);
+    openTimerRef.current = window.setTimeout(() => {
+      openTimerRef.current = null;
+      setOpening(false);
+    }, OPEN_DURATION_MS);
     const focusFrame = window.requestAnimationFrame(() => sheetRef.current?.focus());
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") requestClose();
@@ -118,14 +133,21 @@ export function useDraggableBottomSheet({
       window.cancelAnimationFrame(focusFrame);
       window.removeEventListener("keydown", handleKeyDown);
       if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+      if (openTimerRef.current !== null) window.clearTimeout(openTimerRef.current);
       if (animationFrameRef.current !== null) window.cancelAnimationFrame(animationFrameRef.current);
       closeTimerRef.current = null;
+      openTimerRef.current = null;
       animationFrameRef.current = null;
     };
   }, [active, paintOffset, requestClose]);
 
   const onPointerDown: PointerEventHandler<HTMLElement> = (event) => {
     if (closingRef.current || event.button !== 0) return;
+    if (openTimerRef.current !== null) {
+      window.clearTimeout(openTimerRef.current);
+      openTimerRef.current = null;
+      setOpening(false);
+    }
     const now = performance.now();
     sheetHeightRef.current = sheetRef.current?.getBoundingClientRect().height ?? 640;
     dragRef.current = {
@@ -265,6 +287,7 @@ export function useDraggableBottomSheet({
       onPointerUp: finishDrag,
     },
     dragging,
+    opening,
     requestClose,
     sheetRef,
     sheetStyle,

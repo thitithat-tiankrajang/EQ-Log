@@ -31,4 +31,18 @@
   --lobby-radius-lg: 14px;
 
   --lobby-shadow: 0 1px 0 rgba(31, 42, 35, 0.04);
+
+  /* Glass lobby surfaces. Kept here so every lobby view shares one material. */
+  --lobby-glass: rgba(255, 255, 255, 0.7);
+  --lobby-glass-strong: rgba(255, 255, 255, 0.88);
+  --lobby-glass-muted: rgba(242, 247, 250, 0.74);
+  --lobby-glass-border: rgba(255, 255, 255, 0.9);
+  --lobby-glass-line: rgba(71, 85, 105, 0.16);
+  --lobby-glass-shadow: 0 12px 32px rgba(41, 56, 78, 0.1),
+    0 2px 8px rgba(41, 56, 78, 0.06);
+  --lobby-glass-shadow-raised: 0 18px 42px rgba(36, 53, 78, 0.16),
+    0 4px 12px rgba(36, 53, 78, 0.08);
+  --lobby-cta: #2563eb;
+  --lobby-cta-deep: #1746b3;
+  --lobby-cta-light: #4f86f7;
 }

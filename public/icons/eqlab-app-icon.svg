@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="background" x1="64" y1="24" x2="448" y2="488" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#5b90f9"/>
+      <stop offset="0.5" stop-color="#2f66e6"/>
+      <stop offset="1" stop-color="#173a94"/>
+    </linearGradient>
+    <linearGradient id="glass" x1="256" y1="26" x2="256" y2="486" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.42"/>
+      <stop offset="0.48" stop-color="#ffffff" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#dce6ff" stop-opacity="0.04"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="146" y1="0" x2="366" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#dce6ff"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="#173a94"/>
+  <rect x="26" y="26" width="460" height="460" rx="118" fill="url(#background)"/>
+  <rect x="26" y="26" width="460" height="460" rx="118" fill="url(#glass)"/>
+  <rect x="32" y="32" width="448" height="448" rx="112" fill="none" stroke="#ffffff" stroke-opacity="0.42" stroke-width="9"/>
+  <rect x="146" y="213" width="220" height="42" rx="21" fill="url(#bar)"/>
+  <rect x="146" y="283" width="220" height="42" rx="21" fill="url(#bar)"/>
+  <circle cx="402" cy="132" r="24" fill="#bcd4ff" opacity="0.9"/>
+</svg>

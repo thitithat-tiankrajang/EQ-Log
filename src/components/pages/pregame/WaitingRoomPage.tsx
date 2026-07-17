@@ -18,6 +18,7 @@ import { OverflowMenu } from "../../ui/OverflowMenu";
 import { ConfirmSheet, Sheet } from "../../ui/Sheet";
 import { CreateRoomPanel } from "../lobby/CreateRoomPanel";
 import { useMembersCatalog } from "../lobby/useMembersCatalog";
+import { useRegisteredPlayersCatalog } from "../lobby/useRegisteredPlayersCatalog";
 import { PreGameShell } from "./PreGameShell";
 
 type Participant = {
@@ -54,24 +55,19 @@ export function WaitingRoomPage({
 }) {
   const { profile, userId } = useAuth();
   const { members } = useMembersCatalog(userId);
+  const playerDirectory = useRegisteredPlayersCatalog(Boolean(userId));
   const [editing, setEditing] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [settings, setSettings] = useState<NewGameSettings>(() => settingsFromWaitingGame(game));
   const accountEmail = normalizeEmail(profile?.email);
   const ownerEmail = normalizeEmail(meta.ownerEmail);
-  const isDirectEmailRoom = isDirectEmailGame(game, ownerEmail);
+  const isDirectEmailRoom = isDirectOnlineGame(game, meta.ownerId, ownerEmail);
   const isOwner = !meta.ownerId || Boolean(userId && meta.ownerId === userId);
   const canManage = isDirectEmailRoom
     ? isOwner
     : isOwner || Boolean(userId && profile?.is_admin);
-  const playerSide: Side | null = accountEmail
-    ? normalizeEmail(game.playerEmails?.A) === accountEmail
-      ? "A"
-      : normalizeEmail(game.playerEmails?.B) === accountEmail
-        ? "B"
-        : null
-    : null;
+  const playerSide: Side | null = findAccountSide(game, userId, accountEmail);
   const role = isDirectEmailRoom
     ? playerSide
       ? `Player · Side ${playerSide}`
@@ -89,13 +85,14 @@ export function WaitingRoomPage({
         meta,
         ownerEmail,
         profileName: profile?.display_name,
+        userId,
       }),
-    [accountEmail, game, meta, ownerEmail, profile?.display_name],
+    [accountEmail, game, meta, ownerEmail, profile?.display_name, userId],
   );
   const requiredReadySides = (["A", "B"] as Side[]).filter((side) => {
     if (getGameMode(game) === "solo" && side === "B") return false;
-    const email = normalizeEmail(game.playerEmails?.[side]);
-    return Boolean(email && email !== ownerEmail);
+    if (!hasPlayerIdentity(game, side)) return false;
+    return !accountMatchesSide(game, side, meta.ownerId ?? null, ownerEmail);
   });
   const waitingFor = requiredReadySides.filter((side) => !game.lobbyReadyBySide?.[side]);
   const waitingForNames = waitingFor.map((side) => game.players[side]?.trim() || `Side ${side}`);
@@ -260,7 +257,7 @@ export function WaitingRoomPage({
                   : TILE_DRAW_TEXT.realTiles
             }
           />
-          {!solo && game.playerEmails && (
+          {!solo && (game.playerUserIds || game.playerEmails) && (
             <SummaryRow
               label="Rack"
               value={
@@ -305,6 +302,7 @@ export function WaitingRoomPage({
         <CreateRoomPanel
           settings={settings}
           members={members}
+          registeredPlayers={playerDirectory.players}
           busy={busy}
           submitLabel={WAITING_TEXT.saveChanges}
           onChange={setSettings}
@@ -354,7 +352,7 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
 
 function playModeSummary(game: GameState): string {
   if (getGameMode(game) === "solo") {
-    return game.playerEmails?.A
+    return game.playerUserIds?.A || game.playerEmails?.A
       ? `${PLAY_MODE_TEXT.online} · ${PLAY_MODE_TEXT.roleHostOne.toLowerCase()}`
       : PLAY_MODE_TEXT.solo;
   }
@@ -369,14 +367,16 @@ function buildParticipants({
   meta,
   ownerEmail,
   profileName,
+  userId,
 }: {
   accountEmail: string | null;
   game: GameState;
   meta: RoomMeta;
   ownerEmail: string | null;
   profileName: string | null | undefined;
+  userId: string | null;
 }): Participant[] {
-  const isDirectEmailRoom = isDirectEmailGame(game, ownerEmail);
+  const isDirectEmailRoom = isDirectOnlineGame(game, meta.ownerId, ownerEmail);
   const participants: Participant[] = [];
   if (!isDirectEmailRoom) {
     participants.push({
@@ -386,21 +386,23 @@ function buildParticipants({
       kind: "host",
       status: WAITING_TEXT.statusHost,
       ready: true,
-      isYou: Boolean(accountEmail && ownerEmail === accountEmail),
+      isYou: Boolean(userId && meta.ownerId === userId),
     });
   }
   for (const side of ["A", "B"] as Side[]) {
     if (getGameMode(game) === "solo" && side === "B") continue;
-    const email = normalizeEmail(game.playerEmails?.[side]);
-    const controlledByHost = !isDirectEmailRoom && (!email || email === ownerEmail);
+    const assignedAccount = hasPlayerIdentity(game, side);
+    const controlledByHost =
+      !isDirectEmailRoom &&
+      (!assignedAccount || accountMatchesSide(game, side, meta.ownerId ?? null, ownerEmail));
     const ready =
       controlledByHost ||
       Boolean(game.lobbyReadyBySide?.[side]) ||
-      (isDirectEmailRoom && Boolean(email && email === ownerEmail));
+      (isDirectEmailRoom && accountMatchesSide(game, side, meta.ownerId ?? null, ownerEmail));
     participants.push({
       id: `player:${side}`,
       name: game.players[side] || `Player ${side}`,
-      detail: email ?? (controlledByHost ? WAITING_TEXT.statusHostBoard : "Assigned player"),
+      detail: controlledByHost ? WAITING_TEXT.statusHostBoard : "Registered player",
       kind: "player",
       side,
       status: controlledByHost
@@ -409,17 +411,15 @@ function buildParticipants({
           ? WAITING_TEXT.statusReady
           : WAITING_TEXT.statusNotReady,
       ready,
-      isYou: Boolean(accountEmail && email === accountEmail),
+      isYou: accountMatchesSide(game, side, userId, accountEmail),
     });
   }
-  const assigned = (["A", "B"] as Side[]).some(
-    (side) => normalizeEmail(game.playerEmails?.[side]) === accountEmail,
-  );
-  if (accountEmail && accountEmail !== ownerEmail && !assigned) {
+  const assigned = findAccountSide(game, userId, accountEmail) !== null;
+  if (userId && userId !== meta.ownerId && !assigned) {
     participants.push({
-      id: `viewer:${accountEmail}`,
-      name: profileName ?? accountEmail,
-      detail: accountEmail,
+      id: `viewer:${userId}`,
+      name: profileName ?? "Viewer",
+      detail: "Viewer",
       kind: "viewer",
       status: "Viewer",
       isYou: true,
@@ -428,10 +428,36 @@ function buildParticipants({
   return participants;
 }
 
-function isDirectEmailGame(game: GameState, ownerEmail: string | null): boolean {
+function isDirectOnlineGame(
+  game: GameState,
+  ownerId: string | null | undefined,
+  ownerEmail: string | null,
+): boolean {
   if (game.emailPlayMode === "direct") return true;
-  if (!ownerEmail) return false;
   return (["A", "B"] as Side[]).some(
-    (side) => normalizeEmail(game.playerEmails?.[side]) === ownerEmail,
+    (side) => accountMatchesSide(game, side, ownerId ?? null, ownerEmail),
   );
+}
+
+function findAccountSide(
+  game: GameState,
+  userId: string | null,
+  email: string | null,
+): Side | null {
+  return (["A", "B"] as Side[]).find((side) => accountMatchesSide(game, side, userId, email)) ?? null;
+}
+
+function hasPlayerIdentity(game: GameState, side: Side): boolean {
+  return Boolean(game.playerUserIds?.[side] || normalizeEmail(game.playerEmails?.[side]));
+}
+
+function accountMatchesSide(
+  game: GameState,
+  side: Side,
+  userId: string | null,
+  email: string | null,
+): boolean {
+  const assignedUserId = game.playerUserIds?.[side];
+  if (assignedUserId) return Boolean(userId && assignedUserId === userId);
+  return Boolean(email && normalizeEmail(game.playerEmails?.[side]) === email);
 }

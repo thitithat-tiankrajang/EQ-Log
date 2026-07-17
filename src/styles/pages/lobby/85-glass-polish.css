@@ -1,0 +1,962 @@
+/* Glass polish for the pre-game lobby only. Gameplay remains untouched. */
+
+main.lobby {
+  position: relative;
+  isolation: isolate;
+  overflow-x: hidden;
+  background-color: #eaf0f5;
+  background-image:
+    linear-gradient(135deg, rgba(66, 133, 244, 0.12), transparent 34%),
+    linear-gradient(315deg, rgba(52, 168, 83, 0.09), transparent 38%),
+    linear-gradient(180deg, #f4f8fb 0%, #e8eef4 100%);
+  color: #172033;
+}
+
+main.lobby::before {
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+  opacity: 0.42;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.32) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: linear-gradient(to bottom, #000, transparent 72%);
+}
+
+main.lobby .lobby-inner {
+  width: min(1060px, 100%);
+}
+
+.lobby-topbar,
+.continue-card,
+.start-card:not(.primary),
+.start-row,
+.lobby-tabs,
+.room-filters,
+.room-card,
+.member-row,
+.stats-ranked-row,
+.empty-state,
+.sync-banner,
+.info-banner {
+  border: 1px solid var(--lobby-glass-border);
+  background: var(--lobby-glass);
+  box-shadow: var(--lobby-glass-shadow);
+  backdrop-filter: blur(18px) saturate(135%);
+  -webkit-backdrop-filter: blur(18px) saturate(135%);
+}
+
+/* Repeated rows keep the glass color/border but skip per-item blur. This keeps
+   long room/member lists smooth on phones while preserving the same material. */
+.room-card,
+.member-row,
+.stats-ranked-row {
+  box-shadow: 0 4px 14px rgba(41, 56, 78, 0.07);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.lobby-topbar {
+  min-height: 58px;
+  padding: 8px 10px 8px 16px;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(41, 56, 78, 0.08);
+}
+
+.lobby-logo {
+  color: #172033;
+  letter-spacing: 0;
+}
+
+.lobby-logo::after {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 7px;
+  border-radius: 50%;
+  background: var(--lobby-cta);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.11);
+  content: "";
+  vertical-align: 2px;
+}
+
+.lobby-topbar-actions .account-chip,
+.lobby-topbar-actions .icon-button {
+  border-color: rgba(71, 85, 105, 0.16);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.home-block {
+  gap: 10px;
+}
+
+.home-eyebrow {
+  color: #526174;
+  letter-spacing: 0.08em;
+}
+
+.continue-card {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(37, 99, 235, 0.22);
+  border-left: 4px solid var(--lobby-cta);
+  border-radius: 8px;
+  background: var(--lobby-glass-strong);
+}
+
+.continue-card::after {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  content: "";
+  background: rgba(255, 255, 255, 0.96);
+  pointer-events: none;
+}
+
+.continue-card-turn {
+  color: var(--lobby-cta-deep);
+}
+
+.start-grid {
+  gap: 10px;
+}
+
+.start-card,
+.start-row {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.start-card:not(.primary),
+.start-row {
+  border-color: var(--lobby-glass-border);
+  background: var(--lobby-glass);
+}
+
+.start-card.primary {
+  isolation: isolate;
+  border: 1px solid rgba(19, 70, 178, 0.75);
+  border-radius: 8px;
+  background: linear-gradient(145deg, var(--lobby-cta-light), var(--lobby-cta) 45%, var(--lobby-cta-deep));
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+
+.start-card.primary::before {
+  position: absolute;
+  z-index: -1;
+  top: -90%;
+  left: -45%;
+  width: 45%;
+  height: 260%;
+  content: "";
+  opacity: 0;
+  background: rgba(255, 255, 255, 0.2);
+  transform: rotate(18deg) translateX(-140%);
+  transition: transform 420ms ease, opacity 220ms ease;
+  pointer-events: none;
+}
+
+.start-card.primary .start-card-icon {
+  border-color: rgba(255, 255, 255, 0.48);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+.start-card:not(.primary) .start-card-icon,
+.start-row .start-card-icon {
+  border-color: rgba(37, 99, 235, 0.18);
+  border-radius: 6px;
+  background: rgba(232, 240, 254, 0.76);
+  color: var(--lobby-cta-deep);
+}
+
+/* Selected navigation is a state marker, not another primary action. */
+.lobby-tabs {
+  overflow: hidden;
+  border-color: var(--lobby-glass-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.56);
+}
+
+.lobby-tab {
+  position: relative;
+  color: #526174;
+}
+
+.lobby-tab + .lobby-tab {
+  border-left-color: rgba(71, 85, 105, 0.12);
+}
+
+.lobby-tab.active {
+  background: rgba(255, 255, 255, 0.92);
+  color: #172033;
+  box-shadow: inset 0 -3px 0 var(--lobby-cta), inset 0 1px 0 #ffffff;
+}
+
+.lobby-tab.active .lobby-tab-icon {
+  color: var(--lobby-cta);
+}
+
+.lobby-tab-count,
+.lobby-tab.active .lobby-tab-count {
+  border: 1px solid rgba(71, 85, 105, 0.12);
+  border-radius: 5px;
+  background: rgba(233, 239, 246, 0.88);
+  color: #526174;
+}
+
+.lobby-body {
+  animation: lobby-content-in 360ms ease-out both;
+}
+
+.room-filters {
+  border-color: var(--lobby-glass-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.room-filters-search,
+.room-filters-more,
+.room-filters-segment {
+  border-color: rgba(71, 85, 105, 0.18);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.76);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.94);
+}
+
+.room-filters-search:focus-within {
+  border-color: var(--lobby-cta);
+  outline: 3px solid rgba(37, 99, 235, 0.14);
+  outline-offset: 1px;
+  color: var(--lobby-cta);
+}
+
+.room-filters-segment button {
+  border-radius: 5px;
+}
+
+.room-filters-segment button.active {
+  background: #26364a;
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+.room-grid {
+  gap: 12px;
+}
+
+.room-card {
+  overflow: visible;
+  border-color: rgba(255, 255, 255, 0.88);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.68);
+  transition: transform 200ms ease, border-color 200ms ease, box-shadow 200ms ease,
+    background 200ms ease;
+}
+
+.room-card::before {
+  position: absolute;
+  inset: 0;
+  border: 1px solid rgba(71, 85, 105, 0.08);
+  border-radius: inherit;
+  content: "";
+  pointer-events: none;
+}
+
+.room-card-open {
+  border-radius: inherit;
+}
+
+.room-card-line.meta {
+  color: #647185;
+}
+
+.room-card-owner i,
+.room-status-pill.status-finished {
+  border: 1px solid rgba(71, 85, 105, 0.11);
+  border-radius: 5px;
+  background: rgba(233, 239, 246, 0.82);
+}
+
+.room-status-pill {
+  border-radius: 5px;
+}
+
+.room-status-pill.status-playing {
+  border: 1px solid rgba(52, 168, 83, 0.16);
+  background: rgba(230, 244, 234, 0.84);
+}
+
+.room-status-pill.status-draft {
+  border: 1px solid rgba(184, 127, 44, 0.16);
+  background: rgba(255, 247, 214, 0.86);
+}
+
+.room-card .overflow-menu-trigger {
+  border-radius: 6px;
+}
+
+.member-row,
+.stats-ranked-row,
+.empty-state {
+  border-radius: 8px;
+}
+
+/* Rooms view ------------------------------------------------------------- */
+.rooms-view {
+  gap: 14px;
+}
+
+.room-filters-summary {
+  min-height: 24px;
+  color: #647185;
+}
+
+.room-filters-summary strong {
+  color: #172033;
+}
+
+.room-filters-clear {
+  border-radius: 4px;
+  color: var(--lobby-cta-deep);
+  text-decoration: none;
+}
+
+.member-filter-chip {
+  border-color: rgba(71, 85, 105, 0.16);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.74);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.94);
+}
+
+.member-filter-position,
+.member-filter-add {
+  min-height: 40px;
+  border-color: rgba(71, 85, 105, 0.18);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.8);
+  color: #26364a;
+}
+
+.member-filter-add {
+  max-width: 100%;
+  border-style: solid;
+}
+
+.member-filter-remove {
+  border-radius: 5px;
+}
+
+.empty-state {
+  border-color: rgba(71, 85, 105, 0.2);
+  background: rgba(255, 255, 255, 0.58);
+  color: #647185;
+  box-shadow: 0 8px 24px rgba(41, 56, 78, 0.06);
+}
+
+.empty-state .ui-button-ghost {
+  margin-top: 12px;
+}
+
+.sync-banner,
+.info-banner {
+  border-radius: 7px;
+  color: #26364a;
+}
+
+.sync-banner {
+  border-color: rgba(234, 67, 53, 0.28);
+  background: rgba(252, 232, 230, 0.86);
+  color: #8a2922;
+}
+
+.info-banner {
+  border-color: rgba(37, 99, 235, 0.18);
+  background: rgba(232, 240, 254, 0.8);
+}
+
+/* Members view ----------------------------------------------------------- */
+.members-view,
+.stats-view {
+  gap: 16px;
+}
+
+.members-view-head,
+.stats-view-head {
+  align-items: center;
+  padding: 2px 2px 0;
+}
+
+.members-view-head h2,
+.stats-view-head h2 {
+  color: #172033;
+  font-size: 20px;
+  letter-spacing: 0;
+}
+
+.members-view-head p,
+.stats-view-head p {
+  color: #647185;
+}
+
+main.lobby .solid-button {
+  min-height: 44px;
+  border-color: var(--lobby-cta);
+  border-radius: 7px;
+  background: var(--lobby-cta);
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+
+main.lobby .ghost-button {
+  min-height: 42px;
+  border-color: rgba(71, 85, 105, 0.18);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.7);
+  color: #26364a;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.92);
+}
+
+.member-list,
+.stats-ranked {
+  gap: 10px;
+}
+
+.member-row,
+.stats-ranked-row {
+  overflow: hidden;
+  border-color: rgba(255, 255, 255, 0.9);
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.member-row-open,
+.stats-ranked-row {
+  min-height: 68px;
+}
+
+.member-card-avatar,
+.member-avatar {
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  background: linear-gradient(145deg, #40526a, #253247);
+  color: #ffffff;
+  box-shadow: 0 4px 10px rgba(37, 50, 71, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.member-card-avatar {
+  width: 42px;
+  height: 42px;
+}
+
+.member-avatar-placeholder {
+  background: #dbe3eb;
+  color: #647185;
+  box-shadow: none;
+}
+
+.member-row-copy strong,
+.stats-ranked-copy strong,
+.member-chip-name {
+  color: #172033;
+}
+
+.member-row-copy span,
+.stats-ranked-copy span {
+  color: #647185;
+}
+
+.member-row .overflow-menu-trigger {
+  margin-right: 8px;
+  border-color: rgba(71, 85, 105, 0.12);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.54);
+}
+
+.member-operation {
+  min-height: 42px;
+}
+
+/* Member add/edit forms shown inside lobby sheets. */
+main.lobby .member-form {
+  gap: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+main.lobby .member-form-row {
+  gap: 14px;
+}
+
+main.lobby .member-form-field {
+  gap: 7px;
+}
+
+main.lobby .member-form-field > span {
+  color: #526174;
+  font-size: 12.5px;
+  font-weight: 800;
+}
+
+main.lobby .member-form-field input,
+main.lobby .member-form-field select,
+main.lobby .ui-prompt-field input {
+  min-height: 48px;
+  border-color: rgba(71, 85, 105, 0.2);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #172033;
+  box-shadow: inset 0 1px 0 #ffffff;
+  font-size: 16px;
+}
+
+main.lobby .member-form-field small {
+  color: #647185;
+}
+
+main.lobby .member-form-actions {
+  gap: 10px;
+  padding-top: 4px;
+}
+
+/* Stats view ------------------------------------------------------------- */
+.stats-ranked-pos {
+  color: var(--lobby-cta-deep);
+}
+
+.stats-table-wrap,
+.stats-focus-card {
+  border: 1px solid var(--lobby-glass-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: var(--lobby-glass-shadow);
+  backdrop-filter: blur(14px) saturate(125%);
+  -webkit-backdrop-filter: blur(14px) saturate(125%);
+}
+
+.stats-table-wrap {
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.stats-focus-card {
+  overflow: hidden;
+}
+
+.stats-focus-card {
+  padding: 16px;
+}
+
+.stats-table thead {
+  background: rgba(226, 234, 243, 0.76);
+  color: #526174;
+}
+
+.stats-table thead th {
+  border-color: rgba(71, 85, 105, 0.12);
+  letter-spacing: 0.05em;
+}
+
+.stats-table tbody td {
+  border-color: rgba(71, 85, 105, 0.09);
+}
+
+.stats-table tbody tr {
+  transition: background-color 160ms ease;
+}
+
+.stats-table tbody tr:hover td {
+  background: rgba(232, 240, 254, 0.52);
+}
+
+.stats-table td.num {
+  color: #26364a;
+}
+
+.stats-row-open {
+  min-height: 34px !important;
+  padding-inline: 12px;
+}
+
+.stats-hint {
+  padding: 10px 12px;
+  border-left: 3px solid #fbbc05;
+  border-radius: 0 6px 6px 0;
+  background: rgba(255, 247, 214, 0.74);
+  color: #6f5922;
+}
+
+/* Sheets, prompts, confirmations, and overflow actions ------------------ */
+main.lobby .ui-sheet-backdrop {
+  background: rgba(20, 30, 45, 0.38);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: lobby-backdrop-in 180ms ease-out both;
+}
+
+main.lobby .ui-sheet {
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  border-radius: 8px 8px 0 0;
+  background: rgba(248, 251, 253, 0.93);
+  box-shadow: 0 -18px 54px rgba(20, 30, 45, 0.2),
+    inset 0 1px 0 #ffffff;
+  backdrop-filter: blur(24px) saturate(130%);
+  -webkit-backdrop-filter: blur(24px) saturate(130%);
+  animation: lobby-sheet-in 240ms ease-out both;
+}
+
+main.lobby .ui-sheet-head {
+  min-height: 62px;
+  border-color: rgba(71, 85, 105, 0.12);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+main.lobby .ui-sheet-head h2 {
+  color: #172033;
+  font-size: 17px;
+}
+
+main.lobby .ui-sheet-close {
+  border-color: rgba(71, 85, 105, 0.15);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #526174;
+}
+
+main.lobby .ui-sheet-body {
+  padding: 18px;
+}
+
+main.lobby .ui-button-primary,
+main.lobby .ui-button-ghost,
+main.lobby .ui-button-danger {
+  border-radius: 7px;
+}
+
+main.lobby .ui-button-primary {
+  border-color: var(--lobby-cta);
+  background: var(--lobby-cta);
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+
+main.lobby .ui-button-ghost {
+  border-color: rgba(71, 85, 105, 0.18);
+  background: rgba(255, 255, 255, 0.72);
+  color: #26364a;
+}
+
+main.lobby .ui-button-danger {
+  border-color: rgba(234, 67, 53, 0.38);
+  background: rgba(252, 232, 230, 0.76);
+  color: #b63328;
+}
+
+main.lobby .ui-confirm-consequence {
+  padding: 12px 14px;
+  border-left: 3px solid #ea4335;
+  background: rgba(252, 232, 230, 0.66);
+  color: #4a3540;
+}
+
+main.lobby .overflow-menu-items {
+  gap: 6px;
+}
+
+main.lobby .overflow-menu-item {
+  min-height: 54px;
+  padding: 9px 12px;
+  border: 1px solid rgba(71, 85, 105, 0.1);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.56);
+}
+
+main.lobby .overflow-menu-item + .overflow-menu-item {
+  border-top: 1px solid rgba(71, 85, 105, 0.1);
+}
+
+main.lobby .overflow-menu-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: rgba(232, 240, 254, 0.74);
+  color: var(--lobby-cta-deep);
+}
+
+main.lobby .overflow-menu-item.danger .overflow-menu-icon {
+  background: rgba(252, 232, 230, 0.82);
+  color: #c23b30;
+}
+
+main.lobby .filter-sheet-section {
+  gap: 10px;
+}
+
+main.lobby .filter-sheet-section + .filter-sheet-section {
+  border-color: rgba(71, 85, 105, 0.12);
+}
+
+main.lobby .field-row-label {
+  color: #526174;
+}
+
+main.lobby .filter-sheet-hint,
+main.lobby .overflow-menu-copy em {
+  color: #647185;
+}
+
+/* Account and admin components ------------------------------------------ */
+.lobby-topbar-actions .account-avatar {
+  background: linear-gradient(145deg, var(--lobby-cta-light), var(--lobby-cta-deep));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.lobby-topbar-actions .account-name {
+  color: #26364a;
+}
+
+.lobby-topbar-actions .account-name em {
+  color: var(--lobby-cta-deep);
+}
+
+.lobby-topbar-actions .account-signout {
+  border-radius: 5px;
+  color: #647185;
+}
+
+main.lobby .admin-badge {
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: #d93a2f;
+  box-shadow: 0 2px 6px rgba(217, 58, 47, 0.2);
+}
+
+main.lobby .modal-backdrop:has(.admin-modal) {
+  background: rgba(20, 30, 45, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+main.lobby .admin-modal {
+  border-color: rgba(255, 255, 255, 0.9);
+  border-radius: 8px;
+  background: rgba(248, 251, 253, 0.94);
+  box-shadow: 0 24px 72px rgba(20, 30, 45, 0.24),
+    inset 0 1px 0 #ffffff;
+  backdrop-filter: blur(24px) saturate(130%);
+  -webkit-backdrop-filter: blur(24px) saturate(130%);
+}
+
+main.lobby .admin-modal .modal-head {
+  border-color: rgba(71, 85, 105, 0.12);
+  background: rgba(255, 255, 255, 0.48);
+}
+
+main.lobby .admin-body {
+  gap: 10px;
+}
+
+main.lobby .admin-section {
+  color: #526174;
+}
+
+main.lobby .admin-row {
+  border-color: rgba(255, 255, 255, 0.94);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.66);
+  box-shadow: 0 4px 14px rgba(41, 56, 78, 0.06);
+}
+
+main.lobby .admin-actions button {
+  border-color: rgba(71, 85, 105, 0.16);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.74);
+  color: #26364a;
+}
+
+main.lobby .admin-status {
+  border-radius: 5px;
+}
+
+/* Every lobby control responds to touch/click, not only hover. */
+main.lobby button:not(:disabled),
+main.lobby select:not(:disabled),
+main.lobby input:not(:disabled) {
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 150ms ease, background-color 180ms ease, border-color 180ms ease,
+    color 180ms ease, box-shadow 180ms ease, filter 150ms ease;
+}
+
+main.lobby button:not(:disabled):active {
+  filter: brightness(0.94) saturate(0.96);
+  transform: translateY(1px) scale(0.985);
+  transition-duration: 70ms;
+}
+
+main.lobby select:not(:disabled):active,
+main.lobby input:not(:disabled):active {
+  border-color: rgba(37, 99, 235, 0.46);
+  background-color: rgba(255, 255, 255, 0.92);
+}
+
+.start-card.primary:active {
+  background: linear-gradient(145deg, #3975ed, var(--lobby-cta-deep));
+  box-shadow: 0 7px 15px rgba(37, 99, 235, 0.24),
+    inset 0 2px 4px rgba(10, 42, 112, 0.18);
+  transform: translateY(1px) scale(0.98);
+}
+
+main.lobby button:focus-visible,
+main.lobby select:focus-visible,
+main.lobby input:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.28);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) {
+  main.lobby button:not(:disabled):hover {
+    filter: brightness(1.015) saturate(1.04);
+  }
+
+  .start-card.primary:hover::before {
+    opacity: 1;
+    transform: rotate(18deg) translateX(440%);
+  }
+
+  .start-card.primary:hover {
+    box-shadow: 0 18px 34px rgba(37, 99, 235, 0.34),
+      inset 0 1px 0 rgba(255, 255, 255, 0.38);
+    transform: translateY(-2px);
+  }
+
+  .room-card:hover {
+    border-color: rgba(255, 255, 255, 0.98);
+    background: rgba(255, 255, 255, 0.84);
+    box-shadow: var(--lobby-glass-shadow-raised);
+    transform: translateY(-2px);
+  }
+
+  .continue-card:hover,
+  .start-card:not(.primary):hover,
+  .start-row:hover,
+  .member-row-open:hover,
+  .stats-ranked-row:hover:not(:disabled) {
+    border-color: rgba(37, 99, 235, 0.22);
+    background: rgba(255, 255, 255, 0.86);
+    box-shadow: var(--lobby-glass-shadow-raised);
+    transform: translateY(-1px);
+  }
+}
+
+@keyframes lobby-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes lobby-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes lobby-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (min-width: 760px) {
+  main.lobby {
+    padding-top: 24px;
+  }
+
+  .lobby-topbar {
+    position: sticky;
+    z-index: 100;
+    top: 16px;
+  }
+
+  .start-card {
+    min-height: 108px;
+  }
+
+  main.lobby .ui-sheet {
+    border-radius: 8px;
+    box-shadow: 0 24px 72px rgba(20, 30, 45, 0.24),
+      inset 0 1px 0 #ffffff;
+  }
+}
+
+@media (max-width: 759px) {
+  main.lobby {
+    padding-inline: 10px;
+  }
+
+  .lobby-topbar {
+    border-radius: 7px;
+  }
+
+  .members-view-head {
+    align-items: stretch;
+  }
+
+  .members-view-head .solid-button {
+    width: 100%;
+  }
+
+  main.lobby .member-form-row,
+  main.lobby .institution-picker {
+    grid-template-columns: 1fr;
+  }
+
+  main.lobby .member-form-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  main.lobby .member-form-actions .solid-button {
+    order: -1;
+  }
+
+  main.lobby .admin-modal {
+    border-radius: 8px 8px 0 0;
+  }
+
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lobby-body,
+  .start-card.primary::before,
+  main.lobby .ui-sheet-backdrop,
+  main.lobby .ui-sheet {
+    animation: none;
+    transition: none;
+  }
+
+  main.lobby button:not(:disabled),
+  main.lobby select:not(:disabled),
+  main.lobby input:not(:disabled),
+  .room-card {
+    transition-duration: 0.01ms;
+  }
+}

@@ -204,9 +204,11 @@ export type GameSnapshot = {
   players: Record<Side, string>;
   /** Optional pointer to an organization member id per side. */
   playerMembers?: Partial<Record<Side, string>>;
+  /** Registered account id per online side. This is the primary player identity. */
+  playerUserIds?: Partial<Record<Side, string>>;
   /**
-   * Player email per side (kept in lowercase). Email modes assign each side
-   * to a separate signed-in account.
+   * Legacy player identity retained only so rooms created before UUID invites
+   * remain accessible after the migration.
    */
   playerEmails?: Partial<Record<Side, string>>;
   /** hosted = creator manages two remote players; direct = creator is one player. */
@@ -263,9 +265,11 @@ export type NewGameSettings = {
   playerB: string;
   playerAMemberId?: string | null;
   playerBMemberId?: string | null;
+  /** Registered account ids used by online rooms. */
+  playerAUserId?: string | null;
+  playerBUserId?: string | null;
   /**
-   * Player email per side. Both email modes require two different addresses;
-   * direct mode includes the creator, hosted mode excludes the creator.
+   * Legacy invite fields for rooms created before account-id invitations.
    */
   playerAEmail?: string | null;
   playerBEmail?: string | null;
@@ -400,8 +404,13 @@ export function createNewGame(settings: NewGameSettings): GameState {
   const isSolo = gameMode === "solo";
   const rawEmailA = normalizeEmail(settings.playerAEmail);
   const rawEmailB = normalizeEmail(settings.playerBEmail);
+  const rawUserIdA = normalizeUserId(settings.playerAUserId);
+  const rawUserIdB = normalizeUserId(settings.playerBUserId);
+  const userIdA = rawUserIdA;
+  const userIdB = isSolo ? null : rawUserIdB;
+  const hasRegisteredPlayers = Boolean(userIdA || userIdB);
   const emailPlayMode: EmailPlayMode | undefined =
-    rawEmailA || (!isSolo && rawEmailB)
+    hasRegisteredPlayers || rawEmailA || (!isSolo && rawEmailB)
       ? isSolo
         ? "hosted"
         : settings.emailPlayMode ?? "hosted"
@@ -409,6 +418,7 @@ export function createNewGame(settings: NewGameSettings): GameState {
   const emailA = rawEmailA;
   const emailB = isSolo ? null : rawEmailB;
   const hasEmailPlayers = Boolean(emailA || emailB);
+  const hasOnlinePlayers = hasRegisteredPlayers || hasEmailPlayers;
   const configuredTimerMinutes = normalizeTimerMinutes(settings);
   const timerMinutes: SideTimerMinutes = isSolo
     ? { A: configuredTimerMinutes.A, B: null }
@@ -424,7 +434,7 @@ export function createNewGame(settings: NewGameSettings): GameState {
   const allUntimed = sideUntimed.A === true && sideUntimed.B === true;
   const initialSeconds = Math.max(secondsBySide.A, secondsBySide.B, 1);
   const tileDrawMode: TileDrawMode =
-    emailPlayMode === "direct" || (isSolo && !hasEmailPlayers)
+    emailPlayMode === "direct" || (isSolo && !hasOnlinePlayers)
       ? "play"
       : settings.tileDrawMode ?? "manual";
   const initialQueue = createInitialTilebag({ shuffleForPlay: tileDrawMode === "play" });
@@ -437,6 +447,9 @@ export function createNewGame(settings: NewGameSettings): GameState {
   const playerEmails: Partial<Record<Side, string>> = {};
   if (emailA) playerEmails.A = emailA;
   if (emailB) playerEmails.B = emailB;
+  const playerUserIds: Partial<Record<Side, string>> = {};
+  if (userIdA) playerUserIds.A = userIdA;
+  if (userIdB) playerUserIds.B = userIdB;
   const base: Omit<GameState, "history" | "historyIndex" | "lastSavedAt"> = {
     commitId: crypto.randomUUID(),
     gameId: crypto.randomUUID(),
@@ -453,9 +466,10 @@ export function createNewGame(settings: NewGameSettings): GameState {
       : Object.keys(playerMembers).length > 0
         ? playerMembers
         : undefined,
+    playerUserIds: hasRegisteredPlayers ? playerUserIds : undefined,
     playerEmails: hasEmailPlayers ? playerEmails : undefined,
     emailPlayMode,
-    emailPlayersCanSeeOpponentRack: !isSolo && hasEmailPlayers
+    emailPlayersCanSeeOpponentRack: !isSolo && hasOnlinePlayers
       ? settings.emailPlayersCanSeeOpponentRack ?? false
       : undefined,
     roomStage: "playing",
@@ -526,6 +540,12 @@ export function normalizeEmail(value: string | null | undefined): string | null 
   return trimmed ? trimmed : null;
 }
 
+export function normalizeUserId(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const trimmed = value.trim();
+  return trimmed || null;
+}
+
 export function makeSnapshot(game: Omit<GameState, "history" | "historyIndex" | "lastSavedAt">): GameSnapshot;
 export function makeSnapshot(game: GameState): GameSnapshot;
 export function makeSnapshot(game: GameState | Omit<GameState, "history" | "historyIndex" | "lastSavedAt">): GameSnapshot {
@@ -536,6 +556,7 @@ export function makeSnapshot(game: GameState | Omit<GameState, "history" | "hist
     gameMode: getGameMode(game),
     players: game.players,
     playerMembers: game.playerMembers,
+    playerUserIds: game.playerUserIds,
     playerEmails: game.playerEmails,
     emailPlayMode: game.emailPlayMode,
     emailPlayersCanSeeOpponentRack: game.emailPlayersCanSeeOpponentRack,

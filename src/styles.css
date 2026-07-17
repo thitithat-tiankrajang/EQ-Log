@@ -26,6 +26,9 @@
 @import "./styles/components/97-ui-kit.css";
 /* Home/Rooms redesign — after material-ai so it wins its lobby overrides. */
 @import "./styles/pages/lobby/80-redesign.css";
+@import "./styles/pages/lobby/85-glass-polish.css";
+@import "./styles/pages/lobby/90-glass-refined.css";
+@import "./styles/pages/pregame-glass.css";
 
 /* Phone layout for the game view — must stay LAST to win cascade ties. */
 @import "./styles/99-mobile-play.css";

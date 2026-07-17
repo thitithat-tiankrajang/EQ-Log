@@ -55,6 +55,8 @@ export function settingsFromWaitingGame(game: GameState): NewGameSettings {
     playerB: game.players.B,
     playerAMemberId: game.playerMembers?.A ?? null,
     playerBMemberId: game.playerMembers?.B ?? null,
+    playerAUserId: game.playerUserIds?.A ?? null,
+    playerBUserId: game.playerUserIds?.B ?? null,
     playerAEmail: game.playerEmails?.A ?? null,
     playerBEmail: game.playerEmails?.B ?? null,
     emailPlayMode: game.emailPlayMode,

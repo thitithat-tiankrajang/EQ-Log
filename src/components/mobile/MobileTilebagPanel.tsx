@@ -49,7 +49,7 @@ export function MobileTilebagPanel({
           <section
             aria-label="Tiles not yet visible"
             aria-modal="true"
-            className={`bag-sheet mobile-tilebag-sheet ${sheet.dragging ? "is-dragging" : ""} ${sheet.closing ? "is-closing" : ""}`}
+            className={`bag-sheet mobile-tilebag-sheet ${sheet.opening ? "is-opening" : ""} ${sheet.dragging ? "is-dragging" : ""} ${sheet.closing ? "is-closing" : ""}`}
             ref={sheet.sheetRef}
             role="dialog"
             style={sheet.sheetStyle}

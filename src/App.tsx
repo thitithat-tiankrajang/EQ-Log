@@ -60,6 +60,7 @@ import {
   getTileDrawMode,
   isRackReady,
   normalizeEmail,
+  normalizeUserId,
   otherSide,
   phaseForNextSide,
   pushActionSnapshot,
@@ -420,15 +421,15 @@ function App() {
   const hasAdminAccess = remoteEnabled && Boolean(userId && profile?.is_admin);
   const canCreateRoom = !remoteEnabled || Boolean(userId && (isApproved || hasAdminAccess));
   const accountEmail = normalizeEmail(profile?.email);
+  const inviteUserAId = activeRoomMeta?.inviteUserAId ?? game?.playerUserIds?.A ?? null;
+  const inviteUserBId = activeRoomMeta?.inviteUserBId ?? game?.playerUserIds?.B ?? null;
   const inviteEmailA = normalizeEmail(activeRoomMeta?.inviteEmailA ?? game?.playerEmails?.A);
   const inviteEmailB = normalizeEmail(activeRoomMeta?.inviteEmailB ?? game?.playerEmails?.B);
-  const isEmailRoom = Boolean(inviteEmailA || inviteEmailB);
-  const invitedSides: Side[] = accountEmail
-    ? [
-        ...(inviteEmailA === accountEmail ? (["A"] as Side[]) : []),
-        ...(inviteEmailB === accountEmail ? (["B"] as Side[]) : []),
-      ]
-    : [];
+  const isEmailRoom = Boolean(inviteUserAId || inviteUserBId || inviteEmailA || inviteEmailB);
+  const invitedSides: Side[] = [
+    ...(accountMatchesInvite(inviteUserAId, inviteEmailA, userId, accountEmail) ? (["A"] as Side[]) : []),
+    ...(accountMatchesInvite(inviteUserBId, inviteEmailB, userId, accountEmail) ? (["B"] as Side[]) : []),
+  ];
   const accountPlayerSide = invitedSides.length === 1 ? invitedSides[0] : null;
   const canManageActiveRoom =
     !remoteEnabled || Boolean(userId && (hasAdminAccess || activeRoomMeta?.ownerId === userId));
@@ -912,6 +913,8 @@ function App() {
                   playerB: game.players.B,
                   memberAId: game.playerMembers?.A ?? null,
                   memberBId: game.playerMembers?.B ?? null,
+                  inviteUserAId: game.playerUserIds?.A ?? null,
+                  inviteUserBId: game.playerUserIds?.B ?? null,
                   inviteEmailA: game.playerEmails?.A ?? null,
                   inviteEmailB: game.playerEmails?.B ?? null,
                   startingSide: game.startingSide,
@@ -1621,37 +1624,42 @@ function App() {
       return;
     }
     const isSoloRoom = getGameMode(newSettings) === "solo";
+    const playerUserAId = normalizeUserId(newSettings.playerAUserId);
+    const playerUserBId = isSoloRoom ? null : normalizeUserId(newSettings.playerBUserId);
     const playerEmailA = normalizeEmail(newSettings.playerAEmail);
     const playerEmailB = isSoloRoom ? null : normalizeEmail(newSettings.playerBEmail);
-    const usesEmailPlay = Boolean(playerEmailA || playerEmailB);
+    const usesEmailPlay = Boolean(playerUserAId || playerUserBId || playerEmailA || playerEmailB);
     const requestedEmailMode = newSettings.emailPlayMode ?? "hosted";
     const creatorAssigned = Boolean(
-      accountEmail && [playerEmailA, playerEmailB].includes(accountEmail),
+      (userId && [playerUserAId, playerUserBId].includes(userId)) ||
+        (accountEmail && [playerEmailA, playerEmailB].includes(accountEmail)),
     );
     const invalidDirectRoom =
       requestedEmailMode === "direct" &&
       (isSoloRoom ||
-        !playerEmailA ||
-        !playerEmailB ||
-        playerEmailA === playerEmailB ||
+        !playerUserAId ||
+        !playerUserBId ||
+        playerUserAId === playerUserBId ||
         !creatorAssigned);
     const invalidHostedRoom =
       requestedEmailMode === "hosted" &&
-      (!playerEmailA ||
-        (!isSoloRoom && (!playerEmailB || playerEmailA === playerEmailB)) ||
+      (!playerUserAId ||
+        (!isSoloRoom && (!playerUserBId || playerUserAId === playerUserBId)) ||
         creatorAssigned);
-    if (remoteEnabled && usesEmailPlay && (!accountEmail || invalidDirectRoom || invalidHostedRoom)) {
+    if (remoteEnabled && usesEmailPlay && (!userId || invalidDirectRoom || invalidHostedRoom)) {
       setSyncError(
         requestedEmailMode === "direct"
-          ? "A direct email match requires two different player emails, including your signed-in account."
+          ? "A direct match requires two different registered players, including your account."
           : isSoloRoom
-            ? "A hosted solo room requires one player email different from the host account."
-            : "An email match with a host requires two different player emails, neither of which is the host account.",
+            ? "A hosted solo room requires one registered player different from the host."
+            : "A hosted match requires two different registered players, neither of whom is the host.",
       );
       return;
     }
     const waitingGame = createWaitingGame({
       ...newSettings,
+      playerAUserId: playerUserAId,
+      playerBUserId: playerUserBId,
       playerAEmail: playerEmailA,
       playerBEmail: playerEmailB,
       tileDrawMode:
@@ -1659,7 +1667,7 @@ function App() {
           ? "play"
           : newSettings.tileDrawMode,
     });
-    const created = markOwnerSideReady(waitingGame, accountEmail);
+    const created = markOwnerSideReady(waitingGame, userId, accountEmail);
     const finishLoading = startForegroundLoading("Creating room...");
     try {
       if (remoteEnabled) {
@@ -1723,7 +1731,7 @@ function App() {
     if (!game || !activeRoomId || !canConfigureWaitingRoom || getRoomStage(game) !== "waiting") return;
     const finishLoading = startForegroundLoading("Saving configuration...");
     try {
-      const next = markOwnerSideReady(updateWaitingGame(game, settings), accountEmail);
+      const next = markOwnerSideReady(updateWaitingGame(game, settings), userId, accountEmail);
       await persistWaitingGame(next);
       setSyncError(null);
     } catch (error) {
@@ -1758,7 +1766,7 @@ function App() {
   async function startActiveWaitingRoom() {
     if (!game || !activeRoomId || !canConfigureWaitingRoom || getRoomStage(game) !== "waiting") return;
     const ownerEmail = normalizeEmail(activeRoomMeta?.ownerEmail);
-    const waitingSides = getRequiredReadySides(game, ownerEmail).filter(
+    const waitingSides = getRequiredReadySides(game, activeRoomMeta?.ownerId ?? null, ownerEmail).filter(
       (side) => !game.lobbyReadyBySide?.[side],
     );
     if (waitingSides.length > 0) return;
@@ -1844,6 +1852,8 @@ function App() {
               playerA: next.players.A,
               playerB: next.players.B,
               gameMode: getGameMode(next),
+              inviteUserAId: next.playerUserIds?.A ?? null,
+              inviteUserBId: next.playerUserIds?.B ?? null,
               inviteEmailA: next.playerEmails?.A ?? null,
               inviteEmailB: next.playerEmails?.B ?? null,
               status: next.status,
@@ -2032,18 +2042,19 @@ function App() {
 
   function getRoomRole(room: RoomMeta) {
     const canManage = canManageRoom(room.id);
-    const roomInviteSides = accountEmail
-      ? [
-          ...(normalizeEmail(room.inviteEmailA) === accountEmail ? (["A"] as Side[]) : []),
-          ...(normalizeEmail(room.inviteEmailB) === accountEmail ? (["B"] as Side[]) : []),
-        ]
-      : [];
+    const roomInviteSides = [
+      ...(accountMatchesInvite(room.inviteUserAId, room.inviteEmailA, userId, accountEmail)
+        ? (["A"] as Side[])
+        : []),
+      ...(accountMatchesInvite(room.inviteUserBId, room.inviteEmailB, userId, accountEmail)
+        ? (["B"] as Side[])
+        : []),
+    ];
     const roomOwnerEmail = normalizeEmail(room.ownerEmail);
     const isDirectRoom = Boolean(
-      roomOwnerEmail &&
-        [normalizeEmail(room.inviteEmailA), normalizeEmail(room.inviteEmailB)].includes(
-          roomOwnerEmail,
-        ),
+      (room.ownerId && [room.inviteUserAId, room.inviteUserBId].includes(room.ownerId)) ||
+        (roomOwnerEmail &&
+          [normalizeEmail(room.inviteEmailA), normalizeEmail(room.inviteEmailB)].includes(roomOwnerEmail)),
     );
     return {
       canManage,
@@ -4597,21 +4608,53 @@ function upsertRoomMeta(rooms: RoomMeta[], incoming: RoomMeta): RoomMeta[] {
   return [merged, ...rooms.filter((room) => room.id !== incoming.id)];
 }
 
-function markOwnerSideReady(game: GameState, ownerEmail: string | null): GameState {
-  if (!ownerEmail) return game;
+function markOwnerSideReady(
+  game: GameState,
+  ownerId: string | null,
+  ownerEmail: string | null,
+): GameState {
+  if (!ownerId && !ownerEmail) return game;
   const ready = { ...game.lobbyReadyBySide };
   for (const side of ["A", "B"] as Side[]) {
-    if (normalizeEmail(game.playerEmails?.[side]) === ownerEmail) ready[side] = true;
+    if (accountMatchesGameSide(game, side, ownerId, ownerEmail)) ready[side] = true;
   }
   return { ...game, lobbyReadyBySide: ready };
 }
 
-function getRequiredReadySides(game: GameState, ownerEmail: string | null): Side[] {
+function getRequiredReadySides(
+  game: GameState,
+  ownerId: string | null,
+  ownerEmail: string | null,
+): Side[] {
   return (["A", "B"] as Side[]).filter((side) => {
     if (getGameMode(game) === "solo" && side === "B") return false;
-    const playerEmail = normalizeEmail(game.playerEmails?.[side]);
-    return Boolean(playerEmail && playerEmail !== ownerEmail);
+    const hasIdentity = Boolean(game.playerUserIds?.[side] || normalizeEmail(game.playerEmails?.[side]));
+    return hasIdentity && !accountMatchesGameSide(game, side, ownerId, ownerEmail);
   });
+}
+
+function accountMatchesGameSide(
+  game: GameState,
+  side: Side,
+  userId: string | null,
+  email: string | null,
+): boolean {
+  return accountMatchesInvite(
+    game.playerUserIds?.[side],
+    game.playerEmails?.[side],
+    userId,
+    email,
+  );
+}
+
+function accountMatchesInvite(
+  invitedUserId: string | null | undefined,
+  invitedEmail: string | null | undefined,
+  userId: string | null,
+  email: string | null,
+): boolean {
+  if (invitedUserId) return Boolean(userId && invitedUserId === userId);
+  return Boolean(email && normalizeEmail(invitedEmail) === email);
 }
 
 async function copyText(value: string): Promise<void> {

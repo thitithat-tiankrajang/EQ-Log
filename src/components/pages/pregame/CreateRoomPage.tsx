@@ -4,6 +4,7 @@ import type { NewGameSettings } from "../../../game";
 import { DEFAULT_NEW_GAME_SETTINGS } from "../../../constants/roomDefaults";
 import { CreateRoomPanel } from "../lobby/CreateRoomPanel";
 import { useMembersCatalog } from "../lobby/useMembersCatalog";
+import { useRegisteredPlayersCatalog } from "../lobby/useRegisteredPlayersCatalog";
 import { PreGameShell } from "./PreGameShell";
 
 export function CreateRoomPage({
@@ -23,6 +24,7 @@ export function CreateRoomPage({
 }) {
   const { userId } = useAuth();
   const { error, loading, members } = useMembersCatalog(userId);
+  const playerDirectory = useRegisteredPlayersCatalog(Boolean(userId));
   const [settings, setSettings] = useState<NewGameSettings>(() =>
     preset === "solo"
       ? { ...DEFAULT_NEW_GAME_SETTINGS, gameMode: "solo", tileDrawMode: "play", startingSide: "A" }
@@ -35,9 +37,12 @@ export function CreateRoomPage({
       title={preset === "solo" ? "Play alone" : "Create room"}
       subtitle="Configure the room before anyone enters the board."
       onBack={onBack}
+      visual="glass"
     >
       {!canCreate && createDisabledReason && <p className="info-banner">{createDisabledReason}</p>}
       {error && <p className="sync-banner">{error}</p>}
+      {playerDirectory.error && <p className="sync-banner">{playerDirectory.error}</p>}
+      {playerDirectory.loading && <p className="info-banner">Loading registered players...</p>}
       {loading ? (
         <div className="pregame-card pregame-loading">Loading player directory...</div>
       ) : (
@@ -45,6 +50,7 @@ export function CreateRoomPage({
           <CreateRoomPanel
             settings={settings}
             members={members}
+            registeredPlayers={playerDirectory.players}
             busy={submitting}
             onChange={setSettings}
             onSubmit={() => {

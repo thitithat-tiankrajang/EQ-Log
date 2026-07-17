@@ -52,17 +52,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfileLoading(true);
     setProfileError(null);
     try {
-      const { data, error } = await withTimeout(
-        supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+      let result = await withTimeout(
+        supabase.rpc("get_my_profile"),
         PROFILE_LOAD_TIMEOUT_MS,
       );
+      if (result.error && /PGRST202|42883|get_my_profile/i.test(`${result.error.code ?? ""} ${result.error.message}`)) {
+        result = await withTimeout(
+          supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
+          PROFILE_LOAD_TIMEOUT_MS,
+        );
+      }
       if (profileRequestRef.current !== requestId) return;
-      if (error) {
+      if (result.error) {
         setProfile(null);
-        setProfileError(error.message);
+        setProfileError(result.error.message);
         return;
       }
-      setProfile((data as Profile | null) ?? null);
+      const profileData = Array.isArray(result.data) ? result.data[0] : result.data;
+      setProfile((profileData as Profile | null) ?? null);
     } catch (error) {
       if (profileRequestRef.current !== requestId) return;
       setProfile(null);
@@ -230,9 +237,7 @@ function RegisterName() {
   return (
     <AuthShell>
       <h1>Choose your name</h1>
-      <p className="auth-sub">
-        Signed in as {session?.user.email}. Pick a unique display name shown on your rooms.
-      </p>
+      <p className="auth-sub">Pick a unique username shown on your rooms.</p>
       <label className="auth-field">
         Display name
         <input
@@ -325,7 +330,7 @@ export function AccountChip() {
   if (profileLoading) return <div className="account-chip">Setting up account…</div>;
   if (profileError) return <div className="account-chip">Account check failed</div>;
   if (!profile) return <div className="account-chip">Choose a name to play</div>;
-  const label = profile.display_name ?? profile.email;
+  const label = profile.display_name ?? "Account";
   return (
     <div className="account-chip">
       <span className="account-avatar">{(label ?? "?").slice(0, 1).toUpperCase()}</span>

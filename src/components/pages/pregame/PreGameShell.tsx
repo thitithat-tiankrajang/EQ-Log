@@ -10,6 +10,7 @@ export function PreGameShell({
   subtitle,
   actions,
   onBack,
+  visual,
 }: {
   children: ReactNode;
   eyebrow: string;
@@ -18,9 +19,10 @@ export function PreGameShell({
   /** Page-level controls (e.g. an overflow menu) shown beside the title. */
   actions?: ReactNode;
   onBack?: () => void;
+  visual?: "glass";
 }) {
   return (
-    <main className="pregame-shell">
+    <main className="pregame-shell" data-visual={visual}>
       <div className="pregame-inner">
         <header className="pregame-header">
           <div className="pregame-heading-row">

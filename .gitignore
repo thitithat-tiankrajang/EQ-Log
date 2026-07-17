@@ -9,3 +9,4 @@ BACKEND.md
 supabase/*
 !supabase/email_players_migration.sql
 !supabase/solo_mode_migration.sql
+!supabase/user_invites_migration.sql

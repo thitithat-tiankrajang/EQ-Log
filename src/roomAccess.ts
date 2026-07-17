@@ -41,7 +41,10 @@ export function getRoomActorCapabilities({
   const emailMode: EmailPlayMode | null =
     emailPlayMode !== undefined
       ? emailPlayMode
-      : game.playerEmails?.A || game.playerEmails?.B
+      : game.playerUserIds?.A ||
+          game.playerUserIds?.B ||
+          game.playerEmails?.A ||
+          game.playerEmails?.B
         ? game.emailPlayMode ?? "hosted"
         : null;
   // A direct email room has no gameplay host. Room ownership and admin status

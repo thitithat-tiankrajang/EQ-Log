@@ -33,6 +33,7 @@ export function JoinRoomPage({
       title="Join with a code"
       subtitle="Codes and links come from the person who created the room."
       onBack={onBack}
+      visual="glass"
     >
       <section className="pregame-card join-card">
         <FieldRow

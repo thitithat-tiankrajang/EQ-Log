@@ -42,7 +42,7 @@ export function TilebagSheet({
       <section
         aria-label="Pick tiles from the bag"
         aria-modal="true"
-        className={`bag-sheet tile-pick-sheet ${sheet.dragging ? "is-dragging" : ""} ${sheet.closing ? "is-closing" : ""}`}
+        className={`bag-sheet tile-pick-sheet ${sheet.opening ? "is-opening" : ""} ${sheet.dragging ? "is-dragging" : ""} ${sheet.closing ? "is-closing" : ""}`}
         ref={sheet.sheetRef}
         role="dialog"
         style={sheet.sheetStyle}

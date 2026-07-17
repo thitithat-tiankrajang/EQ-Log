@@ -7,6 +7,7 @@ import { AdminButton } from "../../admin";
 import { computeAllMemberStats } from "../../stats";
 import { HOME_TEXT, ROOM_STATUS_TEXT } from "../../uiText";
 import { Sheet } from "../ui/Sheet";
+import { LobbyLogo } from "./lobby/LobbyLogo";
 import { RoomsView } from "./lobby/RoomsView";
 import { MembersView } from "./lobby/MembersView";
 import { StatsView } from "./lobby/StatsView";
@@ -96,7 +97,7 @@ export function Lobby({
     <main className="lobby">
       <div className="lobby-inner">
         <header className="lobby-topbar">
-          <span className="lobby-logo">EQ Lab</span>
+          <LobbyLogo />
           <div className="lobby-topbar-actions">
             <AccountChip />
             <AdminButton />
