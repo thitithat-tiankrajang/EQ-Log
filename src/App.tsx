@@ -25,6 +25,7 @@ import { Rack } from "./components/board/Rack";
 import { Scoreboard } from "./components/game/Scoreboard";
 import { AssignmentModal, type AssignmentRequest } from "./components/modals/AssignmentModal";
 import { MobileActionBar } from "./components/mobile/MobileActionBar";
+import { MobileTilebagPanel } from "./components/mobile/MobileTilebagPanel";
 import { TilebagSheet } from "./components/mobile/TilebagSheet";
 import { ResultModal } from "./components/modals/ResultModal";
 import { useAuth } from "./auth";
@@ -1003,39 +1004,8 @@ function App() {
           setPlacementCursor((cur) => ({ row: last.row, col: last.col, dir: last.cursorDir ?? cur?.dir ?? "right" }));
           return;
         }
-        // Live: read from refs so multiple Backspaces in quick succession
-        // each pop the actual latest placement, not a stale closure copy.
-        const currentGame = gameRef.current;
-        const currentPendings = pendingsRef.current;
-        const last = currentPendings.at(-1);
-        if (!last || actionModeRef.current !== "place_equation" || !currentGame) {
-          if (actionModeRef.current === "place_equation") consumed();
-          return;
-        }
-        consumed();
-        const newPendings = currentPendings.slice(0, -1);
-        const returningTile = { ...last.tile, assignedToken: last.assignedToken ?? last.tile.assignedToken };
-        const restoredLayout = fillRackLayoutSlot(currentGame.activeSide, last.rackSlot ?? -1, returningTile.id);
-        const restoredRack = rackFromSlots(
-          [...getRack(currentGame, currentGame.activeSide), returningTile],
-          currentGame.activeSide,
-          restoredLayout,
-        );
-        const newGame = setRack(
-          { ...currentGame, lastSavedAt: new Date().toISOString() },
-          currentGame.activeSide,
-          restoredRack,
-        );
-        const newCursor = { row: last.row, col: last.col, dir: last.cursorDir ?? cursorRef.current?.dir ?? "right" } as const;
-        // Sync refs first so the next keystroke sees the fresh state.
-        pendingsRef.current = newPendings;
-        gameRef.current = newGame;
-        cursorRef.current = newCursor;
-        setPendingPlacements(newPendings);
-        setGame(newGame);
-        setPlacementCursor(newCursor);
-        setSelectedRackTileId(null);
-        setSelectedPendingTileId(null);
+        const handled = undoLastLivePlacement();
+        if (handled || actionModeRef.current === "place_equation") consumed();
         return;
       }
 
@@ -2675,6 +2645,51 @@ function App() {
     }
   }
 
+  function undoLastLivePlacement(): boolean {
+    // Read and update the refs synchronously so rapid mobile taps and desktop
+    // Backspaces always pop distinct placements in LIFO order.
+    const currentGame = gameRef.current;
+    const currentPendings = pendingsRef.current;
+    const last = currentPendings.at(-1);
+    if (!last || actionModeRef.current !== "place_equation" || !currentGame) return false;
+
+    const newPendings = currentPendings.slice(0, -1);
+    const returningTile = {
+      ...last.tile,
+      assignedToken: last.assignedToken ?? last.tile.assignedToken,
+    };
+    const restoredLayout = fillRackLayoutSlot(
+      currentGame.activeSide,
+      last.rackSlot ?? -1,
+      returningTile.id,
+    );
+    const restoredRack = rackFromSlots(
+      [...getRack(currentGame, currentGame.activeSide), returningTile],
+      currentGame.activeSide,
+      restoredLayout,
+    );
+    const newGame = setRack(
+      { ...currentGame, lastSavedAt: new Date().toISOString() },
+      currentGame.activeSide,
+      restoredRack,
+    );
+    const newCursor = {
+      row: last.row,
+      col: last.col,
+      dir: last.cursorDir ?? cursorRef.current?.dir ?? "right",
+    } as const;
+
+    pendingsRef.current = newPendings;
+    gameRef.current = newGame;
+    cursorRef.current = newCursor;
+    setPendingPlacements(newPendings);
+    setGame(newGame);
+    setPlacementCursor(newCursor);
+    setSelectedRackTileId(null);
+    setSelectedPendingTileId(null);
+    return true;
+  }
+
   // Clicking an empty rack slot returns the currently-selected pending tile
   // to the rack at that position (or the most recent pending if none is
   // explicitly selected). Empty slot click is the "put it back" action — it
@@ -3452,11 +3467,16 @@ function App() {
     );
     return new Set(latestActiveSideLog?.rackAfter.map((tile) => tile.id) ?? []);
   })();
+  const accountPlayerSide = invitedSides.length === 1 ? invitedSides[0] : null;
+  const concealDirectOpponentRack =
+    isDirectEmailRoom && !emailPlayersCanSeeOpponentRack;
   const tilebagView = getTilebagView({
     game,
     refillNeeded,
     reviewing,
     selectedLog,
+    concealOpponentRack: concealDirectOpponentRack,
+    viewerSide: accountPlayerSide,
   });
   const exchangeReady =
     actionMode === "exchange" &&
@@ -3469,6 +3489,11 @@ function App() {
     refillNeeded &&
     actionMode === "none" &&
     activeRack.length < RACK_SIZE;
+  // Concealed direct matches show an aggregate unseen pool, but an
+  // interactive refill must only ever receive tile IDs from the real bag.
+  const displayedOrPickableTilebag = canPickFromTilebag
+    ? game.tilebag
+    : tilebagView.tiles;
   const selectedRackTile =
     activeRack.find((tile) => tile.id === selectedRackTileId) ??
     pendingPlacements.find((placement) => placement.tile.id === selectedPendingTileId)?.tile;
@@ -3476,7 +3501,6 @@ function App() {
   // Email players either follow the active rack (sharing on) or keep their own
   // rack visible while waiting (sharing off). Direct matches never grant an
   // owner/admin exception because they have no gameplay host.
-  const accountPlayerSide = invitedSides.length === 1 ? invitedSides[0] : null;
   const rackSide: Side =
     reviewing && selectedLog
       ? selectedLog.side
@@ -3681,6 +3705,10 @@ function App() {
             scoresOverride={replayOverrides?.scores}
             timersOverride={replayOverrides?.timers}
           />
+          <MobileTilebagPanel
+            remainingCount={tilebagView.remainingCount}
+            tiles={tilebagView.tiles}
+          />
           <LogPanel
             game={game}
             selectedLogId={selectedLogId}
@@ -3784,6 +3812,7 @@ function App() {
               canEditRefill={canEditRefill}
               canExchange={canStartExchange}
               canPickFromTilebag={canPickFromTilebag}
+              canUndoPlacement={pendingPlacements.length > 0}
               exchangeCount={exchangeDraft.outgoingIds.length}
               exchangeReady={exchangeReady}
               gameFinished={gameFinished}
@@ -3807,6 +3836,7 @@ function App() {
               onReplayNext={() => replayStep(1)}
               onReplayPrev={() => replayStep(-1)}
               onStartAction={startAction}
+              onUndoPlacement={undoLastLivePlacement}
             />
             <Rack
               actionMode={actionMode}
@@ -3826,7 +3856,7 @@ function App() {
         <aside className="right-rail" ref={rightRailRef}>
           <PlayRail
             game={game}
-            tilebag={tilebagView.tiles}
+            tilebag={displayedOrPickableTilebag}
             tilebagCount={tilebagView.remainingCount}
             tilebagDisabled={!canPickFromTilebag}
             onPickTile={refillFromBag}
@@ -3893,7 +3923,7 @@ function App() {
           carriedOverTileIds={carriedOverTileIds}
           rackSlots={displayRack}
           remainingCount={tilebagView.remainingCount}
-          tilebag={tilebagView.tiles}
+          tilebag={game.tilebag}
           onClose={() => setMobileBagOpen(false)}
           onPick={refillFromBag}
           onReturn={returnRackTileToBag}

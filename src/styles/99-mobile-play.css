@@ -16,6 +16,7 @@
 
 /* Mobile-only elements stay out of the desktop layout entirely. */
 .mobile-action-bar,
+.mobile-tilebag-trigger,
 .bag-sheet-backdrop {
   display: none;
 }
@@ -149,6 +150,32 @@
 
   .log-rail .log-panel {
     display: none !important;
+  }
+
+  .mobile-tilebag-trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: calc(100% - 16px);
+    min-height: 42px;
+    margin: 8px 8px 0;
+    padding: 8px 12px;
+    border: 1px solid var(--border, #cfdae2);
+    border-radius: 8px;
+    background: var(--surface-solid, #ffffff);
+    color: var(--text, #17212b);
+    font-size: 13px;
+    font-weight: 800;
+  }
+
+  .mobile-tilebag-trigger strong {
+    margin-left: auto;
+    color: var(--accent-strong, #0b5f58);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mobile-tilebag-trigger:active {
+    background: var(--surface-2, #eef3ef);
   }
 
   /* Score strip: two sides, name + clock + points, glanceable above board. */
@@ -665,10 +692,52 @@
   }
 
   .bag-sheet-body .tile-stack {
+    position: relative !important;
+    display: grid !important;
+    grid-template-rows: minmax(0, 1fr) !important;
     width: 100% !important;
     aspect-ratio: 1 / 1;
     min-height: 48px;
+    margin-bottom: 7px;
     touch-action: manipulation;
+  }
+
+  .bag-sheet-body .tile-stack-readonly:disabled {
+    cursor: default;
+    opacity: 1;
+  }
+
+  .bag-sheet-body .tile-stack-count,
+  .bag-sheet-body .tilebag-groups.tilebag-stacks .tile-stack-count {
+    position: absolute !important;
+    z-index: 2;
+    left: 50% !important;
+    bottom: -7px !important;
+    display: grid !important;
+    width: auto !important;
+    min-width: 22px !important;
+    height: 17px !important;
+    padding: 0 6px !important;
+    place-items: center !important;
+    border: 1px solid rgba(255, 255, 255, 0.72) !important;
+    border-radius: 8px !important;
+    background: #24313d !important;
+    color: #ffffff !important;
+    font-size: 10px !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+    transform: translateX(-50%) !important;
+    box-shadow: none !important;
+    pointer-events: none;
+  }
+
+  .mobile-tilebag-sheet {
+    grid-template-rows: auto auto minmax(0, 1fr);
+    max-height: min(86dvh, 720px);
+  }
+
+  .mobile-tilebag-sheet-body .tilebag-groups {
+    row-gap: 15px !important;
   }
 
   .bag-sheet-body .tile-stack .tile b {
@@ -725,5 +794,17 @@
   .log-modal {
     max-height: 94dvh;
     max-width: calc(100vw - 12px);
+  }
+}
+
+@media (max-width: 340px) {
+  .mobile-action-bar .mab-btn {
+    gap: 4px;
+    padding-inline: 7px;
+    font-size: 13px;
+  }
+
+  .mobile-action-bar .mab-btn.icon {
+    flex-basis: 44px;
   }
 }

@@ -6,6 +6,7 @@ import {
   Package,
   RefreshCcw,
   SkipForward,
+  Undo2,
   X,
 } from "lucide-react";
 import type {
@@ -24,6 +25,7 @@ type MobileActionBarProps = {
   canExchange: boolean;
   canEditRefill: boolean;
   canPickFromTilebag: boolean;
+  canUndoPlacement: boolean;
   exchangeCount: number;
   exchangeReady: boolean;
   gameFinished: boolean;
@@ -47,6 +49,7 @@ type MobileActionBarProps = {
   onReplayNext: () => void;
   onReplayPrev: () => void;
   onStartAction: (action: ActionType) => void;
+  onUndoPlacement: () => boolean;
 };
 
 // Mobile-only contextual control strip that lives in the fixed bottom dock,
@@ -58,6 +61,7 @@ export function MobileActionBar({
   canExchange,
   canEditRefill,
   canPickFromTilebag,
+  canUndoPlacement,
   exchangeCount,
   exchangeReady,
   gameFinished,
@@ -81,6 +85,7 @@ export function MobileActionBar({
   onReplayNext,
   onReplayPrev,
   onStartAction,
+  onUndoPlacement,
 }: MobileActionBarProps) {
   if (reviewing) {
     return (
@@ -232,6 +237,16 @@ export function MobileActionBar({
       <div className="mobile-action-bar">
         <button aria-label="Cancel placement" className="mab-btn icon" type="button" onClick={onCancelAction}>
           <X size={22} />
+        </button>
+        <button
+          aria-label="Undo last placed tile"
+          className="mab-btn icon"
+          disabled={!canUndoPlacement}
+          title="Undo last tile"
+          type="button"
+          onClick={onUndoPlacement}
+        >
+          <Undo2 size={21} />
         </button>
         <div className={`mab-status ${statusClass}`}>
           <strong>{validation.isValid ? `${validation.score} pts` : `${pendingCount} tile(s)`}</strong>

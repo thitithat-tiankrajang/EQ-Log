@@ -92,10 +92,12 @@ function TilebagStats({
 export function Tilebag({
   tilebag,
   disabled,
+  readOnly = false,
   onPick,
 }: {
   tilebag: TileInstance[];
   disabled: boolean;
+  readOnly?: boolean;
   onPick: (tile: TileInstance) => void;
 }) {
   const [selectedFilter, setSelectedFilter] = useState<CompositionFilter>("all");
@@ -145,10 +147,14 @@ export function Tilebag({
         ) : (
           stacks.map((stack) => (
             <button
-              className={`tile-button tile-stack tile-stack-${stack.type}`}
-              disabled={disabled}
+              className={`tile-button tile-stack tile-stack-${stack.type} ${readOnly ? "tile-stack-readonly" : ""}`}
+              disabled={disabled || readOnly}
               key={stack.token}
-              title={`Pick ${stack.display} (${stack.tiles.length} left)`}
+              title={
+                readOnly
+                  ? `${stack.display} · ${stack.tiles.length} unseen`
+                  : `Pick ${stack.display} (${stack.tiles.length} left)`
+              }
               type="button"
               onClick={() => onPick(stack.tiles[0])}
             >

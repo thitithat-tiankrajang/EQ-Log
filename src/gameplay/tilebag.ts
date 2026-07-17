@@ -12,6 +12,7 @@ import {
   setRack,
   shuffleTilebagQueue,
   type GameState,
+  type Side,
   type TileInstance,
   type TurnLog,
 } from "../game";
@@ -59,13 +60,29 @@ export function getTilebagView({
   refillNeeded,
   reviewing,
   selectedLog,
+  concealOpponentRack = false,
+  viewerSide = null,
 }: {
   game: GameState;
   refillNeeded: boolean;
   reviewing: boolean;
   selectedLog: TurnLog | null;
+  concealOpponentRack?: boolean;
+  viewerSide?: Side | null;
 }): TilebagView {
   if (reviewing && selectedLog) return getReplayTilebagView(game, selectedLog);
+
+  if (concealOpponentRack && getGameMode(game) !== "solo") {
+    return {
+      // Before the physical bag is empty, a player only knows the combined
+      // unseen pool. Once it reaches zero, this naturally becomes the
+      // opponent rack and reveals it at the correct time.
+      tiles: viewerSide
+        ? [...game.tilebag, ...getRack(game, otherSide(viewerSide))]
+        : game.tilebag,
+      remainingCount: game.tilebag.length,
+    };
+  }
 
   if (refillNeeded) {
     const activeRackCount = getRack(game, game.activeSide).length;
