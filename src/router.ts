@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 export type Route =
   | { kind: "home" }
-  | { kind: "create"; preset?: "solo" }
+  | { kind: "create"; preset?: "solo" | "bot" }
   | { kind: "join" }
   | { kind: "room"; roomId: string }
   | { kind: "play"; roomId: string };
@@ -17,7 +17,8 @@ function parseHash(hash: string): Route {
   const segments = path.split("/").filter(Boolean);
   if (segments[0] === "create") {
     const params = new URLSearchParams(query);
-    return { kind: "create", preset: params.get("mode") === "solo" ? "solo" : undefined };
+    const mode = params.get("mode");
+    return { kind: "create", preset: mode === "solo" ? "solo" : mode === "bot" ? "bot" : undefined };
   }
   if (segments[0] === "join") return { kind: "join" };
   if (segments[0] === "room" && segments[1]) {
@@ -31,7 +32,11 @@ function parseHash(hash: string): Route {
 
 export function routeToHash(route: Route): string {
   if (route.kind === "home") return "#/";
-  if (route.kind === "create") return route.preset === "solo" ? "#/create?mode=solo" : "#/create";
+  if (route.kind === "create") {
+    if (route.preset === "solo") return "#/create?mode=solo";
+    if (route.preset === "bot") return "#/create?mode=bot";
+    return "#/create";
+  }
   if (route.kind === "join") return "#/join";
   if (route.kind === "play") return `#/play/${encodeURIComponent(route.roomId)}`;
   return `#/room/${encodeURIComponent(route.roomId)}`;

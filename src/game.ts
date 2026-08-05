@@ -26,6 +26,7 @@ export type Side = "A" | "B";
 
 export type GameMode = "versus" | "solo";
 export type TileDrawMode = "manual" | "play";
+export type BotDifficulty = "easy" | "normal" | "hard" | "max";
 export type EmailPlayMode = "hosted" | "direct";
 export type RoomStage = "waiting" | "playing";
 export type SideTimerMinutes = Record<Side, number | null>;
@@ -223,6 +224,10 @@ export type GameSnapshot = {
   lobbyReadyBySide?: Partial<Record<Side, boolean>>;
   /** The side that went first this game; used for "starting position" filters. */
   startingSide?: Side;
+  /** Side controlled by the built-in AI engine, when this is a bot match. */
+  botSide?: Side;
+  /** Bot strength; maps to the engine's search budget. */
+  botDifficulty?: BotDifficulty;
   /** manual = record a physical bag; play = app draws from a shuffled queue. */
   tileDrawMode?: TileDrawMode;
   turnNumber: number;
@@ -278,6 +283,8 @@ export type NewGameSettings = {
   minutes?: number;
   timerMinutes?: SideTimerMinutes;
   startingSide: Side;
+  botSide?: Side;
+  botDifficulty?: BotDifficulty;
   tileDrawMode?: TileDrawMode;
   untimed?: boolean;
 };
@@ -475,6 +482,8 @@ export function createNewGame(settings: NewGameSettings): GameState {
     roomStage: "playing",
     lobbyReadyBySide: {},
     startingSide: isSolo ? "A" : settings.startingSide,
+    botSide: isSolo ? undefined : settings.botSide,
+    botDifficulty: isSolo ? undefined : settings.botDifficulty,
     tileDrawMode,
     turnNumber: 1,
     activeSide: isSolo ? "A" : settings.startingSide,
@@ -564,6 +573,8 @@ export function makeSnapshot(game: GameState | Omit<GameState, "history" | "hist
     roomStage: game.roomStage,
     lobbyReadyBySide: game.lobbyReadyBySide,
     startingSide: game.startingSide,
+    botSide: game.botSide,
+    botDifficulty: game.botDifficulty,
     tileDrawMode: getTileDrawMode(game),
     turnNumber: game.turnNumber,
     activeSide: game.activeSide,

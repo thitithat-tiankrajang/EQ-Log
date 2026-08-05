@@ -5,6 +5,7 @@ import { DEFAULT_NEW_GAME_SETTINGS } from "../../../constants/roomDefaults";
 import { CreateRoomPanel } from "../lobby/CreateRoomPanel";
 import { useMembersCatalog } from "../lobby/useMembersCatalog";
 import { useRegisteredPlayersCatalog } from "../lobby/useRegisteredPlayersCatalog";
+import { BotRoomPanel } from "./BotRoomPanel";
 import { PreGameShell } from "./PreGameShell";
 
 export function CreateRoomPage({
@@ -17,7 +18,7 @@ export function CreateRoomPage({
 }: {
   canCreate: boolean;
   createDisabledReason: string | null;
-  preset?: "solo";
+  preset?: "solo" | "bot";
   submitting: boolean;
   onBack: () => void;
   onCreate: (settings: NewGameSettings) => void;
@@ -30,6 +31,29 @@ export function CreateRoomPage({
       ? { ...DEFAULT_NEW_GAME_SETTINGS, gameMode: "solo", tileDrawMode: "play", startingSide: "A" }
       : { ...DEFAULT_NEW_GAME_SETTINGS },
   );
+
+  if (preset === "bot") {
+    return (
+      <PreGameShell
+        eyebrow="Room setup"
+        title="Play vs BOT"
+        subtitle="Face the built-in engine. Pick a strength and start immediately."
+        onBack={onBack}
+        visual="glass"
+      >
+        {!canCreate && createDisabledReason && <p className="info-banner">{createDisabledReason}</p>}
+        <div className={submitting ? "pregame-disabled" : ""}>
+          <BotRoomPanel
+            busy={submitting}
+            onSubmit={(botSettings) => {
+              if (!canCreate || submitting) return;
+              onCreate(botSettings);
+            }}
+          />
+        </div>
+      </PreGameShell>
+    );
+  }
 
   return (
     <PreGameShell

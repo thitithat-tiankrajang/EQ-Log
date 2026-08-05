@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { BarChart3, ChevronRight, KeyRound, LayoutGrid, Plus, User, Users } from "lucide-react";
+import { BarChart3, Bot, ChevronRight, KeyRound, LayoutGrid, Plus, User, Users } from "lucide-react";
 import type { GameState } from "../../game";
 import type { RoomMeta } from "../../rooms";
 import { AccountChip, useAuth } from "../../auth";
@@ -27,6 +27,7 @@ export function Lobby({
   onCreateRoom,
   onJoinRoom,
   onPlayAlone,
+  onPlayBot,
   onRename,
   onDuplicate,
   onDelete,
@@ -44,6 +45,7 @@ export function Lobby({
   onCreateRoom: () => void;
   onJoinRoom: () => void;
   onPlayAlone: () => void;
+  onPlayBot: () => void;
   onRename: (id: string, name: string) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
@@ -151,6 +153,11 @@ export function Lobby({
             <span className="start-card-icon"><User size={17} /></span>
             <strong>{HOME_TEXT.practiceAlone}</strong>
             <em>{HOME_TEXT.practiceAloneSub}</em>
+          </button>
+          <button className="start-row" type="button" onClick={() => guardCreate(onPlayBot)}>
+            <span className="start-card-icon"><Bot size={17} /></span>
+            <strong>{HOME_TEXT.playVsBot}</strong>
+            <em>{HOME_TEXT.playVsBotSub}</em>
           </button>
         </section>
 

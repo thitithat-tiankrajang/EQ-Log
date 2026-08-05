@@ -117,6 +117,10 @@ import { createAutomaticEndGameLog, createSurrenderEndGameLog } from "./gameplay
 import { getExchangeRule, getTilebagView, refillRackFromQueue } from "./gameplay/tilebag";
 import { advanceRunningClock } from "./gameplay/timer";
 import { clearTileAssignment } from "./gameplay/tiles";
+import { buildBotRequest, mapBotResponse, thinkWithBot, warmUpBotEngine } from "./bot/botController";
+import type { BotProgress, BotResponse } from "./bot/types";
+import { BotThinkingCard } from "./components/game/BotThinkingCard";
+import { BotReasoningPanel } from "./components/game/BotReasoningPanel";
 
 type ActionMode = "none" | ActionType;
 
@@ -1445,6 +1449,63 @@ function App() {
     setPlacementCursor(null);
   }, [replayCursor, game?.gameId, game?.logs.length]);
 
+  // ── Bot match: the engine plays its side automatically ─────────────────────
+  const [botProgress, setBotProgress] = useState<BotProgress | null>(null);
+  // Reasoning behind the bot's most recent move, kept so the player can open a
+  // full "why this move" breakdown (chosen move + every alternative weighed).
+  const [botReasoning, setBotReasoning] = useState<{
+    logId: string;
+    turnNumber: number;
+    playerName: string;
+    response: BotResponse;
+  } | null>(null);
+  const [reasoningOpen, setReasoningOpen] = useState(false);
+  const botTurnRef = useRef<string | null>(null);
+  const botShouldMove = Boolean(
+    game &&
+      game.botSide &&
+      game.status === "playing" &&
+      getRoomStage(game) === "playing" &&
+      game.activeSide === game.botSide &&
+      game.phase === "choose_action" &&
+      !reviewing &&
+      canControlActiveGame &&
+      !readOnly,
+  );
+  // Preload the WASM engine as soon as a bot room opens, so the first bot
+  // turn starts instantly.
+  useEffect(() => {
+    if (game?.botSide) warmUpBotEngine();
+  }, [game?.gameId, game?.botSide]);
+  useEffect(() => {
+    if (!botShouldMove || !game) return;
+    const commitId = game.commitId;
+    if (botTurnRef.current === commitId) return;
+    botTurnRef.current = commitId;
+    let alive = true;
+    const handle = thinkWithBot(buildBotRequest(game), (progress) => {
+      if (alive) setBotProgress(progress);
+    });
+    handle.promise
+      .then((response) => {
+        if (alive && gameRef.current?.commitId === commitId) commitBotResponse(response);
+      })
+      .catch((error) => {
+        console.error("Bot engine failed; falling back to pass.", error);
+        if (alive && gameRef.current?.commitId === commitId) commitBotResponse(null);
+      })
+      .finally(() => {
+        if (alive) setBotProgress(null);
+      });
+    return () => {
+      alive = false;
+      handle.cancel();
+      if (botTurnRef.current === commitId) botTurnRef.current = null;
+      setBotProgress(null);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [botShouldMove, game?.commitId]);
+
   // Set the selection from a log id (called by TurnRecordList / LogPanel).
   // Selecting a log opens the "action applied" view of that log.
   function selectLog(logId: string | null) {
@@ -1486,6 +1547,7 @@ function App() {
             navigate({ kind: "join" });
           }}
           onPlayAlone={() => navigate({ kind: "create", preset: "solo" })}
+          onPlayBot={() => navigate({ kind: "create", preset: "bot" })}
           onRename={renameRoomById}
           onDuplicate={duplicateRoomById}
           onDelete={deleteRoomById}
@@ -3480,6 +3542,101 @@ function App() {
     commitLog(log, game.board, rackAfter, game.tilebag);
   }
 
+  // Commit an engine response as the bot side's turn. Every placement passes
+  // through the official validator first — an engine bug can therefore never
+  // corrupt a match (it degrades to a pass instead). `response === null`
+  // forces the pass fallback.
+  function commitBotResponse(response: BotResponse | null) {
+    const g = gameRef.current;
+    if (!g || !g.botSide || g.status !== "playing" || g.activeSide !== g.botSide) return;
+    const now = new Date().toISOString();
+    const botActionStart: ActionStart = {
+      startedAt: g.currentTurnStartedAt,
+      rackBefore: deepClone(getRack(g, g.activeSide)),
+      boardBefore: deepClone(g.board),
+      tilebagBefore: deepClone(g.tilebag),
+      timerBefore: { A: g.timers.A, B: g.timers.B },
+    };
+    const mapped = response ? mapBotResponse(g, response) : null;
+    // Tie the reasoning to the log this move produces, so the "why" panel shows
+    // it only while that bot move is the latest one on the board.
+    const recordReasoning = (logId: string) => {
+      if (response && g.botSide) {
+        setBotReasoning({
+          logId,
+          turnNumber: g.turnNumber,
+          playerName: g.players[g.botSide] || "BOT",
+          response,
+        });
+      }
+    };
+
+    if (mapped?.kind === "place") {
+      const validation = validateMove(g.board, mapped.placements);
+      if (validation.isValid) {
+        const boardAfter = boardWithPending(g.board, mapped.placements, g.turnNumber, g.activeSide);
+        const usedIds = new Set(mapped.placements.map((placement) => placement.tile.id));
+        const rackAfter = getRack(g, g.activeSide)
+          .filter((tile) => !usedIds.has(tile.id))
+          .map(clearTileAssignment);
+        const detail: PlaceEquationDetail = createPlaceDetail(validation, mapped.placements);
+        const log = createTurnLog({
+          game: g,
+          action: "place_equation",
+          actionStart: botActionStart,
+          endedAt: now,
+          rackAfter,
+          boardAfter,
+          tilebagAfter: g.tilebag,
+          detail,
+          calculatedScore: validation.score,
+        });
+        commitLog(log, boardAfter, rackAfter, g.tilebag);
+        recordReasoning(log.id);
+        return;
+      }
+      console.error("Bot move rejected by the official validator:", validation.errors);
+    }
+
+    if (mapped?.kind === "exchange" && mapped.outgoingIds.length > 0 && getExchangeRule(g).allowed) {
+      const outgoingSet = new Set(mapped.outgoingIds);
+      const outgoingTiles = getRack(g, g.activeSide).filter((tile) => outgoingSet.has(tile.id));
+      const rackAfter = getRack(g, g.activeSide).filter((tile) => !outgoingSet.has(tile.id));
+      const returnedTiles = outgoingTiles.map(clearTileAssignment);
+      const detail: ExchangeDetail = { outgoingTiles, incomingTiles: [] };
+      const log = createTurnLog({
+        game: g,
+        action: "exchange",
+        actionStart: botActionStart,
+        endedAt: now,
+        rackAfter,
+        boardAfter: g.board,
+        tilebagAfter: g.tilebag,
+        detail,
+        calculatedScore: 0,
+      });
+      commitLog(log, g.board, rackAfter, g.tilebag, returnedTiles);
+      recordReasoning(log.id);
+      return;
+    }
+
+    const rackAfter = deepClone(getRack(g, g.activeSide));
+    const detail: PassDetail = {};
+    const log = createTurnLog({
+      game: g,
+      action: "pass",
+      actionStart: botActionStart,
+      endedAt: now,
+      rackAfter,
+      boardAfter: g.board,
+      tilebagAfter: g.tilebag,
+      detail,
+      calculatedScore: 0,
+    });
+    commitLog(log, g.board, rackAfter, g.tilebag);
+    recordReasoning(log.id);
+  }
+
   function applyUndoSnap(snap: UndoSnap) {
     restoringUndoRef.current = true;
     setActionMode(snap.actionMode);
@@ -4295,6 +4452,27 @@ function App() {
             />
           </div>
 
+          {botProgress && game.botSide && !reviewing && (
+            <BotThinkingCard
+              progress={botProgress}
+              botName={game.players[game.botSide] || "BOT"}
+            />
+          )}
+
+          {!botProgress &&
+            !reviewing &&
+            game.botSide &&
+            botReasoning &&
+            game.logs[game.logs.length - 1]?.id === botReasoning.logId && (
+              <button
+                type="button"
+                className="bot-why-btn"
+                onClick={() => setReasoningOpen(true)}
+              >
+                🧠 ทำไม {botReasoning.playerName} เลือกตานี้?
+              </button>
+            )}
+
           <div className="play-bar">
             <div className="play-caption">
               <span className="pc-room">{game.name}</span>
@@ -4427,6 +4605,15 @@ function App() {
           request={assignmentRequest}
           onCancel={() => setAssignmentRequest(null)}
           onSelect={confirmAssignment}
+        />
+      )}
+
+      {reasoningOpen && botReasoning && (
+        <BotReasoningPanel
+          playerName={botReasoning.playerName}
+          turnNumber={botReasoning.turnNumber}
+          response={botReasoning.response}
+          onClose={() => setReasoningOpen(false)}
         />
       )}
 

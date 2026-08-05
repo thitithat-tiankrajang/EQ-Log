@@ -64,6 +64,8 @@ export function settingsFromWaitingGame(game: GameState): NewGameSettings {
     minutes: timerMinutes.A ?? timerMinutes.B ?? undefined,
     timerMinutes,
     startingSide: game.startingSide ?? "A",
+    botSide: game.botSide,
+    botDifficulty: game.botDifficulty,
     tileDrawMode: getTileDrawMode(game),
     untimed: timerMinutes.A === null && timerMinutes.B === null,
   };

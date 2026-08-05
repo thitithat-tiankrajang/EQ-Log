@@ -24,6 +24,7 @@
 @import "./styles/95-material-ai.css";
 @import "./styles/components/96-loading-activity.css";
 @import "./styles/components/97-ui-kit.css";
+@import "./styles/components/98-bot-thinking.css";
 /* Home/Rooms redesign — after material-ai so it wins its lobby overrides. */
 @import "./styles/pages/lobby/80-redesign.css";
 @import "./styles/pages/lobby/85-glass-polish.css";

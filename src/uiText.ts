@@ -46,6 +46,8 @@ export const HOME_TEXT = {
   joinWithCodeSub: "Enter a code or paste a link",
   practiceAlone: "Practice alone",
   practiceAloneSub: "Just you — the app draws tiles",
+  playVsBot: "Play vs BOT",
+  playVsBotSub: "Challenge the built-in engine",
   signInSheetTitle: "Sign in to create rooms",
   signInSheetBody: "Your rooms and stats sync to your Google account. Joining with a code works without signing in.",
 };

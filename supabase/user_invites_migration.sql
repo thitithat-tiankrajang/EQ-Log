@@ -166,6 +166,13 @@ grant execute on function public.list_profiles_admin() to authenticated;
 -- email/status/admin fields even though public display names remain readable.
 revoke select on table public.profiles from anon, authenticated;
 grant select (id, display_name) on table public.profiles to anon, authenticated;
+-- ...but signed-in users still need to write their OWN profile row (the
+-- "choose a name" step upserts id/email/display_name). Row-Level Security
+-- (profiles_insert / profiles_update: id = auth.uid()) keeps that to their own
+-- row; without these table grants the upsert fails with "permission denied for
+-- table profiles". The upsert requests no representation back, so no extra
+-- SELECT grant on email is needed.
+grant insert, update on table public.profiles to authenticated;
 
 drop policy if exists profiles_read on public.profiles;
 create policy profiles_read on public.profiles for select using (true);
@@ -448,11 +455,25 @@ create policy rooms_delete on public.rooms for delete
 drop policy if exists room_live_read on public.room_live;
 create policy room_live_read on public.room_live for select using (true);
 
-drop policy if exists room_live_insert on public.room_live;
-create policy room_live_insert on public.room_live for insert
-  with check (exists (
+-- room_live's write rules must read the parent room's owner + invite columns to
+-- decide who may save the live snapshot. That lookup crosses from room_live into
+-- public.rooms, so it runs as a normal query in the CALLER's context — and
+-- ordinary clients no longer hold SELECT on rooms.invite_email_* (the privacy
+-- grant above revokes it). Reading those columns there raises "permission denied
+-- for column invite_email_a", which PostgREST surfaces as 403 on the room_live
+-- upsert. Wrap the whole decision in a SECURITY DEFINER helper so the policy
+-- never touches those columns as the client. (rooms' own policies are fine: they
+-- reference invite_email_* as columns of the same table, which RLS allows.)
+create or replace function public.can_write_room_live(p_room_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
     select 1 from public.rooms r
-    where r.id = room_id
+    where r.id = p_room_id
       and (
         (
           r.owner_id = auth.uid()
@@ -464,40 +485,20 @@ create policy room_live_insert on public.room_live for insert
           r.invite_email_a, r.invite_email_b
         )
       )
-  ));
+  );
+$$;
+
+revoke all on function public.can_write_room_live(uuid) from public;
+grant execute on function public.can_write_room_live(uuid) to authenticated;
+
+drop policy if exists room_live_insert on public.room_live;
+create policy room_live_insert on public.room_live for insert
+  with check (public.can_write_room_live(room_id));
 
 drop policy if exists room_live_update on public.room_live;
 create policy room_live_update on public.room_live for update
-  using (exists (
-    select 1 from public.rooms r
-    where r.id = room_id
-      and (
-        (
-          r.owner_id = auth.uid()
-          and coalesce(r.state ->> 'emailPlayMode', 'hosted') <> 'direct'
-        )
-        or public.is_admin()
-        or public.is_room_player(
-          r.invite_user_a_id, r.invite_user_b_id,
-          r.invite_email_a, r.invite_email_b
-        )
-      )
-  ))
-  with check (exists (
-    select 1 from public.rooms r
-    where r.id = room_id
-      and (
-        (
-          r.owner_id = auth.uid()
-          and coalesce(r.state ->> 'emailPlayMode', 'hosted') <> 'direct'
-        )
-        or public.is_admin()
-        or public.is_room_player(
-          r.invite_user_a_id, r.invite_user_b_id,
-          r.invite_email_a, r.invite_email_b
-        )
-      )
-  ));
+  using (public.can_write_room_live(room_id))
+  with check (public.can_write_room_live(room_id));
 
 do $$
 begin
