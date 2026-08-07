@@ -71,36 +71,125 @@
   min-width: 4%;
 }
 
-/* Bot room setup form */
+/* ── Bot room setup form ──────────────────────────────────────────────────
+   Rendered inside .pregame-shell[data-visual="glass"], so it borrows that
+   page's blue-glass material, spacing rhythm, and accent (#2f66e6). Base
+   rules here stay theme-neutral; the glass-scoped block below adds the polish.
+   ───────────────────────────────────────────────────────────────────────── */
+.bot-room-panel {
+  display: grid;
+  gap: 20px;
+}
+
+/* Aether hero — gives the opponent a face and sets the tone for the page. */
+.bot-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  background: color-mix(in srgb, currentColor 5%, transparent);
+}
+
+.bot-hero-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 52px;
+  height: 52px;
+  border-radius: 15px;
+  color: #ffffff;
+  background: linear-gradient(150deg, #5b90f9 0%, #2f66e6 52%, #16357f 100%);
+  box-shadow: 0 10px 20px -10px rgba(23, 58, 148, 0.7),
+    inset 0 1px 0 rgba(255, 255, 255, 0.34);
+}
+
+.bot-hero-copy {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.bot-hero-eyebrow {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2f66e6;
+}
+
+.bot-hero-name {
+  font-size: 19px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.bot-hero-sub {
+  font-size: 12.5px;
+  line-height: 1.4;
+  opacity: 0.7;
+}
+
+/* Field + section spacing. Legends read as small section labels. */
+.bot-room-panel .create-field {
+  display: grid;
+  gap: 10px;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.bot-room-panel legend,
+.bot-room-panel .bot-field > span {
+  padding: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.62;
+}
+
+.bot-room-panel .bot-field input {
+  width: 100%;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 11px;
+  background: color-mix(in srgb, currentColor 4%, transparent);
+  color: inherit;
+  padding: 12px 14px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
 .bot-difficulty-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 8px;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
 }
 
 .bot-start-row {
   display: flex;
-  gap: 8px;
-}
-
-/* Difficulty selector: 4 options as a 2×2 grid so each keeps room for its
-   description without cramping (the 2-option rows above use .bot-start-row). */
-.bot-difficulty-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 10px;
 }
 
 .bot-difficulty-option {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
-  cursor: pointer;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
+  gap: 5px;
   flex: 1;
+  padding: 13px 14px;
+  border-radius: 12px;
+  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  background: color-mix(in srgb, currentColor 3%, transparent);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease,
+    box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.bot-difficulty-option:hover {
+  border-color: color-mix(in srgb, #2f66e6 40%, transparent);
 }
 
 .bot-difficulty-option input {
@@ -110,19 +199,55 @@
 }
 
 .bot-difficulty-option.selected {
-  border-color: #3b82f6;
-  background: color-mix(in srgb, #3b82f6 12%, transparent);
+  border-color: color-mix(in srgb, #2f66e6 55%, transparent);
+  background: color-mix(in srgb, #2f66e6 12%, transparent);
+  box-shadow: inset 3px 0 0 #2f66e6;
+}
+
+.bot-difficulty-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .bot-difficulty-label {
-  font-weight: 700;
-  font-size: 14px;
+  font-weight: 800;
+  font-size: 14.5px;
 }
 
 .bot-difficulty-desc {
   font-size: 12px;
-  opacity: 0.7;
-  line-height: 1.35;
+  opacity: 0.68;
+  line-height: 1.4;
+}
+
+/* Strength meter — four bars, filled ones tint toward the accent. */
+.bot-strength {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 15px;
+}
+
+.bot-strength i {
+  width: 4px;
+  border-radius: 2px;
+  background: color-mix(in srgb, currentColor 20%, transparent);
+  transition: background-color 0.15s ease;
+}
+
+.bot-strength i:nth-child(1) { height: 6px; }
+.bot-strength i:nth-child(2) { height: 9px; }
+.bot-strength i:nth-child(3) { height: 12px; }
+.bot-strength i:nth-child(4) { height: 15px; }
+
+.bot-strength i.on {
+  background: #2f66e6;
+}
+
+.bot-difficulty-option.selected .bot-strength i.on {
+  background: #2f66e6;
 }
 
 .bot-model-note {
@@ -130,6 +255,82 @@
   line-height: 1.5;
   opacity: 0.8;
   margin: 0;
+}
+
+/* Glass polish — only when nested in the glass pre-game shell. */
+.pregame-shell[data-visual="glass"] .bot-hero {
+  border-color: rgba(47, 102, 230, 0.16);
+  background: linear-gradient(135deg, rgba(224, 236, 255, 0.72), rgba(255, 255, 255, 0.4));
+  box-shadow: var(--glassr-shadow-row);
+}
+
+.pregame-shell[data-visual="glass"] .bot-hero-name {
+  color: var(--glassr-ink, #16233d);
+}
+
+.pregame-shell[data-visual="glass"] .bot-hero-sub,
+.pregame-shell[data-visual="glass"] .bot-difficulty-desc {
+  color: var(--glassr-ink-mut, #6b7a92);
+  opacity: 1;
+}
+
+.pregame-shell[data-visual="glass"] .bot-room-panel legend,
+.pregame-shell[data-visual="glass"] .bot-room-panel .bot-field > span {
+  color: var(--glassr-ink-soft, #45566f);
+  opacity: 1;
+}
+
+.pregame-shell[data-visual="glass"] .bot-room-panel .bot-field input {
+  min-height: 48px;
+  border-color: rgba(47, 102, 230, 0.18);
+  border-radius: 11px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--glassr-ink, #16233d);
+}
+
+.pregame-shell[data-visual="glass"] .bot-room-panel .bot-field input:focus-visible {
+  border-color: var(--glassr-blue, #2f66e6);
+  outline: 3px solid rgba(47, 102, 230, 0.15);
+  outline-offset: 1px;
+}
+
+.pregame-shell[data-visual="glass"] .bot-difficulty-option {
+  border-color: rgba(255, 255, 255, 0.88);
+  background: var(--glassr-glass-list, linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(247, 250, 255, 0.62)));
+  box-shadow: var(--glassr-shadow-row);
+}
+
+.pregame-shell[data-visual="glass"] .bot-difficulty-option.selected {
+  border-color: rgba(47, 102, 230, 0.42);
+  background: linear-gradient(135deg, rgba(224, 236, 255, 0.96), rgba(255, 255, 255, 0.78));
+  box-shadow: inset 3px 0 0 var(--glassr-blue, #2f66e6), var(--glassr-shadow-row);
+}
+
+.pregame-shell[data-visual="glass"] .bot-hero-eyebrow,
+.pregame-shell[data-visual="glass"] .bot-strength i.on {
+  color: var(--glassr-blue, #2f66e6);
+}
+
+.pregame-shell[data-visual="glass"] .bot-strength i.on {
+  background: var(--glassr-blue, #2f66e6);
+}
+
+@media (hover: hover) {
+  .pregame-shell[data-visual="glass"] .bot-difficulty-option:hover {
+    border-color: rgba(91, 144, 249, 0.42);
+    box-shadow: var(--glassr-shadow-raised);
+    transform: translateY(-1px);
+  }
+}
+
+@media (max-width: 480px) {
+  .bot-difficulty-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bot-start-row {
+    flex-direction: column;
+  }
 }
 
 /* ── "Why did the AI play this?" reasoning panel ─────────────────────────── */
