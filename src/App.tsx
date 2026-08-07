@@ -3571,7 +3571,7 @@ function App() {
         setBotReasoning({
           logId,
           turnNumber: g.turnNumber,
-          playerName: g.players[g.botSide] || "BOT",
+          playerName: g.players[g.botSide] || "Aether",
           response,
         });
       }
@@ -4461,7 +4461,7 @@ function App() {
           {botProgress && game.botSide && !reviewing && (
             <BotThinkingCard
               progress={botProgress}
-              botName={game.players[game.botSide] || "BOT"}
+              botName={game.players[game.botSide] || "Aether"}
             />
           )}
 

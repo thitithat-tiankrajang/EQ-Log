@@ -36,8 +36,8 @@ export function CreateRoomPage({
     return (
       <PreGameShell
         eyebrow="Room setup"
-        title="Play vs BOT"
-        subtitle="Face the built-in engine. Pick a strength and start immediately."
+        title="Play vs Aether"
+        subtitle="Face Aether, the built-in engine. Pick a strength and start immediately."
         onBack={onBack}
         visual="glass"
       >

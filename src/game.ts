@@ -26,7 +26,7 @@ export type Side = "A" | "B";
 
 export type GameMode = "versus" | "solo";
 export type TileDrawMode = "manual" | "play";
-export type BotDifficulty = "easy" | "normal" | "hard" | "max";
+export type BotDifficulty = "easy" | "medium" | "hard" | "max";
 export type EmailPlayMode = "hosted" | "direct";
 export type RoomStage = "waiting" | "playing";
 export type SideTimerMinutes = Record<Side, number | null>;

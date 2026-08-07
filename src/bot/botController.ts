@@ -10,6 +10,7 @@ import {
   otherSide,
   tileNeedsAssignment,
   type AmathToken,
+  type BotDifficulty,
   type GameState,
   type PendingPlacement,
   type TileInstance,
@@ -90,6 +91,17 @@ function trailingNoScoreStreak(game: GameState): number {
   return streak;
 }
 
+// The engine ignores the `difficulty` string and is steered purely by
+// `budgetMs`: less thinking time → shallower search → weaker play. `max` sends
+// no cap so the engine falls back to its own (untimed) ceilings — full strength,
+// exact endgame solving. The lower tiers trade strength for a snappier reply.
+const BOT_THINK_BUDGET_MS: Record<BotDifficulty, number | null> = {
+  easy: 200,
+  medium: 1000,
+  hard: 4000,
+  max: null,
+};
+
 export function buildBotRequest(game: GameState): BotRequest {
   const botSide = game.botSide ?? "B";
   const board: BotRequest["board"] = [];
@@ -104,6 +116,8 @@ export function buildBotRequest(game: GameState): BotRequest {
   const pendingReturns =
     (game.pendingExchangeReturnBySide?.A?.length ?? 0) +
     (game.pendingExchangeReturnBySide?.B?.length ?? 0);
+  const difficulty = game.botDifficulty ?? "max";
+  const budgetMs = BOT_THINK_BUDGET_MS[difficulty];
   const req: BotRequest = {
     board,
     rack,
@@ -115,7 +129,9 @@ export function buildBotRequest(game: GameState): BotRequest {
     oppScore: game.scores[otherSide(botSide)],
     noScoreStreak: trailingNoScoreStreak(game),
     exchangeAllowed: getExchangeRule(game).allowed,
-    difficulty: game.botDifficulty ?? "max",
+    difficulty,
+    // Omitted for `max` so the engine uses its own full-strength ceilings.
+    ...(budgetMs != null ? { budgetMs } : {}),
     seed: hashSeed(`${game.gameId}:${game.turnNumber}`),
   };
   logBotRequestDiag(req, pendingReturns, game.tilebag.length);  // TEMP

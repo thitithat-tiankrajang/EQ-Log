@@ -83,6 +83,14 @@
   gap: 8px;
 }
 
+/* Difficulty selector: 4 options as a 2×2 grid so each keeps room for its
+   description without cramping (the 2-option rows above use .bot-start-row). */
+.bot-difficulty-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
 .bot-difficulty-option {
   display: flex;
   flex-direction: column;

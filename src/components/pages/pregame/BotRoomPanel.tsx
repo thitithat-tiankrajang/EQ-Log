@@ -1,11 +1,26 @@
 import { useState } from "react";
-import type { NewGameSettings, Side } from "../../../game";
+import type { BotDifficulty, NewGameSettings, Side } from "../../../game";
+
+/** The AI opponent's display name, used for both sides of the match. */
+const BOT_NAME = "Aether";
+
+const DIFFICULTY_OPTIONS: Array<{ value: BotDifficulty; label: string; desc: string }> = [
+  { value: "easy", label: "Easy", desc: "Thinks briefly — a relaxed game." },
+  { value: "medium", label: "Medium", desc: "Balanced thinking time." },
+  { value: "hard", label: "Hard", desc: "Searches deeper and plays sharply." },
+  {
+    value: "max",
+    label: "Max",
+    desc: "Full strength — explores every move and solves the endgame exactly.",
+  },
+];
 
 /**
- * Setup for a match against the built-in engine. There is a single AI model —
- * the strongest the engine can play — so there is no strength selector. The bot
- * always plays side B; timers default to untimed so the engine's thinking time
- * never costs anyone the game.
+ * Setup for a match against the built-in engine (Aether). Pick a strength: it
+ * maps to how long the engine may think, from a quick Easy reply up to the
+ * full-strength Max that solves the endgame exactly. The bot always plays side
+ * B; timers default to untimed so the engine's thinking time never costs anyone
+ * the game.
  */
 export function BotRoomPanel({
   busy,
@@ -17,6 +32,7 @@ export function BotRoomPanel({
   const [playerName, setPlayerName] = useState("");
   const [startingSide, setStartingSide] = useState<Side>("A");
   const [manualTiles, setManualTiles] = useState(false);
+  const [difficulty, setDifficulty] = useState<BotDifficulty>("max");
 
   return (
     <form
@@ -26,13 +42,13 @@ export function BotRoomPanel({
         if (busy) return;
         const playerA = playerName.trim() || "Player";
         onSubmit({
-          name: `${playerA} vs BOT`,
+          name: `${playerA} vs ${BOT_NAME}`,
           gameMode: "versus",
           playerA,
-          playerB: "BOT",
+          playerB: BOT_NAME,
           startingSide,
           botSide: "B",
-          botDifficulty: "max",
+          botDifficulty: difficulty,
           // manual = the player hand-picks every drawn tile for both sides
           // (same refill flow as recorded matches); play = auto draw.
           tileDrawMode: manualTiles ? "manual" : "play",
@@ -51,11 +67,26 @@ export function BotRoomPanel({
         />
       </label>
 
-      <p className="bot-model-note">
-        You'll face the full-strength engine: it explores every legal move,
-        weighs the tiles it would keep and the space it opens, simulates your
-        likely replies, and solves the endgame exactly.
-      </p>
+      <fieldset className="create-field">
+        <legend>Difficulty</legend>
+        <div className="bot-difficulty-grid">
+          {DIFFICULTY_OPTIONS.map((option) => (
+            <label
+              key={option.value}
+              className={`bot-difficulty-option${difficulty === option.value ? " selected" : ""}`}
+            >
+              <input
+                type="radio"
+                name="bot-difficulty"
+                checked={difficulty === option.value}
+                onChange={() => setDifficulty(option.value)}
+              />
+              <span className="bot-difficulty-label">{option.label}</span>
+              <span className="bot-difficulty-desc">{option.desc}</span>
+            </label>
+          ))}
+        </div>
+      </fieldset>
 
       <fieldset className="create-field">
         <legend>Who starts</legend>
