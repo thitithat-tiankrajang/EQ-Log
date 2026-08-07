@@ -4,6 +4,7 @@ import type { GameState } from "../../game";
 import type { RoomMeta } from "../../rooms";
 import { AccountChip, useAuth } from "../../auth";
 import { AdminButton } from "../../admin";
+import { BotStatsButton } from "../botstats/BotStatsButton";
 import { computeAllMemberStats } from "../../stats";
 import { HOME_TEXT, ROOM_STATUS_TEXT } from "../../uiText";
 import { Sheet } from "../ui/Sheet";
@@ -102,6 +103,7 @@ export function Lobby({
           <LobbyLogo />
           <div className="lobby-topbar-actions">
             <AccountChip />
+            <BotStatsButton />
             <AdminButton />
           </div>
         </header>

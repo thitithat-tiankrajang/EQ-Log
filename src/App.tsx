@@ -119,6 +119,7 @@ import { advanceRunningClock } from "./gameplay/timer";
 import { clearTileAssignment } from "./gameplay/tiles";
 import { buildBotRequest, mapBotResponse, thinkWithBot, warmUpBotEngine } from "./bot/botController";
 import type { BotProgress, BotResponse } from "./bot/types";
+import { botRecordFromGame, recordBotGame } from "./botStats";
 import { BotThinkingCard } from "./components/game/BotThinkingCard";
 import { BotReasoningPanel } from "./components/game/BotReasoningPanel";
 
@@ -1477,6 +1478,29 @@ function App() {
   useEffect(() => {
     if (game?.botSide) warmUpBotEngine();
   }, [game?.gameId, game?.botSide]);
+  // When a bot match finishes, append its summary to whichever stat folder the
+  // admin currently has open (the server no-ops if none is open). Only games we
+  // watched go from in-progress → finished this session are recorded, so merely
+  // opening an old finished bot game never re-logs it into a newer folder. The
+  // RPC also upserts by (folder, game) as a second guard against double-counting.
+  const recordedBotGamesRef = useRef<Set<string>>(new Set());
+  const sawLiveBotGameRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!game?.botSide) return;
+    if (game.status !== "finished") {
+      sawLiveBotGameRef.current.add(game.gameId);
+      return;
+    }
+    if (!sawLiveBotGameRef.current.has(game.gameId)) return; // loaded, not just played
+    if (recordedBotGamesRef.current.has(game.gameId)) return;
+    const record = botRecordFromGame(game, activeRoomIdRef.current);
+    if (!record) return;
+    recordedBotGamesRef.current.add(game.gameId);
+    void recordBotGame(record).catch(() => {
+      // Best effort: allow a later render to retry if the write failed.
+      recordedBotGamesRef.current.delete(game.gameId);
+    });
+  }, [game?.gameId, game?.botSide, game?.status]);
   useEffect(() => {
     if (!botShouldMove || !game) return;
     const commitId = game.commitId;

@@ -29,6 +29,7 @@
 @import "./styles/pages/lobby/80-redesign.css";
 @import "./styles/pages/lobby/85-glass-polish.css";
 @import "./styles/pages/lobby/90-glass-refined.css";
+@import "./styles/pages/lobby/95-bot-stats.css";
 @import "./styles/pages/pregame-glass.css";
 
 /* Phone layout for the game view — must stay LAST to win cascade ties. */
