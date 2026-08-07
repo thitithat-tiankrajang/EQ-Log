@@ -3,11 +3,12 @@ import type { BotCandidate, BotResponse } from "../../bot/types";
 
 // A full, deliberately un-simplified look inside the engine's decision: the
 // move it played, every alternative it weighed, and the exact value terms that
-// separated them. Meant for a curious player who wants the real numbers.
+// separated them. Adapts to which solver produced the move (sim / greedy /
+// endgame) so the numbers are always labelled truthfully.
 
 const SOLVER_LABEL: Record<BotResponse["solver"], string> = {
   sim: "จำลองตาต่อไป (Monte-Carlo 2 ply)",
-  endgame: "แก้ endgame แบบ exact",
+  endgame: "แก้ท้ายเกมแบบ exact (พิสูจน์ทุกเส้นทาง)",
   greedy: "ประเมินแบบ static (greedy)",
 };
 
@@ -60,6 +61,8 @@ export function BotReasoningPanel({
   onClose: () => void;
 }) {
   const candidates = response.candidates ?? [];
+  const isEndgame = response.solver === "endgame";
+  const isGreedy = response.solver === "greedy";
   const chosen = useMemo(
     () => candidates.find((c) => c.chosen) ?? candidates[0],
     [candidates],
@@ -84,21 +87,68 @@ export function BotReasoningPanel({
           </button>
         </div>
 
+        {/* Endgame verdict banner: a proven, tile-independent outcome. */}
+        {isEndgame && (
+          <div
+            className={`bot-reason-banner ${
+              (response.expectedFinalDiff ?? 0) > 0
+                ? "win"
+                : (response.expectedFinalDiff ?? 0) < 0
+                  ? "lose"
+                  : "draw"
+            }`}
+          >
+            {response.endgameSolved ? (
+              (response.expectedFinalDiff ?? 0) > 0 ? (
+                <>🏆 พิสูจน์แล้วว่า <b>ชนะแน่นอน 100%</b> — ผลต่างสุดท้าย <b>+{response.expectedFinalDiff}</b> แต้ม ไม่ว่าคู่ต่อสู้จะเล่นแบบไหน</>
+              ) : (response.expectedFinalDiff ?? 0) < 0 ? (
+                <>พิสูจน์แล้วว่าตกเป็นรอง (ผลต่างสุดท้าย {response.expectedFinalDiff}) — เลือกทางที่เสียน้อยที่สุด</>
+              ) : (
+                <>พิสูจน์แล้วว่าผลลัพธ์ดีสุดคือ <b>เสมอ</b> (0)</>
+              )
+            ) : (
+              <>คำนวณท้ายเกมแบบประมาณ (beam) — ตัวเลขผลต่างเป็นค่าที่ค้นได้ในงบเวลา ไม่ใช่การพิสูจน์ครบทุกทาง</>
+            )}
+          </div>
+        )}
+
         {/* Headline numbers about the decision itself. */}
         <div className="bot-reason-stats">
           <Stat label="แต้มตานี้" value={String(response.score)} />
-          <Stat label="Value (คุ้มค่า)" value={fmt(response.equity, 2)} />
-          <Stat label="พิจารณาทั้งหมด" value={`${response.stats.candidates} ทาง`} />
-          <Stat label="สุ่มคู่ต่อสู้" value={`${response.stats.samples} ครั้ง`} />
+          <Stat
+            label={isEndgame ? "ผลต่างสุดท้าย" : "Value (คุ้มค่า)"}
+            value={isEndgame ? fmt(response.equity, 0) : fmt(response.equity, 2)}
+          />
+          <Stat label="พิจารณาทั้งหมด" value={`${response.stats.candidates || response.stats.moves} ทาง`} />
+          {!isEndgame && !isGreedy && (
+            <Stat label="สุ่มคู่ต่อสู้" value={`${response.stats.samples} ครั้ง`} />
+          )}
           <Stat label="Node ที่ค้น" value={response.stats.nodes.toLocaleString()} />
           <Stat label="เวลาคิด" value={`${(response.stats.elapsedMs / 1000).toFixed(1)}s`} />
-          {response.endgameSolved && (
-            <Stat label="Endgame (พิสูจน์แล้ว)" value={`ผลต่างสุดท้าย ${response.expectedFinalDiff ?? "?"}`} />
-          )}
         </div>
 
         {/* Plain-language summary of the head-to-head. */}
-        {chosen && runnerUp ? (
+        {isGreedy ? (
+          <p className="bot-reason-verdict">
+            โหมด <b>greedy</b>: ตอนนี้คู่ต่อสู้ไม่มีเบี้ยให้จำลองตาต่อไป เอนจินจึงจัดอันดับด้วยค่า{" "}
+            <b>static equity</b> = แต้มที่ได้ + คุณค่าไทล์ที่เหลือ (leave) − การเปิดช่องให้ฝ่ายตรงข้าม
+            {chosen && (
+              <>
+                {" "}— เลือก <b>{moveLabel(chosen)}</b> เพราะได้ค่าสูงสุด <b>{fmt(chosen.value, 2)}</b>.
+              </>
+            )}
+          </p>
+        ) : isEndgame ? (
+          <p className="bot-reason-verdict">
+            ทุกช่องด้านล่างคือ <b>ผลต่างแต้มสุดท้ายที่พิสูจน์ได้</b> (แต้มรวมเรา − แต้มรวมคู่ต่อสู้ จนจบเกม)
+            {chosen && runnerUp && (
+              <>
+                {" "}— เลือก <b>{moveLabel(chosen)}</b> (จบที่ {fmt(chosen.value, 0)}) ดีกว่าทางรอง{" "}
+                {moveLabel(runnerUp)} ({fmt(runnerUp.value, 0)}) อยู่ {fmt(chosen.value - runnerUp.value, 0)} แต้ม.
+              </>
+            )}
+          </p>
+        ) : chosen && runnerUp ? (
           <p className="bot-reason-verdict">
             เลือก <b>{moveLabel(chosen)}</b> เพราะได้ค่า value{" "}
             <b>{fmt(chosen.value, 2)}</b> สูงกว่าอันดับ 2 ({moveLabel(runnerUp)} ={" "}
@@ -107,12 +157,11 @@ export function BotReasoningPanel({
           </p>
         ) : chosen ? (
           <p className="bot-reason-verdict">
-            เลือก <b>{moveLabel(chosen)}</b> — เป็นทางเดียวที่ประเมินไว้ในเส้นทางนี้.
+            เลือก <b>{moveLabel(chosen)}</b> — เป็นทางเดียวที่ประเมินไว้.
           </p>
         ) : (
           <p className="bot-reason-verdict">
-            เส้นทางนี้ ({SOLVER_LABEL[response.solver]}) ไม่ได้ไล่เทียบทางเลือกทีละทาง จึงไม่มีตารางเปรียบเทียบ —
-            แต่ค่าที่ใช้ตัดสินคือ value {fmt(response.equity, 2)} ข้างบน.
+            เส้นทางนี้ไม่ได้ไล่เทียบทางเลือกทีละทาง — ค่าที่ใช้ตัดสินคือ {fmt(response.equity, 2)} ข้างบน.
           </p>
         )}
 
@@ -120,50 +169,91 @@ export function BotReasoningPanel({
           <div className="bot-reason-tablewrap">
             <table className="bot-reason-table">
               <thead>
-                <tr>
-                  <th>#</th>
-                  <th className="al">ทางเลือก</th>
-                  <th>Value</th>
-                  <th>Δ</th>
-                  <th>แต้ม</th>
-                  <th>Leave</th>
-                  <th>Potential</th>
-                  <th>−คู่สวน</th>
-                  <th>Mean</th>
-                  <th>±Risk</th>
-                </tr>
+                {isEndgame ? (
+                  <tr>
+                    <th>#</th>
+                    <th className="al">ทางเลือก</th>
+                    <th>แต้มตานี้</th>
+                    <th>ผลต่างสุดท้าย</th>
+                    <th>Δ</th>
+                    <th>ผล</th>
+                  </tr>
+                ) : (
+                  <tr>
+                    <th>#</th>
+                    <th className="al">ทางเลือก</th>
+                    <th>Value</th>
+                    <th>Δ</th>
+                    <th>แต้ม</th>
+                    <th>Leave</th>
+                    {!isGreedy && <th>Potential</th>}
+                    <th>{isGreedy ? "เปิดช่อง" : "−คู่สวน"}</th>
+                    {!isGreedy && <th>Mean</th>}
+                    {!isGreedy && <th>±Risk</th>}
+                  </tr>
+                )}
               </thead>
               <tbody>
-                {candidates.map((c, i) => (
-                  <tr key={i} className={c.chosen ? "chosen" : undefined}>
-                    <td>{i + 1}</td>
-                    <td className="al">
-                      {c.chosen && <span className="bot-reason-pick">เลือก</span>}
-                      {moveLabel(c)}
-                    </td>
-                    <td className="strong">{fmt(c.value, 2)}</td>
-                    <td className={c.chosen ? "" : "neg"}>
-                      {chosen ? (c === chosen ? "—" : fmt(c.value - chosen.value, 2)) : ""}
-                    </td>
-                    <td>{fmt(c.scoreComp, 0)}</td>
-                    <td>{fmt(c.leave)}</td>
-                    <td>{fmt(c.potential)}</td>
-                    <td>{fmt(c.oppReply)}</td>
-                    <td>{fmt(c.mean)}</td>
-                    <td className="dim">±{fmt(c.stddev)}</td>
-                  </tr>
-                ))}
+                {candidates.map((c, i) =>
+                  isEndgame ? (
+                    <tr key={i} className={c.chosen ? "chosen" : undefined}>
+                      <td>{i + 1}</td>
+                      <td className="al">
+                        {c.chosen && <span className="bot-reason-pick">เลือก</span>}
+                        {moveLabel(c)}
+                      </td>
+                      <td>{fmt(c.scoreComp, 0)}</td>
+                      <td className="strong">{fmt(c.value, 0)}</td>
+                      <td className={c.chosen ? "" : "neg"}>
+                        {chosen ? (c === chosen ? "—" : fmt(c.value - chosen.value, 0)) : ""}
+                      </td>
+                      <td>{c.value > 0 ? "ชนะ" : c.value < 0 ? "แพ้" : "เสมอ"}</td>
+                    </tr>
+                  ) : (
+                    <tr key={i} className={c.chosen ? "chosen" : undefined}>
+                      <td>{i + 1}</td>
+                      <td className="al">
+                        {c.chosen && <span className="bot-reason-pick">เลือก</span>}
+                        {moveLabel(c)}
+                      </td>
+                      <td className="strong">{fmt(c.value, 2)}</td>
+                      <td className={c.chosen ? "" : "neg"}>
+                        {chosen ? (c === chosen ? "—" : fmt(c.value - chosen.value, 2)) : ""}
+                      </td>
+                      <td>{fmt(c.scoreComp, 0)}</td>
+                      <td>{fmt(c.leave)}</td>
+                      {!isGreedy && <td>{fmt(c.potential)}</td>}
+                      <td>{fmt(c.oppReply)}</td>
+                      {!isGreedy && <td>{fmt(c.mean)}</td>}
+                      {!isGreedy && <td className="dim">±{fmt(c.stddev)}</td>}
+                    </tr>
+                  ),
+                )}
               </tbody>
             </table>
           </div>
         )}
 
         <div className="bot-reason-legend">
-          <b>ความหมายของค่า</b> — <b>Value</b> = ค่าที่ใช้จัดอันดับจริง (mean − λ·risk, λ โตขึ้นเมื่อนำอยู่).{" "}
-          <b>แต้ม</b> = แต้มที่ได้ทันทีจากการวาง. <b>Leave</b> = คุณค่าของไทล์ที่เหลือในมือหลังเดิน.{" "}
-          <b>Potential</b> = แต้มที่ไทล์ในมือคาดว่าจะทำได้ในตาถัดไป (ถ่วงน้ำหนักแล้ว).{" "}
-          <b>−คู่สวน</b> = ค่าตาที่ดีที่สุดของคู่ต่อสู้ที่ถูกหักออก (ยิ่งน้อยยิ่งดี).{" "}
-          <b>Mean</b> = ค่าสุทธิเฉลี่ยจากการสุ่มมือคู่ต่อสู้. <b>±Risk</b> = ส่วนเบี่ยงเบน (ความผันผวน).
+          {isEndgame ? (
+            <>
+              <b>ผลต่างสุดท้าย</b> = แต้มรวมของเราลบแต้มรวมคู่ต่อสู้เมื่อเล่นจนจบเกมแบบดีที่สุดทั้งสองฝ่าย (บวก = เราชนะ).
+              ตัวเลขของทางที่เลือกเป็นค่าที่ <b>พิสูจน์ครบทุกเส้นทาง</b>; ทางอื่นเป็นขอบเขตล่างจากการตัด alpha-beta.
+            </>
+          ) : isGreedy ? (
+            <>
+              <b>Value</b> = static equity ที่ใช้จัดอันดับ. <b>แต้ม</b> = แต้มที่ได้ทันที. <b>Leave</b> = คุณค่าไทล์ที่เหลือในมือ.{" "}
+              <b>เปิดช่อง</b> = โทษจากการเปิดช่องดีให้ฝ่ายตรงข้าม (ยิ่งน้อยยิ่งดี). โหมดนี้ไม่ได้จำลองตาต่อไปเพราะคู่ต่อสู้ยังไม่มีเบี้ย.
+            </>
+          ) : (
+            <>
+              <b>ความหมายของค่า</b> — <b>Value</b> = ค่าที่ใช้จัดอันดับจริง (mean − λ·risk, λ โตขึ้นเมื่อนำอยู่).{" "}
+              <b>แต้ม</b> = แต้มที่ได้ทันทีจากการวาง. <b>Leave</b> = คุณค่าของไทล์ที่เหลือในมือหลังเดิน.{" "}
+              <b>Potential</b> = แต้มที่ไทล์ในมือคาดว่าจะทำได้ในตาถัดไป (ถ่วงน้ำหนักแล้ว).{" "}
+              <b>−คู่สวน</b> = ค่าตาที่ดีที่สุดของคู่ต่อสู้ที่ถูกหักออก (ยิ่งน้อยยิ่งดี).{" "}
+              <b>Mean</b> = ค่าสุทธิเฉลี่ยจากการสุ่มมือคู่ต่อสู้. <b>±Risk</b> = ส่วนเบี่ยงเบน (ความผันผวน).
+            </>
+          )}
         </div>
       </div>
     </div>

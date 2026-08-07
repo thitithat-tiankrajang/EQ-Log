@@ -49,11 +49,13 @@ import {
   Side,
   TileInstance,
   TurnLog,
+  advanceToOpponentTurn,
   aggregatePendingExchangeReturns,
   boardWithPending,
   calculateTotals,
   createPlaceDetail,
   deepClone,
+  finalizeRefillTransition,
   getPendingExchangeReturnBySide,
   getGameMode,
   getRack,
@@ -61,8 +63,6 @@ import {
   isRackReady,
   normalizeEmail,
   normalizeUserId,
-  otherSide,
-  phaseForNextSide,
   pushActionSnapshot,
   setRack,
   tileNeedsAssignment,
@@ -2603,18 +2603,21 @@ function App() {
       ? { ...pendingBySide, [game.activeSide]: [] }
       : pendingBySide;
     const finalTilebag = pendingReturn.length > 0 ? [...nextTilebag, ...pendingReturn] : nextTilebag;
-    const nextGame = setRack(
+    const filledGame = setRack(
       {
         ...game,
         tilebag: finalTilebag,
         pendingExchangeReturn: aggregatePendingExchangeReturns(nextPendingBySide),
         pendingExchangeReturnBySide: nextPendingBySide,
-        phase: rackReady ? "choose_action" : "refill",
+        phase: "refill" as Phase,
         lastSavedAt: new Date().toISOString(),
       },
       game.activeSide,
       nextRack,
     );
+    // A ready rack ends this refill: a closing refill (the side already acted)
+    // hands the turn to the opponent; an opening refill drops into choose_action.
+    const nextGame = rackReady ? finalizeRefillTransition(filledGame) : filledGame;
     setGame(nextGame);
   }
 
@@ -3407,7 +3410,6 @@ function App() {
     if (!game || readOnly) return;
     pendingSessionEventRef.current = "submit_action";
     shouldFlushEmptyLiveSessionRef.current = true;
-    const nextSide = getGameMode(game) === "solo" ? "A" : otherSide(game.activeSide);
     const normalLogs = [...game.logs, log];
     const endGameLog = createAutomaticEndGameLog({
       boardAfter,
@@ -3422,7 +3424,10 @@ function App() {
     const nextPendingBySide = floatingTiles
       ? { ...pendingBySide, [game.activeSide]: floatingTiles }
       : pendingBySide;
-    const switchedBase = setRack(
+    // Record the action but keep the mover active: the turn is not over until
+    // this player has refilled, so the opponent always begins from a
+    // post-refill (correct bag count) state.
+    const movedGame: GameState = setRack(
       {
         ...game,
         board: boardAfter,
@@ -3431,29 +3436,30 @@ function App() {
         pendingExchangeReturnBySide: nextPendingBySide,
         logs,
         scores: calculateTotals(logs),
-        activeSide: nextSide,
-        turnNumber: game.turnNumber + 1,
         status: endGameLog ? "finished" : game.status,
         timers: endGameLog ? { ...game.timers, paused: true } : game.timers,
-        phase: endGameLog ? "choose_action" as Phase : "refill" as Phase,
-        currentTurnStartedAt: new Date().toISOString(),
         lastSavedAt: new Date().toISOString(),
       },
       game.activeSide,
       rackAfter,
     );
-    let nextGame: GameState = {
-      ...switchedBase,
-      phase: endGameLog ? switchedBase.phase : phaseForNextSide(switchedBase),
-    };
-    if (
-      !endGameLog &&
-      getTileDrawMode(nextGame) === "play" &&
-      nextGame.phase === "refill" &&
-      !isRackReady(nextGame)
-    ) {
-      refillBaselineRef.current = captureRefillBaseline(nextGame);
-      nextGame = refillRackFromQueue(nextGame);
+    let nextGame: GameState;
+    if (endGameLog) {
+      // Game over: no refill, no hand-off.
+      nextGame = { ...movedGame, phase: "choose_action" as Phase };
+    } else if (getTileDrawMode(movedGame) === "play") {
+      // Auto draw: refill the mover's rack now, then pass the turn.
+      const refilled = isRackReady(movedGame) ? movedGame : refillRackFromQueue(movedGame);
+      nextGame = advanceToOpponentTurn(refilled);
+    } else if (!isRackReady(movedGame)) {
+      // Manual draw: the mover hand-picks replacements (interactive "refill"
+      // phase on the SAME side) before the turn passes; the hand-off happens
+      // once the rack is ready (see finalizeRefillTransition).
+      refillBaselineRef.current = captureRefillBaseline(movedGame);
+      nextGame = { ...movedGame, phase: "refill" as Phase };
+    } else {
+      // Manual draw but nothing left to draw (bag empty): pass the turn.
+      nextGame = advanceToOpponentTurn(movedGame);
     }
     setGame(pushActionSnapshot(nextGame));
     if (endGameLog) setShowResult(true);

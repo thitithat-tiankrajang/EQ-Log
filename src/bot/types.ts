@@ -33,6 +33,7 @@ export type BotCandidate = {
   stddev: number;     // spread across samples (risk)
   value: number;      // risk-adjusted rank key: mean − λ·stddev
   chosen: boolean;    // true for the move the engine actually played
+  proven?: boolean;   // endgame: value is an exact proven final-score margin
 };
 
 export type BotResponse = {

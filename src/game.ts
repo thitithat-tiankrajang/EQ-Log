@@ -444,10 +444,20 @@ export function createNewGame(settings: NewGameSettings): GameState {
     emailPlayMode === "direct" || (isSolo && !hasOnlinePlayers)
       ? "play"
       : settings.tileDrawMode ?? "manual";
-  const initialQueue = createInitialTilebag({ shuffleForPlay: tileDrawMode === "play" });
-  const initialRack = tileDrawMode === "play" ? initialQueue.slice(0, RACK_SIZE) : [];
-  const initialTilebag =
-    tileDrawMode === "play" ? shuffleTilebagQueue(initialQueue.slice(initialRack.length)) : initialQueue;
+  const isPlayDraw = tileDrawMode === "play";
+  const startSide: Side = isSolo ? "A" : settings.startingSide;
+  const initialQueue = createInitialTilebag({ shuffleForPlay: isPlayDraw });
+  // Play mode deals a full rack to BOTH sides up front. Every player then
+  // refills at the END of their own turn (before the opponent begins) instead
+  // of at the start of the next turn, so the bag count the opponent sees is
+  // always post-refill. Solo keeps a single rack on A.
+  const startingRack = isPlayDraw ? initialQueue.slice(0, RACK_SIZE) : [];
+  const opponentRack = isPlayDraw && !isSolo ? initialQueue.slice(RACK_SIZE, RACK_SIZE * 2) : [];
+  const initialTilebag = isPlayDraw
+    ? shuffleTilebagQueue(initialQueue.slice(startingRack.length + opponentRack.length))
+    : initialQueue;
+  const rackForA = isSolo ? startingRack : startSide === "A" ? startingRack : opponentRack;
+  const rackForB = isSolo ? [] : startSide === "B" ? startingRack : opponentRack;
   const playerMembers: Partial<Record<Side, string>> = {};
   if (settings.playerAMemberId) playerMembers.A = settings.playerAMemberId;
   if (settings.playerBMemberId) playerMembers.B = settings.playerBMemberId;
@@ -486,13 +496,13 @@ export function createNewGame(settings: NewGameSettings): GameState {
     botDifficulty: isSolo ? undefined : settings.botDifficulty,
     tileDrawMode,
     turnNumber: 1,
-    activeSide: isSolo ? "A" : settings.startingSide,
-    phase: tileDrawMode === "play" ? "choose_action" : "refill",
+    activeSide: startSide,
+    phase: isPlayDraw ? "choose_action" : "refill",
     status: "playing",
     boardSize: BOARD_SIZE,
     board: createBoard(BOARD_SIZE),
-    rackA: isSolo || settings.startingSide === "A" ? initialRack : [],
-    rackB: !isSolo && settings.startingSide === "B" ? initialRack : [],
+    rackA: rackForA,
+    rackB: rackForB,
     tilebag: initialTilebag,
     pendingExchangeReturn: [],
     pendingExchangeReturnBySide: { A: [], B: [] },
@@ -829,6 +839,55 @@ export function phaseForNextSide(game: GameState): Phase {
   return getRack(game, game.activeSide).length >= RACK_SIZE || game.tilebag.length === 0
     ? "choose_action"
     : "refill";
+}
+
+/**
+ * Hand the turn to the opponent (or, in solo, to the same player's next turn).
+ * Called only once the current player's turn is fully complete — action logged
+ * AND rack refilled — so the incoming side always begins from a post-refill
+ * state. The incoming side is normally already full (it refilled at the end of
+ * its previous turn), so it opens in "choose_action"; `phaseForNextSide` still
+ * grants an opening "refill" the first time a side that started empty acts.
+ */
+export function advanceToOpponentTurn(game: GameState): GameState {
+  const nextSide: Side = getGameMode(game) === "solo" ? "A" : otherSide(game.activeSide);
+  const now = new Date().toISOString();
+  const switched: GameState = {
+    ...game,
+    activeSide: nextSide,
+    turnNumber: game.turnNumber + 1,
+    phase: "choose_action",
+    currentTurnStartedAt: now,
+    lastSavedAt: now,
+  };
+  return { ...switched, phase: phaseForNextSide(switched) };
+}
+
+/**
+ * True when the active side has already committed its action for the current
+ * turn — i.e. it is now in a "closing" refill that completes the turn, as
+ * opposed to an "opening" refill that a side does before it acts.
+ */
+export function activeSideHasActedThisTurn(game: GameState): boolean {
+  for (let index = game.logs.length - 1; index >= 0; index -= 1) {
+    const log = game.logs[index];
+    if (log.action === "end_game") continue;
+    return log.side === game.activeSide && log.turnNumber === game.turnNumber;
+  }
+  return false;
+}
+
+/**
+ * Resolve where the game goes once the active side's rack is ready (full, or
+ * the bag is empty). A closing refill (the side already acted this turn) hands
+ * off to the opponent; an opening refill (the side has not acted yet) drops the
+ * same side into "choose_action" so it can play.
+ */
+export function finalizeRefillTransition(game: GameState): GameState {
+  if (activeSideHasActedThisTurn(game)) {
+    return advanceToOpponentTurn(game);
+  }
+  return { ...game, phase: "choose_action", lastSavedAt: new Date().toISOString() };
 }
 
 export function groupedTilebag(tilebag: TileInstance[]): Record<TokenType, TileInstance[]> {

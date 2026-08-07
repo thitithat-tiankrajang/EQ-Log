@@ -15,7 +15,39 @@ import {
   type TileInstance,
 } from "../game";
 import { getExchangeRule } from "../gameplay/tilebag";
+import { AMATH_TOKENS } from "../constants/tileDefinitions";
 import type { BotProgress, BotRequest, BotResponse, WorkerOutbound } from "./types";
+
+// ── TEMP endgame-dispatch instrumentation (remove after debugging) ────────────
+// Mirrors the C++ engine's tile accounting: unseen = full distribution minus
+// every board + rack tile (guarded against underflow, exactly like parseRequest),
+// then endgameEligible = oppRackCount>0 && unseen.total == oppRackCount + bagCount.
+const KIND_COUNTS: Record<string, number> = Object.fromEntries(
+  Object.entries(AMATH_TOKENS).map(([k, v]) => [k, v.count]),
+);
+function logBotRequestDiag(req: BotRequest, pendingReturns: number, tilebagLength: number): void {
+  const unseen: Record<string, number> = { ...KIND_COUNTS };
+  const dec = (k: string) => {
+    if ((unseen[k] ?? 0) > 0) unseen[k] -= 1;
+  };
+  for (const cell of req.board) dec(cell.kind as string);
+  for (const t of req.rack) dec(t as string);
+  const unseenTotal = Object.values(unseen).reduce((a, b) => a + b, 0);
+  const endgameEligible =
+    req.oppRackCount > 0 && unseenTotal === req.oppRackCount + req.bagCount;
+  // eslint-disable-next-line no-console
+  console.log("[BOT-DIAG] request", {
+    bagCount: req.bagCount,
+    tilebagLength,
+    pendingReturns,
+    oppRackCount: req.oppRackCount,
+    boardTiles: req.board.length,
+    myRack: req.rack.length,
+    unseenTotal,
+    conservationSum: req.board.length + req.rack.length + req.oppRackCount + tilebagLength + pendingReturns,
+    endgameEligible,
+  });
+}
 
 export type BotThinkHandle = {
   promise: Promise<BotResponse>;
@@ -72,7 +104,7 @@ export function buildBotRequest(game: GameState): BotRequest {
   const pendingReturns =
     (game.pendingExchangeReturnBySide?.A?.length ?? 0) +
     (game.pendingExchangeReturnBySide?.B?.length ?? 0);
-  return {
+  const req: BotRequest = {
     board,
     rack,
     // Pending exchange returns are off-board and out of every rack; from the
@@ -86,6 +118,8 @@ export function buildBotRequest(game: GameState): BotRequest {
     difficulty: game.botDifficulty ?? "max",
     seed: hashSeed(`${game.gameId}:${game.turnNumber}`),
   };
+  logBotRequestDiag(req, pendingReturns, game.tilebag.length);  // TEMP
+  return req;
 }
 
 export function thinkWithBot(
@@ -105,6 +139,12 @@ export function thinkWithBot(
       } else if (msg.type === "result" && msg.id === id) {
         settled = true;
         cleanup();
+        // eslint-disable-next-line no-console
+        console.log("[BOT-DIAG] response", {
+          solver: msg.response.solver,
+          endgameSolved: msg.response.endgameSolved,
+          type: msg.response.type,
+        });  // TEMP
         if (msg.response.error) reject(new Error(msg.response.error));
         else resolve(msg.response);
       } else if (msg.type === "error" && msg.id === id) {
