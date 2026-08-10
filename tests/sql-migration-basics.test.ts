@@ -5,6 +5,8 @@ const migrationPaths = [
   "supabase/user_invites_migration.sql",
   "supabase/region_visibility_migration.sql",
   "supabase/game_archives_migration.sql",
+  "supabase/live_game_sync_repair_migration.sql",
+  "supabase/canonical_revision_migration.sql",
 ];
 
 describe("documented migration sequence", () => {

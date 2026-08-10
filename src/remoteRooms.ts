@@ -11,6 +11,8 @@ import type { RoomMeta } from "./rooms";
 import { supabase } from "./supabaseClient";
 import type { RoomScope, RoomVisibility } from "./roomScope";
 import { deriveCompletion, deriveModeKey } from "./features/gameRecords/domain";
+import { revisionOf, withRevision } from "./gameSync";
+import { canonicalFromSnapshot, encodeCanonical } from "./domain/projection";
 
 type ActionMode = "none" | ActionType;
 
@@ -63,6 +65,8 @@ export type RemoteRoomRecord = {
   score_a: number;
   score_b: number;
   state?: unknown;
+  /** Authoritative position of the live game. */
+  revision?: number;
   created_at: string;
   updated_at: string;
   visibility?: RoomVisibility;
@@ -97,6 +101,7 @@ type LiveRoomRow = {
   score_a: number;
   score_b: number;
   state?: unknown;
+  revision?: number;
   session?: unknown;
   created_at: string;
   updated_at: string;
@@ -174,7 +179,7 @@ export type RoomSessionEvent =
 
 const LIVE_SUMMARY_FIELDS =
   "room_id,owner_id,name,player_a,player_b,status,access_scope,archive_policy,join_policy,region_id,game_mode,mode_key,member_a_id,member_b_id,player_a_user_id,player_b_user_id,starting_side,creator_side,turn_number,score_a,score_b,created_at,updated_at,profiles:owner_id(display_name)";
-const LIVE_READ_FIELDS = `${LIVE_SUMMARY_FIELDS},state,session`;
+const LIVE_READ_FIELDS = `${LIVE_SUMMARY_FIELDS},state,revision,session`;
 const LIVE_REALTIME_COLUMNS = [
   "room_id",
   "owner_id",
@@ -198,6 +203,7 @@ const LIVE_REALTIME_COLUMNS = [
   "score_a",
   "score_b",
   "state",
+  "revision",
   "session",
   "created_at",
   "updated_at",
@@ -207,7 +213,7 @@ const ARCHIVE_READ_FIELDS =
 
 const latestLiveSessions = new Map<string, LiveRoomSession>();
 const liveWriteDrains = new Map<string, Promise<void>>();
-const roomWriteQueues = new Map<string, Promise<void>>();
+const roomWriteQueues = new Map<string, Promise<unknown>>();
 
 export function makeLiveSession(args: {
   actorId: string | null;
@@ -376,10 +382,10 @@ export async function createRoom(
   const id = String((result as { room_id?: unknown } | null)?.room_id ?? "");
   const roomCode = String((result as { room_code?: unknown } | null)?.room_code ?? "");
   if (!id) throw new Error("The live game was created without an id.");
-  // Confirm the initial state and session through the same atomic write path
-  // used during play. This also repairs a room created by an older database
-  // function that returned an id before persisting its state.
-  await updateRoomState({ id, game: initialGame, session });
+  // Confirm the initial state and session through the same conditional write
+  // path used during play. This also repairs a room created by an older
+  // database function that returned an id before persisting its state.
+  await commitRoomState({ id, game: initialGame, session, event: "create" });
   const payload = await readRoom(id);
   if (!payload) throw new Error("The live game could not be loaded after creation.");
   if (payload.meta.ownerId && payload.meta.ownerId !== ownerId) {
@@ -389,33 +395,104 @@ export async function createRoom(
   return { id, meta: payload.meta, game: payload.game };
 }
 
-export function updateRoomState(args: {
+/**
+ * The outcome of a conditional commit.
+ *
+ * `conflict` is not an error: it means another writer got to this revision
+ * first and the caller must adopt authoritative state before trying again.
+ * `duplicate` means this exact intent had already been committed — a retry
+ * after a lost response — and is as good as success.
+ */
+export type CommitOutcome =
+  | { outcome: "committed"; revision: number }
+  | { outcome: "duplicate"; revision: number }
+  | { outcome: "conflict"; revision: number };
+
+export type CommitStateArgs = {
   id: string;
   game: GameState;
   session: LiveRoomSession;
   event?: RoomSessionEvent;
-}): Promise<void> {
+  /**
+   * The revision this change was composed against. The server applies the
+   * change only if the game is still at this revision. Defaults to the
+   * revision carried by `game`, which is the one it was derived from.
+   */
+  expectedRevision?: number;
+  /**
+   * Stable per intent. A retry of the same intent MUST reuse it so the server
+   * can recognize it and refuse to apply the same move twice. A fresh id per
+   * call is correct only when each call really is a distinct intent.
+   */
+  commandId?: string;
+  issuedBy?: Side | "host";
+};
+
+/**
+ * Commit a change conditionally on the revision it was composed against.
+ *
+ * Alongside the rendered record this writes the canonical placement table: the
+ * bounded, self-sufficient description of where all 100 physical tiles are. It
+ * is derived here, which means a state that does not describe the physical set
+ * throws before anything is sent rather than being persisted and distributed.
+ */
+export function commitRoomState(args: CommitStateArgs): Promise<CommitOutcome> {
+  const expectedRevision = args.expectedRevision ?? revisionOf(args.game);
+  const commandId = args.commandId ?? crypto.randomUUID();
+  const issuedBy = args.issuedBy ?? "host";
   return enqueueRoomWrite(args.id, async () => {
-    if (!supabase) return;
+    if (!supabase) return { outcome: "committed", revision: expectedRevision };
+    const nextRevision = expectedRevision + 1;
+    // Throws if `game` is not a lawful 100-tile position. Failing here keeps
+    // an impossible state out of the database and off every other client.
+    const canonical = encodeCanonical(canonicalFromSnapshot(args.game, nextRevision));
+
     if (args.game.status === "finished") {
       const completion = deriveCompletion(args.game);
       const { error } = await supabase.rpc("finalize_live_game", {
         target_game_id: args.id,
-        target_state: encodeGame(args.game),
+        target_state: encodeGame(withRevision(args.game, nextRevision)),
         target_completion_kind: completion.kind,
         target_completion_reason: completion.reason,
         target_surrendered_side: completion.surrenderedSide,
       });
       if (error) throw schemaError(error.message);
-      return;
+      return { outcome: "committed", revision: nextRevision };
     }
-    const { error } = await supabase.rpc("sync_live_game_state", {
+
+    const { data, error } = await supabase.rpc("commit_live_game_command", {
       target_game_id: args.id,
-      target_state: encodeGame(args.game),
+      target_expected_revision: expectedRevision,
+      target_command_id: commandId,
+      target_issued_by: issuedBy,
+      target_command: { kind: args.event ?? "state" },
+      target_canonical: canonical,
+      target_canonical_digest: canonicalDigest(canonical),
+      target_state: encodeGame(withRevision(args.game, nextRevision)),
       target_session: args.session,
     });
     if (error) throw schemaError(error.message);
+    const row = (Array.isArray(data) ? data[0] : data) as {
+      outcome?: string;
+      revision?: number;
+    } | null;
+    const revision = Number(row?.revision ?? expectedRevision);
+    if (row?.outcome === "conflict") return { outcome: "conflict", revision };
+    if (row?.outcome === "duplicate") return { outcome: "duplicate", revision };
+    return { outcome: "committed", revision };
   });
+}
+
+/** Digest of the canonical wire form. Two clients that agree on the physical
+ *  position produce the same string, so disagreement is detectable. */
+function canonicalDigest(canonical: Record<string, unknown>): string {
+  const text = JSON.stringify(canonical);
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, "0");
 }
 
 export function updateRoomSession(id: string, session: LiveRoomSession): Promise<void> {
@@ -477,6 +554,91 @@ export async function deleteRoom(id: string): Promise<void> {
 }
 
 export type RoomChannelStatus = "SUBSCRIBED" | "CHANNEL_ERROR" | "TIMED_OUT" | "CLOSED";
+
+/** One committed move, as broadcast to observers. */
+export type LiveGameCommit = {
+  revision: number;
+  gameId: string;
+  commandId: string;
+  issuedBy: Side | "host";
+  /** Canonical placement of all 100 tiles at `revision`. */
+  canonical: unknown;
+  canonicalDigest: string | null;
+};
+
+/**
+ * Follow a game as a read-only observer.
+ *
+ * This is the spectator path, and it is deliberately not the player path. It
+ * subscribes to a broadcast topic rather than to row changes, which matters at
+ * scale for two reasons:
+ *
+ *   • The server publishes once per move. Row-change subscriptions re-evaluate
+ *     access per subscriber per change, so authoritative write cost grows with
+ *     the audience; a broadcast topic is authorized once, when the observer
+ *     joins.
+ *   • The payload is the canonical placement table — around a hundred short
+ *     entries, the same size on move 200 as on move 1 — instead of the full
+ *     record, which carries a board and two rack copies for every turn played
+ *     and therefore grows with the length of the game.
+ *
+ * Each message is self-sufficient at its revision, so a missed message costs
+ * nothing: the next one carries everything, and the caller's revision compare
+ * stops an older one from landing on a newer one.
+ */
+export function subscribeToGameCommits(
+  id: string,
+  onCommit: (commit: LiveGameCommit) => void,
+  onStatus?: (status: RoomChannelStatus) => void,
+): () => void {
+  const client = supabase;
+  if (!client) return () => undefined;
+  const channel = client
+    .channel(`game:${id}`, { config: { private: true, broadcast: { self: false } } })
+    .on("broadcast", { event: "commit" }, (message) => {
+      const payload = (message as { payload?: Record<string, unknown> }).payload;
+      if (!payload || payload.gameId !== id) return;
+      const revision = Number(payload.revision);
+      if (!Number.isFinite(revision)) return;
+      onCommit({
+        revision,
+        gameId: id,
+        commandId: String(payload.commandId ?? ""),
+        issuedBy: (payload.issuedBy as Side | "host") ?? "host",
+        canonical: payload.canonical,
+        canonicalDigest:
+          typeof payload.canonicalDigest === "string" ? payload.canonicalDigest : null,
+      });
+    })
+    .subscribe((status) => onStatus?.(status as RoomChannelStatus));
+  return () => {
+    void client.removeChannel(channel);
+  };
+}
+
+/**
+ * The canonical head: one small row, the same one served to a joining
+ * spectator, a refreshed tab and a reconnecting player, so those three paths
+ * cannot drift apart.
+ */
+export async function readGameSnapshot(
+  id: string,
+): Promise<{ revision: number; canonical: unknown; digest: string | null } | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.rpc("get_live_game_snapshot", { target_game_id: id });
+  if (error) throw schemaError(error.message);
+  const row = (Array.isArray(data) ? data[0] : data) as {
+    revision?: number;
+    canonical?: unknown;
+    canonical_digest?: string | null;
+  } | null;
+  if (!row || row.canonical == null) return null;
+  return {
+    revision: Number(row.revision ?? 0),
+    canonical: row.canonical,
+    digest: row.canonical_digest ?? null,
+  };
+}
 
 export function subscribeToRoom(
   id: string,
@@ -593,6 +755,7 @@ function normalizeLiveRow(row: LiveRoomRow): RemoteRoomRecord {
     score_a: row.score_a,
     score_b: row.score_b,
     state: row.state,
+    revision: row.revision,
     created_at: row.created_at,
     updated_at: row.updated_at,
     visibility: row.access_scope === "region" ? "region" : "public",
@@ -667,12 +830,16 @@ function metaFromSummaryRow(row: LiveRoomSummaryRow): RoomMeta {
 
 function decodeRoomGame(row: RemoteRoomRecord): GameState {
   const game = decodeGame(row.state as Parameters<typeof decodeGame>[0]);
+  // The row's revision is authoritative; the copy embedded in the stored state
+  // is only a hint and is overwritten so the two can never disagree.
+  const revision = Number.isFinite(row.revision) ? Number(row.revision) : (game.revision ?? 0);
   const playerUserIds = {
     ...(row.invite_user_a_id ? { A: row.invite_user_a_id } : {}),
     ...(row.invite_user_b_id ? { B: row.invite_user_b_id } : {}),
   };
   return {
     ...game,
+    revision,
     playerUserIds,
     playerEmails: undefined,
     history: game.history.map((snapshot) => ({
@@ -722,18 +889,34 @@ function assignOwnerToReservedSide(game: GameState, ownerId: string): GameState 
   };
 }
 
-function enqueueRoomWrite(id: string, task: () => Promise<void>): Promise<void> {
+function enqueueRoomWrite<T>(id: string, task: () => Promise<T>): Promise<T> {
   const previous = roomWriteQueues.get(id) ?? Promise.resolve();
   const next = previous.catch(() => undefined).then(task);
-  roomWriteQueues.set(id, next);
+  roomWriteQueues.set(id, next as Promise<unknown>);
   const cleanup = () => {
-    if (roomWriteQueues.get(id) === next) roomWriteQueues.delete(id);
+    if (roomWriteQueues.get(id) === (next as Promise<unknown>)) roomWriteQueues.delete(id);
   };
   void next.then(cleanup, cleanup);
   return next;
 }
 
 function schemaError(message: string): Error {
+  // The conditional commit path is the only write path. A deployment without
+  // it cannot order concurrent moves, so say exactly what is missing rather
+  // than falling back to a write that could overwrite a committed turn.
+  if (
+    /commit_live_game_command|get_live_game_snapshot|list_live_game_events/i.test(message) &&
+    /does not exist|schema cache|PGRST20|42883/i.test(message)
+  ) {
+    return new Error(
+      "Live game sync needs an upgrade. Run supabase/canonical_revision_migration.sql.",
+    );
+  }
+  if (/unconditional state writes are no longer accepted/i.test(message)) {
+    return new Error(
+      "This client is out of date: live games now require a conditional commit. Reload the app.",
+    );
+  }
   if (
     /sync_live_game_state/i.test(message) &&
     /does not exist|schema cache|PGRST20|42883/i.test(message)

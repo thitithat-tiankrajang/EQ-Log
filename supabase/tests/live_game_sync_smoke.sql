@@ -1,5 +1,10 @@
 -- Local/staging-only smoke test for the live state/session write path.
--- Requires game_archives_migration.sql and always rolls back.
+-- Requires game_archives_migration.sql then canonical_revision_migration.sql,
+-- and always rolls back.
+--
+-- Covers room creation, joining an open seat, and draft-session ordering. The
+-- commit protocol itself (conditional revisions, idempotency, immutability) is
+-- covered by canonical_revision_smoke.sql.
 
 begin;
 
@@ -69,8 +74,14 @@ begin
   from public.room_live
   where room_id = bot_room.room_id;
 
-  perform public.sync_live_game_state(
+  perform public.commit_live_game_command(
     bot_room.room_id,
+    (select revision from public.room_live where room_id = bot_room.room_id),
+    'smoke-bot-turn-2',
+    'A',
+    jsonb_build_object('kind', 'submit_action'),
+    jsonb_build_object('turnNumber', 2, 'activeSide', 'B', 'status', 'playing'),
+    'smoke-digest-bot',
     next_state,
     jsonb_build_object(
       'version', 1,
@@ -129,8 +140,14 @@ begin
   from public.room_live
   where room_id = versus_room.room_id;
 
-  perform public.sync_live_game_state(
+  perform public.commit_live_game_command(
     versus_room.room_id,
+    (select revision from public.room_live where room_id = versus_room.room_id),
+    'smoke-player-turn-2',
+    'B',
+    jsonb_build_object('kind', 'submit_action'),
+    jsonb_build_object('turnNumber', 2, 'activeSide', 'B', 'status', 'playing'),
+    'smoke-digest-player',
     next_state,
     jsonb_build_object(
       'version', 1,

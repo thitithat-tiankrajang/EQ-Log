@@ -18,6 +18,7 @@ import {
   type TokenType,
 } from "./constants/tileDefinitions";
 import { BOARD_LAYOUT, type SlotType } from "./constants/boardLayout";
+import { ALL_ORDINALS, tileIdOf, tokenOfOrdinal } from "./domain/tiles";
 
 export { AMATH_TOKENS, BLANK_ASSIGNMENT_OPTIONS, BOARD_LAYOUT };
 export type { AmathToken, AmathTokenInfo, SlotType, TokenType };
@@ -30,7 +31,6 @@ export type BotDifficulty = "easy" | "medium" | "hard" | "max";
 export type EmailPlayMode = "hosted" | "direct";
 export type RoomStage = "waiting" | "playing";
 export type SideTimerMinutes = Record<Side, number | null>;
-
 
 export type TileInstance = {
   id: string;
@@ -199,6 +199,15 @@ export function getPendingExchangeReturnBySide(game: {
 export type GameSnapshot = {
   commitId: string;
   gameId: string;
+  /**
+   * Authoritative position of this game: monotonic, +1 per committed change,
+   * assigned by the server. Everything about which of two states is newer is
+   * decided by comparing this number.
+   *
+   * Absent on games saved before revisions existed; `revisionOf` reads those
+   * as revision 0 so they cannot appear to be ahead of anything.
+   */
+  revision?: number;
   name: string;
   /** versus alternates A/B; solo keeps every turn, score, and timer on A. */
   gameMode?: GameMode;
@@ -327,14 +336,17 @@ export function getTileDrawMode(game: { tileDrawMode?: TileDrawMode }): TileDraw
   return game.tileDrawMode ?? "manual";
 }
 
+/**
+ * The complete physical set, in manifest order.
+ *
+ * Built from `src/domain/tiles.ts` rather than re-derived here, so there is
+ * exactly one definition of which hundred tiles exist and what each one is.
+ */
 export function createInitialTilebag(options: { shuffleForPlay?: boolean } = {}): TileInstance[] {
-  const tiles = (Object.keys(AMATH_TOKENS) as AmathToken[]).flatMap((token) => {
-    const info = AMATH_TOKENS[token];
-    return Array.from({ length: info.count }, (_, index) => ({
-      id: `${tokenIdPrefix(token)}_${index + 1}`,
-      token,
-    }));
-  });
+  const tiles = ALL_ORDINALS.map((ordinal) => ({
+    id: tileIdOf(ordinal),
+    token: tokenOfOrdinal(ordinal),
+  }));
   return options.shuffleForPlay ? shuffleTilebagQueue(tiles) : tiles;
 }
 
@@ -571,6 +583,7 @@ export function makeSnapshot(game: GameState | Omit<GameState, "history" | "hist
   return deepClone({
     commitId: crypto.randomUUID(),
     gameId: game.gameId,
+    revision: game.revision,
     name: game.name,
     gameMode: getGameMode(game),
     players: game.players,
@@ -1144,41 +1157,6 @@ function scoreEquationCells(
 
 function formatValue(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
-}
-
-function tokenIdPrefix(token: AmathToken): string {
-  const prefixes: Record<AmathToken, string> = {
-    "0": "n0",
-    "1": "n1",
-    "2": "n2",
-    "3": "n3",
-    "4": "n4",
-    "5": "n5",
-    "6": "n6",
-    "7": "n7",
-    "8": "n8",
-    "9": "n9",
-    "10": "n10",
-    "11": "n11",
-    "12": "n12",
-    "13": "n13",
-    "14": "n14",
-    "15": "n15",
-    "16": "n16",
-    "17": "n17",
-    "18": "n18",
-    "19": "n19",
-    "20": "n20",
-    "+": "plus",
-    "-": "minus",
-    x: "mul",
-    "/": "div",
-    "+/-": "plusminus",
-    "x//": "muldiv",
-    "=": "eq",
-    "?": "blank",
-  };
-  return prefixes[token];
 }
 
 function tileAt(

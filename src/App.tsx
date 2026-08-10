@@ -79,7 +79,8 @@ import * as remoteRooms from "./remoteRooms";
 import type { LiveRoomSession, RoomSessionEvent } from "./remoteRooms";
 import { navigate, useRoute } from "./router";
 import { getRoomActorCapabilities } from "./roomAccess";
-import { isRemoteGameAhead, isRemoteGameStale } from "./gameSync";
+import { isRemoteGameAhead, isRemoteGameStale, revisionOf, withRevision } from "./gameSync";
+import { applyCanonicalToSnapshot, decodeCanonical, inventoryFrom } from "./domain/projection";
 import {
   createWaitingGame,
   getRoomStage,
@@ -420,8 +421,9 @@ function App() {
   const lastAppliedSessionActorIdRef = useRef<string | null>(null);
   const deferredRemoteSessionRef = useRef<LiveRoomSession | null>(null);
   const shouldFlushEmptyLiveSessionRef = useRef(false);
-  const localStateWriteKeysRef = useRef(new Set<string>());
-  const latestRequestedStateKeyRef = useRef("");
+  // Command id per outgoing position, so a retry of the same intent reuses its
+  // id and the server can recognize and ignore the duplicate.
+  const commandIdsByStateKeyRef = useRef(new Map<string, string>());
   const foregroundOperationRef = useRef(0);
   const liveSessionSyncTimerRef = useRef<number | null>(null);
   const compactedRoomIdsRef = useRef(new Set<string>());
@@ -807,6 +809,50 @@ function App() {
     };
   }, [remoteEnabled, view, requestedLobbyScope?.visibility, requestedLobbyScope?.regionId, userId]);
 
+  // Spectators follow the broadcast topic instead of the room row: one publish
+  // per move, a payload bounded by the size of the physical set rather than by
+  // the length of the game, and no per-observer work on the authoritative side.
+  // A read-only observer never writes, so this is the whole of its sync path
+  // apart from the snapshot it fetched when it opened the room.
+  useEffect(() => {
+    if (!remoteEnabled || view !== "game" || !activeRoomId || !readOnly) return;
+    let disposed = false;
+    const unsubscribe = remoteRooms.subscribeToGameCommits(
+      activeRoomId,
+      (commit) => {
+        if (disposed || commit.gameId !== activeRoomIdRef.current) return;
+        const local = gameRef.current;
+        if (!local) return;
+        // An older or already-applied revision carries nothing new.
+        if (commit.revision <= revisionOf(local)) return;
+        try {
+          const canonical = decodeCanonical(commit.canonical);
+          setGame(
+            withRevision(applyCanonicalToSnapshot(local, canonical), commit.revision) as GameState,
+          );
+          setSyncError(null);
+        } catch (error) {
+          // The broadcast did not describe the physical set. Say so and fall
+          // back to authoritative data rather than rendering it.
+          setSyncError(
+            error instanceof Error ? error.message : "Unable to read the live game update.",
+          );
+          void reconcileActiveRoom();
+        }
+      },
+      (status) => {
+        if (disposed) return;
+        // A fresh subscription pulls whatever the socket missed while it was down.
+        if (status === "SUBSCRIBED") void reconcileActiveRoom();
+      },
+    );
+    return () => {
+      disposed = true;
+      unsubscribe();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remoteEnabled, view, activeRoomId, readOnly, subscriptionEpoch]);
+
   useEffect(() => {
     if (!remoteEnabled || view !== "game" || !activeRoomId) return;
     let disposed = false;
@@ -966,17 +1012,38 @@ function App() {
     const event = pendingSessionEventRef.current ?? "state";
     pendingSessionEventRef.current = null;
     lastAppliedStateKeyRef.current = remoteStateKey;
-    rememberRecentKey(localStateWriteKeysRef.current, remoteStateKey);
-    latestRequestedStateKeyRef.current = remoteStateKey;
+    // One intent, one id. If this effect retries the same position the server
+    // recognizes the id and refuses to apply the change a second time.
+    const commandId = commandIdFor(commandIdsByStateKeyRef.current, remoteStateKey);
+    const expectedRevision = revisionOf(game);
     setBackgroundSyncCount((count) => count + 1);
     void remoteRooms
-      .updateRoomState({
+      .commitRoomState({
         id: activeRoomId,
         game,
         session: liveSession,
         event,
+        expectedRevision,
+        commandId,
+        issuedBy: invitedSides.length === 1 ? invitedSides[0] : "host",
       })
-      .then(() => {
+      .then((result) => {
+        if (result.outcome === "conflict") {
+          // Someone else committed against this revision first. This client's
+          // change was not applied and must not be retried on top of a position
+          // it was never composed against: take authoritative state instead.
+          setSyncError(null);
+          lastAppliedStateKeyRef.current = "";
+          void reconcileActiveRoom();
+          return;
+        }
+        // Adopt the confirmed position so the next commit names it. The content
+        // is unchanged, so this cannot disturb anything on screen.
+        setGame((current) =>
+          current && current.gameId === game.gameId && revisionOf(current) < result.revision
+            ? withRevision(current, result.revision)
+            : current,
+        );
         setSyncError(null);
         setRooms((current) =>
           current.map((room) =>
@@ -1004,10 +1071,6 @@ function App() {
         );
       })
       .catch(async (error: Error) => {
-        localStateWriteKeysRef.current.delete(remoteStateKey);
-        if (latestRequestedStateKeyRef.current === remoteStateKey) {
-          latestRequestedStateKeyRef.current = "";
-        }
         setSyncError(error.message);
         try {
           const authoritative = await remoteRooms.readRoom(activeRoomId);
@@ -1774,8 +1837,6 @@ function App() {
   }
 
   function resetRemoteRoomTracking() {
-    localStateWriteKeysRef.current.clear();
-    latestRequestedStateKeyRef.current = "";
     lastAppliedSessionKeyRef.current = "";
     lastAppliedSessionUpdatedAtRef.current = "";
     lastAppliedSessionScopeRef.current = "";
@@ -2067,7 +2128,7 @@ function App() {
   async function persistWaitingGame(next: GameState) {
     if (!activeRoomId) return;
     if (remoteEnabled) {
-      await remoteRooms.updateRoomState({
+      await remoteRooms.commitRoomState({
         id: activeRoomId,
         game: next,
         session: remoteRooms.emptyLiveSession(userId),
@@ -2176,7 +2237,7 @@ function App() {
           setGame(nextGame);
           return;
         }
-        await remoteRooms.updateRoomState({
+        await remoteRooms.commitRoomState({
           id,
           game: nextGame,
           session: id === activeRoomId ? liveSession : remoteRooms.emptyLiveSession(userId),
@@ -2361,7 +2422,7 @@ function App() {
     compactedRoomIdsRef.current.add(payload.meta.id);
     setBackgroundSyncCount((count) => count + 1);
     const repair = payload.needsCompaction
-      ? remoteRooms.updateRoomState({
+      ? remoteRooms.commitRoomState({
           id: payload.meta.id,
           game: saved,
           session: payload.session,
@@ -2440,45 +2501,45 @@ function App() {
     }
   }
 
+  /**
+   * Fold an authoritative room row into local state.
+   *
+   * Ordering is decided by the server-assigned revision and nothing else. The
+   * content key is used only for the question it can actually answer — "is this
+   * byte-for-byte what I already have?" — which is how this client recognizes
+   * its own write coming back without mistaking it for someone else's move.
+   */
   function applyRemotePayload(
     payload: remoteRooms.RemoteRoomPayload,
     options: { allowRollback?: boolean } = {},
   ): GameState | null {
-    if (hasDuplicateTileIds(payload.game)) throw new Error("Live room data is damaged.");
     const remoteGame = advanceRunningClock(normalizeFinishedGame(payload.game));
     const key = makeRemoteStateKey(remoteGame);
     setRooms((current) => upsertRoomMeta(current, payload.meta));
     const localGame = gameRef.current;
-    const ownWriteEcho = localStateWriteKeysRef.current.delete(key);
+    const sameGame = Boolean(localGame && localGame.gameId === remoteGame.gameId);
+
     if (!options.allowRollback && localGame && isRemoteGameStale(localGame, remoteGame)) {
-      // Realtime delivery can lag behind local writes. Never let an older turn
-      // or rack snapshot replace a move that is already visible locally.
+      // A lower revision carries nothing this client has not already applied.
+      // Delayed delivery, duplicate delivery and a slow read racing a fast one
+      // all land here, and none of them can undo a committed turn.
       setSyncError(null);
       return null;
     }
-    if (ownWriteEcho) {
-      if (latestRequestedStateKeyRef.current && key !== latestRequestedStateKeyRef.current) {
-        setSyncError(null);
-        return null;
+
+    if (localGame && sameGame && makeRemoteStateKey(localGame) === key) {
+      // Identical position: this is this client's own commit echoing back, or a
+      // redelivery. Take the confirmed revision and leave everything else —
+      // including a draft in progress — exactly as it is.
+      if (isRemoteGameAhead(localGame, remoteGame)) {
+        setGame(withRevision(localGame, revisionOf(remoteGame)));
       }
       lastAppliedStateKeyRef.current = key;
-      // Usually the local state already equals this echo. If another delayed
-      // event displaced it, restore the confirmed write instead of skipping
-      // it — EXCEPT while composing: lifecycle writes (stop request/response)
-      // intentionally publish a sanitized board while the local draft keeps
-      // its placed tiles, and the echo must not wipe that draft.
-      if (
-        (!localGame || makeRemoteStateKey(localGame) !== key) &&
-        !shouldDeferRemoteGameWhileComposing(remoteGame)
-      ) {
-        setGame(remoteGame);
-        cancelDraftOnly();
-        if (isFinishedGame(remoteGame)) setShowResult(true);
-      }
       applyDeferredRemoteSession(remoteGame);
       setSyncError(null);
       return remoteGame;
     }
+
     if (shouldDeferRemoteGameWhileComposing(remoteGame)) {
       // Board and rack stay local while composing, but match-control metadata
       // (an incoming stop request, or the answer to ours) must land
@@ -2500,8 +2561,8 @@ function App() {
       return null;
     }
     if (key !== lastAppliedStateKeyRef.current) {
-      // Real state change (move / pause / end / etc.) — adopt the authoritative game.
-      // Session-only updates (tile selection, drafts) skip this, so the spectator's
+      // A position this client has not reached — adopt it wholesale. Session-only
+      // updates (tile selection, drafts) never get here, so the spectator's
       // locally-ticking clock keeps running between moves (live countdown).
       lastAppliedStateKeyRef.current = key;
       setGame(remoteGame);
@@ -4127,11 +4188,9 @@ function App() {
     if (!remoteEnabled || !roomId || !canWriteActiveRoom) return;
     const key = makeRemoteStateKey(nextGame);
     lastAppliedStateKeyRef.current = key;
-    rememberRecentKey(localStateWriteKeysRef.current, key);
-    latestRequestedStateKeyRef.current = key;
     setBackgroundSyncCount((count) => count + 1);
     try {
-      await remoteRooms.updateRoomState({
+      await remoteRooms.commitRoomState({
         id: roomId,
         game: nextGame,
         session: liveSession,
@@ -4139,8 +4198,6 @@ function App() {
       });
       setSyncError(null);
     } catch (error) {
-      localStateWriteKeysRef.current.delete(key);
-      if (latestRequestedStateKeyRef.current === key) latestRequestedStateKeyRef.current = "";
       setSyncError(error instanceof Error ? error.message : "Unable to sync the stop request.");
       try {
         const authoritative = await remoteRooms.readRoom(roomId);
@@ -4360,7 +4417,7 @@ function App() {
         const draftKey = makeRemoteStateKey(draftGame);
         const finishLoading = startForegroundLoading("Saving room...");
         try {
-          await remoteRooms.updateRoomState({
+          await remoteRooms.commitRoomState({
             id: activeRoomId,
             game: draftGame,
             session,
@@ -4370,8 +4427,6 @@ function App() {
           shouldFlushEmptyLiveSessionRef.current = false;
           lastAppliedStateKeyRef.current = draftKey;
           lastAppliedSessionKeyRef.current = makeLiveSessionKey(session);
-          rememberRecentKey(localStateWriteKeysRef.current, draftKey);
-          latestRequestedStateKeyRef.current = draftKey;
           setSyncError(null);
         } catch (error) {
           setSyncError(error instanceof Error ? error.message : "Unable to save this room.");
@@ -5137,20 +5192,32 @@ function downloadGame(game: GameState) {
   URL.revokeObjectURL(url);
 }
 
-function hasDuplicateTileIds(game: GameState): boolean {
-  const ids = new Set<string>();
-  const tiles: TileInstance[] = [
-    ...game.tilebag,
-    ...aggregatePendingExchangeReturns(getPendingExchangeReturnBySide(game)),
-    ...game.rackA,
-    ...game.rackB,
-    ...game.board.flat().flatMap((cell) => (cell ? [cell.tile] : [])),
-  ];
-  for (const tile of tiles) {
-    if (ids.has(tile.id)) return true;
-    ids.add(tile.id);
+/**
+ * Why this position cannot be the physical set, or null when it can be.
+ *
+ * The old check only looked for repeated ids, which catches a duplicated tile
+ * but not a lost one, an invented one, or a tile whose face no longer matches
+ * its identity. This proves the whole thing: 100 tiles, each of them one of the
+ * manifest tiles, each in exactly one place.
+ */
+function physicalSetProblem(game: GameState): string | null {
+  try {
+    inventoryFrom({
+      tilebag: game.tilebag,
+      rackA: game.rackA,
+      rackB: game.rackB,
+      board: game.board,
+      pendingReturnA: getPendingExchangeReturnBySide(game).A,
+      pendingReturnB: getPendingExchangeReturnBySide(game).B,
+    });
+    return null;
+  } catch (error) {
+    return error instanceof Error ? error.message : "This game is not a valid set of 100 tiles.";
   }
-  return false;
+}
+
+function hasDuplicateTileIds(game: GameState): boolean {
+  return physicalSetProblem(game) !== null;
 }
 
 function upsertRoomMeta(rooms: RoomMeta[], incoming: RoomMeta): RoomMeta[] {
@@ -5234,14 +5301,26 @@ async function copyText(value: string): Promise<void> {
   input.remove();
 }
 
-function rememberRecentKey(keys: Set<string>, key: string): void {
-  keys.add(key);
-  while (keys.size > 32) {
-    const oldest = keys.values().next().value as string | undefined;
+/**
+ * The command id for a given outgoing position, minted once and reused.
+ *
+ * Retrying a write with a fresh id would let the server apply the same physical
+ * move twice; reusing it lets the server recognize the retry and return the
+ * effect it already produced.
+ */
+function commandIdFor(ids: Map<string, string>, stateKey: string): string {
+  const existing = ids.get(stateKey);
+  if (existing) return existing;
+  const id = crypto.randomUUID();
+  ids.set(stateKey, id);
+  while (ids.size > 32) {
+    const oldest = ids.keys().next().value as string | undefined;
     if (!oldest) break;
-    keys.delete(oldest);
+    ids.delete(oldest);
   }
+  return id;
 }
+
 
 function reconcileRackLayout(current: (string | null)[], rack: TileInstance[]): (string | null)[] {
   const presentIds = new Set(rack.map((tile) => tile.id));

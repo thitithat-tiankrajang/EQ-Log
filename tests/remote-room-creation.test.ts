@@ -13,7 +13,7 @@ vi.mock("../src/supabaseClient", () => ({
   supabase: { from, rpc },
 }));
 
-import { createRoom, emptyLiveSession } from "../src/remoteRooms";
+import { commitRoomState, createRoom, emptyLiveSession } from "../src/remoteRooms";
 
 describe("remote live-game creation", () => {
   beforeEach(() => {
@@ -39,7 +39,10 @@ describe("remote live-game creation", () => {
       if (name === "create_live_game") {
         return { data: { room_id: roomId, room_code: "AETHER123456" }, error: null };
       }
-      if (name === "sync_live_game_state") synced = true;
+      if (name === "commit_live_game_command") {
+        synced = true;
+        return { data: { outcome: "committed", revision: 1 }, error: null };
+      }
       return { data: null, error: null };
     });
 
@@ -72,7 +75,7 @@ describe("remote live-game creation", () => {
       profiles: { display_name: "Owner" },
     };
     const maybeSingle = vi.fn(async () => ({
-      data: { ...row, state: synced ? encodeGame(game) : null },
+      data: { ...row, state: synced ? encodeGame(game) : null, revision: synced ? 1 : 0 },
       error: null,
     }));
     const eq = vi.fn(() => ({ maybeSingle }));
@@ -100,15 +103,78 @@ describe("remote live-game creation", () => {
 
     expect(rpc.mock.calls.map(([name]) => name)).toEqual([
       "create_live_game",
-      "sync_live_game_state",
+      "commit_live_game_command",
       "get_live_game_code",
     ]);
     expect(rpc).toHaveBeenCalledWith(
-      "sync_live_game_state",
+      "commit_live_game_command",
       expect.objectContaining({
+        target_expected_revision: 0,
+        target_command_id: expect.any(String),
         target_state: expect.objectContaining({ playerUserIds: { A: ownerId } }),
         target_session: session,
       }),
     );
+  });
+
+  it("publishes the canonical 100-tile position alongside the record", async () => {
+    const roomId = "44444444-4444-4444-8444-444444444444";
+    const game = createNewGame({ ...DEFAULT_NEW_GAME_SETTINGS, tileDrawMode: "play" });
+    rpc.mockResolvedValue({ data: { outcome: "committed", revision: 4 }, error: null });
+
+    await expect(
+      commitRoomState({
+        id: roomId,
+        game: { ...game, revision: 3 },
+        session: emptyLiveSession(null),
+        event: "submit_action",
+        commandId: "intent-1",
+        issuedBy: "A",
+      }),
+    ).resolves.toEqual({ outcome: "committed", revision: 4 });
+
+    const [name, args] = rpc.mock.calls.at(-1)! as [string, Record<string, never>];
+    expect(name).toBe("commit_live_game_command");
+    const payload = args as unknown as {
+      target_expected_revision: number;
+      target_command_id: string;
+      target_issued_by: string;
+      target_canonical: { inventory: unknown[]; revision: number };
+      target_canonical_digest: string;
+      target_state: { revision: number };
+    };
+    expect(payload.target_expected_revision).toBe(3);
+    expect(payload.target_command_id).toBe("intent-1");
+    expect(payload.target_issued_by).toBe("A");
+    // Bounded, and always the whole physical set.
+    expect(payload.target_canonical.inventory).toHaveLength(100);
+    expect(payload.target_canonical.revision).toBe(4);
+    expect(payload.target_state.revision).toBe(4);
+    expect(payload.target_canonical_digest).toMatch(/^[0-9a-f]{8}$/);
+  });
+
+  it("reports a conflict instead of overwriting when the game has moved on", async () => {
+    const game = createNewGame({ ...DEFAULT_NEW_GAME_SETTINGS, tileDrawMode: "play" });
+    rpc.mockResolvedValue({ data: { outcome: "conflict", revision: 9 }, error: null });
+    await expect(
+      commitRoomState({
+        id: "44444444-4444-4444-8444-444444444444",
+        game: { ...game, revision: 3 },
+        session: emptyLiveSession(null),
+      }),
+    ).resolves.toEqual({ outcome: "conflict", revision: 9 });
+  });
+
+  it("refuses to publish a position that is not the 100-tile set", async () => {
+    const game = createNewGame({ ...DEFAULT_NEW_GAME_SETTINGS, tileDrawMode: "play" });
+    rpc.mockResolvedValue({ data: { outcome: "committed", revision: 1 }, error: null });
+    await expect(
+      commitRoomState({
+        id: "44444444-4444-4444-8444-444444444444",
+        game: { ...game, tilebag: game.tilebag.slice(1) },
+        session: emptyLiveSession(null),
+      }),
+    ).rejects.toThrow(/does not describe the 100-tile set/);
+    expect(rpc).not.toHaveBeenCalled();
   });
 });

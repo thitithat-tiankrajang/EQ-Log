@@ -3,30 +3,37 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_NEW_GAME_SETTINGS } from "../src/constants/roomDefaults";
 import { createNewGame } from "../src/game";
 
-const { listRooms, readRoom, realtimeHarness, subscribeToRoom } = vi.hoisted(() => {
-  const harness = {
-    listRooms: vi.fn(),
-    readRoom: vi.fn(),
-    statusHandler: undefined as ((status: "SUBSCRIBED") => void) | undefined,
-    subscribeToRoom: vi.fn(
-      (
-        _id: string,
-        _onState: unknown,
-        _onSession: unknown,
-        onStatus?: (status: "SUBSCRIBED") => void,
-      ) => {
-        harness.statusHandler = onStatus;
+const { listRooms, readRoom, realtimeHarness, subscribeToGameCommits, subscribeToRoom } =
+  vi.hoisted(() => {
+    const harness = {
+      listRooms: vi.fn(),
+      readRoom: vi.fn(),
+      statusHandler: undefined as ((status: "SUBSCRIBED") => void) | undefined,
+      commitHandler: undefined as ((commit: unknown) => void) | undefined,
+      subscribeToRoom: vi.fn(
+        (
+          _id: string,
+          _onState: unknown,
+          _onSession: unknown,
+          onStatus?: (status: "SUBSCRIBED") => void,
+        ) => {
+          harness.statusHandler = onStatus;
+          return () => undefined;
+        },
+      ),
+      subscribeToGameCommits: vi.fn((_id: string, onCommit: (commit: unknown) => void) => {
+        harness.commitHandler = onCommit;
         return () => undefined;
-      },
-    ),
-  };
-  return {
-    listRooms: harness.listRooms,
-    readRoom: harness.readRoom,
-    realtimeHarness: harness,
-    subscribeToRoom: harness.subscribeToRoom,
-  };
-});
+      }),
+    };
+    return {
+      listRooms: harness.listRooms,
+      readRoom: harness.readRoom,
+      realtimeHarness: harness,
+      subscribeToGameCommits: harness.subscribeToGameCommits,
+      subscribeToRoom: harness.subscribeToRoom,
+    };
+  });
 
 const { thinkWithBot, warmUpBotEngine } = vi.hoisted(() => ({
   thinkWithBot: vi.fn(() => ({
@@ -64,6 +71,7 @@ vi.mock("../src/remoteRooms", async (importOriginal) => {
     ...actual,
     listRooms,
     readRoom,
+    subscribeToGameCommits,
     subscribeToRoom,
   };
 });
@@ -92,6 +100,7 @@ describe("play route data loading", () => {
     listRooms.mockReset().mockResolvedValue([]);
     readRoom.mockReset();
     subscribeToRoom.mockClear();
+    subscribeToGameCommits.mockClear();
     thinkWithBot.mockClear();
     warmUpBotEngine.mockClear();
     realtimeHarness.statusHandler = undefined;

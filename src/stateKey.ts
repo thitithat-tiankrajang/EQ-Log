@@ -1,15 +1,22 @@
-// Content-identity key for a GameState, used to recognize this client's own
-// Supabase write when it echoes back through the realtime channel.
+// Content identity for a GameState.
 //
-// The key must identify a game by CONTENT, not object identity:
-//  • codec.ts regenerates every tile id on decode, so the echo of this
-//    client's own write comes back with different tile ids.
-//  • Postgres jsonb re-orders object keys, so verbatim-stored objects
-//    (logs, actionDetail, …) come back with sorted keys.
-// canonicalStringify sorts keys recursively and drops "id" fields so the
-// local key and the decoded-echo key match. Without this, applyRemotePayload
-// treats every self-echo as an external change and wipes the in-progress
-// draft (placed tiles vanish from both rack and board).
+// This answers exactly one question: are two states byte-for-byte the same
+// position? It is NOT an ordering mechanism — which of two states is newer is
+// decided by the server-assigned revision (`gameSync.ts`) and never inferred
+// from content.
+//
+// Two uses remain, and both are equality tests:
+//   • recognizing this client's own commit when it echoes back through the
+//     realtime channel, so the echo does not read as someone else's move and
+//     wipe a draft in progress;
+//   • deciding whether local state has actually changed enough to be worth
+//     writing at all.
+//
+// canonicalStringify sorts keys recursively because Postgres jsonb re-orders
+// object keys, so a verbatim-stored object comes back sorted. Tile ids are
+// compared like any other field: they are stable manifest ids now, so two
+// clients holding the same position produce the same key, and a position where
+// a DIFFERENT physical tile sits in the same slot correctly compares unequal.
 
 import {
   aggregatePendingExchangeReturns,
@@ -29,12 +36,17 @@ export function canonicalStringify(value: unknown): string {
   const record = value as Record<string, unknown>;
   const parts: string[] = [];
   for (const key of Object.keys(record).sort()) {
-    if (key === "id" || record[key] === undefined) continue;
+    if (record[key] === undefined) continue;
     parts.push(`${JSON.stringify(key)}:${canonicalStringify(record[key])}`);
   }
   return `{${parts.join(",")}}`;
 }
 
+/**
+ * Content key for a position. Deliberately excludes `revision` — the key must
+ * identify the position itself, so that a confirmed commit (same content, new
+ * revision) is recognized as the position this client already has.
+ */
 export function makeRemoteStateKey(game: GameState): string {
   return canonicalStringify({
     activeSide: game.activeSide,

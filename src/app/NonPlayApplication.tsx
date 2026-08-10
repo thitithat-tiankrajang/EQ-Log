@@ -441,7 +441,7 @@ export default function NonPlayApplication() {
   async function persistWaiting(next: GameState) {
     if (!activeRoomId) return;
     if (remoteEnabled) {
-      await remoteRooms.updateRoomState({
+      await remoteRooms.commitRoomState({
         id: activeRoomId,
         game: next,
         session: remoteRooms.emptyLiveSession(userId),
@@ -526,7 +526,7 @@ export default function NonPlayApplication() {
       if (remoteEnabled) {
         const payload = await remoteRooms.readRoom(id);
         if (!payload) throw new Error("Room not found.");
-        await remoteRooms.updateRoomState({
+        await remoteRooms.commitRoomState({
           id,
           game: { ...payload.game, name: name.trim(), lastSavedAt: new Date().toISOString() },
           session: remoteRooms.emptyLiveSession(userId),

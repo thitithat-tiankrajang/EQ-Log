@@ -13,7 +13,7 @@ import {
   emptyLiveSession,
   makeLiveSession,
   updateRoomSession,
-  updateRoomState,
+  commitRoomState,
 } from "../src/remoteRooms";
 
 describe("remote live-game write ordering", () => {
@@ -54,7 +54,7 @@ describe("remote live-game write ordering", () => {
 
     const draftWrite = updateRoomSession(roomId, draft);
     await vi.waitFor(() => expect(rpc).toHaveBeenCalledTimes(1));
-    const stateWrite = updateRoomState({ id: roomId, game, session: committedSession });
+    const stateWrite = commitRoomState({ id: roomId, game, session: committedSession });
 
     await Promise.resolve();
     expect(rpc.mock.calls.map(([name]) => name)).toEqual(["update_live_game_session"]);
@@ -64,10 +64,10 @@ describe("remote live-game write ordering", () => {
 
     expect(rpc.mock.calls.map(([name]) => name)).toEqual([
       "update_live_game_session",
-      "sync_live_game_state",
+      "commit_live_game_command",
     ]);
     expect(rpc).toHaveBeenLastCalledWith(
-      "sync_live_game_state",
+      "commit_live_game_command",
       expect.objectContaining({ target_session: committedSession }),
     );
   });
