@@ -12,5 +12,4 @@
 @import "./styles/tokens.css" layer(legacy);
 @import "./styles/95-material-ai.css" layer(legacy);
 @import "./styles/components/97-ui-kit.css" layer(legacy);
-@import "./styles/components/98-bot-thinking.css" layer(legacy);
 @import "./styles/99-mobile-play.css" layer(legacy);

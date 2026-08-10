@@ -1654,7 +1654,7 @@ function App() {
   }
 
   const coffeeReturn =
-    coffeeRoomId && !(route.kind === "play" && route.roomId === coffeeRoomId) ? (
+    coffeeRoomId && route.kind !== "play" ? (
       <CoffeeReturnButton
         roomName={rooms.find((room) => room.id === coffeeRoomId)?.name ?? "paused game"}
         onReturn={() => void returnToCoffeeRoom()}

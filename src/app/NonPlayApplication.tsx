@@ -628,7 +628,9 @@ export default function NonPlayApplication() {
   const coffeeReturn =
     coffeeRoomId && !(route.kind === "room" && route.roomId === coffeeRoomId) ? (
       <button
+        aria-label="Return to paused game"
         className="eq-coffee-return"
+        title="Return to paused game"
         type="button"
         onClick={() => {
           navigate({ kind: "play", roomId: coffeeRoomId });
@@ -636,15 +638,40 @@ export default function NonPlayApplication() {
           setCoffeeRoomId(null);
         }}
       >
-        <Coffee size={18} /> Return to game
+        <span className="eq-coffee-return-icon" aria-hidden="true">
+          <Coffee size={19} />
+        </span>
+        <span className="eq-coffee-return-copy">
+          <small>Game paused</small>
+          <strong>Return to game</strong>
+        </span>
       </button>
     ) : null;
 
-  if (route.kind === "admin") return <AdminPage section={route.section} />;
-  if (route.kind === "private") {
-    return <PrivateLibraryPage folderId={route.folderId} trash={route.trash} />;
+  if (route.kind === "admin") {
+    return (
+      <>
+        <AdminPage section={route.section} />
+        {coffeeReturn}
+      </>
+    );
   }
-  if (route.kind === "profile") return <ProfilePage />;
+  if (route.kind === "private") {
+    return (
+      <>
+        <PrivateLibraryPage folderId={route.folderId} trash={route.trash} />
+        {coffeeReturn}
+      </>
+    );
+  }
+  if (route.kind === "profile") {
+    return (
+      <>
+        <ProfilePage />
+        {coffeeReturn}
+      </>
+    );
+  }
 
   if (route.kind === "home") {
     return (

@@ -1,5 +1,6 @@
 @layer legacy, common, application;
 
 @import "./styles/components/96-loading-activity.css" layer(common);
+@import "./styles/components/98-bot-thinking.css" layer(legacy);
 @import "./styles/pages/lobby/95-bot-stats.css" layer(application);
 @import "./styles/application.css" layer(application);

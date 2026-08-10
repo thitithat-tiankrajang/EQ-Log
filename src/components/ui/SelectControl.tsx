@@ -1,5 +1,5 @@
 import { Check, ChevronDown } from "lucide-react";
-import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 
 export type SelectOption<T extends string> = {
@@ -43,7 +43,7 @@ export function SelectControl<T extends string>({
   const listboxId = useId();
   const selected = options.find((option) => option.value === value);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
