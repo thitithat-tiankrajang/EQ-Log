@@ -1985,12 +1985,12 @@ create policy room_live_delete on public.room_live for delete
 revoke all on table public.public_game_snapshots from anon, authenticated;
 revoke all on table public.region_game_snapshots from anon, authenticated;
 grant select (
-  game_id, name, player_a, player_b, game_mode, mode_key, turn_number,
+  game_id, source_owner_id, name, player_a, player_b, game_mode, mode_key, turn_number,
   score_a, score_b, completion_kind, completion_reason, surrendered_side,
   snapshot, created_at, finished_at, archived_at
 ) on table public.public_game_snapshots to authenticated;
 grant select (
-  game_id, region_id, name, player_a, player_b, game_mode, mode_key,
+  game_id, region_id, source_owner_id, name, player_a, player_b, game_mode, mode_key,
   turn_number, score_a, score_b, completion_kind, completion_reason,
   surrendered_side, snapshot, created_at, finished_at, archived_at
 ) on table public.region_game_snapshots to authenticated;

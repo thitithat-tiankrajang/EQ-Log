@@ -125,7 +125,9 @@ begin
     raise exception 'a retried command was applied twice';
   end if;
 
-  -- 4) Committed history is immutable.
+  -- 4) Committed history is immutable. UPDATE has a belt-and-suspenders
+  -- trigger; DELETE is denied to every API role by table ACL so it cannot
+  -- interfere with the foreign-key cascade used by lifecycle cleanup.
   refused := false;
   begin
     update public.live_game_events set command_id = 'rewritten'
@@ -137,14 +139,11 @@ begin
     raise exception 'a committed event could be rewritten';
   end if;
 
-  refused := false;
-  begin
-    delete from public.live_game_events where game_id = room.room_id and revision = 1;
-  exception when others then
-    refused := true;
-  end;
-  if not refused then
-    raise exception 'a committed event could be deleted';
+  if has_table_privilege('anon', 'public.live_game_events', 'DELETE')
+    or has_table_privilege('authenticated', 'public.live_game_events', 'DELETE')
+    or has_table_privilege('service_role', 'public.live_game_events', 'DELETE')
+  then
+    raise exception 'an API role can delete a committed event directly';
   end if;
 
   -- 5) The unconditional write path is closed.
@@ -187,6 +186,29 @@ begin
   end if;
   if (select count(*) from public.list_live_game_events(room.room_id, 1, 200)) <> 0 then
     raise exception 'gap filling returned deltas the caller already had';
+  end if;
+
+  -- 7) Finalizing the parent game may cascade-delete its event history. The
+  -- mutation ACL checked above must not interfere with lifecycle cleanup.
+  perform set_config('request.jwt.claim.sub', owner_id::text, true);
+  perform set_config(
+    'request.jwt.claims',
+    jsonb_build_object('sub', owner_id, 'role', 'authenticated')::text,
+    true
+  );
+  select * into head from public.room_live where room_id = room.room_id;
+  perform public.finalize_live_game(
+    room.room_id,
+    jsonb_set(head.state, '{status}', '"finished"'::jsonb, true),
+    'terminated',
+    'manual',
+    null
+  );
+  if exists (select 1 from public.room_live where room_id = room.room_id) then
+    raise exception 'finalization did not delete the live game';
+  end if;
+  if exists (select 1 from public.live_game_events where game_id = room.room_id) then
+    raise exception 'finalization left orphaned committed events';
   end if;
 end;
 $smoke$;

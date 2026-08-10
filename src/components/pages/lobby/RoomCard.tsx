@@ -81,7 +81,6 @@ export function RoomCard({
         secondary={
           <>
             <span className="eq-room-card-owner">
-              {room.ownerName ? `Hosted by ${room.ownerName}` : "Local room"}
               <i>{role.label}</i>
             </span>
             <span className="eq-room-card-join-hint">
@@ -100,6 +99,7 @@ export function RoomCard({
             <span className="eq-room-card-time">{formatRelative(room.updatedAt)}</span>
           </>
         }
+        creator={room.ownerName ?? "Unknown account"}
         actions={
           <>
             <button

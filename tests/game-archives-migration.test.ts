@@ -3,6 +3,10 @@ import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 
 const sql = readFileSync(`${process.cwd()}/supabase/game_archives_migration.sql`, "utf8");
+const creatorAccess = readFileSync(
+  `${process.cwd()}/supabase/archive_creator_access_migration.sql`,
+  "utf8",
+);
 const runbook = readFileSync(`${process.cwd()}/GAME_RECORDS_ARCHITECTURE.md`, "utf8");
 
 describe("game archive migration contract", () => {
@@ -17,6 +21,23 @@ describe("game archive migration contract", () => {
     expect(sql).toContain("completion_reason text not null");
     expect(sql).toContain("where completion_kind = 'natural'");
     expect(sql).toContain("target_completion_kind");
+  });
+
+  it("exposes the source account needed by archive game tables", () => {
+    const publicGrant = sql.match(
+      /grant select \(([\s\S]*?)\) on table public\.public_game_snapshots to authenticated/i,
+    )?.[1];
+    const regionGrant = sql.match(
+      /grant select \(([\s\S]*?)\) on table public\.region_game_snapshots to authenticated/i,
+    )?.[1];
+    expect(publicGrant).toContain("source_owner_id");
+    expect(regionGrant).toContain("source_owner_id");
+    expect(creatorAccess).toMatch(
+      /grant select \(source_owner_id\)\s+on table public\.public_game_snapshots to authenticated/i,
+    );
+    expect(creatorAccess).toMatch(
+      /grant select \(source_owner_id\)\s+on table public\.region_game_snapshots to authenticated/i,
+    );
   });
 
   it("archives before deleting the live row and drops legacy rooms last", () => {

@@ -5,6 +5,14 @@ const migration = readFileSync(
   `${process.cwd()}/supabase/canonical_revision_migration.sql`,
   "utf8",
 );
+const revisionAclRepair = readFileSync(
+  `${process.cwd()}/supabase/room_live_revision_acl_repair.sql`,
+  "utf8",
+);
+const eventCascadeRepair = readFileSync(
+  `${process.cwd()}/supabase/live_game_event_cascade_repair.sql`,
+  "utf8",
+);
 
 function functionBody(name: string): string {
   const body = migration.match(
@@ -29,6 +37,25 @@ describe("canonical revision migration", () => {
     expect(migration).toContain("add column if not exists canonical jsonb");
     expect(migration).toContain("add column if not exists canonical_digest text");
   });
+
+  it("keeps the opened-game read contract valid after adding revision", () => {
+    expect(migration).toContain(
+      "grant select (revision) on table public.room_live to authenticated",
+    );
+    expect(migration).not.toMatch(
+      /grant select \([^)]*\b(?:canonical|canonical_digest)\b[^)]*\) on table public\.room_live to authenticated/i,
+    );
+  });
+
+  it("provides a narrow repair for databases that already ran the migration", () => {
+    expect(revisionAclRepair).toContain(
+      "grant select (revision) on table public.room_live to authenticated",
+    );
+    expect(revisionAclRepair).not.toMatch(/grant select on table public\.room_live/i);
+    expect(revisionAclRepair).toContain(
+      "has_column_privilege(\n    'authenticated',\n    'public.room_live',\n    'revision',\n    'SELECT'",
+    );
+  });
 });
 
 describe("the committed event log", () => {
@@ -46,7 +73,23 @@ describe("the committed event log", () => {
 
   it("is append-only", () => {
     expect(migration).toContain("committed game events are immutable");
-    expect(migration).toMatch(/before update or delete on public\.live_game_events/);
+    expect(migration).toContain("before update on public.live_game_events");
+    expect(migration).not.toMatch(/before[^;]*delete[^;]*on public\.live_game_events/i);
+    expect(migration).toContain(
+      "revoke all on table public.live_game_events from anon, authenticated, service_role",
+    );
+  });
+
+  it("leaves event deletion to ACLs so every parent lifecycle cascade can complete", () => {
+    const body = functionBody("reject_live_event_rewrite");
+    expect(body).toContain("committed game events are immutable");
+    expect(body).not.toContain("tg_op = 'DELETE'");
+
+    expect(eventCascadeRepair).toContain(
+      "create or replace function public.reject_live_event_rewrite",
+    );
+    expect(eventCascadeRepair).toContain("before update on public.live_game_events");
+    expect(eventCascadeRepair).not.toMatch(/before[^;]*delete[^;]*on public\.live_game_events/i);
   });
 
   it("cascades away with its game so no orphan history survives", () => {
@@ -56,7 +99,7 @@ describe("the committed event log", () => {
   it("is readable only by accounts that may read the game, and writable by none", () => {
     expect(migration).toContain("alter table public.live_game_events enable row level security");
     expect(migration).toContain(
-      "revoke all on table public.live_game_events from anon, authenticated",
+      "revoke all on table public.live_game_events from anon, authenticated, service_role",
     );
     expect(migration).toContain("grant select on table public.live_game_events to authenticated");
     expect(migration).toContain("using (public.can_read_live_game(game_id))");

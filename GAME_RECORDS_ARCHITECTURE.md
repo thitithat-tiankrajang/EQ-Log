@@ -62,9 +62,14 @@ If `game_archives_migration.sql` was already applied before the member-only Live
 ```text
 supabase/room_live_access_contract_migration.sql
 supabase/archive_bulk_move_migration.sql
+supabase/archive_creator_access_migration.sql
 ```
 
 The Live Game migration does not grant `anon` access. It adds the authenticated-only `list_live_games` safe-summary RPC (including the derived `has_opponent` flag), keeps RLS as the row-visibility boundary, and replaces table-wide authenticated `SELECT` with an explicit opened-game column list that excludes `room_code_hash`, `private_parent_id`, and internal expiry fields. The archive migration adds the server-authorized admin context and atomic multi-snapshot Public-to-Region move. Deploy the matching frontend only after both SQL transactions commit; signed-out visitors remain on the sign-in screen and never query game storage.
+
+The archive creator migration exposes only `source_owner_id` to authenticated
+archive readers so the game tables can resolve the original creator's public
+profile display name. It does not expose player account ids or profile email.
 
 If an earlier version of that follow-up was already applied and `anon` still has an explicit `EXECUTE` grant on `list_live_games`, apply `supabase/room_live_function_acl_repair.sql`. Supabase projects can assign explicit default function grants to API roles; `REVOKE ... FROM PUBLIC` does not remove a grant made directly to `anon`. The repair is transactional, changes only this function ACL, verifies the final role contract, and leaves tables, policies, and RLS unchanged.
 

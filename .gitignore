@@ -15,8 +15,11 @@ supabase/*
 !supabase/user_invites_migration.sql
 !supabase/region_visibility_migration.sql
 !supabase/game_archives_migration.sql
+!supabase/archive_creator_access_migration.sql
 !supabase/live_game_sync_repair_migration.sql
 !supabase/canonical_revision_migration.sql
+!supabase/live_game_event_cascade_repair.sql
+!supabase/room_live_revision_acl_repair.sql
 !supabase/room_live_access_contract_migration.sql
 !supabase/room_live_function_acl_repair.sql
 !supabase/room_code_secret_setup.example.sql

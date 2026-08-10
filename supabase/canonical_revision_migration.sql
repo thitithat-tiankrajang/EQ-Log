@@ -43,6 +43,12 @@ comment on column public.room_live.canonical is
 comment on column public.room_live.canonical_digest is
   'Digest of `canonical`, so observers can prove they agree at a revision rather than assume it.';
 
+-- The opened-game query and postgres_changes fallback include the revision so
+-- clients can reject stale payloads. Keep canonical payloads behind the
+-- security-definer snapshot RPC; only the non-sensitive counter is readable
+-- directly alongside the existing opened-game columns.
+grant select (revision) on table public.room_live to authenticated;
+
 -- 2) The ordered, immutable command log --------------------------------------
 
 create table if not exists public.live_game_events (
@@ -64,7 +70,7 @@ create index if not exists live_game_events_stream_idx
   on public.live_game_events (game_id, revision);
 
 alter table public.live_game_events enable row level security;
-revoke all on table public.live_game_events from anon, authenticated;
+revoke all on table public.live_game_events from anon, authenticated, service_role;
 grant select on table public.live_game_events to authenticated;
 
 -- Anyone who may read the game may read its deltas. Nobody may write them
@@ -83,7 +89,7 @@ end; $$;
 
 drop trigger if exists live_game_events_immutable on public.live_game_events;
 create trigger live_game_events_immutable
-  before update or delete on public.live_game_events
+  before update on public.live_game_events
   for each row execute function public.reject_live_event_rewrite();
 
 -- 3) Spectator fan-out --------------------------------------------------------

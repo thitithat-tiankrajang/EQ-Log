@@ -45,6 +45,9 @@ export function GameTable({
               </th>
             )}
             <th scope="col">{primaryHeading}</th>
+            <th className="eq-game-table-creator-heading" scope="col">
+              Created by
+            </th>
             <th className="eq-game-table-actions-heading" scope="col">
               Actions
             </th>
@@ -55,7 +58,7 @@ export function GameTable({
             children
           ) : (
             <tr>
-              <td className="eq-game-table-empty" colSpan={selectable ? 3 : 2}>
+              <td className="eq-game-table-empty" colSpan={selectable ? 4 : 3}>
                 {emptyMessage}
               </td>
             </tr>
@@ -69,6 +72,7 @@ export function GameTable({
 export function GameTableRow({
   primary,
   secondary,
+  creator,
   actions,
   selected,
   selectionLabel,
@@ -79,6 +83,7 @@ export function GameTableRow({
 }: {
   primary: ReactNode;
   secondary: ReactNode;
+  creator: ReactNode;
   actions: ReactNode;
   selected?: boolean;
   selectionLabel?: string;
@@ -122,6 +127,10 @@ export function GameTableRow({
           content
         )}
       </th>
+      <td className="eq-game-table-creator">
+        <span className="eq-game-table-creator-label">Created by</span>
+        <strong>{creator}</strong>
+      </td>
       <td className="eq-game-table-actions">{actions}</td>
     </tr>
   );

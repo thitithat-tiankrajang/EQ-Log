@@ -41,7 +41,7 @@ export function PrivateLibraryPage({
   folderId: string | null;
   trash?: boolean;
 }) {
-  const { configured, userId } = useAuth();
+  const { configured, profile, userId } = useAuth();
   const [items, setItems] = useState<PrivateLibraryItem[]>([]);
   const [liveRooms, setLiveRooms] = useState<RoomMeta[]>([]);
   const [loading, setLoading] = useState(true);
@@ -457,6 +457,7 @@ export function PrivateLibraryPage({
                         </>
                       )
                     }
+                    creator={profile?.display_name ?? "Current account"}
                     actions={
                       <>
                         {!trash && (

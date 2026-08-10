@@ -120,6 +120,15 @@ tile to make the numbers work.
 - `supabase/canonical_revision_migration.sql` must be applied. It retires
   `sync_live_game_state`; a client that has not been reloaded gets an explicit
   error rather than an unconditional write.
+- Deployments that applied an earlier copy of that migration must also apply
+  `supabase/room_live_revision_acl_repair.sql`; it restores authenticated reads
+  of the non-sensitive revision counter without exposing canonical payloads or
+  other internal Live Game columns.
+- Deployments whose End Game action fails with `committed game events are
+  immutable` must apply `supabase/live_game_event_cascade_repair.sql`. Direct
+  event mutation remains forbidden by table ACL/RLS, while the update trigger
+  prevents trusted SQL from rewriting an event. Event deletion is left to the
+  `room_live` foreign-key cascade so every lifecycle cleanup path can complete.
 - A game that really has lost or duplicated a tile now refuses to open, with
   diagnostics, instead of rendering a board that is quietly wrong.
 - Canonical state is authoritative for the physical set and turn control. The

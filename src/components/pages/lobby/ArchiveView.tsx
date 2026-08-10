@@ -171,6 +171,7 @@ export function ArchiveView({
                   <span>{reasonLabel(game.completionReason)}</span>
                 </>
               }
+              creator={game.creatorName ?? "Unknown account"}
               actions={
                 <>
                   <a

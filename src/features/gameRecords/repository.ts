@@ -18,6 +18,7 @@ export type ArchiveMoveContext = {
 export type ArchiveGame = {
   gameId: string;
   regionId: string | null;
+  creatorName: string | null;
   name: string;
   playerA: string;
   playerB: string;
@@ -74,7 +75,7 @@ export type GameStorageLimits = {
 };
 
 const ARCHIVE_FIELDS =
-  "game_id,name,player_a,player_b,game_mode,mode_key,turn_number,score_a,score_b,completion_kind,completion_reason,surrendered_side,created_at,finished_at,archived_at";
+  "game_id,source_owner_id,name,player_a,player_b,game_mode,mode_key,turn_number,score_a,score_b,completion_kind,completion_reason,surrendered_side,created_at,finished_at,archived_at";
 
 export async function listArchiveGames(
   scope: ArchiveScope,
@@ -85,7 +86,11 @@ export async function listArchiveGames(
   if (!supabase) return { games: [], total: 0 };
   const table = scope === "public" ? "public_game_snapshots" : "region_game_snapshots";
   const fields = scope === "region" ? `${ARCHIVE_FIELDS},region_id` : ARCHIVE_FIELDS;
-  let query = supabase.from(table).select(fields, { count: "exact" });
+  const creatorRelation =
+    scope === "public"
+      ? "creator:profiles!public_game_snapshots_source_owner_id_fkey(display_name)"
+      : "creator:profiles!region_game_snapshots_source_owner_id_fkey(display_name)";
+  let query = supabase.from(table).select(`${fields},${creatorRelation}`, { count: "exact" });
   if (scope === "region") {
     if (!regionId) return { games: [], total: 0 };
     query = query.eq("region_id", regionId);
@@ -256,6 +261,8 @@ export async function movePublicArchivesToRegion(
 type ArchiveRow = {
   game_id: string;
   region_id?: string | null;
+  source_owner_id: string | null;
+  creator: { display_name: string | null } | Array<{ display_name: string | null }> | null;
   name: string;
   player_a: string;
   player_b: string;
@@ -306,9 +313,11 @@ type ModeStatRow = {
 };
 
 function mapArchiveRow(row: ArchiveRow): ArchiveGame {
+  const creator = Array.isArray(row.creator) ? row.creator[0] : row.creator;
   return {
     gameId: row.game_id,
     regionId: row.region_id ?? null,
+    creatorName: creator?.display_name ?? null,
     name: row.name,
     playerA: row.player_a,
     playerB: row.player_b,
