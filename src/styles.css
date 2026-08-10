@@ -1,36 +1,5 @@
-@import "./styles/00-base.css";
-@import "./styles/pages/10-lobby-and-responsive.css";
-@import "./styles/layout/20-board-first-layout.css";
-@import "./styles/components/30-visual-system.css";
-@import "./styles/components/40-action-drafts.css";
-@import "./styles/layout/50-board-first-rail.css";
-@import "./styles/components/60-tiles-log-rack.css";
-@import "./styles/components/70-scoreboard-log.css";
-@import "./styles/components/80-replay-turn-detail.css";
-@import "./styles/90-refinement-layer.css";
+@layer legacy, common, application;
 
-/* Lobby (split into focused files; each well under 1000 lines). */
-@import "./styles/pages/lobby/00-tokens.css";
-@import "./styles/pages/lobby/10-shell.css";
-@import "./styles/pages/lobby/20-rooms.css";
-@import "./styles/pages/lobby/30-create.css";
-@import "./styles/pages/lobby/40-members.css";
-@import "./styles/pages/lobby/50-stats.css";
-@import "./styles/pages/lobby/60-filters.css";
-@import "./styles/pages/lobby/70-responsive.css";
-@import "./styles/pages/pregame.css";
-@import "./styles/pages/create-form.css";
-@import "./styles/tokens.css";
-@import "./styles/95-material-ai.css";
-@import "./styles/components/96-loading-activity.css";
-@import "./styles/components/97-ui-kit.css";
-@import "./styles/components/98-bot-thinking.css";
-/* Home/Rooms redesign — after material-ai so it wins its lobby overrides. */
-@import "./styles/pages/lobby/80-redesign.css";
-@import "./styles/pages/lobby/85-glass-polish.css";
-@import "./styles/pages/lobby/90-glass-refined.css";
-@import "./styles/pages/lobby/95-bot-stats.css";
-@import "./styles/pages/pregame-glass.css";
-
-/* Phone layout for the game view — must stay LAST to win cascade ties. */
-@import "./styles/99-mobile-play.css";
+@import "./styles/components/96-loading-activity.css" layer(common);
+@import "./styles/pages/lobby/95-bot-stats.css" layer(application);
+@import "./styles/application.css" layer(application);

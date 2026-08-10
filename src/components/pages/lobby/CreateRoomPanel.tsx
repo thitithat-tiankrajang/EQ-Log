@@ -1,11 +1,4 @@
-import {
-  ArrowLeftRight,
-  Globe,
-  Play,
-  User,
-  UserCog,
-  Users,
-} from "lucide-react";
+import { ArrowLeftRight, Globe, Play, User, UserCog, Users } from "lucide-react";
 import { useState } from "react";
 import { type NewGameSettings, type Side, type TileDrawMode } from "../../../game";
 import type { Member } from "../../../members";
@@ -15,19 +8,25 @@ import { isSupabaseConfigured } from "../../../supabaseClient";
 import { useAuth } from "../../../auth";
 import { ActionDock } from "../../ui/ActionDock";
 import { ChoiceCardGroup } from "../../ui/ChoiceCardGroup";
+import { CheckboxControl } from "../../ui/CheckboxControl";
 import { FieldRow } from "../../ui/FieldRow";
+import { SelectControl } from "../../ui/SelectControl";
 import { CREATE_TEXT, PLAY_MODE_TEXT, TILE_DRAW_TEXT, TIMER_TEXT } from "../../../uiText";
+import {
+  getCreateRoomReadiness,
+  type CreatePlayMode,
+} from "../../../features/rooms/create/createRoomReadiness";
 
-type PlayMode = "hotseat" | "solo" | "hosted_email" | "hosted_solo" | "direct_email";
+type PlayMode = CreatePlayMode;
 type WhoPlays = "pass_play" | "solo" | "online";
 type OnlineRole = "direct_email" | "hosted_email" | "hosted_solo";
 
 function playModeFromSettings(settings: NewGameSettings): PlayMode {
   const hasOnlinePlayer = Boolean(
     settings.playerAUserId ||
-      settings.playerBUserId ||
-      settings.playerAEmail ||
-      settings.playerBEmail,
+    settings.playerBUserId ||
+    settings.playerAEmail ||
+    settings.playerBEmail,
   );
   if (settings.gameMode === "solo") return hasOnlinePlayer ? "hosted_solo" : "solo";
   if (hasOnlinePlayer) {
@@ -61,13 +60,13 @@ export function CreateRoomPanel({
     playMode === "hosted_email" || playMode === "hosted_solo" ? playMode : "direct_email",
   );
   const [perSideTimers, setPerSideTimers] = useState<boolean>(
-    () => timerValueOf(settings, "A") !== timerValueOf(settings, "B") && settings.gameMode !== "solo",
+    () =>
+      timerValueOf(settings, "A") !== timerValueOf(settings, "B") && settings.gameMode !== "solo",
   );
 
   const whoPlays: WhoPlays =
     playMode === "hotseat" ? "pass_play" : playMode === "solo" ? "solo" : "online";
-  const onlineRole: OnlineRole | null =
-    whoPlays === "online" ? (playMode as OnlineRole) : null;
+  const onlineRole: OnlineRole | null = whoPlays === "online" ? (playMode as OnlineRole) : null;
   const isSolo = playMode === "solo" || playMode === "hosted_solo";
   const isHostedSolo = playMode === "hosted_solo";
   const drawModeLocked = playMode === "solo" || playMode === "direct_email";
@@ -96,7 +95,9 @@ export function CreateRoomPanel({
       ...settings,
       minutes: timerMinutes.A ?? timerMinutes.B ?? settings.minutes ?? DEFAULT_TIMER_MINUTES,
       timerMinutes,
-      untimed: isSolo ? timerMinutes.A === null : timerMinutes.A === null && timerMinutes.B === null,
+      untimed: isSolo
+        ? timerMinutes.A === null
+        : timerMinutes.A === null && timerMinutes.B === null,
     });
   }
 
@@ -172,18 +173,10 @@ export function CreateRoomPanel({
     const opponentUserId = (side === "A" ? playerBUserId : playerAUserId) ?? null;
     onChange({
       ...settings,
-      playerA:
-        side === "A" && !creatorAlreadyAssigned
-          ? accountUsername
-          : settings.playerA,
-      playerB:
-        side === "B" && !creatorAlreadyAssigned
-          ? accountUsername
-          : settings.playerB,
-      playerAMemberId:
-        side === "A" && !creatorAlreadyAssigned ? null : settings.playerAMemberId,
-      playerBMemberId:
-        side === "B" && !creatorAlreadyAssigned ? null : settings.playerBMemberId,
+      playerA: side === "A" && !creatorAlreadyAssigned ? accountUsername : settings.playerA,
+      playerB: side === "B" && !creatorAlreadyAssigned ? accountUsername : settings.playerB,
+      playerAMemberId: side === "A" && !creatorAlreadyAssigned ? null : settings.playerAMemberId,
+      playerBMemberId: side === "B" && !creatorAlreadyAssigned ? null : settings.playerBMemberId,
       playerAUserId: side === "A" ? userId : opponentUserId,
       playerBUserId: side === "B" ? userId : opponentUserId,
       playerAEmail: null,
@@ -195,57 +188,24 @@ export function CreateRoomPanel({
   }
 
   const usesOnlinePlay =
-    playMode === "hosted_email" ||
-    playMode === "hosted_solo" ||
-    playMode === "direct_email";
+    playMode === "hosted_email" || playMode === "hosted_solo" || playMode === "direct_email";
   const isDirectOnline = playMode === "direct_email";
   const playerAUserId = settings.playerAUserId?.trim() || null;
   const playerBUserId = settings.playerBUserId?.trim() || null;
-  const creatorSide: Side = userId && playerBUserId === userId ? "B" : "A";
   const playerAInvalid = usesOnlinePlay && !playerAUserId;
-  const playerBRequired = !isSolo && usesOnlinePlay;
-  const playerBInvalid = playerBRequired && !playerBUserId;
+  const playerBInvalid = usesOnlinePlay && !isSolo && !playerBUserId;
   const playerDuplicate = Boolean(playerAUserId) && playerAUserId === playerBUserId;
-  const creatorAssigned =
-    Boolean(userId) && (playerAUserId === userId || playerBUserId === userId);
+  const creatorSide: Side = userId && playerBUserId === userId ? "B" : "A";
   const playerAIsHost =
-    (playMode === "hosted_email" || playMode === "hosted_solo") &&
-    playerAUserId === userId;
+    (playMode === "hosted_email" || playMode === "hosted_solo") && playerAUserId === userId;
   const playerBIsHost = playMode === "hosted_email" && playerBUserId === userId;
-  const creatorAssignmentInvalid =
-    usesOnlinePlay && (isDirectOnline ? !creatorAssigned : creatorAssigned);
-  const submitBlocked =
-    usesOnlinePlay &&
-    (!userId ||
-      playerAInvalid ||
-      playerBInvalid ||
-      playerDuplicate ||
-      creatorAssignmentInvalid);
-
-  const creatorNotAssigned =
-    isDirectOnline && Boolean(userId) && playerAUserId !== userId && playerBUserId !== userId;
-
-  // Always-visible reason why Create is disabled (design.md D3 — no tooltips).
-  const blockedReason = !submitBlocked
-    ? null
-    : !userId
-      ? "Sign in first to create an online room."
-      : playerDuplicate
-        ? "Side A and Side B must use different registered accounts."
-      : creatorNotAssigned
-          ? "Choose which side uses your account."
-        : (playMode === "hosted_email" || playMode === "hosted_solo") && creatorAssigned
-            ? "As host you can't also be a player — choose another registered user."
-            : playMode === "hosted_solo"
-              ? "Choose the solo player."
-              : playMode === "hosted_email"
-                ? "Choose both registered players."
-                : "Choose your opponent.";
+  const readiness = getCreateRoomReadiness({ mode: playMode, settings, userId });
+  const submitBlocked = !readiness.ready;
+  const blockedReason = readiness.reason;
 
   function setCreatorSide(side: Side) {
     if (!userId || side === creatorSide) return;
-    const opponentUserId =
-      [playerAUserId, playerBUserId].find((id) => id && id !== userId) ?? null;
+    const opponentUserId = [playerAUserId, playerBUserId].find((id) => id && id !== userId) ?? null;
     onChange({
       ...settings,
       playerA: settings.playerB,
@@ -270,7 +230,7 @@ export function CreateRoomPanel({
 
   const submitText = busy
     ? CREATE_TEXT.submitBusy
-    : submitLabel ?? (usesOnlinePlay ? CREATE_TEXT.submitOnline : CREATE_TEXT.submit);
+    : (submitLabel ?? (usesOnlinePlay ? CREATE_TEXT.submitOnline : CREATE_TEXT.submit));
 
   function playerOptionsFor(side: Side): RegisteredPlayer[] {
     const selectedId = side === "A" ? playerAUserId : playerBUserId;
@@ -416,11 +376,11 @@ export function CreateRoomPanel({
                 ? isHostedSolo
                   ? "The host account cannot also be the solo player."
                   : "The host account cannot also be Side A."
-              : !playerAUserId
-                ? isHostedSolo
-                  ? "Choose the registered user who will play solo."
-                  : "Choose the registered user for this side."
-                : undefined
+                : !playerAUserId
+                  ? isHostedSolo
+                    ? "Choose the registered user who will play solo."
+                    : "Choose the registered user for this side."
+                  : undefined
           }
           accountLocked={isDirectOnline && creatorSide === "A"}
           accountLabel={
@@ -461,9 +421,9 @@ export function CreateRoomPanel({
                 ? "Side A and Side B must use different registered accounts."
                 : playerBIsHost
                   ? "The host account cannot also be Side B."
-                : !playerBUserId
-                  ? "Choose the registered user for this side."
-                  : undefined
+                  : !playerBUserId
+                    ? "Choose the registered user for this side."
+                    : undefined
             }
             accountLocked={isDirectOnline && creatorSide === "B"}
             accountLabel={
@@ -503,11 +463,7 @@ export function CreateRoomPanel({
       <div className="create-section">
         <h3 className="create-section-title">
           <span>3</span>
-          {isHostedSolo
-            ? "Solo player timer"
-            : isSolo
-              ? "Your timer"
-              : TIMER_TEXT.label}
+          {isHostedSolo ? "Solo player timer" : isSolo ? "Your timer" : TIMER_TEXT.label}
         </h3>
         {!perSideTimers || isSolo ? (
           <TimerChips
@@ -526,17 +482,17 @@ export function CreateRoomPanel({
           ))
         )}
         {!isSolo && (
-          <label className="timer-per-side-toggle">
-            <input
-              type="checkbox"
-              checked={perSideTimers}
-              onChange={(event) => {
-                setPerSideTimers(event.target.checked);
-                if (!event.target.checked) setTimerBoth(timerValue("A"));
-              }}
-            />
+          <CheckboxControl
+            className="timer-per-side-toggle"
+            checked={perSideTimers}
+            ariaLabel={TIMER_TEXT.perSide}
+            onChange={(checked) => {
+              setPerSideTimers(checked);
+              if (!checked) setTimerBoth(timerValue("A"));
+            }}
+          >
             {TIMER_TEXT.perSide}
-          </label>
+          </CheckboxControl>
         )}
       </div>
 
@@ -549,19 +505,31 @@ export function CreateRoomPanel({
             <em>{CREATE_TEXT.advancedNote}</em>
           </span>
           <span className="create-advanced-values">
-            <span>{CREATE_TEXT.roomNameLabel} · {settings.name.trim() || defaultRoomName}</span>
-            <span>{TILE_DRAW_TEXT.label} · {tileDrawSummary}</span>
+            <span>
+              {CREATE_TEXT.roomNameLabel} · {settings.name.trim() || defaultRoomName}
+            </span>
+            <span>
+              {TILE_DRAW_TEXT.label} · {tileDrawSummary}
+            </span>
             {showRackVisibility && (
               <span>
                 {CREATE_TEXT.opponentRack} ·{" "}
-                {settings.emailPlayersCanSeeOpponentRack ? CREATE_TEXT.rackVisible : CREATE_TEXT.rackHidden}
+                {settings.emailPlayersCanSeeOpponentRack
+                  ? CREATE_TEXT.rackVisible
+                  : CREATE_TEXT.rackHidden}
               </span>
             )}
           </span>
         </summary>
         <div className="create-advanced-body">
-          <FieldRow label={CREATE_TEXT.roomNameLabel} hint="Shown in the rooms list — named after the players by default.">
+          <FieldRow
+            controlId="create-room-name"
+            label={CREATE_TEXT.roomNameLabel}
+            hint="Shown in the rooms list — named after the players by default."
+          >
             <input
+              id="create-room-name"
+              aria-describedby="create-room-name-message"
               value={settings.name}
               placeholder={defaultRoomName}
               onChange={(event) => onChange({ ...settings, name: event.target.value })}
@@ -731,45 +699,57 @@ function SidePlayerCard({
       <div className="side-card-fields">
         {showRegisteredAccount ? (
           <FieldRow
+            controlId={`create-player-${side.toLowerCase()}-account`}
             label={accountLabel}
             hint="Only usernames are shared; private sign-in details stay hidden."
-            error={accountInvalid ? accountError ?? "Choose a registered user." : null}
+            error={accountInvalid ? (accountError ?? "Choose a registered user.") : null}
           >
-            <select
+            <SelectControl<string>
+              id={`create-player-${side.toLowerCase()}-account`}
+              ariaLabelledBy={`create-player-${side.toLowerCase()}-account-label`}
+              ariaDescribedBy={`create-player-${side.toLowerCase()}-account-message`}
               value={accountId ?? ""}
               disabled={accountLocked}
-              onChange={(event) => onAccountChange(event.target.value || null)}
-              aria-invalid={accountInvalid}
-            >
-              <option value="">Choose a username</option>
-              {accountOptions.map((player) => (
-                <option key={player.id} value={player.id}>
-                  {player.username}
-                </option>
-              ))}
-            </select>
+              invalid={accountInvalid}
+              required
+              options={[
+                { value: "", label: "Choose a username" },
+                ...accountOptions.map((player) => ({ value: player.id, label: player.username })),
+              ]}
+              onChange={(value) => onAccountChange(value || null)}
+            />
           </FieldRow>
         ) : (
           <>
-            <FieldRow label="Name">
+            <FieldRow controlId={`create-player-${side.toLowerCase()}-name`} label="Name">
               <input
+                id={`create-player-${side.toLowerCase()}-name`}
                 value={name}
                 onChange={(event) => onNameChange(event.target.value)}
                 placeholder={`Player ${side}`}
               />
             </FieldRow>
-            <FieldRow label={CREATE_TEXT.linkMember} hint={CREATE_TEXT.linkMemberHint}>
-              <select
+            <FieldRow
+              controlId={`create-player-${side.toLowerCase()}-member`}
+              label={CREATE_TEXT.linkMember}
+              hint={CREATE_TEXT.linkMemberHint}
+            >
+              <SelectControl<string>
+                id={`create-player-${side.toLowerCase()}-member`}
+                ariaLabelledBy={`create-player-${side.toLowerCase()}-member-label`}
+                ariaDescribedBy={`create-player-${side.toLowerCase()}-member-message`}
                 value={selectedId ?? ""}
-                onChange={(event) => onMemberChange(event.target.value || null)}
-              >
-                <option value="">{CREATE_TEXT.notLinked}</option>
-                {members.map((member) => (
-                  <option key={member.id} value={member.id}>
-                    {member.institution ? `${member.name} · ${member.institution}` : member.name}
-                  </option>
-                ))}
-              </select>
+                options={[
+                  { value: "", label: CREATE_TEXT.notLinked },
+                  ...members.map((member) => ({
+                    value: member.id,
+                    label: member.institution
+                      ? `${member.name} · ${member.institution}`
+                      : member.name,
+                  })),
+                ]}
+                onChange={(value) => onMemberChange(value || null)}
+              />
             </FieldRow>
           </>
         )}

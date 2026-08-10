@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { Check, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../../../auth";
 import type { BotDifficulty, NewGameSettings, Side } from "../../../game";
 
 /** The AI opponent's display name, used for both sides of the match. */
@@ -47,10 +49,23 @@ export function BotRoomPanel({
   busy: boolean;
   onSubmit: (settings: NewGameSettings) => void;
 }) {
-  const [playerName, setPlayerName] = useState("");
+  const { profile } = useAuth();
+  const accountName = profile?.display_name?.trim() ?? "";
+  const [playerName, setPlayerName] = useState(accountName);
+  const [nameEdited, setNameEdited] = useState(false);
+  const [nameTouched, setNameTouched] = useState(false);
   const [startingSide, setStartingSide] = useState<Side>("A");
   const [manualTiles, setManualTiles] = useState(false);
   const [difficulty, setDifficulty] = useState<BotDifficulty>("max");
+  const trimmedPlayerName = playerName.trim();
+  const selectedDifficulty = useMemo(
+    () => DIFFICULTY_OPTIONS.find((option) => option.value === difficulty)!,
+    [difficulty],
+  );
+
+  useEffect(() => {
+    if (!nameEdited && accountName) setPlayerName(accountName);
+  }, [accountName, nameEdited]);
 
   return (
     <form
@@ -58,7 +73,9 @@ export function BotRoomPanel({
       onSubmit={(event) => {
         event.preventDefault();
         if (busy) return;
-        const playerA = playerName.trim() || "Player";
+        setNameTouched(true);
+        if (!trimmedPlayerName) return;
+        const playerA = trimmedPlayerName;
         onSubmit({
           name: `${playerA} vs ${BOT_NAME}`,
           gameMode: "versus",
@@ -76,7 +93,16 @@ export function BotRoomPanel({
     >
       <header className="bot-hero">
         <span className="bot-hero-avatar" aria-hidden="true">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+          <svg
+            width="26"
+            height="26"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.9"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
             <rect x="4" y="8" width="16" height="11" rx="3" />
             <path d="M12 8V4" />
             <circle cx="12" cy="3" r="1.4" fill="currentColor" stroke="none" />
@@ -91,98 +117,150 @@ export function BotRoomPanel({
             The built-in A-Math engine — it solves the endgame exactly.
           </span>
         </span>
+        <span className="bot-hero-pill">
+          <Sparkles size={13} /> {selectedDifficulty.label}
+        </span>
       </header>
 
-      <label className="create-field bot-field">
-        <span>Your name</span>
-        <input
-          type="text"
-          value={playerName}
-          placeholder="Player"
-          maxLength={24}
-          onChange={(event) => setPlayerName(event.target.value)}
-        />
-      </label>
+      <section className="bot-config-section" aria-labelledby="bot-player-heading">
+        <header className="bot-config-heading">
+          <span>1</span>
+          <div>
+            <h3 id="bot-player-heading">Player</h3>
+            <p>This name appears on the board and in game history.</p>
+          </div>
+        </header>
+        <label className="create-field bot-field">
+          <span>Player Name</span>
+          <input
+            type="text"
+            value={playerName}
+            placeholder="Enter player name"
+            maxLength={24}
+            required
+            aria-invalid={nameTouched && !trimmedPlayerName}
+            aria-describedby="bot-player-name-message"
+            onBlur={() => setNameTouched(true)}
+            onChange={(event) => {
+              setNameEdited(true);
+              setPlayerName(event.target.value);
+            }}
+          />
+          <small
+            id="bot-player-name-message"
+            className={nameTouched && !trimmedPlayerName ? "bot-field-error" : "bot-field-hint"}
+          >
+            {nameTouched && !trimmedPlayerName
+              ? "Player Name is required."
+              : accountName
+                ? "Filled from your account. You can edit it for this game."
+                : "Enter the name you want to use for this game."}
+          </small>
+        </label>
+      </section>
 
-      <fieldset className="create-field bot-section">
-        <legend>Difficulty</legend>
-        <div className="bot-difficulty-grid">
+      <fieldset className="bot-config-section bot-section">
+        <legend className="bot-config-heading">
+          <span>2</span>
+          <span>
+            <strong>Difficulty</strong>
+            <small>Choose how deeply Aether searches for its move.</small>
+          </span>
+        </legend>
+        <div className="bot-difficulty-grid" role="radiogroup" aria-label="Difficulty">
           {DIFFICULTY_OPTIONS.map((option) => (
-            <label
+            <button
+              type="button"
+              role="radio"
+              aria-checked={difficulty === option.value}
               key={option.value}
               className={`bot-difficulty-option${difficulty === option.value ? " selected" : ""}`}
+              onClick={() => setDifficulty(option.value)}
             >
-              <input
-                type="radio"
-                name="bot-difficulty"
-                checked={difficulty === option.value}
-                onChange={() => setDifficulty(option.value)}
-              />
               <span className="bot-difficulty-top">
                 <span className="bot-difficulty-label">{option.label}</span>
                 <StrengthMeter level={option.level} />
               </span>
               <span className="bot-difficulty-desc">{option.desc}</span>
-            </label>
+              <span className="bot-option-check" aria-hidden="true">
+                {difficulty === option.value && <Check size={14} />}
+              </span>
+            </button>
           ))}
         </div>
       </fieldset>
 
-      <fieldset className="create-field bot-section">
-        <legend>Who starts</legend>
-        <div className="bot-start-row">
-          <label className={`bot-difficulty-option${startingSide === "A" ? " selected" : ""}`}>
-            <input
-              type="radio"
-              name="bot-start"
-              checked={startingSide === "A"}
-              onChange={() => setStartingSide("A")}
-            />
-            <span className="bot-difficulty-label">You</span>
-          </label>
-          <label className={`bot-difficulty-option${startingSide === "B" ? " selected" : ""}`}>
-            <input
-              type="radio"
-              name="bot-start"
-              checked={startingSide === "B"}
-              onChange={() => setStartingSide("B")}
-            />
-            <span className="bot-difficulty-label">Bot</span>
-          </label>
+      <section className="bot-config-section" aria-labelledby="bot-rules-heading">
+        <header className="bot-config-heading">
+          <span>3</span>
+          <div>
+            <h3 id="bot-rules-heading">Game setup</h3>
+            <p>Choose who opens and how tiles enter the racks.</p>
+          </div>
+        </header>
+        <div className="bot-rule-group">
+          <strong>Who starts</strong>
+          <div className="bot-start-row" role="radiogroup" aria-label="Who starts">
+            {(["A", "B"] as Side[]).map((side) => (
+              <button
+                key={side}
+                type="button"
+                role="radio"
+                aria-checked={startingSide === side}
+                className={`bot-difficulty-option${startingSide === side ? " selected" : ""}`}
+                onClick={() => setStartingSide(side)}
+              >
+                <span className="bot-difficulty-label">{side === "A" ? "You" : "Aether"}</span>
+                <span className="bot-difficulty-desc">
+                  {side === "A" ? "Take the first turn." : "Let Aether make the opening move."}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
-      </fieldset>
-
-      <fieldset className="create-field bot-section">
-        <legend>Tile drawing</legend>
-        <div className="bot-start-row">
-          <label className={`bot-difficulty-option${!manualTiles ? " selected" : ""}`}>
-            <input
-              type="radio"
-              name="bot-tiles"
-              checked={!manualTiles}
-              onChange={() => setManualTiles(false)}
-            />
-            <span className="bot-difficulty-label">Auto draw</span>
-            <span className="bot-difficulty-desc">The app draws random tiles for both sides.</span>
-          </label>
-          <label className={`bot-difficulty-option${manualTiles ? " selected" : ""}`}>
-            <input
-              type="radio"
-              name="bot-tiles"
-              checked={manualTiles}
-              onChange={() => setManualTiles(true)}
-            />
-            <span className="bot-difficulty-label">I pick the tiles</span>
-            <span className="bot-difficulty-desc">
-              You choose every drawn tile from the bag — for your rack and the bot's.
-            </span>
-          </label>
+        <div className="bot-rule-group">
+          <strong>Tile drawing</strong>
+          <div className="bot-start-row" role="radiogroup" aria-label="Tile drawing">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={!manualTiles}
+              className={`bot-difficulty-option${!manualTiles ? " selected" : ""}`}
+              onClick={() => setManualTiles(false)}
+            >
+              <span className="bot-difficulty-label">Auto draw</span>
+              <span className="bot-difficulty-desc">
+                The app draws random tiles for both sides.
+              </span>
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={manualTiles}
+              className={`bot-difficulty-option${manualTiles ? " selected" : ""}`}
+              onClick={() => setManualTiles(true)}
+            >
+              <span className="bot-difficulty-label">I pick the tiles</span>
+              <span className="bot-difficulty-desc">
+                Choose every drawn tile for your rack and Aether's.
+              </span>
+            </button>
+          </div>
         </div>
-      </fieldset>
+      </section>
 
-      <button className="ui-button-primary" type="submit" disabled={busy}>
-        {busy ? "Creating..." : "Start bot match"}
-      </button>
+      <footer className="bot-submit-row">
+        <span>
+          <strong>{trimmedPlayerName || "Player Name required"}</strong>
+          <small>
+            vs Aether · {selectedDifficulty.label} ·{" "}
+            {startingSide === "A" ? "You start" : "Aether starts"}
+          </small>
+        </span>
+        <button className="ui-button-primary" type="submit" disabled={busy || !trimmedPlayerName}>
+          {busy ? "Creating..." : "Start Aether match"}
+        </button>
+      </footer>
     </form>
   );
 }

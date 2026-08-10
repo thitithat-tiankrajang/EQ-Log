@@ -1,0 +1,16 @@
+/* Loaded only when the Play route is opened. */
+@import "./styles/00-base.css" layer(legacy);
+@import "./styles/pages/10-lobby-and-responsive.css" layer(legacy);
+@import "./styles/layout/20-board-first-layout.css" layer(legacy);
+@import "./styles/components/30-visual-system.css" layer(legacy);
+@import "./styles/components/40-action-drafts.css" layer(legacy);
+@import "./styles/layout/50-board-first-rail.css" layer(legacy);
+@import "./styles/components/60-tiles-log-rack.css" layer(legacy);
+@import "./styles/components/70-scoreboard-log.css" layer(legacy);
+@import "./styles/components/80-replay-turn-detail.css" layer(legacy);
+@import "./styles/90-refinement-layer.css" layer(legacy);
+@import "./styles/tokens.css" layer(legacy);
+@import "./styles/95-material-ai.css" layer(legacy);
+@import "./styles/components/97-ui-kit.css" layer(legacy);
+@import "./styles/components/98-bot-thinking.css" layer(legacy);
+@import "./styles/99-mobile-play.css" layer(legacy);

@@ -1,154 +1,147 @@
-import { useMemo, useRef, useState } from "react";
-import type { ChangeEvent } from "react";
-import type { GameState, Side } from "../../../game";
 import type { RoomMeta } from "../../../rooms";
-import type { Member } from "../../../members";
 import { RoomCard } from "./RoomCard";
-import {
-  RoomFilters,
-  defaultRoomsFilter,
-  type RoomsFilterState,
-} from "./RoomFilters";
+import { GameTable } from "./GameTable";
 
 export function RoomsView({
   rooms,
-  members,
   loading,
-  canCreate,
-  createDisabledReason,
   syncError,
   getRoomRole,
   onOpen,
-  onCreateRoom: _onCreateRoom,
+  onJoinWithCode,
   onRename,
-  onDuplicate,
   onDelete,
   onExport,
-  onImport,
 }: {
   rooms: RoomMeta[];
-  members: Member[];
   loading: boolean;
-  canCreate: boolean;
-  createDisabledReason: string | null;
   syncError?: string | null;
   getRoomRole: (room: RoomMeta) => { canManage: boolean; canCreate: boolean; label: string };
   onOpen: (id: string) => void;
-  onCreateRoom: () => void;
+  onJoinWithCode: () => void;
   onRename: (id: string, name: string) => void;
-  onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
   onExport: (id: string) => void;
-  onImport: (game: GameState) => void;
 }) {
-  const [filter, setFilter] = useState<RoomsFilterState>(defaultRoomsFilter);
-  const [importError, setImportError] = useState<string | null>(null);
-  const importRef = useRef<HTMLInputElement | null>(null);
-
-  const filtered = useMemo(() => filterRooms(rooms, filter), [rooms, filter]);
-
-  function handleImport(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    file
-      .text()
-      .then((text) => {
-        const parsed = JSON.parse(text) as GameState;
-        if (!parsed.gameId || !Array.isArray(parsed.history)) throw new Error("invalid");
-        setImportError(null);
-        onImport(parsed);
-      })
-      .catch(() =>
-        setImportError("That file is not an Equation Lab export — pick a file saved with Export."),
-      );
-    event.target.value = "";
-  }
+  const { openSeats, matched } = partitionLiveRooms(rooms);
 
   return (
-    <div className="rooms-view">
-      <input
-        ref={importRef}
-        accept="application/json"
-        className="hidden-input"
-        type="file"
-        onChange={handleImport}
-      />
-
-      {syncError && <p className="sync-banner">{syncError}</p>}
-      {importError && <p className="sync-banner">{importError}</p>}
-
-      <RoomFilters
-        filter={filter}
-        members={members}
-        totalCount={rooms.length}
-        visibleCount={filtered.length}
-        importDisabledReason={canCreate ? null : createDisabledReason}
-        onChange={setFilter}
-        onImportClick={() => importRef.current?.click()}
-      />
+    <div className="eq-rooms-view">
+      {syncError && <p className="eq-alert eq-alert-error">{syncError}</p>}
 
       {loading ? (
-        <p className="empty-state" role="status">Loading rooms…</p>
-      ) : rooms.length === 0 ? (
-        <p className="empty-state">No matches yet. Start your first one above.</p>
-      ) : filtered.length === 0 ? (
-        <div className="empty-state">
-          <p>No rooms match these filters.</p>
-          <button
-            type="button"
-            className="ui-button-ghost"
-            onClick={() => setFilter(defaultRoomsFilter())}
-          >
-            Clear filters
-          </button>
+        <div className="eq-skeleton-list" aria-label="Loading rooms" role="status">
+          {[0, 1, 2].map((item) => (
+            <span key={item} />
+          ))}
         </div>
       ) : (
-        <div className="room-grid">
-          {filtered.map((room) => (
-            <RoomCard
-              key={room.id}
-              room={room}
-              role={getRoomRole(room)}
-              onOpen={() => onOpen(room.id)}
-              onRename={(name) => onRename(room.id, name)}
-              onDuplicate={() => onDuplicate(room.id)}
-              onDelete={() => onDelete(room.id)}
-              onExport={() => onExport(room.id)}
-            />
-          ))}
+        <div className="eq-live-tables">
+          <LiveTable
+            title="Waiting for an opponent"
+            description="Open games that still have a player seat available."
+            rooms={openSeats}
+            emptyMessage="No games are waiting for an opponent."
+            getRoomRole={getRoomRole}
+            onOpen={onOpen}
+            onJoinWithCode={onJoinWithCode}
+            onRename={onRename}
+            onDelete={onDelete}
+            onExport={onExport}
+          />
+          <LiveTable
+            title="Matched & in progress"
+            description="Games with both sides assigned, including waiting and active matches."
+            rooms={matched}
+            emptyMessage="No matched or active games right now."
+            getRoomRole={getRoomRole}
+            onOpen={onOpen}
+            onJoinWithCode={onJoinWithCode}
+            onRename={onRename}
+            onDelete={onDelete}
+            onExport={onExport}
+          />
         </div>
       )}
     </div>
   );
 }
 
-function filterRooms(rooms: RoomMeta[], filter: RoomsFilterState): RoomMeta[] {
-  const query = filter.search.trim().toLowerCase();
-  return rooms.filter((room) => {
-    if (filter.status !== "all" && room.status !== filter.status) return false;
-    if (query) {
-      const haystack = [room.name, room.playerA, room.playerB, room.ownerName ?? ""]
-        .join(" ")
-        .toLowerCase();
-      if (!haystack.includes(query)) return false;
-    }
-    for (const constraint of filter.members) {
-      if (!matchesMember(room, constraint.memberId, constraint.position)) return false;
-    }
-    return true;
-  });
+function LiveTable({
+  title,
+  description,
+  rooms,
+  emptyMessage,
+  getRoomRole,
+  onOpen,
+  onJoinWithCode,
+  onRename,
+  onDelete,
+  onExport,
+}: {
+  title: string;
+  description: string;
+  rooms: RoomMeta[];
+  emptyMessage: string;
+  getRoomRole: (room: RoomMeta) => { canManage: boolean; canCreate: boolean; label: string };
+  onOpen: (id: string) => void;
+  onJoinWithCode: () => void;
+  onRename: (id: string, name: string) => void;
+  onDelete: (id: string) => void;
+  onExport: (id: string) => void;
+}) {
+  return (
+    <section className="eq-live-table-section" aria-labelledby={`live-table-${slug(title)}`}>
+      <div className="eq-live-table-heading">
+        <div>
+          <h3 id={`live-table-${slug(title)}`}>{title}</h3>
+          <p>{description}</p>
+        </div>
+        <span className="eq-count">{rooms.length}</span>
+      </div>
+      <GameTable label={title} emptyMessage={emptyMessage}>
+        {rooms.map((room) => (
+          <RoomCard
+            key={room.id}
+            room={room}
+            hasOpponent={roomHasOpponent(room)}
+            role={getRoomRole(room)}
+            onOpen={() => onOpen(room.id)}
+            onJoinWithCode={onJoinWithCode}
+            onRename={(name) => onRename(room.id, name)}
+            onDelete={() => onDelete(room.id)}
+            onExport={() => onExport(room.id)}
+          />
+        ))}
+      </GameTable>
+    </section>
+  );
 }
 
-function matchesMember(
-  room: RoomMeta,
-  memberId: string,
-  position: "any" | "first" | "second",
-): boolean {
-  const memberSide: Side | null =
-    room.memberAId === memberId ? "A" : room.memberBId === memberId ? "B" : null;
-  if (!memberSide) return false;
-  if (position === "any") return true;
-  const startingSide = room.startingSide ?? "A";
-  if (position === "first") return memberSide === startingSide;
-  return memberSide !== startingSide;
+export function partitionLiveRooms(rooms: RoomMeta[]): {
+  openSeats: RoomMeta[];
+  matched: RoomMeta[];
+} {
+  const liveRooms = rooms.filter((room) => room.status !== "finished");
+  return {
+    openSeats: liveRooms.filter((room) => room.status !== "playing" && !roomHasOpponent(room)),
+    matched: liveRooms.filter((room) => room.status === "playing" || roomHasOpponent(room)),
+  };
+}
+
+function roomHasOpponent(room: RoomMeta): boolean {
+  if (room.gameMode === "solo" || room.modeKey?.startsWith("aether_")) return true;
+  if (typeof room.hasOpponent === "boolean") return room.hasOpponent;
+  const participants = new Set(
+    [room.inviteUserAId, room.inviteUserBId].filter((id): id is string => Boolean(id)),
+  );
+  if (participants.size > 1) return true;
+  return room.joinPolicy === "invite_only";
+}
+
+function slug(value: string): string {
+  return value
+    .toLowerCase()
+    .replaceAll(/[^a-z0-9]+/g, "-")
+    .replaceAll(/(^-|-$)/g, "");
 }

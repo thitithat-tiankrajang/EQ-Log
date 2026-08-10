@@ -6,19 +6,42 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
+    "format": "prettier --write package.json index.html public/sw.js eslint.config.js playwright.config.ts vitest.config.ts 'src/app/**/*.{ts,tsx}' 'src/features/**/*.{ts,tsx}' src/admin.tsx src/auth.tsx src/main.tsx src/profiles.ts src/remoteRooms.ts src/roomScope.ts src/rooms.ts src/router.ts 'src/components/botstats/**/*.{ts,tsx}' 'src/components/feedback/**/*.{ts,tsx}' 'src/components/pages/**/*.{ts,tsx}' 'src/components/ui/**/*.{ts,tsx}' src/styles.css src/play-styles.css src/styles/application.css 'tests/**/*.{ts,tsx}'",
+    "format:check": "prettier --check package.json index.html public/sw.js eslint.config.js playwright.config.ts vitest.config.ts 'src/app/**/*.{ts,tsx}' 'src/features/**/*.{ts,tsx}' src/admin.tsx src/auth.tsx src/main.tsx src/profiles.ts src/remoteRooms.ts src/roomScope.ts src/rooms.ts src/router.ts 'src/components/botstats/**/*.{ts,tsx}' 'src/components/feedback/**/*.{ts,tsx}' 'src/components/pages/**/*.{ts,tsx}' 'src/components/ui/**/*.{ts,tsx}' src/styles.css src/play-styles.css src/styles/application.css 'tests/**/*.{ts,tsx}'",
+    "lint": "eslint . --max-warnings=0",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:a11y": "playwright test --grep @a11y",
+    "typecheck": "tsc -b",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",
-    "@vitejs/plugin-react": "^5.0.0",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0",
-    "typescript": "^5.8.0",
-    "vite": "^7.0.0"
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.55.0",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.0.0",
-    "@types/react-dom": "^19.0.0"
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "eslint": "^9.39.1",
+    "eslint-plugin-jsx-a11y": "^6.10.2",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "globals": "^16.5.0",
+    "jsdom": "^27.0.0",
+    "prettier": "^3.6.2",
+    "typescript": "^5.8.0",
+    "typescript-eslint": "^8.46.1",
+    "vite": "^7.0.0",
+    "vitest": "^3.2.4"
   }
 }

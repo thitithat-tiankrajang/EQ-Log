@@ -85,6 +85,28 @@ export function resolveRoomCode(roomCode: string, roomIds: string[]): string | n
   return matches.length === 1 ? matches[0] : null;
 }
 
+export function parseRemoteJoinTarget(value: string): { code?: string; gameId?: string } {
+  const trimmed = value.trim();
+  const codeMatch = trimmed.match(/[?&]code=([^&#]+)/i);
+  if (codeMatch?.[1]) {
+    try {
+      return { code: decodeURIComponent(codeMatch[1]) };
+    } catch {
+      return { code: codeMatch[1] };
+    }
+  }
+  const roomMatch = trimmed.match(/#\/(?:room|play)\/([^/?#]+)/i);
+  if (roomMatch?.[1]) {
+    try {
+      return { gameId: decodeURIComponent(roomMatch[1]) };
+    } catch {
+      return { gameId: roomMatch[1] };
+    }
+  }
+  if (/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(trimmed)) return { gameId: trimmed };
+  return { code: trimmed };
+}
+
 function resetWaitingGame(game: GameState): GameState {
   const waiting: GameState = {
     ...game,

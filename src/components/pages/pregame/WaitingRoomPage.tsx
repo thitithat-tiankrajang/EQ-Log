@@ -53,20 +53,19 @@ export function WaitingRoomPage({
   onShare: () => Promise<void>;
   onStart: () => void;
 }) {
-  const { profile, userId } = useAuth();
+  const { configured, profile, userId } = useAuth();
   const { members } = useMembersCatalog(userId);
-  const playerDirectory = useRegisteredPlayersCatalog(Boolean(userId));
+  const playerDirectory = useRegisteredPlayersCatalog(Boolean(userId), meta.visibility ?? "public");
   const [editing, setEditing] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [settings, setSettings] = useState<NewGameSettings>(() => settingsFromWaitingGame(game));
+  const displayedCode = meta.roomCode ?? (!configured ? formatRoomCode(meta.id) : null);
   const accountEmail = normalizeEmail(profile?.email);
   const ownerEmail = normalizeEmail(meta.ownerEmail);
   const isDirectEmailRoom = isDirectOnlineGame(game, meta.ownerId, ownerEmail);
   const isOwner = !meta.ownerId || Boolean(userId && meta.ownerId === userId);
-  const canManage = isDirectEmailRoom
-    ? isOwner
-    : isOwner || Boolean(userId && profile?.is_admin);
+  const canManage = isDirectEmailRoom ? isOwner : isOwner || Boolean(userId && profile?.is_admin);
   const playerSide: Side | null = findAccountSide(game, userId, accountEmail);
   const role = isDirectEmailRoom
     ? playerSide
@@ -97,9 +96,7 @@ export function WaitingRoomPage({
   const waitingFor = requiredReadySides.filter((side) => !game.lobbyReadyBySide?.[side]);
   const waitingForNames = waitingFor.map((side) => game.players[side]?.trim() || `Side ${side}`);
   const startBlockedReason =
-    waitingFor.length > 0
-      ? `Waiting for ${waitingForNames.join(" and ")} to tap Ready`
-      : null;
+    waitingFor.length > 0 ? `Waiting for ${waitingForNames.join(" and ")} to tap Ready` : null;
   const isReady = playerSide ? Boolean(game.lobbyReadyBySide?.[playerSide]) : false;
 
   // One sentence that answers "what is everyone waiting on right now?"
@@ -119,7 +116,8 @@ export function WaitingRoomPage({
             : "Waiting for the host to start the game";
 
   async function copyCode() {
-    const code = formatRoomCode(meta.id);
+    const code = displayedCode;
+    if (!code) return;
     try {
       await navigator.clipboard.writeText(code);
       setCopied(true);
@@ -143,6 +141,9 @@ export function WaitingRoomPage({
       eyebrow="Waiting room"
       title={game.name}
       onBack={onBack}
+      visibility={meta.visibility ?? "public"}
+      regionName={profile?.region_name ?? null}
+      variant="waiting"
       actions={
         <OverflowMenu
           label="Room options"
@@ -171,8 +172,13 @@ export function WaitingRoomPage({
           IS the job of this page. */}
       <section className="pregame-card code-card">
         <span className="home-eyebrow">{WAITING_TEXT.roomCode}</span>
-        <button type="button" className="code-card-code" onClick={copyCode}>
-          <strong>{formatRoomCode(meta.id)}</strong>
+        <button
+          type="button"
+          className="code-card-code"
+          onClick={copyCode}
+          disabled={!displayedCode}
+        >
+          <strong>{displayedCode ?? "Code available to players"}</strong>
           <span className="code-card-copy">
             {copied ? <Check size={16} /> : <Copy size={16} />}
             {copied ? WAITING_TEXT.copied : WAITING_TEXT.copyCode}
@@ -214,7 +220,9 @@ export function WaitingRoomPage({
                 </strong>
                 <span>{participant.detail}</span>
               </div>
-              {participant.side && <span className="participant-side">Side {participant.side}</span>}
+              {participant.side && (
+                <span className="participant-side">Side {participant.side}</span>
+              )}
               <span className={`participant-status ${participant.ready ? "ready" : ""}`}>
                 {participant.status}
               </span>
@@ -243,10 +251,7 @@ export function WaitingRoomPage({
         {/* Same words the host just used on the Create form (design.md D7). */}
         <dl className="settings-summary">
           <SummaryRow label="Mode" value={playModeSummary(game)} />
-          <SummaryRow
-            label="Time"
-            value={solo ? timerA : `A ${timerA} · B ${timerB}`}
-          />
+          <SummaryRow label="Time" value={solo ? timerA : `A ${timerA} · B ${timerB}`} />
           <SummaryRow
             label="Tiles"
             value={
@@ -261,7 +266,9 @@ export function WaitingRoomPage({
             <SummaryRow
               label="Rack"
               value={
-                game.emailPlayersCanSeeOpponentRack ? CREATE_TEXT.rackVisible : CREATE_TEXT.rackHidden
+                game.emailPlayersCanSeeOpponentRack
+                  ? CREATE_TEXT.rackVisible
+                  : CREATE_TEXT.rackHidden
               }
             />
           )}
@@ -298,7 +305,11 @@ export function WaitingRoomPage({
         )}
       </ActionDock>
 
-      <Sheet open={editing && canManage} title="Edit room settings" onClose={() => setEditing(false)}>
+      <Sheet
+        open={editing && canManage}
+        title="Edit room settings"
+        onClose={() => setEditing(false)}
+      >
         <CreateRoomPanel
           settings={settings}
           members={members}
@@ -406,7 +417,7 @@ function buildParticipants({
       kind: "player",
       side,
       status: controlledByHost
-        ? WAITING_TEXT.statusHostBoard
+        ? WAITING_TEXT.statusReady
         : ready
           ? WAITING_TEXT.statusReady
           : WAITING_TEXT.statusNotReady,
@@ -434,8 +445,8 @@ function isDirectOnlineGame(
   ownerEmail: string | null,
 ): boolean {
   if (game.emailPlayMode === "direct") return true;
-  return (["A", "B"] as Side[]).some(
-    (side) => accountMatchesSide(game, side, ownerId ?? null, ownerEmail),
+  return (["A", "B"] as Side[]).some((side) =>
+    accountMatchesSide(game, side, ownerId ?? null, ownerEmail),
   );
 }
 
@@ -444,7 +455,9 @@ function findAccountSide(
   userId: string | null,
   email: string | null,
 ): Side | null {
-  return (["A", "B"] as Side[]).find((side) => accountMatchesSide(game, side, userId, email)) ?? null;
+  return (
+    (["A", "B"] as Side[]).find((side) => accountMatchesSide(game, side, userId, email)) ?? null
+  );
 }
 
 function hasPlayerIdentity(game: GameState, side: Side): boolean {

@@ -1,4 +1,5 @@
 import { supabase } from "./supabaseClient";
+import type { RoomVisibility } from "./roomScope";
 
 export type RegisteredPlayer = {
   id: string;
@@ -11,14 +12,23 @@ type RegisteredPlayerRow = {
   display_name?: unknown;
 };
 
-/** Public player picker data. This function never requests account emails. */
-export async function loadRegisteredPlayers(): Promise<RegisteredPlayer[]> {
+/** Scope-aware player picker data. This function never requests account emails. */
+export async function loadRegisteredPlayers(
+  visibility: RoomVisibility,
+): Promise<RegisteredPlayer[]> {
   if (!supabase) return [];
 
-  const rpcResult = await supabase.rpc("list_registered_players");
+  const rpcResult = await supabase.rpc("list_registered_players", {
+    target_visibility: visibility,
+  });
   if (!rpcResult.error) return normalizePlayers(rpcResult.data);
 
   if (!isMissingDirectoryRpc(rpcResult.error)) throw rpcResult.error;
+  if (visibility === "region") {
+    throw new Error(
+      "Region player directory is not enabled yet. Run supabase/region_visibility_migration.sql.",
+    );
+  }
 
   // Compatibility for projects that have not run user_invites_migration.sql
   // yet. The fallback still selects only public profile fields.
@@ -51,5 +61,7 @@ function normalizePlayers(value: unknown): RegisteredPlayer[] {
 }
 
 function isMissingDirectoryRpc(error: { code?: string; message?: string }): boolean {
-  return /PGRST202|42883|list_registered_players/i.test(`${error.code ?? ""} ${error.message ?? ""}`);
+  return /PGRST202|42883|list_registered_players/i.test(
+    `${error.code ?? ""} ${error.message ?? ""}`,
+  );
 }

@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   ChevronLeft,
   Folder,
@@ -41,6 +42,7 @@ function fmtDate(iso: string | null): string {
 }
 
 export function BotStatsPanel({ onClose }: { onClose: () => void }) {
+  const titleId = useId();
   const [folders, setFolders] = useState<BotFolder[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -88,22 +90,28 @@ export function BotStatsPanel({ onClose }: { onClose: () => void }) {
     setCreating(false);
   }
 
-  return (
-    <div className="modal-backdrop" role="presentation" onClick={onClose}>
-      <section
-        aria-modal="true"
-        className="bstat-modal"
-        role="dialog"
-        onClick={(event) => event.stopPropagation()}
-      >
+  return createPortal(
+    <div className="modal-backdrop bstat-backdrop">
+      <button
+        className="modal-backdrop-dismiss"
+        type="button"
+        aria-label="Close bot statistics"
+        onClick={onClose}
+      />
+      <section aria-labelledby={titleId} aria-modal="true" className="bstat-modal" role="dialog">
         <header className="modal-head">
           <div>
             <span className="eyebrow">Admin</span>
-            <h2>{selected ? selected.name : "Bot stat folders"}</h2>
+            <h2 id={titleId}>{selected ? selected.name : "Bot stat folders"}</h2>
           </div>
           <div className="admin-head-actions">
             {!selected && (
-              <button className="icon-button" type="button" onClick={() => void load()} disabled={busy}>
+              <button
+                className="icon-button"
+                type="button"
+                onClick={() => void load()}
+                disabled={busy}
+              >
                 <RotateCcw size={16} />
                 Refresh
               </button>
@@ -132,13 +140,16 @@ export function BotStatsPanel({ onClose }: { onClose: () => void }) {
                     }}
                   >
                     <input
-                      autoFocus
                       className="bstat-input"
                       placeholder="Folder name (e.g. Hard bot — Aug batch)"
                       value={newName}
                       onChange={(e) => setNewName(e.target.value)}
                     />
-                    <button className="bstat-btn bstat-btn-primary" type="submit" disabled={busy || !newName.trim()}>
+                    <button
+                      className="bstat-btn bstat-btn-primary"
+                      type="submit"
+                      disabled={busy || !newName.trim()}
+                    >
                       Create &amp; open
                     </button>
                     <button
@@ -153,7 +164,11 @@ export function BotStatsPanel({ onClose }: { onClose: () => void }) {
                     </button>
                   </form>
                 ) : (
-                  <button className="bstat-btn bstat-btn-primary" type="button" onClick={() => setCreating(true)}>
+                  <button
+                    className="bstat-btn bstat-btn-primary"
+                    type="button"
+                    onClick={() => setCreating(true)}
+                  >
                     <FolderPlus size={16} />
                     New folder
                   </button>
@@ -207,7 +222,8 @@ export function BotStatsPanel({ onClose }: { onClose: () => void }) {
           )}
         </div>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -265,14 +281,23 @@ function FolderCard({
           type="button"
           disabled={busy}
           onClick={onToggle}
-          title={folder.isOpen ? "Stop recording into this folder" : "Make this the active recording folder"}
+          title={
+            folder.isOpen
+              ? "Stop recording into this folder"
+              : "Make this the active recording folder"
+          }
         >
           {folder.isOpen ? <Square size={14} /> : <Play size={14} />}
           {folder.isOpen ? "Close" : "Open"}
         </button>
         {confirmDelete ? (
           <>
-            <button className="bstat-btn bstat-btn-danger" type="button" disabled={busy} onClick={onDelete}>
+            <button
+              className="bstat-btn bstat-btn-danger"
+              type="button"
+              disabled={busy}
+              onClick={onDelete}
+            >
               Delete?
             </button>
             <button className="bstat-btn" type="button" onClick={() => setConfirmDelete(false)}>
@@ -367,14 +392,22 @@ function FolderDetail({
               sub={`${stats.wins}W · ${stats.losses}L · ${stats.draws}D`}
               tone="accent"
             />
-            <StatTile label="Avg score" value={stats.avgBotScore.toFixed(1)} sub={`vs ${stats.avgOppScore.toFixed(1)}`} />
+            <StatTile
+              label="Avg score"
+              value={stats.avgBotScore.toFixed(1)}
+              sub={`vs ${stats.avgOppScore.toFixed(1)}`}
+            />
             <StatTile
               label="Avg margin"
               value={`${stats.avgMargin >= 0 ? "+" : ""}${stats.avgMargin.toFixed(1)}`}
               tone={stats.avgMargin >= 0 ? "accent" : "danger"}
             />
             <StatTile label="Best / worst" value={`${stats.bestScore} / ${stats.worstScore}`} />
-            <StatTile label="Std dev" value={stats.scoreStdDev.toFixed(1)} sub={`median ${stats.medianScore}`} />
+            <StatTile
+              label="Std dev"
+              value={stats.scoreStdDev.toFixed(1)}
+              sub={`median ${stats.medianScore}`}
+            />
           </div>
 
           <section className="bstat-section">
@@ -382,14 +415,17 @@ function FolderDetail({
               <TrendingUp size={15} /> Score density
             </h3>
             <p className="bstat-section-hint">
-              How the bot's per-game score is distributed. A long tail means some games ran away from the norm.
+              How the bot's per-game score is distributed. A long tail means some games ran away
+              from the norm.
             </p>
             <ScoreDensityChart bins={stats.density} mean={stats.avgBotScore} />
           </section>
 
           {stats.outliers.length > 0 && (
             <div className="bstat-outliers">
-              <strong>{stats.outliers.length} outlier game{stats.outliers.length > 1 ? "s" : ""}</strong>
+              <strong>
+                {stats.outliers.length} outlier game{stats.outliers.length > 1 ? "s" : ""}
+              </strong>
               <span> (≥2σ from the mean of {stats.avgBotScore.toFixed(1)}): </span>
               {stats.outliers.slice(0, 4).map((g) => (
                 <span key={g.id} className="bstat-outlier-chip">
@@ -424,7 +460,11 @@ function FolderDetail({
                       <td className="num">{g.oppScore}</td>
                       <td>
                         <span className={`bstat-outcome bstat-outcome-${g.outcome}`}>
-                          {g.outcome === "bot_win" ? "Bot won" : g.outcome === "bot_loss" ? "Bot lost" : "Draw"}
+                          {g.outcome === "bot_win"
+                            ? "Bot won"
+                            : g.outcome === "bot_loss"
+                              ? "Bot lost"
+                              : "Draw"}
                         </span>
                       </td>
                       <td className="num">{g.turns}</td>

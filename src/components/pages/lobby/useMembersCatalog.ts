@@ -1,10 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  listMembers,
-  loadMembers,
-  subscribeMembers,
-  type Member,
-} from "../../../members";
+import { listMembers, loadMembers, subscribeMembers, type Member } from "../../../members";
 import { isSupabaseConfigured } from "../../../supabaseClient";
 
 export function useMembersCatalog(userId: string | null) {

@@ -1,111 +1,141 @@
 import { useState } from "react";
-import { Copy, Download, Pencil, Trash2 } from "lucide-react";
+import { Download, Eye, KeyRound, LogIn, Pencil, Trash2, UserPlus } from "lucide-react";
 import type { RoomMeta } from "../../../rooms";
 import { ROOM_STATUS_TEXT } from "../../../uiText";
 import { OverflowMenu } from "../../ui/OverflowMenu";
 import { ConfirmSheet, TextPromptSheet } from "../../ui/Sheet";
+import { GameTableRow } from "./GameTable";
 
 /**
- * Compact 3-line room card: the whole surface opens the room; rare actions
- * live behind "⋯" with labels and confirmations (design.md §4.2).
+ * A two-line table row. Opening or joining is intentionally available only
+ * through the labeled action button, never through the row surface.
  */
 export function RoomCard({
   room,
+  hasOpponent,
   role,
   onOpen,
+  onJoinWithCode,
   onRename,
-  onDuplicate,
   onDelete,
   onExport,
 }: {
   room: RoomMeta;
+  hasOpponent: boolean;
   role: { canManage: boolean; canCreate: boolean; label: string };
   onOpen: () => void;
+  onJoinWithCode: () => void;
   onRename: (name: string) => void;
-  onDuplicate: () => void;
   onDelete: () => void;
   onExport: () => void;
 }) {
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const isSolo = room.gameMode === "solo";
-  const winner =
-    !isSolo && room.status === "finished" && room.scoreA !== room.scoreB
-      ? room.scoreA > room.scoreB
-        ? "A"
-        : "B"
-      : null;
-
-  const statusLabel =
-    room.status === "finished"
-      ? ROOM_STATUS_TEXT.finished
-      : room.status === "draft"
-        ? ROOM_STATUS_TEXT.waiting
-        : ROOM_STATUS_TEXT.playing;
+  const statusLabel = room.status === "draft" ? ROOM_STATUS_TEXT.waiting : ROOM_STATUS_TEXT.playing;
+  const spectator = role.label === "Spectator";
+  const openSeat = room.status !== "playing" && !hasOpponent;
+  const needsCode = spectator && openSeat && room.joinPolicy === "code_only";
+  const actionLabel = needsCode
+    ? "Join with code"
+    : spectator && openSeat && room.joinPolicy === "open"
+      ? "Join"
+      : spectator
+        ? "View game"
+        : "Open game";
+  const actionIcon = needsCode ? (
+    <KeyRound size={16} />
+  ) : actionLabel === "Join" ? (
+    <LogIn size={16} />
+  ) : (
+    <Eye size={16} />
+  );
 
   return (
-    <article className={`room-card status-${room.status}`}>
-      <button className="room-card-open" type="button" onClick={onOpen}>
-        <span className="room-card-line head">
-          <span className="room-card-name">{room.name}</span>
-          <span className={`room-status-pill status-${room.status}`}>{statusLabel}</span>
-        </span>
-        <span className="room-card-line score">
-          <span className="room-card-players">
-            <em className={winner === "A" ? "winner" : ""}>
-              {room.playerA} <b>{room.scoreA}</b>
-            </em>
-            {!isSolo && (
-              <>
-                <span className="room-card-sep">·</span>
-                <em className={winner === "B" ? "winner" : ""}>
-                  {room.playerB} <b>{room.scoreB}</b>
-                </em>
-              </>
-            )}
-          </span>
-          <span className="room-card-turn">Turn {room.turnNumber}</span>
-        </span>
-        <span className="room-card-line meta">
-          <span className="room-card-owner">
-            {room.ownerName ? `Hosted by ${room.ownerName}` : "Local room"}
-            <i>{role.label}</i>
-          </span>
-          <span className="room-card-time">{formatRelative(room.updatedAt)}</span>
-        </span>
-      </button>
-
-      <OverflowMenu
-        label={`Room actions · ${room.name}`}
-        items={[
-          {
-            icon: <Pencil size={16} />,
-            label: "Rename",
-            disabled: !role.canManage,
-            disabledReason: "Only the room owner can rename it",
-            onSelect: () => setRenameOpen(true),
-          },
-          {
-            icon: <Copy size={16} />,
-            label: "Duplicate",
-            disabled: !role.canManage || !role.canCreate,
-            disabledReason: "Only the room owner can duplicate it",
-            onSelect: onDuplicate,
-          },
-          {
-            icon: <Download size={16} />,
-            label: "Export file",
-            onSelect: onExport,
-          },
-          {
-            icon: <Trash2 size={16} />,
-            label: "Delete room",
-            danger: true,
-            disabled: !role.canManage,
-            disabledReason: "Only the room owner can delete it",
-            onSelect: () => setDeleteOpen(true),
-          },
-        ]}
+    <>
+      <GameTableRow
+        primary={
+          <>
+            <span className="eq-room-card-badges">
+              <span className={`eq-privacy-badge eq-privacy-${room.visibility ?? "public"}`}>
+                {room.visibility === "region" ? "Region" : "Public"}
+              </span>
+              <span className={`eq-status eq-status-${room.status}`}>{statusLabel}</span>
+            </span>
+            <span className="eq-room-card-name">{room.name}</span>
+            <span className="eq-room-card-players">
+              <em>
+                {room.playerA} <b>{room.scoreA}</b>
+              </em>
+              {!isSolo && (
+                <>
+                  <span className="eq-room-card-separator">·</span>
+                  <em>
+                    {room.playerB} <b>{room.scoreB}</b>
+                  </em>
+                </>
+              )}
+            </span>
+          </>
+        }
+        secondary={
+          <>
+            <span className="eq-room-card-owner">
+              {room.ownerName ? `Hosted by ${room.ownerName}` : "Local room"}
+              <i>{role.label}</i>
+            </span>
+            <span className="eq-room-card-join-hint">
+              {room.joinPolicy === "open" ? (
+                <>
+                  <UserPlus size={14} /> Open join
+                </>
+              ) : (
+                <>
+                  <KeyRound size={14} />
+                  {room.joinPolicy === "code_only" ? "Code required" : "Invite only"}
+                </>
+              )}
+            </span>
+            <span className="eq-room-card-turn">Turn {room.turnNumber}</span>
+            <span className="eq-room-card-time">{formatRelative(room.updatedAt)}</span>
+          </>
+        }
+        actions={
+          <>
+            <button
+              className="eq-button eq-button-secondary eq-game-row-action"
+              type="button"
+              onClick={needsCode ? onJoinWithCode : onOpen}
+            >
+              {actionIcon} {actionLabel}
+            </button>
+            <OverflowMenu
+              label={`Room actions · ${room.name}`}
+              items={[
+                {
+                  icon: <Pencil size={16} />,
+                  label: "Rename",
+                  disabled: !role.canManage,
+                  disabledReason: "Only the room owner can rename it",
+                  onSelect: () => setRenameOpen(true),
+                },
+                {
+                  icon: <Download size={16} />,
+                  label: "Export file",
+                  onSelect: onExport,
+                },
+                {
+                  icon: <Trash2 size={16} />,
+                  label: "Delete room",
+                  danger: true,
+                  disabled: !role.canManage,
+                  disabledReason: "Only the room owner can delete it",
+                  onSelect: () => setDeleteOpen(true),
+                },
+              ]}
+            />
+          </>
+        }
       />
 
       <TextPromptSheet
@@ -132,7 +162,7 @@ export function RoomCard({
           onDelete();
         }}
       />
-    </article>
+    </>
   );
 }
 

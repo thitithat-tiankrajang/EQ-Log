@@ -13,9 +13,14 @@ export function BotStatsButton() {
 
   return (
     <>
-      <button className="icon-button admin-open" type="button" onClick={() => setOpen(true)}>
+      <button
+        className="eq-utility-button"
+        type="button"
+        aria-label="Open bot statistics"
+        onClick={() => setOpen(true)}
+      >
         <FolderKanban size={16} />
-        <span className="admin-open-label">Bot stats</span>
+        <span className="eq-utility-label">Bot stats</span>
       </button>
       {open && <BotStatsPanel onClose={() => setOpen(false)} />}
     </>

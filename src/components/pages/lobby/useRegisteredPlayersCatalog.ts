@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { loadRegisteredPlayers, type RegisteredPlayer } from "../../../profiles";
 import { isSupabaseConfigured } from "../../../supabaseClient";
+import type { RoomVisibility } from "../../../roomScope";
 
-export function useRegisteredPlayersCatalog(enabled: boolean) {
+export function useRegisteredPlayersCatalog(enabled: boolean, visibility: RoomVisibility) {
   const [players, setPlayers] = useState<RegisteredPlayer[]>([]);
   const [loading, setLoading] = useState(isSupabaseConfigured && enabled);
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +20,7 @@ export function useRegisteredPlayersCatalog(enabled: boolean) {
     }
 
     setLoading(true);
-    void loadRegisteredPlayers()
+    void loadRegisteredPlayers(visibility)
       .then((next) => {
         if (!active) return;
         setPlayers(next);
@@ -28,7 +29,9 @@ export function useRegisteredPlayersCatalog(enabled: boolean) {
       .catch((loadError: unknown) => {
         if (!active) return;
         setPlayers([]);
-        setError(loadError instanceof Error ? loadError.message : "Unable to load player directory.");
+        setError(
+          loadError instanceof Error ? loadError.message : "Unable to load player directory.",
+        );
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -37,7 +40,7 @@ export function useRegisteredPlayersCatalog(enabled: boolean) {
     return () => {
       active = false;
     };
-  }, [enabled]);
+  }, [enabled, visibility]);
 
   return { error, loading, players };
 }

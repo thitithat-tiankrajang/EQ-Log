@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useRef, useState, type ReactNode 
 import type { Session } from "@supabase/supabase-js";
 import { LogOut } from "lucide-react";
 import { isSupabaseConfigured, supabase } from "./supabaseClient";
-import "./styles/pages/auth.css";
 import { PROFILE_LOAD_TIMEOUT_MS } from "./constants/network";
 
 export type ProfileStatus = "pending" | "approved" | "blocked";
@@ -13,6 +12,8 @@ export type Profile = {
   display_name: string | null;
   status: ProfileStatus;
   is_admin: boolean;
+  region_id: string | null;
+  region_name: string | null;
 };
 
 type AuthValue = {
@@ -52,11 +53,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setProfileLoading(true);
     setProfileError(null);
     try {
-      let result = await withTimeout(
-        supabase.rpc("get_my_profile"),
-        PROFILE_LOAD_TIMEOUT_MS,
-      );
-      if (result.error && /PGRST202|42883|get_my_profile/i.test(`${result.error.code ?? ""} ${result.error.message}`)) {
+      let result = await withTimeout(supabase.rpc("get_my_profile"), PROFILE_LOAD_TIMEOUT_MS);
+      if (
+        result.error &&
+        /PGRST202|42883|get_my_profile/i.test(`${result.error.code ?? ""} ${result.error.message}`)
+      ) {
         result = await withTimeout(
           supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
           PROFILE_LOAD_TIMEOUT_MS,
@@ -147,12 +148,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (trimmed.length < 2) return { error: "Name must be at least 2 characters" };
       const { error } = await supabase
         .from("profiles")
-        .upsert(
-          { id: session.user.id, email: session.user.email, display_name: trimmed },
-          { onConflict: "id" },
-        );
+        .update({ display_name: trimmed })
+        .eq("id", session.user.id);
       if (error) {
-        return { error: /duplicate|unique/i.test(error.message) ? "That name is already taken" : error.message };
+        return {
+          error: /duplicate|unique/i.test(error.message)
+            ? "That name is already taken"
+            : error.message,
+        };
       }
       await loadProfile(session.user.id);
       return {};
@@ -171,20 +174,41 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const { configured, loading, profileError, profileLoading, session, profile } = useAuth();
   if (!configured) return <>{children}</>;
   if (loading) return <AuthSplash text="Loading…" />;
-  if (!session) return <>{children}</>;
-  if (profileLoading || profileError) return <>{children}</>;
+  if (!session) return <SignInRequired />;
+  if (profileLoading) return <AuthSplash text="Checking account…" />;
+  if (profileError) {
+    return (
+      <AuthMessage
+        title="Unable to verify account"
+        body="Your account could not be verified. Sign out and try again."
+      />
+    );
+  }
   if (!profile || !profile.display_name) return <RegisterName />;
   if (profile.status === "blocked") {
-    return <AuthMessage title="Account blocked" body="Your account has been blocked. Please contact an admin." />;
+    return (
+      <AuthMessage
+        title="Account blocked"
+        body="Your account has been blocked. Please contact an admin."
+      />
+    );
+  }
+  if (profile.status !== "approved" && !profile.is_admin) {
+    return (
+      <AuthMessage
+        title="Approval pending"
+        body="An administrator must approve your account before you can access games."
+      />
+    );
   }
   return <>{children}</>;
 }
 
 function AuthShell({ children }: { children: ReactNode }) {
   return (
-    <main className="auth-shell">
-      <section className="auth-card">
-        <p className="eyebrow">EQuation Math Lab</p>
+    <main className="eq-auth-shell">
+      <section className="eq-auth-card">
+        <p className="eq-eyebrow">Equation Math Lab</p>
         {children}
       </section>
     </main>
@@ -193,21 +217,23 @@ function AuthShell({ children }: { children: ReactNode }) {
 
 function AuthSplash({ text }: { text: string }) {
   return (
-    <main className="auth-shell">
-      <div className="auth-splash">{text}</div>
+    <main className="eq-auth-shell">
+      <div className="eq-auth-splash" role="status">
+        {text}
+      </div>
     </main>
   );
 }
 
-function LoginScreen() {
+function SignInRequired() {
   const { signInWithGoogle } = useAuth();
   const [busy, setBusy] = useState(false);
   return (
     <AuthShell>
-      <h1>Sign in</h1>
-      <p className="auth-sub">Record and replay equation board matches.</p>
+      <h1>Sign in required</h1>
+      <p className="eq-auth-sub">Sign in with an approved member account to access games.</p>
       <button
-        className="primary-action google-button"
+        className="eq-button eq-button-primary"
         type="button"
         disabled={busy}
         onClick={async () => {
@@ -219,26 +245,22 @@ function LoginScreen() {
           }
         }}
       >
-        <GoogleMark />
-        Continue with Google
+        <GoogleMark /> Sign in with Google
       </button>
-      <p className="auth-footnote">
-        New accounts need admin approval before creating rooms — you can still join and watch right away.
-      </p>
     </AuthShell>
   );
 }
 
 function RegisterName() {
-  const { saveDisplayName, signOut, session } = useAuth();
+  const { saveDisplayName, signOut } = useAuth();
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   return (
     <AuthShell>
       <h1>Choose your name</h1>
-      <p className="auth-sub">Pick a unique username shown on your rooms.</p>
-      <label className="auth-field">
+      <p className="eq-auth-sub">Pick a unique username shown on your rooms.</p>
+      <label className="eq-field">
         Display name
         <input
           value={name}
@@ -247,9 +269,13 @@ function RegisterName() {
           onChange={(event) => setName(event.target.value)}
         />
       </label>
-      {error && <p className="auth-error">{error}</p>}
+      {error && (
+        <p className="eq-form-error" role="alert">
+          {error}
+        </p>
+      )}
       <button
-        className="primary-action"
+        className="eq-button eq-button-primary"
         type="button"
         disabled={busy || name.trim().length < 2}
         onClick={async () => {
@@ -262,26 +288,7 @@ function RegisterName() {
       >
         Continue
       </button>
-      <button className="auth-text-button" type="button" onClick={signOut}>
-        Sign out
-      </button>
-    </AuthShell>
-  );
-}
-
-function PendingApproval() {
-  const { profile, signOut, refreshProfile } = useAuth();
-  return (
-    <AuthShell>
-      <h1>Waiting for approval</h1>
-      <p className="auth-sub">
-        Thanks, <strong>{profile?.display_name}</strong>. An admin needs to approve your account before you
-        can create rooms and play. Ask your club admin to approve you.
-      </p>
-      <button className="primary-action" type="button" onClick={refreshProfile}>
-        Check again
-      </button>
-      <button className="auth-text-button" type="button" onClick={signOut}>
+      <button className="eq-text-button" type="button" onClick={signOut}>
         Sign out
       </button>
     </AuthShell>
@@ -293,8 +300,8 @@ function AuthMessage({ title, body }: { title: string; body: string }) {
   return (
     <AuthShell>
       <h1>{title}</h1>
-      <p className="auth-sub">{body}</p>
-      <button className="auth-text-button" type="button" onClick={signOut}>
+      <p className="eq-auth-sub">{body}</p>
+      <button className="eq-text-button" type="button" onClick={signOut}>
         Sign out
       </button>
     </AuthShell>
@@ -303,14 +310,29 @@ function AuthMessage({ title, body }: { title: string; body: string }) {
 
 // Account chip for the lobby header (renders nothing in local-only mode).
 export function AccountChip() {
-  const { configured, loading, profile, profileError, profileLoading, session, signInWithGoogle, signOut } = useAuth();
+  const {
+    configured,
+    loading,
+    profile,
+    profileError,
+    profileLoading,
+    session,
+    signInWithGoogle,
+    signOut,
+  } = useAuth();
   const [busy, setBusy] = useState(false);
   if (!configured) return null;
-  if (loading) return <div className="account-chip">Loading account…</div>;
+  if (loading)
+    return (
+      <div className="eq-account-chip" role="status">
+        <span className="eq-account-name">Loading account…</span>
+      </div>
+    );
   if (!session) {
     return (
       <button
-        className="icon-button"
+        className="eq-utility-button"
+        aria-label="Sign in to play"
         disabled={busy}
         type="button"
         onClick={async () => {
@@ -323,23 +345,38 @@ export function AccountChip() {
         }}
       >
         <GoogleMark />
-        Sign in to play
+        <span className="eq-utility-label">Sign in to play</span>
       </button>
     );
   }
-  if (profileLoading) return <div className="account-chip">Setting up account…</div>;
-  if (profileError) return <div className="account-chip">Account check failed</div>;
-  if (!profile) return <div className="account-chip">Choose a name to play</div>;
+  if (profileLoading)
+    return (
+      <div className="eq-account-chip" role="status">
+        <span className="eq-account-name">Setting up account…</span>
+      </div>
+    );
+  if (profileError)
+    return (
+      <div className="eq-account-chip">
+        <span className="eq-account-name">Account check failed</span>
+      </div>
+    );
+  if (!profile)
+    return (
+      <div className="eq-account-chip">
+        <span className="eq-account-name">Choose a name to play</span>
+      </div>
+    );
   const label = profile.display_name ?? "Account";
   return (
-    <div className="account-chip">
-      <span className="account-avatar">{(label ?? "?").slice(0, 1).toUpperCase()}</span>
-      <span className="account-name">
+    <div className="eq-account-chip">
+      <span className="eq-account-avatar">{(label ?? "?").slice(0, 1).toUpperCase()}</span>
+      <span className="eq-account-name">
         {label}
         {profile.status !== "approved" && <em> · {profile.status}</em>}
         {profile.is_admin && <em> · admin</em>}
       </span>
-      <button className="icon-button account-signout" type="button" title="Sign out" onClick={signOut}>
+      <button className="eq-account-signout" type="button" aria-label="Sign out" onClick={signOut}>
         <LogOut size={16} />
       </button>
     </div>
@@ -375,7 +412,10 @@ function GoogleMark() {
         fill="#34A853"
         d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"
       />
-      <path fill="#FBBC05" d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z" />
+      <path
+        fill="#FBBC05"
+        d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"
+      />
       <path
         fill="#EA4335"
         d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"

@@ -6,25 +6,33 @@ import type { ReactNode } from "react";
  * (red, with text) replaces the hint when present.
  */
 export function FieldRow({
+  controlId,
   label,
   hint,
   error,
   children,
 }: {
+  controlId: string;
   label: string;
   hint?: string;
   error?: string | null;
   children: ReactNode;
 }) {
   return (
-    <label className={`field-row ${error ? "has-error" : ""}`}>
-      <span className="field-row-label">{label}</span>
+    <div className={`field-row ${error ? "has-error" : ""}`}>
+      <label className="field-row-label" id={`${controlId}-label`} htmlFor={controlId}>
+        {label}
+      </label>
       {children}
       {error ? (
-        <em className="field-row-error">{error}</em>
+        <em className="field-row-error" id={`${controlId}-message`} role="alert">
+          {error}
+        </em>
       ) : hint ? (
-        <em className="field-row-hint">{hint}</em>
+        <em className="field-row-hint" id={`${controlId}-message`}>
+          {hint}
+        </em>
       ) : null}
-    </label>
+    </div>
   );
 }

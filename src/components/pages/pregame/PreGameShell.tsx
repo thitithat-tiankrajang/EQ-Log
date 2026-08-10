@@ -1,7 +1,8 @@
-import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 import { AccountChip } from "../../../auth";
 import { AdminButton } from "../../../admin";
+import type { RoomVisibility } from "../../../roomScope";
+import { ApplicationShell } from "../../../app/shells/ApplicationShell";
 
 export function PreGameShell({
   children,
@@ -11,40 +12,40 @@ export function PreGameShell({
   actions,
   onBack,
   visual,
+  visibility,
+  regionName,
+  variant = "form",
 }: {
   children: ReactNode;
   eyebrow: string;
   title: string;
   subtitle?: string;
-  /** Page-level controls (e.g. an overflow menu) shown beside the title. */
   actions?: ReactNode;
   onBack?: () => void;
   visual?: "glass";
+  visibility?: RoomVisibility;
+  regionName?: string | null;
+  variant?: "form" | "join" | "waiting";
 }) {
   return (
-    <main className="pregame-shell" data-visual={visual}>
-      <div className="pregame-inner">
-        <header className="pregame-header">
-          <div className="pregame-heading-row">
-            {onBack && (
-              <button className="pregame-back" type="button" aria-label="Back" onClick={onBack}>
-                <ArrowLeft size={18} />
-              </button>
-            )}
-            <div>
-              <span className="pregame-eyebrow">{eyebrow}</span>
-              <h1>{title}</h1>
-              {subtitle && <p>{subtitle}</p>}
-            </div>
-            {actions && <div className="pregame-heading-actions">{actions}</div>}
-          </div>
-          <div className="pregame-account-actions">
-            <AccountChip />
-            <AdminButton />
-          </div>
-        </header>
+    <ApplicationShell
+      eyebrow={eyebrow}
+      title={title}
+      description={subtitle}
+      onBack={onBack}
+      visibility={visibility}
+      regionName={regionName}
+      actions={
+        <>
+          {actions}
+          <AccountChip />
+          <AdminButton />
+        </>
+      }
+    >
+      <div className={`eq-flow-page eq-flow-${variant}`} data-visual={visual}>
         {children}
       </div>
-    </main>
+    </ApplicationShell>
   );
 }

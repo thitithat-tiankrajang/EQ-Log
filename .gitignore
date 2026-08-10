@@ -1,5 +1,8 @@
 node_modules/
 dist/
+coverage/
+playwright-report/
+test-results/
 *.tsbuildinfo
 .DS_Store
 .env
@@ -10,3 +13,15 @@ supabase/*
 !supabase/email_players_migration.sql
 !supabase/solo_mode_migration.sql
 !supabase/user_invites_migration.sql
+!supabase/region_visibility_migration.sql
+!supabase/game_archives_migration.sql
+!supabase/live_game_sync_repair_migration.sql
+!supabase/room_live_access_contract_migration.sql
+!supabase/room_live_function_acl_repair.sql
+!supabase/room_code_secret_setup.example.sql
+!supabase/tests/
+supabase/tests/*
+!supabase/tests/game_archive_room_code_smoke.sql
+!supabase/tests/local_supabase_bootstrap.sql
+!supabase/tests/live_game_sync_smoke.sql
+!supabase/tests/room_live_access_contract_smoke.sql

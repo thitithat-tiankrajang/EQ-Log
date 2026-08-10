@@ -25,8 +25,10 @@ export function StatsView({
       .sort((a, b) => (b.stats?.games ?? 0) - (a.stats?.games ?? 0));
   }, [members, statsByMember]);
 
-  const focusedMember = focusedId ? members.find((member) => member.id === focusedId) ?? null : null;
-  const focusedStats = focusedId ? statsByMember.get(focusedId) ?? null : null;
+  const focusedMember = focusedId
+    ? (members.find((member) => member.id === focusedId) ?? null)
+    : null;
+  const focusedStats = focusedId ? (statsByMember.get(focusedId) ?? null) : null;
 
   if (focusedMember && focusedStats) {
     return (
@@ -131,7 +133,8 @@ export function StatsView({
       </div>
       {finishedRows === 0 && (
         <p className="stats-hint">
-          No finished games yet — win rate and head-to-head numbers appear once at least one game wraps up.
+          No finished games yet — win rate and head-to-head numbers appear once at least one game
+          wraps up.
         </p>
       )}
     </div>
@@ -199,7 +202,9 @@ function HeadToHeadView({
                       <MemberChip member={member} size="md" />
                     ) : (
                       <span className="member-chip member-chip-placeholder">
-                        <span className="member-avatar member-avatar-sm member-avatar-placeholder">?</span>
+                        <span className="member-avatar member-avatar-sm member-avatar-placeholder">
+                          ?
+                        </span>
                         <span className="member-chip-name">Unknown</span>
                       </span>
                     )}

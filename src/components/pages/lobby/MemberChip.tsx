@@ -22,7 +22,10 @@ export function MemberChip({
 }) {
   const detail = hint ?? member.institution ?? null;
   return (
-    <span className={`member-chip member-chip-${size}`} title={member.institution ? `${member.name} · ${member.institution}` : member.name}>
+    <span
+      className={`member-chip member-chip-${size}`}
+      title={member.institution ? `${member.name} · ${member.institution}` : member.name}
+    >
       <MemberAvatar member={member} size={size} />
       <span className="member-chip-name">
         {member.name}

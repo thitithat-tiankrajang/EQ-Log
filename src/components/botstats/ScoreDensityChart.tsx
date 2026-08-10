@@ -2,13 +2,7 @@ import type { DensityBin } from "../../botStats";
 
 // A compact histogram of the bot's per-game score. Bars are drawn as inline SVG
 // so it needs no chart library and inherits the panel's theme via currentColor.
-export function ScoreDensityChart({
-  bins,
-  mean,
-}: {
-  bins: DensityBin[];
-  mean: number;
-}) {
+export function ScoreDensityChart({ bins, mean }: { bins: DensityBin[]; mean: number }) {
   if (bins.length === 0) {
     return <p className="bstat-empty">No games recorded yet.</p>;
   }

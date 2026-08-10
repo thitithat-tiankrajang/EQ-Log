@@ -1,13 +1,18 @@
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { decodeGame, encodeGame } from "./codec";
-import { getGameMode, type ActionType, type GameMode, type GameState, type GameStatus, type PendingPlacement, type Side } from "./game";
+import {
+  type ActionType,
+  type GameMode,
+  type GameState,
+  type PendingPlacement,
+  type Side,
+} from "./game";
 import type { RoomMeta } from "./rooms";
 import { supabase } from "./supabaseClient";
-import { REMOTE_CAPABILITIES_TTL_MS } from "./constants/network";
-import { STORAGE_KEYS } from "./constants/storage";
+import type { RoomScope, RoomVisibility } from "./roomScope";
+import { deriveCompletion, deriveModeKey } from "./features/gameRecords/domain";
 
 type ActionMode = "none" | ActionType;
-type RoomInviteStorage = "none" | "user" | "legacy";
 
 export type LiveRoomSession = {
   version: 1;
@@ -26,6 +31,18 @@ export type LiveRoomSession = {
   updatedAt: string;
 };
 
+export type LiveAccessScope = "public" | "region" | "private";
+export type ArchivePolicy = "public" | "region" | "private" | "none";
+export type JoinPolicy = "open" | "code_only" | "invite_only";
+
+export type CreateRoomPolicy = {
+  accessScope: LiveAccessScope;
+  archivePolicy: ArchivePolicy;
+  joinPolicy: JoinPolicy;
+  regionId: string | null;
+  privateParentId?: string | null;
+};
+
 export type RemoteRoomRecord = {
   id: string;
   owner_id: string | null;
@@ -35,34 +52,97 @@ export type RemoteRoomRecord = {
   status: GameState["status"];
   lifecycle_status?: GameState["status"] | null;
   game_mode?: GameMode | null;
+  mode_key?: string | null;
   member_a_id?: string | null;
   member_b_id?: string | null;
   invite_user_a_id?: string | null;
   invite_user_b_id?: string | null;
-  invite_email_a?: string | null;
-  invite_email_b?: string | null;
-  starting_side?: "A" | "B" | null;
+  starting_side?: Side | null;
+  creator_side?: Side | null;
   turn_number: number;
   score_a: number;
   score_b: number;
   state?: unknown;
   created_at: string;
   updated_at: string;
-  profiles?:
-    | { display_name: string | null; email?: string | null }
-    | { display_name: string | null; email?: string | null }[]
-    | null;
+  visibility?: RoomVisibility;
+  access_scope?: LiveAccessScope;
+  archive_policy?: ArchivePolicy;
+  join_policy?: JoinPolicy;
+  room_code?: string | null;
+  region_id?: string | null;
+  profiles?: { display_name: string | null } | { display_name: string | null }[] | null;
 };
 
-type RemoteRoomLiveRecord = {
+type LiveRoomRow = {
   room_id: string;
-  session: unknown;
+  owner_id: string | null;
+  name: string;
+  player_a: string;
+  player_b: string;
+  status: "waiting" | "playing" | "paused";
+  access_scope: LiveAccessScope;
+  archive_policy: ArchivePolicy;
+  join_policy: JoinPolicy;
+  region_id: string | null;
+  game_mode: GameMode;
+  mode_key: string;
+  member_a_id: string | null;
+  member_b_id: string | null;
+  player_a_user_id: string | null;
+  player_b_user_id: string | null;
+  starting_side: Side;
+  creator_side: Side | null;
+  turn_number: number;
+  score_a: number;
+  score_b: number;
+  state?: unknown;
+  session?: unknown;
+  created_at: string;
   updated_at: string;
+  profiles?: RemoteRoomRecord["profiles"];
 };
 
-type DatabaseResult = {
-  data: unknown;
-  error: { code?: string; message: string; details?: string } | null;
+type LiveRoomSummaryRow = {
+  room_id: string;
+  name: string;
+  player_a: string;
+  player_b: string;
+  status: "waiting" | "playing" | "paused";
+  access_scope: LiveAccessScope;
+  archive_policy: ArchivePolicy;
+  join_policy: JoinPolicy;
+  region_id: string | null;
+  game_mode: GameMode;
+  mode_key: string;
+  starting_side: Side;
+  turn_number: number;
+  score_a: number;
+  score_b: number;
+  created_at: string;
+  updated_at: string;
+  owner_name: string | null;
+  viewer_role: "Owner" | "Admin" | "Player A" | "Player B" | "Spectator";
+  can_manage: boolean;
+  has_opponent: boolean;
+};
+
+type ArchiveRoomRow = {
+  game_id: string;
+  source_owner_id?: string | null;
+  name: string;
+  player_a: string;
+  player_b: string;
+  game_mode: GameMode;
+  mode_key: string;
+  turn_number: number;
+  score_a: number;
+  score_b: number;
+  creator_side?: Side | null;
+  snapshot: unknown;
+  created_at: string;
+  finished_at: string;
+  region_id?: string | null;
 };
 
 export type RemoteRoomPayload = {
@@ -92,30 +172,42 @@ export type RoomSessionEvent =
   | "import"
   | "delete";
 
-const META_FIELDS =
-  "id,owner_id,name,player_a,player_b,status,turn_number,score_a,score_b,created_at,updated_at,profiles:owner_id(display_name)";
-const SUMMARY_FIELDS =
-  "id,owner_id,name,player_a,player_b,status,lifecycle_status,game_mode,member_a_id,member_b_id,starting_side,turn_number,score_a,score_b,created_at,updated_at,profiles:owner_id(display_name)";
-const LEGACY_META_FIELDS = META_FIELDS.replace("profiles:owner_id(display_name)", "profiles:owner_id(display_name,email)");
-const LEGACY_SUMMARY_FIELDS = SUMMARY_FIELDS.replace("profiles:owner_id(display_name)", "profiles:owner_id(display_name,email)");
-const USER_INVITE_FIELDS = "invite_user_a_id,invite_user_b_id";
-const LEGACY_INVITE_FIELDS = "invite_email_a,invite_email_b";
-const READ_ROOM_FIELDS = `${META_FIELDS},state`;
-const LEGACY_READ_ROOM_FIELDS = `${LEGACY_META_FIELDS},state`;
+const LIVE_SUMMARY_FIELDS =
+  "room_id,owner_id,name,player_a,player_b,status,access_scope,archive_policy,join_policy,region_id,game_mode,mode_key,member_a_id,member_b_id,player_a_user_id,player_b_user_id,starting_side,creator_side,turn_number,score_a,score_b,created_at,updated_at,profiles:owner_id(display_name)";
+const LIVE_READ_FIELDS = `${LIVE_SUMMARY_FIELDS},state,session`;
+const LIVE_REALTIME_COLUMNS = [
+  "room_id",
+  "owner_id",
+  "name",
+  "player_a",
+  "player_b",
+  "status",
+  "access_scope",
+  "archive_policy",
+  "join_policy",
+  "region_id",
+  "game_mode",
+  "mode_key",
+  "member_a_id",
+  "member_b_id",
+  "player_a_user_id",
+  "player_b_user_id",
+  "starting_side",
+  "creator_side",
+  "turn_number",
+  "score_a",
+  "score_b",
+  "state",
+  "session",
+  "created_at",
+  "updated_at",
+];
+const ARCHIVE_READ_FIELDS =
+  "game_id,name,player_a,player_b,game_mode,mode_key,turn_number,score_a,score_b,snapshot,created_at,finished_at";
 
-type RemoteCapabilities = {
-  summaryColumns?: boolean;
-  liveRoom?: boolean;
-  draftStatus?: boolean;
-  inviteColumns?: boolean;
-  userInviteColumns?: boolean;
-  checkedAt: number;
-};
-
-let remoteCapabilities = readRemoteCapabilities();
-const stateWriteQueues = new Map<string, Promise<void>>();
 const latestLiveSessions = new Map<string, LiveRoomSession>();
 const liveWriteDrains = new Map<string, Promise<void>>();
+const roomWriteQueues = new Map<string, Promise<void>>();
 
 export function makeLiveSession(args: {
   actorId: string | null;
@@ -157,198 +249,144 @@ export function emptyLiveSession(actorId: string | null = null): LiveRoomSession
   });
 }
 
-export async function listRooms(): Promise<RoomMeta[]> {
+export async function listRooms(scope: RoomScope): Promise<RoomMeta[]> {
   if (!supabase) return [];
-  const useSummary = remoteCapabilities.summaryColumns !== false;
-  const useUserInvite = remoteCapabilities.userInviteColumns !== false;
-  const selectFields = buildSelectFields({
-    summary: useSummary,
-    userInvite: useUserInvite,
-    legacyInvite: !useUserInvite,
+  const { data, error } = await supabase.rpc("list_live_games", {
+    target_access_scope: scope.visibility,
+    target_region_id: scope.regionId,
   });
-  let result: DatabaseResult = await supabase
-    .from("rooms")
-    .select(selectFields)
-    .order("updated_at", { ascending: false });
-  if (useUserInvite && result.error && isMissingUserInviteColumnsError(result.error)) {
-    setRemoteCapability("userInviteColumns", false);
-    result = await supabase
-      .from("rooms")
-      .select(buildSelectFields({ summary: useSummary, userInvite: false, legacyInvite: true }))
-      .order("updated_at", { ascending: false });
-  } else if (useUserInvite && !result.error) {
-    setRemoteCapability("userInviteColumns", true);
-  }
-  if (!useUserInvite && result.error && isPrivateLegacyInviteError(result.error)) {
-    result = await supabase
-      .from("rooms")
-      .select(buildSelectFields({ summary: useSummary, userInvite: true }))
-      .order("updated_at", { ascending: false });
-    if (!result.error) setRemoteCapability("userInviteColumns", true);
-  }
-  if (useSummary && result.error && isMissingSummarySchemaError(result.error)) {
-    setRemoteCapability("summaryColumns", false);
-    result = await supabase
-      .from("rooms")
-      .select(buildSelectFields({
-        summary: false,
-        userInvite: false,
-        legacyInvite: remoteCapabilities.userInviteColumns === false,
-      }))
-      .order("updated_at", { ascending: false });
-  } else if (useSummary && !result.error) {
-    setRemoteCapability("summaryColumns", true);
-  }
-  if (result.error) throw result.error;
-  return ((result.data ?? []) as unknown as RemoteRoomRecord[]).map(metaFromRow);
+  if (error) throw schemaError(error.message);
+  return ((data ?? []) as LiveRoomSummaryRow[]).map(metaFromSummaryRow);
 }
 
-function buildSelectFields({
-  summary,
-  userInvite,
-  legacyInvite = false,
-}: {
-  summary: boolean;
-  userInvite: boolean;
-  legacyInvite?: boolean;
-}): string {
-  const base = legacyInvite
-    ? summary
-      ? LEGACY_SUMMARY_FIELDS
-      : LEGACY_META_FIELDS
-    : summary
-      ? SUMMARY_FIELDS
-      : META_FIELDS;
-  if (userInvite) return `${base},${USER_INVITE_FIELDS}`;
-  return legacyInvite ? `${base},${LEGACY_INVITE_FIELDS}` : base;
-}
-
-function roomInviteStorage(game: GameState): RoomInviteStorage {
-  if (game.playerUserIds?.A || game.playerUserIds?.B) return "user";
-  if (game.playerEmails?.A || game.playerEmails?.B) return "legacy";
-  return "none";
-}
-
-function roomSelectFields(summary: boolean, inviteStorage: RoomInviteStorage): string {
-  return buildSelectFields({
-    summary,
-    userInvite: inviteStorage === "user",
-    legacyInvite: inviteStorage === "legacy",
+export async function listPrivateRooms(): Promise<RoomMeta[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.rpc("list_live_games", {
+    target_access_scope: "private",
+    target_region_id: null,
   });
+  if (error) throw schemaError(error.message);
+  return ((data ?? []) as LiveRoomSummaryRow[]).map(metaFromSummaryRow);
 }
 
 export async function readRoom(id: string): Promise<RemoteRoomPayload | null> {
   if (!supabase) return null;
-  const sessionPromise = readLiveSession(id);
-  const useUserInvite = remoteCapabilities.userInviteColumns !== false;
-  const fields = useUserInvite ? `${READ_ROOM_FIELDS},${USER_INVITE_FIELDS}` : `${LEGACY_READ_ROOM_FIELDS},${LEGACY_INVITE_FIELDS}`;
-  let roomResult = await supabase.from("rooms").select(fields).eq("id", id).maybeSingle();
-  if (useUserInvite && roomResult.error && isMissingUserInviteColumnsError(roomResult.error)) {
-    setRemoteCapability("userInviteColumns", false);
-    roomResult = await supabase
-      .from("rooms")
-      .select(`${LEGACY_READ_ROOM_FIELDS},${LEGACY_INVITE_FIELDS}`)
-      .eq("id", id)
-      .maybeSingle();
-  } else if (useUserInvite && !roomResult.error) {
-    setRemoteCapability("userInviteColumns", true);
+  const liveResult = await supabase
+    .from("room_live")
+    .select(LIVE_READ_FIELDS)
+    .eq("room_id", id)
+    .maybeSingle();
+  if (liveResult.error) throw schemaError(liveResult.error.message);
+  if (liveResult.data) {
+    const payload = payloadFromRow(normalizeLiveRow(liveResult.data as unknown as LiveRoomRow));
+    const { data: roomCode } = await supabase.rpc("get_live_game_code", { target_game_id: id });
+    payload.meta.roomCode = typeof roomCode === "string" ? roomCode : null;
+    return payload;
   }
-  if (!useUserInvite && roomResult.error && isPrivateLegacyInviteError(roomResult.error)) {
-    roomResult = await supabase
-      .from("rooms")
-      .select(`${READ_ROOM_FIELDS},${USER_INVITE_FIELDS}`)
-      .eq("id", id)
-      .maybeSingle();
-    if (!roomResult.error) setRemoteCapability("userInviteColumns", true);
-  }
-  const session = await sessionPromise;
-  if (roomResult.error) throw roomResult.error;
-  if (!roomResult.data) return null;
-  const row = roomResult.data as unknown as RemoteRoomRecord;
-  return {
-    game: decodeRoomGame(row),
-    meta: metaFromRow(row),
-    session,
-    needsCompaction: getEncodedVersion(row.state) < 2,
-    needsInviteRepair: rowNeedsInviteRepair(row),
+
+  const publicResult = await supabase
+    .from("public_game_snapshots")
+    .select(ARCHIVE_READ_FIELDS)
+    .eq("game_id", id)
+    .maybeSingle();
+  if (publicResult.error) throw schemaError(publicResult.error.message);
+  if (publicResult.data)
+    return payloadFromArchive(publicResult.data as unknown as ArchiveRoomRow, "public");
+
+  const regionResult = await supabase
+    .from("region_game_snapshots")
+    .select(`${ARCHIVE_READ_FIELDS},region_id`)
+    .eq("game_id", id)
+    .maybeSingle();
+  if (regionResult.error) throw schemaError(regionResult.error.message);
+  if (regionResult.data)
+    return payloadFromArchive(regionResult.data as unknown as ArchiveRoomRow, "region");
+
+  const privateResult = await supabase
+    .from("private_library_items")
+    .select(
+      "game_id,name,game_mode,mode_key,turn_number,score_a,score_b,snapshot,created_at,updated_at",
+    )
+    .eq("item_type", "game")
+    .eq("game_id", id)
+    .is("trashed_at", null)
+    .limit(1)
+    .maybeSingle();
+  if (privateResult.error) throw schemaError(privateResult.error.message);
+  if (!privateResult.data) return null;
+  const privateRow = privateResult.data as unknown as {
+    game_id: string;
+    name: string;
+    game_mode: GameMode;
+    mode_key: string;
+    turn_number: number;
+    score_a: number;
+    score_b: number;
+    snapshot: unknown;
+    created_at: string;
+    updated_at: string;
   };
+  const decoded = decodeGame(privateRow.snapshot as Parameters<typeof decodeGame>[0]);
+  return payloadFromArchive(
+    {
+      ...privateRow,
+      player_a: decoded.players.A,
+      player_b: decoded.players.B,
+      finished_at: privateRow.updated_at,
+    },
+    "public",
+    "private",
+  );
 }
 
 export async function createRoom(
   game: GameState,
   ownerId: string,
   session: LiveRoomSession,
-): Promise<{ id: string; meta: RoomMeta }> {
+  scope: RoomScope,
+  policy?: CreateRoomPolicy,
+): Promise<{ id: string; meta: RoomMeta; game: GameState }> {
   if (!supabase) throw new Error("Supabase is not configured.");
-  const databaseStatus = getDatabaseStatus(game.status);
-  const basePayload = {
-    ...roomStatePayload(game, databaseStatus),
-    owner_id: ownerId,
-  };
-  const inviteStorage = roomInviteStorage(game);
-  const useSummary = remoteCapabilities.summaryColumns !== false;
-  const summaryFields = useSummary ? roomSummaryPayload(game) : {};
-  const inviteFields = inviteStorage === "none" ? {} : roomInvitePayload(game);
-  const insertPayload = { ...basePayload, ...summaryFields, ...inviteFields };
-  let result: DatabaseResult = await supabase
-    .from("rooms")
-    .insert(insertPayload)
-    .select(roomSelectFields(useSummary, inviteStorage))
-    .single();
-
-  if (inviteStorage === "user" && result.error && isMissingUserInviteColumnsError(result.error)) {
-    setRemoteCapability("userInviteColumns", false);
-    throw missingInviteSchemaError();
-  } else if (inviteStorage === "user" && !result.error) {
-    setRemoteCapability("userInviteColumns", true);
+  const initialGame = assignOwnerToReservedSide(game, ownerId);
+  const resolvedPolicy: CreateRoomPolicy =
+    policy ??
+    (scope.visibility === "region"
+      ? {
+          accessScope: "region",
+          archivePolicy: "region",
+          joinPolicy: hasAssignedPlayers(game) ? "invite_only" : "open",
+          regionId: scope.regionId,
+        }
+      : {
+          accessScope: "public",
+          archivePolicy: "public",
+          joinPolicy: hasAssignedPlayers(game) ? "invite_only" : "open",
+          regionId: null,
+        });
+  const { data, error } = await supabase.rpc("create_live_game", {
+    target_state: encodeGame(initialGame),
+    target_access_scope: resolvedPolicy.accessScope,
+    target_archive_policy: resolvedPolicy.archivePolicy,
+    target_region_id: resolvedPolicy.regionId,
+    target_join_policy: resolvedPolicy.joinPolicy,
+    target_private_parent_id: resolvedPolicy.privateParentId ?? null,
+  });
+  if (error) throw schemaError(error.message);
+  const result = Array.isArray(data) ? data[0] : data;
+  const id = String((result as { room_id?: unknown } | null)?.room_id ?? "");
+  const roomCode = String((result as { room_code?: unknown } | null)?.room_code ?? "");
+  if (!id) throw new Error("The live game was created without an id.");
+  // Confirm the initial state and session through the same atomic write path
+  // used during play. This also repairs a room created by an older database
+  // function that returned an id before persisting its state.
+  await updateRoomState({ id, game: initialGame, session });
+  const payload = await readRoom(id);
+  if (!payload) throw new Error("The live game could not be loaded after creation.");
+  if (payload.meta.ownerId && payload.meta.ownerId !== ownerId) {
+    throw new Error("The live game owner did not match the signed-in account.");
   }
-
-  if (isDraftStatusConstraintError(result.error, databaseStatus)) {
-    setRemoteCapability("draftStatus", false);
-    // An old capability cache may say invite columns are unavailable even
-    // though this insert just proved only the draft status was rejected.
-    // Email rooms must retain their relational invite columns on retry.
-    const retryPayload = { ...insertPayload, status: "playing" };
-    result = await supabase
-      .from("rooms")
-      .insert(retryPayload)
-      .select(roomSelectFields(useSummary, inviteStorage))
-      .single();
-    if (inviteStorage === "user" && !result.error) setRemoteCapability("userInviteColumns", true);
-  } else if (databaseStatus === "draft" && !result.error) {
-    setRemoteCapability("draftStatus", true);
-  }
-
-  if (useSummary && result.error && isMissingSummarySchemaError(result.error)) {
-    setRemoteCapability("summaryColumns", false);
-    const compatibilityPayload = { ...basePayload, ...inviteFields };
-    const compatibilityFields = roomSelectFields(false, inviteStorage);
-    let compatibility = await supabase
-      .from("rooms")
-      .insert(compatibilityPayload)
-      .select(compatibilityFields)
-      .single();
-    if (isDraftStatusConstraintError(compatibility.error, databaseStatus)) {
-      setRemoteCapability("draftStatus", false);
-      compatibility = await supabase
-        .from("rooms")
-        .insert({ ...compatibilityPayload, status: "playing" })
-        .select(compatibilityFields)
-        .single();
-    }
-    result = compatibility;
-  }
-  if (inviteStorage === "user" && result.error && isMissingUserInviteColumnsError(result.error)) {
-    setRemoteCapability("userInviteColumns", false);
-    throw missingInviteSchemaError();
-  }
-  if (inviteStorage === "legacy" && result.error && isMissingLegacyInviteColumnsError(result.error)) {
-    throw missingLegacyInviteSchemaError();
-  }
-  if (result.error) throw result.error;
-  const meta = metaFromRow(result.data as unknown as RemoteRoomRecord);
-  await updateRoomSession(meta.id, session);
-  return { id: meta.id, meta };
+  if (roomCode) payload.meta.roomCode = roomCode;
+  return { id, meta: payload.meta, game: payload.game };
 }
 
 export function updateRoomState(args: {
@@ -357,54 +395,26 @@ export function updateRoomState(args: {
   session: LiveRoomSession;
   event?: RoomSessionEvent;
 }): Promise<void> {
-  return enqueueRoomWrite(stateWriteQueues, args.id, async () => {
+  return enqueueRoomWrite(args.id, async () => {
     if (!supabase) return;
-    const databaseStatus = getDatabaseStatus(args.game.status);
-    const basePayload = roomStatePayload(args.game, databaseStatus);
-    const inviteStorage = roomInviteStorage(args.game);
-    const useSummary = remoteCapabilities.summaryColumns !== false;
-    const summaryFields = useSummary ? roomSummaryPayload(args.game) : {};
-    const inviteFields = inviteStorage === "none" ? {} : roomInvitePayload(args.game);
-    const updatePayload = { ...basePayload, ...summaryFields, ...inviteFields };
-    let result = await supabase.from("rooms").update(updatePayload).eq("id", args.id);
-
-    if (inviteStorage === "user" && result.error && isMissingUserInviteColumnsError(result.error)) {
-      setRemoteCapability("userInviteColumns", false);
-      throw missingInviteSchemaError();
-    } else if (inviteStorage === "user" && !result.error) {
-      setRemoteCapability("userInviteColumns", true);
+    if (args.game.status === "finished") {
+      const completion = deriveCompletion(args.game);
+      const { error } = await supabase.rpc("finalize_live_game", {
+        target_game_id: args.id,
+        target_state: encodeGame(args.game),
+        target_completion_kind: completion.kind,
+        target_completion_reason: completion.reason,
+        target_surrendered_side: completion.surrenderedSide,
+      });
+      if (error) throw schemaError(error.message);
+      return;
     }
-
-    if (isDraftStatusConstraintError(result.error, databaseStatus)) {
-      setRemoteCapability("draftStatus", false);
-      const retryPayload = { ...updatePayload, status: "playing" };
-      result = await supabase.from("rooms").update(retryPayload).eq("id", args.id);
-      if (inviteStorage === "user" && !result.error) setRemoteCapability("userInviteColumns", true);
-    } else if (databaseStatus === "draft" && !result.error) {
-      setRemoteCapability("draftStatus", true);
-    }
-
-    if (useSummary && result.error && isMissingSummarySchemaError(result.error)) {
-      setRemoteCapability("summaryColumns", false);
-      const compatibilityPayload = { ...basePayload, ...inviteFields };
-      let compatibility = await supabase.from("rooms").update(compatibilityPayload).eq("id", args.id);
-      if (isDraftStatusConstraintError(compatibility.error, databaseStatus)) {
-        setRemoteCapability("draftStatus", false);
-        compatibility = await supabase
-          .from("rooms")
-          .update({ ...compatibilityPayload, status: "playing" })
-          .eq("id", args.id);
-      }
-      result = compatibility;
-    }
-    if (inviteStorage === "user" && result.error && isMissingUserInviteColumnsError(result.error)) {
-      setRemoteCapability("userInviteColumns", false);
-      throw missingInviteSchemaError();
-    }
-    if (inviteStorage === "legacy" && result.error && isMissingLegacyInviteColumnsError(result.error)) {
-      throw missingLegacyInviteSchemaError();
-    }
-    if (result.error) throw result.error;
+    const { error } = await supabase.rpc("sync_live_game_state", {
+      target_game_id: args.id,
+      target_state: encodeGame(args.game),
+      target_session: args.session,
+    });
+    if (error) throw schemaError(error.message);
   });
 }
 
@@ -412,7 +422,10 @@ export function updateRoomSession(id: string, session: LiveRoomSession): Promise
   latestLiveSessions.set(id, session);
   const activeDrain = liveWriteDrains.get(id);
   if (activeDrain) return activeDrain;
-  const drain = drainLiveSessionWrites(id);
+  // State and draft writes share one room queue. Without this, an older draft
+  // request can finish after a committed state write and leave spectators
+  // rendering that stale draft on top of the new board.
+  const drain = enqueueRoomWrite(id, () => drainLiveSessionWrites(id));
   liveWriteDrains.set(id, drain);
   const cleanup = () => {
     if (liveWriteDrains.get(id) === drain) liveWriteDrains.delete(id);
@@ -421,47 +434,48 @@ export function updateRoomSession(id: string, session: LiveRoomSession): Promise
   return drain;
 }
 
-export async function updateRoomReady(id: string, side: "A" | "B", ready: boolean): Promise<void> {
+export async function updateRoomReady(id: string, side: Side, ready: boolean): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.rpc("set_room_ready", {
     target_ready: ready,
     target_room_id: id,
     target_side: side,
   });
-  if (error) {
-    if (/set_room_ready|PGRST202|42883/i.test(`${error.code ?? ""} ${error.message}`)) {
-      throw new Error(
-        "Waiting-room readiness is not enabled in Supabase yet. Run supabase/user_invites_migration.sql.",
-      );
-    }
-    throw new Error(error.message || "Unable to update ready status.");
-  }
+  if (error) throw schemaError(error.message);
+}
+
+export async function joinRoom(args: {
+  code?: string;
+  gameId?: string;
+}): Promise<{ id: string; claimedSide: Side | null }> {
+  if (!supabase) throw new Error("Sign in to join a live game.");
+  const { data, error } = await supabase.rpc("join_live_game", {
+    target_room_code: args.code?.trim() || null,
+    target_game_id: args.gameId ?? null,
+  });
+  if (error) throw schemaError(error.message);
+  const result = Array.isArray(data) ? data[0] : data;
+  const id = String((result as { room_id?: unknown } | null)?.room_id ?? "");
+  const claimedSide = (result as { claimed_side?: Side | null } | null)?.claimed_side ?? null;
+  if (!id) throw new Error("The live game could not be joined.");
+  return { id, claimedSide };
 }
 
 export async function repairRoomInvites(id: string, game: GameState): Promise<void> {
-  if (!supabase || !hasRoomInvites(game)) return;
-  const { error } = await supabase
-    .from("rooms")
-    .update(roomInvitePayload(game))
-    .eq("id", id);
-  const inviteStorage = roomInviteStorage(game);
-  if (error && inviteStorage === "user" && isMissingUserInviteColumnsError(error)) {
-    throw missingInviteSchemaError();
-  }
-  if (error && inviteStorage === "legacy" && isMissingLegacyInviteColumnsError(error)) {
-    throw missingLegacyInviteSchemaError();
-  }
-  if (error) throw new Error(error.message || "Unable to repair room player assignments.");
-  if (inviteStorage === "user") setRemoteCapability("userInviteColumns", true);
+  if (!supabase) return;
+  const { error } = await supabase.rpc("update_live_game_state", {
+    target_game_id: id,
+    target_state: encodeGame(game),
+  });
+  if (error) throw schemaError(error.message);
 }
 
 export async function deleteRoom(id: string): Promise<void> {
   if (!supabase) return;
-  const { error } = await supabase.from("rooms").delete().eq("id", id);
-  if (error) throw error;
+  const { error } = await supabase.rpc("cancel_live_game", { target_game_id: id });
+  if (error) throw schemaError(error.message);
 }
 
-/** Realtime channel lifecycle, surfaced so callers can heal dead channels. */
 export type RoomChannelStatus = "SUBSCRIBED" | "CHANNEL_ERROR" | "TIMED_OUT" | "CLOSED";
 
 export function subscribeToRoom(
@@ -472,108 +486,187 @@ export function subscribeToRoom(
 ): () => void {
   const client = supabase;
   if (!client) return () => undefined;
-  let channel = client
-    .channel(`room:${id}`)
-    .on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "rooms", filter: `id=eq.${id}` },
-      (payload: RealtimePostgresChangesPayload<RemoteRoomRecord>) => onState(payload),
-    );
-
-  if (remoteCapabilities.liveRoom !== false) {
-    channel = channel.on(
-      "postgres_changes",
-      { event: "*", schema: "public", table: "room_live", filter: `room_id=eq.${id}` },
-      (payload: RealtimePostgresChangesPayload<RemoteRoomLiveRecord>) => {
-        if (payload.new && "session" in payload.new) onSession(parseSession(payload.new.session));
-      },
-    );
-  }
-  // Phones drop the websocket whenever the screen turns off or the tab is
-  // backgrounded, and missed postgres_changes are never replayed. Reporting
-  // the status lets App re-read the room on SUBSCRIBED and rebuild the
-  // channel on CHANNEL_ERROR / TIMED_OUT / CLOSED.
-  channel.subscribe((status) => {
-    onStatus?.(status as RoomChannelStatus);
-  });
-
+  const realtimeFilter = {
+    event: "*" as const,
+    schema: "public",
+    table: "room_live",
+    filter: `room_id=eq.${id}`,
+    select: LIVE_REALTIME_COLUMNS,
+  };
+  // Realtime supports column selection before the installed client types expose it.
+  const typedRealtimeFilter = realtimeFilter as Omit<typeof realtimeFilter, "select">;
+  const channel = client
+    .channel(`live-game:${id}`)
+    .on("postgres_changes", typedRealtimeFilter, (raw) => {
+      const hasCompleteState = raw.new && isCompleteLiveRoomRow(raw.new);
+      if (raw.eventType === "DELETE" || hasCompleteState) {
+        const next = hasCompleteState ? normalizeLiveRow(raw.new as LiveRoomRow) : raw.new;
+        const previous =
+          raw.old && isCompleteLiveRoomRow(raw.old)
+            ? normalizeLiveRow(raw.old as LiveRoomRow)
+            : raw.old;
+        onState({
+          ...raw,
+          new: next,
+          old: previous,
+        } as RealtimePostgresChangesPayload<RemoteRoomRecord>);
+      }
+      if (raw.new && "session" in raw.new) {
+        onSession(parseSession((raw.new as unknown as LiveRoomRow).session));
+      }
+    })
+    .subscribe((status) => onStatus?.(status as RoomChannelStatus));
   return () => {
     void client.removeChannel(channel);
   };
 }
 
+function isCompleteLiveRoomRow(value: object): value is LiveRoomRow {
+  return LIVE_REALTIME_COLUMNS.every((column) => column in value);
+}
+
 export function payloadFromRow(row: RemoteRoomRecord): RemoteRoomPayload {
+  if (!row.state) throw new Error("Live game state is missing.");
+  const game = decodeRoomGame(row);
   return {
-    game: decodeRoomGame(row),
-    meta: metaFromRow(row),
+    game,
+    meta: metaFromRow(row, game),
+    session: parseSession((row as RemoteRoomRecord & { session?: unknown }).session),
+    needsCompaction: false,
+    needsInviteRepair: false,
+  };
+}
+
+function payloadFromArchive(
+  row: ArchiveRoomRow,
+  visibility: RoomVisibility,
+  accessScope: LiveAccessScope = visibility,
+): RemoteRoomPayload {
+  const game = decodeGame(row.snapshot as Parameters<typeof decodeGame>[0]);
+  const meta: RoomMeta = {
+    id: row.game_id,
+    ownerId: row.source_owner_id ?? null,
+    ownerName: null,
+    name: row.name,
+    createdAt: row.created_at,
+    updatedAt: row.finished_at,
+    playerA: row.player_a,
+    playerB: row.player_b,
+    gameMode: row.game_mode,
+    startingSide: game.startingSide,
+    turnNumber: row.turn_number,
+    scoreA: row.score_a,
+    scoreB: row.score_b,
+    status: "finished",
+    visibility,
+    regionId: row.region_id ?? null,
+    accessScope,
+    archivePolicy: accessScope === "private" ? "private" : visibility,
+  };
+  return {
+    game,
+    meta,
     session: emptyLiveSession(),
-    needsCompaction: getEncodedVersion(row.state) < 2,
-    needsInviteRepair: rowNeedsInviteRepair(row),
+    needsCompaction: false,
+    needsInviteRepair: false,
   };
 }
 
-function roomStatePayload(game: GameState, status: GameStatus) {
+function normalizeLiveRow(row: LiveRoomRow): RemoteRoomRecord {
   return {
-    name: game.name,
-    player_a: game.players.A,
-    player_b: game.players.B,
-    status,
-    turn_number: game.turnNumber,
-    score_a: game.scores.A,
-    score_b: game.scores.B,
-    state: encodeGame(game),
-    updated_at: new Date().toISOString(),
-  };
+    id: row.room_id,
+    owner_id: row.owner_id,
+    name: row.name,
+    player_a: row.player_a,
+    player_b: row.player_b,
+    status: row.status === "waiting" || row.status === "paused" ? "draft" : "playing",
+    lifecycle_status: row.status === "waiting" || row.status === "paused" ? "draft" : "playing",
+    game_mode: row.game_mode,
+    mode_key: row.mode_key,
+    member_a_id: row.member_a_id,
+    member_b_id: row.member_b_id,
+    invite_user_a_id: row.player_a_user_id,
+    invite_user_b_id: row.player_b_user_id,
+    starting_side: row.starting_side,
+    creator_side: row.creator_side,
+    turn_number: row.turn_number,
+    score_a: row.score_a,
+    score_b: row.score_b,
+    state: row.state,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    visibility: row.access_scope === "region" ? "region" : "public",
+    access_scope: row.access_scope,
+    archive_policy: row.archive_policy,
+    join_policy: row.join_policy,
+    region_id: row.region_id,
+    profiles: row.profiles,
+    session: row.session,
+  } as RemoteRoomRecord & { session?: unknown };
 }
 
-function roomSummaryPayload(game: GameState) {
+function metaFromRow(row: RemoteRoomRecord, decoded?: GameState): RoomMeta {
+  const owner = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+  const game = decoded ?? (row.state ? decodeRoomGame(row) : null);
   return {
-    lifecycle_status: game.status,
-    game_mode: getGameMode(game),
-    member_a_id: game.playerMembers?.A ?? null,
-    member_b_id: game.playerMembers?.B ?? null,
-    starting_side: game.startingSide ?? game.activeSide,
+    id: row.id,
+    ownerId: row.owner_id,
+    ownerName: owner?.display_name ?? null,
+    name: row.name,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    playerA: row.player_a,
+    playerB: row.player_b,
+    gameMode: row.game_mode ?? game?.gameMode ?? "versus",
+    memberAId: row.member_a_id ?? game?.playerMembers?.A ?? null,
+    memberBId: row.member_b_id ?? game?.playerMembers?.B ?? null,
+    inviteUserAId: row.invite_user_a_id ?? game?.playerUserIds?.A ?? null,
+    inviteUserBId: row.invite_user_b_id ?? game?.playerUserIds?.B ?? null,
+    startingSide: row.starting_side ?? game?.startingSide ?? null,
+    turnNumber: row.turn_number,
+    scoreA: row.score_a,
+    scoreB: row.score_b,
+    status: game?.status ?? row.status,
+    visibility: row.visibility ?? "public",
+    regionId: row.region_id ?? null,
+    accessScope: row.access_scope,
+    archivePolicy: row.archive_policy,
+    joinPolicy: row.join_policy,
+    roomCode: row.room_code ?? null,
+    modeKey: row.mode_key ?? (game ? deriveModeKey(game) : null),
   };
 }
 
-function roomInvitePayload(game: GameState) {
-  if (game.playerUserIds?.A || game.playerUserIds?.B) {
-    return {
-      invite_user_a_id: game.playerUserIds?.A ?? null,
-      invite_user_b_id: game.playerUserIds?.B ?? null,
-    };
-  }
+function metaFromSummaryRow(row: LiveRoomSummaryRow): RoomMeta {
   return {
-    invite_email_a: game.playerEmails?.A ?? null,
-    invite_email_b: game.playerEmails?.B ?? null,
+    id: row.room_id,
+    ownerId: null,
+    ownerName: row.owner_name,
+    name: row.name,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    playerA: row.player_a,
+    playerB: row.player_b,
+    gameMode: row.game_mode,
+    startingSide: row.starting_side,
+    turnNumber: row.turn_number,
+    scoreA: row.score_a,
+    scoreB: row.score_b,
+    status: row.status === "playing" ? "playing" : "draft",
+    visibility: row.access_scope === "region" ? "region" : "public",
+    regionId: row.region_id,
+    accessScope: row.access_scope,
+    archivePolicy: row.archive_policy,
+    joinPolicy: row.join_policy,
+    modeKey: row.mode_key,
+    hasOpponent: row.has_opponent,
+    viewerRole: row.viewer_role,
+    canManage: row.can_manage,
   };
-}
-
-function hasRoomInvites(game: GameState): boolean {
-  return Boolean(
-    game.playerUserIds?.A ||
-      game.playerUserIds?.B ||
-      game.playerEmails?.A ||
-      game.playerEmails?.B,
-  );
-}
-
-function missingInviteSchemaError(): Error {
-  return new Error(
-    "Registered-player rooms are not enabled yet. Run supabase/user_invites_migration.sql, then try again.",
-  );
-}
-
-function missingLegacyInviteSchemaError(): Error {
-  return new Error(
-    "Email-player rooms are not enabled yet. Run supabase/user_invites_migration.sql, then try again.",
-  );
 }
 
 function decodeRoomGame(row: RemoteRoomRecord): GameState {
-  if (!row.state) throw new Error("Room state is missing.");
   const game = decodeGame(row.state as Parameters<typeof decodeGame>[0]);
-  if (!row.invite_user_a_id && !row.invite_user_b_id) return game;
   const playerUserIds = {
     ...(row.invite_user_a_id ? { A: row.invite_user_a_id } : {}),
     ...(row.invite_user_b_id ? { B: row.invite_user_b_id } : {}),
@@ -590,257 +683,73 @@ function decodeRoomGame(row: RemoteRoomRecord): GameState {
   };
 }
 
-function getEncodedVersion(state: unknown): number {
-  if (!state || typeof state !== "object") return 0;
-  const version = Number((state as { v?: unknown }).v);
-  return Number.isFinite(version) ? version : 0;
-}
-
-async function readLiveSession(id: string): Promise<LiveRoomSession> {
-  if (!supabase || remoteCapabilities.liveRoom === false) return emptyLiveSession();
-  const { data, error } = await supabase
-    .from("room_live")
-    .select("room_id,session,updated_at")
-    .eq("room_id", id)
-    .maybeSingle();
-  if (error && isMissingLiveRoomError(error)) {
-    setRemoteCapability("liveRoom", false);
-    return emptyLiveSession();
-  }
-  if (error) throw error;
-  setRemoteCapability("liveRoom", true);
-  return data ? parseSession((data as RemoteRoomLiveRecord).session) : emptyLiveSession();
-}
-
 async function drainLiveSessionWrites(id: string): Promise<void> {
   while (latestLiveSessions.has(id)) {
     const session = latestLiveSessions.get(id);
     latestLiveSessions.delete(id);
-    if (!session || !supabase || remoteCapabilities.liveRoom === false) continue;
-    const { error } = await supabase.from("room_live").upsert(
-      {
-        room_id: id,
-        actor_id: session.actorId,
-        session,
-        updated_at: session.updatedAt,
-      },
-      { onConflict: "room_id" },
-    );
-    if (error && isMissingLiveRoomError(error)) {
-      setRemoteCapability("liveRoom", false);
-      latestLiveSessions.delete(id);
-      return;
-    }
-    if (error) throw error;
-    setRemoteCapability("liveRoom", true);
+    if (!session || !supabase) continue;
+    const { error } = await supabase.rpc("update_live_game_session", {
+      target_game_id: id,
+      target_session: session,
+    });
+    if (error) throw schemaError(error.message);
   }
-}
-
-function metaFromRow(row: RemoteRoomRecord): RoomMeta {
-  const owner = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
-  const legacy = extractSummaryFromState(row.state);
-  return {
-    id: row.id,
-    ownerId: row.owner_id,
-    ownerName: owner?.display_name ?? null,
-    ownerEmail: owner?.email ?? null,
-    name: row.name,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    playerA: row.player_a,
-    playerB: row.player_b,
-    gameMode: normalizeGameMode(row.game_mode) ?? legacy.gameMode ?? "versus",
-    memberAId: row.member_a_id ?? legacy.memberAId,
-    memberBId: row.member_b_id ?? legacy.memberBId,
-    inviteUserAId: row.invite_user_a_id ?? legacy.inviteUserAId,
-    inviteUserBId: row.invite_user_b_id ?? legacy.inviteUserBId,
-    inviteEmailA: row.invite_email_a ?? legacy.inviteEmailA,
-    inviteEmailB: row.invite_email_b ?? legacy.inviteEmailB,
-    startingSide: row.starting_side ?? legacy.startingSide,
-    turnNumber: row.turn_number,
-    scoreA: row.score_a,
-    scoreB: row.score_b,
-    status: normalizeGameStatus(row.lifecycle_status) ?? legacy.status ?? row.status,
-  };
-}
-
-function extractSummaryFromState(state: unknown): {
-  memberAId: string | null;
-  memberBId: string | null;
-  inviteEmailA: string | null;
-  inviteEmailB: string | null;
-  inviteUserAId: string | null;
-  inviteUserBId: string | null;
-  startingSide: "A" | "B" | null;
-  status: GameStatus | null;
-  gameMode: GameMode | null;
-} {
-  if (!state || typeof state !== "object") {
-    return {
-      memberAId: null,
-      memberBId: null,
-      inviteEmailA: null,
-      inviteEmailB: null,
-      inviteUserAId: null,
-      inviteUserBId: null,
-      startingSide: null,
-      status: null,
-      gameMode: null,
-    };
-  }
-  const obj = state as {
-    playerMembers?: { A?: string; B?: string };
-    playerEmails?: { A?: string; B?: string };
-    playerUserIds?: { A?: string; B?: string };
-    startingSide?: "A" | "B";
-    activeSide?: "A" | "B";
-    history?: { activeSide?: "A" | "B" }[];
-    status?: GameStatus;
-    gameMode?: GameMode;
-  };
-  return {
-    memberAId: obj.playerMembers?.A ?? null,
-    memberBId: obj.playerMembers?.B ?? null,
-    inviteEmailA: obj.playerEmails?.A ?? null,
-    inviteEmailB: obj.playerEmails?.B ?? null,
-    inviteUserAId: obj.playerUserIds?.A ?? null,
-    inviteUserBId: obj.playerUserIds?.B ?? null,
-    startingSide: obj.startingSide ?? obj.history?.[0]?.activeSide ?? obj.activeSide ?? null,
-    status: normalizeGameStatus(obj.status),
-    gameMode: normalizeGameMode(obj.gameMode),
-  };
-}
-
-function rowNeedsInviteRepair(row: RemoteRoomRecord): boolean {
-  const expected = extractSummaryFromState(row.state);
-  if (expected.inviteUserAId || expected.inviteUserBId) {
-    return (
-      idValuesDiffer(expected.inviteUserAId, row.invite_user_a_id) ||
-      idValuesDiffer(expected.inviteUserBId, row.invite_user_b_id)
-    );
-  }
-  // Legacy email assignments are intentionally not selected after the UUID
-  // migration, so do not infer a repair from a privacy-redacted row.
-  if (row.invite_email_a === undefined && row.invite_email_b === undefined) return false;
-  return (
-    emailValuesDiffer(expected.inviteEmailA, row.invite_email_a) ||
-    emailValuesDiffer(expected.inviteEmailB, row.invite_email_b)
-  );
-}
-
-function idValuesDiffer(expected: string | null, actual: string | null | undefined): boolean {
-  return Boolean(expected && expected !== actual);
-}
-
-function emailValuesDiffer(expected: string | null, actual: string | null | undefined): boolean {
-  if (!expected) return false;
-  return expected.trim().toLowerCase() !== (actual ?? "").trim().toLowerCase();
-}
-
-function normalizeGameMode(mode: unknown): GameMode | null {
-  return mode === "solo" || mode === "versus" ? mode : null;
-}
-
-function normalizeGameStatus(status: unknown): GameStatus | null {
-  return status === "playing" || status === "draft" || status === "finished" ? status : null;
 }
 
 function parseSession(value: unknown): LiveRoomSession {
   if (!value || typeof value !== "object") return emptyLiveSession();
   const session = value as Partial<LiveRoomSession>;
   return {
+    ...emptyLiveSession(session.actorId ?? null),
+    ...session,
     version: 1,
-    actorId: session.actorId ?? null,
-    gameId: session.gameId ?? null,
-    turnNumber: typeof session.turnNumber === "number" ? session.turnNumber : null,
-    activeSide: session.activeSide === "A" || session.activeSide === "B" ? session.activeSide : null,
-    actionMode: session.actionMode ?? "none",
     pendingPlacements: Array.isArray(session.pendingPlacements) ? session.pendingPlacements : [],
-    exchangeDraft: {
-      outgoingIds: Array.isArray(session.exchangeDraft?.outgoingIds) ? session.exchangeDraft.outgoingIds : [],
-      incomingTiles: Array.isArray(session.exchangeDraft?.incomingTiles) ? session.exchangeDraft.incomingTiles : [],
-    },
-    selectedRackTileId: session.selectedRackTileId ?? null,
-    selectedPendingTileId: session.selectedPendingTileId ?? null,
-    updatedAt: session.updatedAt ?? new Date().toISOString(),
+    exchangeDraft: session.exchangeDraft ?? { outgoingIds: [], incomingTiles: [] },
   };
 }
 
-function enqueueRoomWrite(
-  queues: Map<string, Promise<void>>,
-  id: string,
-  operation: () => Promise<void>,
-): Promise<void> {
-  const previous = queues.get(id) ?? Promise.resolve();
-  const current = previous.catch(() => undefined).then(operation);
-  queues.set(id, current);
+function hasAssignedPlayers(game: GameState): boolean {
+  return Boolean(game.playerUserIds?.A || game.playerUserIds?.B);
+}
+
+function assignOwnerToReservedSide(game: GameState, ownerId: string): GameState {
+  const ownerSide: Side | null =
+    game.gameMode === "solo" || game.botSide === "B" ? "A" : game.botSide === "A" ? "B" : null;
+  if (!ownerSide || game.playerUserIds?.[ownerSide]) return game;
+  return {
+    ...game,
+    playerUserIds: { ...game.playerUserIds, [ownerSide]: ownerId },
+  };
+}
+
+function enqueueRoomWrite(id: string, task: () => Promise<void>): Promise<void> {
+  const previous = roomWriteQueues.get(id) ?? Promise.resolve();
+  const next = previous.catch(() => undefined).then(task);
+  roomWriteQueues.set(id, next);
   const cleanup = () => {
-    if (queues.get(id) === current) queues.delete(id);
+    if (roomWriteQueues.get(id) === next) roomWriteQueues.delete(id);
   };
-  void current.then(cleanup, cleanup);
-  return current;
+  void next.then(cleanup, cleanup);
+  return next;
 }
 
-function isDraftStatusConstraintError(
-  error: { code?: string; message?: string; details?: string } | null,
-  status: GameStatus,
-): boolean {
-  if (!error || status !== "draft" || error.code !== "23514") return false;
-  const text = `${error.message ?? ""} ${error.details ?? ""}`.toLowerCase();
-  return text.includes("rooms_status_check") || text.includes("status");
-}
-
-function getDatabaseStatus(status: GameStatus): GameStatus {
-  return status === "draft" && remoteCapabilities.draftStatus === false ? "playing" : status;
-}
-
-function isMissingSummarySchemaError(error: { code?: string; message?: string } | null): boolean {
-  const text = `${error?.code ?? ""} ${error?.message ?? ""}`;
-  return /lifecycle_status|game_mode|member_a_id|member_b_id|starting_side/i.test(text);
-}
-
-function isMissingUserInviteColumnsError(error: { code?: string; message?: string } | null): boolean {
-  const text = `${error?.code ?? ""} ${error?.message ?? ""}`;
-  return /invite_user_a_id|invite_user_b_id/i.test(text);
-}
-
-function isMissingLegacyInviteColumnsError(error: { code?: string; message?: string } | null): boolean {
-  const text = `${error?.code ?? ""} ${error?.message ?? ""}`;
-  return /invite_email_a|invite_email_b/i.test(text);
-}
-
-function isPrivateLegacyInviteError(error: { code?: string; message?: string } | null): boolean {
-  const text = `${error?.code ?? ""} ${error?.message ?? ""}`;
-  return /42501|permission denied.*invite_email|invite_email.*permission denied/i.test(text);
-}
-
-function isMissingLiveRoomError(error: { code?: string; message?: string } | null): boolean {
-  const text = `${error?.code ?? ""} ${error?.message ?? ""}`;
-  return /42P01|PGRST205|room_live|schema cache/i.test(text);
-}
-
-function readRemoteCapabilities(): RemoteCapabilities {
-  const fallback: RemoteCapabilities = { checkedAt: Date.now() };
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEYS.remoteCapabilities);
-    if (!raw) return fallback;
-    const parsed = JSON.parse(raw) as RemoteCapabilities;
-    if (!parsed.checkedAt || Date.now() - parsed.checkedAt > REMOTE_CAPABILITIES_TTL_MS) return fallback;
-    return parsed;
-  } catch {
-    return fallback;
+function schemaError(message: string): Error {
+  if (
+    /sync_live_game_state/i.test(message) &&
+    /does not exist|schema cache|PGRST20|42883/i.test(message)
+  ) {
+    return new Error(
+      "Live game sync needs an upgrade. Run supabase/live_game_sync_repair_migration.sql.",
+    );
   }
-}
-
-function setRemoteCapability(
-  capability: "summaryColumns" | "liveRoom" | "draftStatus" | "inviteColumns" | "userInviteColumns",
-  value: boolean,
-): void {
-  if (remoteCapabilities[capability] === value) return;
-  remoteCapabilities = { ...remoteCapabilities, [capability]: value, checkedAt: Date.now() };
-  try {
-    window.localStorage.setItem(STORAGE_KEYS.remoteCapabilities, JSON.stringify(remoteCapabilities));
-  } catch {
-    // Storage can be unavailable in private or restricted browser contexts.
+  if (
+    /does not exist|schema cache|PGRST20|create_live_game|finalize_live_game|sync_live_game|update_live_game|cancel_live_game|join_live_game/i.test(
+      message,
+    )
+  ) {
+    return new Error(
+      "Live game storage is not enabled yet. Run supabase/game_archives_migration.sql.",
+    );
   }
+  return new Error(message);
 }

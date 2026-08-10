@@ -1,4 +1,4 @@
-const CACHE_NAME = "eq-lab-shell-v3";
+const CACHE_NAME = "eq-lab-shell-v4";
 const APP_SHELL = [
   "/",
   "/index.html",
@@ -26,7 +26,9 @@ self.addEventListener("activate", (event) => {
       .keys()
       .then((keys) =>
         Promise.all(
-          keys.filter((key) => key.startsWith("eq-lab-") && key !== CACHE_NAME).map((key) => caches.delete(key)),
+          keys
+            .filter((key) => key.startsWith("eq-lab-") && key !== CACHE_NAME)
+            .map((key) => caches.delete(key)),
         ),
       )
       .then(() => self.clients.claim()),

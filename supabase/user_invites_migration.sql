@@ -85,7 +85,7 @@ begin
       or invite_user_a_id <> invite_user_b_id
     );
   end if;
-end $$;
+end; $$;
 
 do $$
 begin
@@ -95,7 +95,7 @@ begin
     alter table public.rooms add constraint rooms_game_mode_check
       check (game_mode is null or game_mode in ('versus', 'solo')) not valid;
   end if;
-end $$;
+end; $$;
 
 do $$
 begin
@@ -105,7 +105,7 @@ begin
     alter table public.rooms add constraint rooms_starting_side_check
       check (starting_side is null or starting_side in ('A', 'B')) not valid;
   end if;
-end $$;
+end; $$;
 
 -- The room picker gets only stable account ids and public usernames.
 create or replace function public.list_registered_players()
@@ -280,7 +280,7 @@ begin
   set state = jsonb_set(state, '{lobbyReadyBySide}', ready_state, true),
       updated_at = now()
   where id = target_room_id;
-end $$;
+end; $$;
 
 revoke all on function public.set_room_ready(uuid, text, boolean) from public;
 grant execute on function public.set_room_ready(uuid, text, boolean) to authenticated;
@@ -364,7 +364,7 @@ begin
   end if;
 
   return new;
-end $$;
+end; $$;
 
 drop trigger if exists protect_invited_room_update on public.rooms;
 create trigger protect_invited_room_update
@@ -505,14 +505,14 @@ begin
   alter publication supabase_realtime add table public.rooms;
 exception
   when duplicate_object then null;
-end $$;
+end; $$;
 
 do $$
 begin
   alter publication supabase_realtime add table public.room_live;
 exception
   when duplicate_object then null;
-end $$;
+end; $$;
 
 do $$
 begin
@@ -536,6 +536,6 @@ begin
   then
     raise exception 'room creation RPC verification failed';
   end if;
-end $$;
+end; $$;
 
 notify pgrst, 'reload schema';

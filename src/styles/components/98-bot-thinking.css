@@ -72,13 +72,13 @@
 }
 
 /* ── Bot room setup form ──────────────────────────────────────────────────
-   Rendered inside .pregame-shell[data-visual="glass"], so it borrows that
+   Rendered inside .eq-flow-page[data-visual="glass"], so it borrows that
    page's blue-glass material, spacing rhythm, and accent (#2f66e6). Base
    rules here stay theme-neutral; the glass-scoped block below adds the polish.
    ───────────────────────────────────────────────────────────────────────── */
 .bot-room-panel {
   display: grid;
-  gap: 20px;
+  gap: 16px;
 }
 
 /* Aether hero — gives the opponent a face and sets the tone for the page. */
@@ -131,6 +131,90 @@
   opacity: 0.7;
 }
 
+.bot-hero-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: 0 0 auto;
+  margin-left: auto;
+  border: 1px solid color-mix(in srgb, #2f66e6 22%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, #2f66e6 9%, transparent);
+  color: #2f66e6;
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.bot-config-section {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  margin: 0;
+  border: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 14px;
+  background: color-mix(in srgb, currentColor 2%, transparent);
+  padding: 16px;
+}
+
+fieldset.bot-config-section {
+  min-inline-size: 0;
+}
+
+.bot-config-heading {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+.bot-config-heading > span:first-child {
+  display: grid;
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 9px;
+  background: #2f66e6;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.bot-config-heading > div,
+.bot-config-heading > span:last-child {
+  display: grid;
+  gap: 2px;
+}
+
+.bot-config-heading h3,
+.bot-config-heading strong,
+.bot-config-heading p,
+.bot-config-heading small {
+  margin: 0;
+}
+
+.bot-config-heading h3,
+.bot-config-heading strong {
+  color: inherit;
+  font-size: 14px;
+  font-weight: 850;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.bot-config-heading p,
+.bot-config-heading small {
+  color: color-mix(in srgb, currentColor 65%, transparent);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 /* Field + section spacing. Legends read as small section labels. */
 .bot-room-panel .create-field {
   display: grid;
@@ -162,6 +246,21 @@
   font-weight: 600;
 }
 
+.bot-field-hint,
+.bot-field-error {
+  font-size: 11.5px;
+  font-weight: 550;
+  line-height: 1.4;
+}
+
+.bot-field-hint {
+  color: color-mix(in srgb, currentColor 68%, transparent);
+}
+
+.bot-field-error {
+  color: #b42335;
+}
+
 .bot-difficulty-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -183,6 +282,9 @@
   border-radius: 12px;
   border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
   background: color-mix(in srgb, currentColor 3%, transparent);
+  color: inherit;
+  font: inherit;
+  text-align: left;
   cursor: pointer;
   transition: border-color 0.15s ease, background-color 0.15s ease,
     box-shadow 0.15s ease, transform 0.15s ease;
@@ -202,6 +304,68 @@
   border-color: color-mix(in srgb, #2f66e6 55%, transparent);
   background: color-mix(in srgb, #2f66e6 12%, transparent);
   box-shadow: inset 3px 0 0 #2f66e6;
+}
+
+.bot-option-check {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 50%;
+  background: #2f66e6;
+  color: #fff;
+}
+
+.bot-rule-group {
+  display: grid;
+  gap: 8px;
+}
+
+.bot-rule-group + .bot-rule-group {
+  border-top: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+  padding-top: 14px;
+}
+
+.bot-rule-group > strong {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.66;
+}
+
+.bot-submit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border-top: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+  padding-top: 16px;
+}
+
+.bot-submit-row > span {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bot-submit-row strong,
+.bot-submit-row small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bot-submit-row strong {
+  font-size: 13px;
+}
+
+.bot-submit-row small {
+  color: color-mix(in srgb, currentColor 65%, transparent);
+  font-size: 11px;
 }
 
 .bot-difficulty-top {
@@ -258,29 +422,29 @@
 }
 
 /* Glass polish — only when nested in the glass pre-game shell. */
-.pregame-shell[data-visual="glass"] .bot-hero {
+.eq-flow-page[data-visual="glass"] .bot-hero {
   border-color: rgba(47, 102, 230, 0.16);
   background: linear-gradient(135deg, rgba(224, 236, 255, 0.72), rgba(255, 255, 255, 0.4));
-  box-shadow: var(--glassr-shadow-row);
+  box-shadow: var(--eq-shadow-sm, 0 8px 24px rgba(23, 58, 148, 0.1));
 }
 
-.pregame-shell[data-visual="glass"] .bot-hero-name {
+.eq-flow-page[data-visual="glass"] .bot-hero-name {
   color: var(--glassr-ink, #16233d);
 }
 
-.pregame-shell[data-visual="glass"] .bot-hero-sub,
-.pregame-shell[data-visual="glass"] .bot-difficulty-desc {
+.eq-flow-page[data-visual="glass"] .bot-hero-sub,
+.eq-flow-page[data-visual="glass"] .bot-difficulty-desc {
   color: var(--glassr-ink-mut, #6b7a92);
   opacity: 1;
 }
 
-.pregame-shell[data-visual="glass"] .bot-room-panel legend,
-.pregame-shell[data-visual="glass"] .bot-room-panel .bot-field > span {
+.eq-flow-page[data-visual="glass"] .bot-room-panel legend,
+.eq-flow-page[data-visual="glass"] .bot-room-panel .bot-field > span {
   color: var(--glassr-ink-soft, #45566f);
   opacity: 1;
 }
 
-.pregame-shell[data-visual="glass"] .bot-room-panel .bot-field input {
+.eq-flow-page[data-visual="glass"] .bot-room-panel .bot-field input {
   min-height: 48px;
   border-color: rgba(47, 102, 230, 0.18);
   border-radius: 11px;
@@ -288,35 +452,36 @@
   color: var(--glassr-ink, #16233d);
 }
 
-.pregame-shell[data-visual="glass"] .bot-room-panel .bot-field input:focus-visible {
+.eq-flow-page[data-visual="glass"] .bot-room-panel .bot-field input:focus-visible {
   border-color: var(--glassr-blue, #2f66e6);
   outline: 3px solid rgba(47, 102, 230, 0.15);
   outline-offset: 1px;
 }
 
-.pregame-shell[data-visual="glass"] .bot-difficulty-option {
+.eq-flow-page[data-visual="glass"] .bot-difficulty-option {
   border-color: rgba(255, 255, 255, 0.88);
   background: var(--glassr-glass-list, linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(247, 250, 255, 0.62)));
-  box-shadow: var(--glassr-shadow-row);
+  box-shadow: var(--eq-shadow-sm, 0 8px 24px rgba(23, 58, 148, 0.1));
 }
 
-.pregame-shell[data-visual="glass"] .bot-difficulty-option.selected {
+.eq-flow-page[data-visual="glass"] .bot-difficulty-option.selected {
   border-color: rgba(47, 102, 230, 0.42);
   background: linear-gradient(135deg, rgba(224, 236, 255, 0.96), rgba(255, 255, 255, 0.78));
-  box-shadow: inset 3px 0 0 var(--glassr-blue, #2f66e6), var(--glassr-shadow-row);
+  box-shadow: inset 3px 0 0 var(--glassr-blue, #2f66e6),
+    var(--eq-shadow-sm, 0 8px 24px rgba(23, 58, 148, 0.1));
 }
 
-.pregame-shell[data-visual="glass"] .bot-hero-eyebrow,
-.pregame-shell[data-visual="glass"] .bot-strength i.on {
+.eq-flow-page[data-visual="glass"] .bot-hero-eyebrow,
+.eq-flow-page[data-visual="glass"] .bot-strength i.on {
   color: var(--glassr-blue, #2f66e6);
 }
 
-.pregame-shell[data-visual="glass"] .bot-strength i.on {
+.eq-flow-page[data-visual="glass"] .bot-strength i.on {
   background: var(--glassr-blue, #2f66e6);
 }
 
 @media (hover: hover) {
-  .pregame-shell[data-visual="glass"] .bot-difficulty-option:hover {
+  .eq-flow-page[data-visual="glass"] .bot-difficulty-option:hover {
     border-color: rgba(91, 144, 249, 0.42);
     box-shadow: var(--glassr-shadow-raised);
     transform: translateY(-1px);
@@ -330,6 +495,23 @@
 
   .bot-start-row {
     flex-direction: column;
+  }
+
+  .bot-hero {
+    align-items: flex-start;
+  }
+
+  .bot-hero-pill {
+    margin-left: 0;
+  }
+
+  .bot-submit-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .bot-submit-row .ui-button-primary {
+    width: 100%;
   }
 }
 

@@ -8,6 +8,7 @@
 import { GameState, GameStatus, Side, deepClone, getGameMode, type GameMode } from "./game";
 import { serializeGame, deserializeGame } from "./codec";
 import { ROOM_STORAGE_PREFIX, STORAGE_KEYS } from "./constants/storage";
+import { roomBelongsToScope, type RoomScope, type RoomVisibility } from "./roomScope";
 
 export type RoomMeta = {
   id: string;
@@ -31,6 +32,16 @@ export type RoomMeta = {
   scoreA: number;
   scoreB: number;
   status: GameStatus;
+  visibility?: RoomVisibility;
+  regionId?: string | null;
+  accessScope?: "public" | "region" | "private";
+  archivePolicy?: "public" | "region" | "private" | "none";
+  joinPolicy?: "open" | "code_only" | "invite_only";
+  roomCode?: string | null;
+  modeKey?: string | null;
+  hasOpponent?: boolean;
+  viewerRole?: "Owner" | "Admin" | "Player A" | "Player B" | "Spectator";
+  canManage?: boolean;
 };
 
 function roomKey(id: string): string {
@@ -47,7 +58,7 @@ function readJSON<T>(key: string): T | null {
   }
 }
 
-function metaFromGame(id: string, game: GameState, createdAt: string): RoomMeta {
+function metaFromGame(id: string, game: GameState, createdAt: string, scope: RoomScope): RoomMeta {
   return {
     id,
     name: game.name,
@@ -67,6 +78,8 @@ function metaFromGame(id: string, game: GameState, createdAt: string): RoomMeta 
     scoreA: game.scores.A,
     scoreB: game.scores.B,
     status: game.status,
+    visibility: scope.visibility,
+    regionId: scope.regionId,
   };
 }
 
@@ -85,7 +98,7 @@ function migrateLegacy(): RoomMeta[] {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   localStorage.setItem(roomKey(id), JSON.stringify(legacy));
-  const index = [metaFromGame(id, legacy, now)];
+  const index = [metaFromGame(id, legacy, now, { visibility: "public", regionId: null })];
   persistIndex(index);
   localStorage.setItem(STORAGE_KEYS.activeRoom, id);
   localStorage.removeItem(STORAGE_KEYS.legacyGame);
@@ -93,10 +106,12 @@ function migrateLegacy(): RoomMeta[] {
 }
 
 /** Lobby list, newest activity first. Runs the legacy migration on first read. */
-export function listRooms(): RoomMeta[] {
+export function listRooms(scope: RoomScope = { visibility: "public", regionId: null }): RoomMeta[] {
   let index = readJSON<RoomMeta[]>(STORAGE_KEYS.roomIndex);
   if (!index) index = migrateLegacy();
-  return [...index].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  return index
+    .filter((room) => roomBelongsToScope(room, scope))
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
 export function readRoom(id: string): GameState | null {
@@ -114,10 +129,12 @@ export function touchRoomMeta(id: string, game: GameState): RoomMeta[] {
   const index = rawIndex();
   const existing = index.find((meta) => meta.id === id);
   const createdAt = existing?.createdAt ?? new Date().toISOString();
-  const meta = metaFromGame(id, game, createdAt);
-  const next = existing
-    ? index.map((item) => (item.id === id ? meta : item))
-    : [...index, meta];
+  const scope: RoomScope =
+    existing?.visibility === "region" && existing.regionId
+      ? { visibility: "region", regionId: existing.regionId }
+      : { visibility: "public", regionId: null };
+  const meta = metaFromGame(id, game, createdAt, scope);
+  const next = existing ? index.map((item) => (item.id === id ? meta : item)) : [...index, meta];
   persistIndex(next);
   return next;
 }
@@ -128,9 +145,15 @@ export function writeRoom(id: string, game: GameState): RoomMeta[] {
 }
 
 /** Create a new room from a game. Does NOT set it active (caller decides). */
-export function createRoom(game: GameState): { id: string; index: RoomMeta[] } {
+export function createRoom(
+  game: GameState,
+  scope: RoomScope = { visibility: "public", regionId: null },
+): { id: string; index: RoomMeta[] } {
   const id = crypto.randomUUID();
-  const index = writeRoom(id, game);
+  saveRoomState(id, game);
+  const createdAt = new Date().toISOString();
+  const index = [...rawIndex(), metaFromGame(id, game, createdAt, scope)];
+  persistIndex(index);
   return { id, index };
 }
 
@@ -157,17 +180,25 @@ export function renameRoom(id: string, name: string): RoomMeta[] {
 export function duplicateRoom(id: string): { id: string; index: RoomMeta[] } | null {
   const game = readRoom(id);
   if (!game) return null;
+  const existing = rawIndex().find((room) => room.id === id);
+  const scope: RoomScope =
+    existing?.visibility === "region" && existing.regionId
+      ? { visibility: "region", regionId: existing.regionId }
+      : { visibility: "public", regionId: null };
   const copy = deepClone(game);
   copy.gameId = crypto.randomUUID();
   copy.name = `${game.name} (Copy)`;
-  return createRoom(copy);
+  return createRoom(copy, scope);
 }
 
 /** Add an imported game as a new room (fresh ids to avoid collisions). */
-export function importRoom(game: GameState): { id: string; index: RoomMeta[] } {
+export function importRoom(
+  game: GameState,
+  scope: RoomScope = { visibility: "public", regionId: null },
+): { id: string; index: RoomMeta[] } {
   const copy = deepClone(game);
   copy.gameId = crypto.randomUUID();
-  return createRoom(copy);
+  return createRoom(copy, scope);
 }
 
 export function getActiveRoomId(): string | null {

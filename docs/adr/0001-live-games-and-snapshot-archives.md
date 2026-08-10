@@ -1,0 +1,5 @@
+# Separate live games from snapshot archives
+
+EQ Lab stores every waiting, playing, or paused game in `room_live`, then atomically finalizes it into exactly one Public, Region, Private, or no-log outcome. Public and Region archives are immutable bounded histories, while Private is an account-owned library whose replay payload is immutable and whose folder metadata remains editable. This replaces the former `rooms` table so retention can remove old history without deleting active games, and it records natural completion separately from surrender or other termination so only naturally completed games can be selected for bot training.
+
+Live Game discovery is member-only. Anonymous clients receive neither table privileges nor RPC execution. Approved members list rooms through the `list_live_games` safe-summary projection; direct `room_live` reads are reserved for an opened game and are constrained by both RLS and column-level grants. The opened-game contract intentionally includes state, session, and participant identifiers required for play and spectating, but excludes the join-code hash and unrelated internal lifecycle metadata.

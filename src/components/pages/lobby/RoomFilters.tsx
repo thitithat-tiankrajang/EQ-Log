@@ -1,8 +1,9 @@
 import { useState } from "react";
-import { Search, SlidersHorizontal, Upload, X } from "lucide-react";
+import { Search, SlidersHorizontal, X } from "lucide-react";
 import type { Member } from "../../../members";
 import { ROOM_STATUS_TEXT } from "../../../uiText";
 import { Sheet } from "../../ui/Sheet";
+import { SelectControl } from "../../ui/SelectControl";
 import { MemberAvatar } from "./MemberChip";
 
 export type MemberFilterPosition = "any" | "first" | "second";
@@ -35,17 +36,13 @@ export function RoomFilters({
   members,
   totalCount,
   visibleCount,
-  importDisabledReason,
   onChange,
-  onImportClick,
 }: {
   filter: RoomsFilterState;
   members: Member[];
   totalCount: number;
   visibleCount: number;
-  importDisabledReason: string | null;
   onChange: (next: RoomsFilterState) => void;
-  onImportClick: () => void;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const usedIds = new Set(filter.members.map((entry) => entry.memberId));
@@ -53,9 +50,9 @@ export function RoomFilters({
   const memberFiltersActive = filter.members.length > 0;
 
   return (
-    <div className="room-filters">
-      <div className="room-filters-row">
-        <label className="room-filters-search">
+    <div className="eq-room-filters">
+      <div className="eq-room-filters-row">
+        <label className="eq-search-field eq-room-search">
           <Search size={15} aria-hidden />
           <input
             type="search"
@@ -66,23 +63,22 @@ export function RoomFilters({
         </label>
         <button
           type="button"
-          className={`room-filters-more ${memberFiltersActive ? "active" : ""}`}
+          className={`eq-icon-button ${memberFiltersActive ? "is-active" : ""}`}
           aria-label="More filters"
           onClick={() => setSheetOpen(true)}
         >
           <SlidersHorizontal size={16} />
-          {memberFiltersActive && <span className="room-filters-more-dot" aria-hidden />}
+          {memberFiltersActive && <span className="eq-filter-dot" aria-hidden />}
         </button>
       </div>
 
-      <div className="room-filters-segment" role="tablist" aria-label="Status">
+      <div className="eq-segmented-control" aria-label="Filter rooms by status">
         {STATUS_OPTIONS.map((option) => (
           <button
             key={option.id}
             type="button"
-            role="tab"
-            aria-selected={filter.status === option.id}
-            className={filter.status === option.id ? "active" : ""}
+            aria-pressed={filter.status === option.id}
+            className={filter.status === option.id ? "is-active" : ""}
             onClick={() => onChange({ ...filter, status: option.id })}
           >
             {option.label}
@@ -91,12 +87,12 @@ export function RoomFilters({
       </div>
 
       {(visibleCount !== totalCount || memberFiltersActive) && (
-        <div className="room-filters-summary">
+        <div className="eq-filter-summary">
           Showing <strong>{visibleCount}</strong> of {totalCount} rooms
           {memberFiltersActive && (
             <button
               type="button"
-              className="room-filters-clear"
+              className="eq-text-button"
               onClick={() => onChange({ ...filter, members: [] })}
             >
               Clear member filters
@@ -105,38 +101,39 @@ export function RoomFilters({
         </div>
       )}
 
-      <Sheet open={sheetOpen} title="Filters & tools" onClose={() => setSheetOpen(false)}>
-        <div className="filter-sheet-section">
-          <span className="field-row-label">Players in this room</span>
-          <p className="filter-sheet-hint">Narrow the list to games a member played in.</p>
+      <Sheet open={sheetOpen} title="Filters" onClose={() => setSheetOpen(false)}>
+        <div className="eq-filter-sheet-section">
+          <strong>Players in this room</strong>
+          <p className="eq-help-text">Narrow the list to games a member played in.</p>
           {filter.members.map((entry) => {
             const member = members.find((candidate) => candidate.id === entry.memberId);
             if (!member) return null;
             return (
-              <span key={entry.memberId} className="member-filter-chip">
+              <span key={entry.memberId} className="eq-member-filter-chip">
                 <MemberAvatar member={member} />
-                <span className="member-filter-name">{member.name}</span>
-                <select
-                  className="member-filter-position"
+                <span className="eq-member-filter-name">{member.name}</span>
+                <SelectControl<MemberFilterPosition>
+                  className="eq-member-filter-position"
+                  ariaLabel={`${member.name} position`}
                   value={entry.position}
-                  onChange={(event) =>
+                  options={[
+                    { value: "any", label: "played" },
+                    { value: "first", label: "started 1st" },
+                    { value: "second", label: "started 2nd" },
+                  ]}
+                  onChange={(value) =>
+                    value &&
                     onChange({
                       ...filter,
                       members: filter.members.map((item) =>
-                        item.memberId === entry.memberId
-                          ? { ...item, position: event.target.value as MemberFilterPosition }
-                          : item,
+                        item.memberId === entry.memberId ? { ...item, position: value } : item,
                       ),
                     })
                   }
-                >
-                  <option value="any">played</option>
-                  <option value="first">started 1st</option>
-                  <option value="second">started 2nd</option>
-                </select>
+                />
                 <button
                   type="button"
-                  className="member-filter-remove"
+                  className="eq-icon-button eq-filter-remove"
                   aria-label={`Remove ${member.name} from filter`}
                   onClick={() =>
                     onChange({
@@ -151,46 +148,27 @@ export function RoomFilters({
             );
           })}
           {filter.members.length < 2 && remaining.length > 0 && (
-            <select
-              className="member-filter-add"
+            <SelectControl<string>
+              className="eq-select"
+              ariaLabel="Add member filter"
               value=""
-              onChange={(event) => {
-                const id = event.target.value;
+              placeholder="+ Add member"
+              options={remaining.map((member) => ({
+                value: member.id,
+                label: member.institution ? `${member.name} · ${member.institution}` : member.name,
+              }))}
+              onChange={(id) => {
                 if (!id) return;
                 onChange({
                   ...filter,
                   members: [...filter.members, { memberId: id, position: "any" }],
                 });
               }}
-            >
-              <option value="">+ Add member</option>
-              {remaining.map((member) => (
-                <option key={member.id} value={member.id}>
-                  {member.institution ? `${member.name} · ${member.institution}` : member.name}
-                </option>
-              ))}
-            </select>
+            />
           )}
           {members.length === 0 && (
-            <p className="filter-sheet-hint">Add members in the Members tab first.</p>
+            <p className="eq-help-text">Add members in the Members section first.</p>
           )}
-        </div>
-
-        <div className="filter-sheet-section">
-          <span className="field-row-label">Tools</span>
-          <button
-            type="button"
-            className="ui-button-ghost"
-            disabled={Boolean(importDisabledReason)}
-            onClick={() => {
-              setSheetOpen(false);
-              onImportClick();
-            }}
-          >
-            <Upload size={15} />
-            Import a saved game file
-          </button>
-          {importDisabledReason && <p className="filter-sheet-hint">{importDisabledReason}</p>}
         </div>
       </Sheet>
     </div>

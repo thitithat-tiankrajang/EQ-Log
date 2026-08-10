@@ -30,7 +30,7 @@ export function MemberPicker({
     return () => window.removeEventListener("mousedown", onPointer);
   }, [open]);
 
-  const selected = selectedId ? members.find((member) => member.id === selectedId) ?? null : null;
+  const selected = selectedId ? (members.find((member) => member.id === selectedId) ?? null) : null;
   const displayValue = selected ? selected.name : freeText;
 
   return (

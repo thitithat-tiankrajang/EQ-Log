@@ -7,13 +7,7 @@ import type { ReactNode } from "react";
  * at the end of the page. `reason` is the always-visible explanation for a
  * disabled primary action — never put that text in a title tooltip.
  */
-export function ActionDock({
-  reason,
-  children,
-}: {
-  reason?: string | null;
-  children: ReactNode;
-}) {
+export function ActionDock({ reason, children }: { reason?: string | null; children: ReactNode }) {
   return (
     <div className="action-dock">
       {reason && (

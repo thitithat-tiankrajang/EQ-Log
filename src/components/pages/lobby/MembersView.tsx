@@ -11,6 +11,7 @@ import type { MemberStats } from "../../../stats";
 import { formatAverage, formatWinRate } from "../../../stats";
 import { OverflowMenu } from "../../ui/OverflowMenu";
 import { ConfirmSheet, Sheet } from "../../ui/Sheet";
+import { SelectControl } from "../../ui/SelectControl";
 
 export function MembersView({
   members,
@@ -43,8 +44,12 @@ export function MembersView({
       ),
     [members],
   );
-  const editingMember = editingId ? members.find((entry) => entry.id === editingId) ?? null : null;
-  const deletingMember = deletingId ? members.find((entry) => entry.id === deletingId) ?? null : null;
+  const editingMember = editingId
+    ? (members.find((entry) => entry.id === editingId) ?? null)
+    : null;
+  const deletingMember = deletingId
+    ? (members.find((entry) => entry.id === deletingId) ?? null)
+    : null;
 
   async function handleCreate(input: { name: string; institution?: string }) {
     setOperation("Saving member…");
@@ -53,7 +58,9 @@ export function MembersView({
       onChange(await createMember(input, ownerId));
       setDraftOpen(false);
     } catch (nextError) {
-      setOperationError(nextError instanceof Error ? nextError.message : "Unable to add this member.");
+      setOperationError(
+        nextError instanceof Error ? nextError.message : "Unable to add this member.",
+      );
     } finally {
       setOperation(null);
     }
@@ -66,7 +73,9 @@ export function MembersView({
       onChange(await updateMember(id, patch, ownerId));
       setEditingId(null);
     } catch (nextError) {
-      setOperationError(nextError instanceof Error ? nextError.message : "Unable to update this member.");
+      setOperationError(
+        nextError instanceof Error ? nextError.message : "Unable to update this member.",
+      );
     } finally {
       setOperation(null);
     }
@@ -78,7 +87,9 @@ export function MembersView({
     try {
       onChange(await deleteMember(id, ownerId));
     } catch (nextError) {
-      setOperationError(nextError instanceof Error ? nextError.message : "Unable to delete this member.");
+      setOperationError(
+        nextError instanceof Error ? nextError.message : "Unable to delete this member.",
+      );
     } finally {
       setOperation(null);
     }
@@ -97,7 +108,7 @@ export function MembersView({
         </div>
         {canManage && (
           <button
-            className="solid-button"
+            className="eq-button eq-button-primary"
             disabled={Boolean(operation)}
             type="button"
             onClick={() => setDraftOpen(true)}
@@ -109,10 +120,16 @@ export function MembersView({
       </div>
 
       {(operationError ?? error) && <p className="sync-banner">{operationError ?? error}</p>}
-      {operation && <p className="info-banner member-operation" role="status">{operation}</p>}
+      {operation && (
+        <p className="info-banner member-operation" role="status">
+          {operation}
+        </p>
+      )}
 
       {loading ? (
-        <p className="empty-state" role="status">Loading your members…</p>
+        <p className="empty-state" role="status">
+          Loading your members…
+        </p>
       ) : members.length === 0 ? (
         <p className="empty-state">
           {canManage
@@ -170,11 +187,7 @@ export function MembersView({
         </ul>
       )}
 
-      <Sheet
-        open={draftOpen && canManage}
-        title="Add member"
-        onClose={() => setDraftOpen(false)}
-      >
+      <Sheet open={draftOpen && canManage} title="Add member" onClose={() => setDraftOpen(false)}>
         <MemberForm
           busy={Boolean(operation)}
           institutions={institutions}
@@ -244,11 +257,12 @@ function MemberForm({
     institutions.length > 0 && hasInitialInstitution ? "existing" : "new",
   );
   const [existingInstitution, setExistingInstitution] = useState(
-    hasInitialInstitution ? initial?.institution ?? "" : "",
+    hasInitialInstitution ? (initial?.institution ?? "") : "",
   );
-  const [newInstitution, setNewInstitution] = useState(hasInitialInstitution ? "" : initial?.institution ?? "");
-  const selectedInstitution =
-    institutionMode === "existing" ? existingInstitution : newInstitution;
+  const [newInstitution, setNewInstitution] = useState(
+    hasInitialInstitution ? "" : (initial?.institution ?? ""),
+  );
+  const selectedInstitution = institutionMode === "existing" ? existingInstitution : newInstitution;
 
   return (
     <form
@@ -263,33 +277,31 @@ function MemberForm({
       <div className="member-form-row">
         <label className="member-form-field grow">
           <span>Name</span>
-          <input value={name} onChange={(event) => setName(event.target.value)} autoFocus required />
+          <input value={name} onChange={(event) => setName(event.target.value)} required />
         </label>
         <div className="member-form-field grow">
           <span>Institution</span>
           <div className="institution-picker">
-            <select
+            <SelectControl<string>
+              ariaLabel="Institution"
               value={institutionMode === "new" ? "__new__" : existingInstitution}
-              required={institutionMode === "existing"}
-              onChange={(event) => {
-                if (event.target.value === "__new__") {
+              placeholder="Select institution"
+              options={[
+                ...institutions.map((institution) => ({
+                  value: institution,
+                  label: institution,
+                })),
+                { value: "__new__", label: "New institution…" },
+              ]}
+              onChange={(value) => {
+                if (value === "__new__") {
                   setInstitutionMode("new");
                   return;
                 }
                 setInstitutionMode("existing");
-                setExistingInstitution(event.target.value);
+                setExistingInstitution(value);
               }}
-            >
-              <option value="" disabled>
-                Select institution
-              </option>
-              {institutions.map((institution) => (
-                <option key={institution} value={institution}>
-                  {institution}
-                </option>
-              ))}
-              <option value="__new__">New institution…</option>
-            </select>
+            />
             {institutionMode === "new" && (
               <input
                 value={newInstitution}
@@ -307,7 +319,7 @@ function MemberForm({
           <X size={14} />
           Cancel
         </button>
-        <button type="submit" className="solid-button" disabled={busy}>
+        <button type="submit" className="eq-button eq-button-primary" disabled={busy}>
           <Check size={14} />
           {submitLabel}
         </button>

@@ -18,6 +18,7 @@ import { EquationPreview } from "../game/EquationPreview";
 import { PanelHeading } from "../layout/PanelHeading";
 import { ReplayDock } from "../replay/ReplayDock";
 import { Tile } from "../board/Tile";
+import { SelectControl } from "../ui/SelectControl";
 
 type ActionMode = "none" | ActionType;
 
@@ -229,9 +230,7 @@ function ActionPicker({
 
   return (
     <div className="action-picker-ready">
-      <p className="action-picker-hint">
-        Drop a tile on the board to start playing. Or:
-      </p>
+      <p className="action-picker-hint">Drop a tile on the board to start playing. Or:</p>
       <div className="action-buttons two">
         <button
           disabled={!canChooseAction || !canExchange}
@@ -314,7 +313,9 @@ function ActionDetails({
         />
       )}
 
-      {actionMode === "pass" && <PassActionDetails readOnly={readOnly} onConfirmPass={onConfirmPass} />}
+      {actionMode === "pass" && (
+        <PassActionDetails readOnly={readOnly} onConfirmPass={onConfirmPass} />
+      )}
     </div>
   );
 }
@@ -334,11 +335,15 @@ function PlaceActionDetails({
 }) {
   return (
     <>
-      <div className={`action-status action-status-compact ${validation.isValid ? "valid" : "invalid"}`}>
+      <div
+        className={`action-status action-status-compact ${validation.isValid ? "valid" : "invalid"}`}
+      >
         <span>Place</span>
         <div className="action-metrics">
           <strong>{validation.isValid ? "Valid" : "Draft"}</strong>
-          <em>{pendingPlacements.length}/{RACK_SIZE} tiles</em>
+          <em>
+            {pendingPlacements.length}/{RACK_SIZE} tiles
+          </em>
           <em>{validation.isValid ? `${validation.score} pts` : "No score"}</em>
           {validation.bingoBonus > 0 && <em>Bingo +{BINGO_BONUS}</em>}
         </div>
@@ -365,7 +370,7 @@ function PlaceActionDetails({
           <span>
             {validation.isValid
               ? `${validation.equations.length} equation(s) detected`
-              : validation.errors[0] ?? "Equation Preview"}
+              : (validation.errors[0] ?? "Equation Preview")}
           </span>
           {validation.equations.length > 0 ? (
             <EquationPreview validation={validation} />
@@ -421,21 +426,15 @@ function PendingPlacementTile({
           ))}
         </div>
       ) : needsAssignment ? (
-        <label className="pending-select-wrap">
-          <span>{placement.assignedToken ?? "Set"}</span>
-          <select
-            aria-label={`Assign ${placement.tile.token}`}
-            disabled={readOnly}
-            value={placement.assignedToken ?? ""}
-            onChange={(event) => onUpdatePendingAssignment(placement.tile.id, event.target.value)}
-          >
-            {assignmentOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-        </label>
+        <SelectControl<string>
+          className="pending-select-wrap"
+          ariaLabel={`Assign ${placement.tile.token}`}
+          disabled={readOnly}
+          value={placement.assignedToken ?? ""}
+          placeholder="Set"
+          options={assignmentOptions.map((option) => ({ value: option, label: option }))}
+          onChange={(value) => value && onUpdatePendingAssignment(placement.tile.id, value)}
+        />
       ) : (
         <em>Fixed</em>
       )}
@@ -462,7 +461,9 @@ function ExchangeActionDetails({
         <span>Exchange</span>
         <div className="action-metrics">
           <strong>{exchangeReady ? "Ready" : "Draft"}</strong>
-          <em>{exchangeDraft.outgoingIds.length}/{RACK_SIZE} tiles</em>
+          <em>
+            {exchangeDraft.outgoingIds.length}/{RACK_SIZE} tiles
+          </em>
           <em>0 pts</em>
         </div>
       </div>
