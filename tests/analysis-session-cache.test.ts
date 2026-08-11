@@ -19,11 +19,22 @@ beforeEach(() => {
 describe("analysis session cache", () => {
   it("remembers an in-flight analysis across a page reload in the same tab", async () => {
     cache.markInFlight(ROOM, { revision: 7, level: "quick" });
+    cache.rememberProgress(ROOM, {
+      phase: "sim",
+      percent: 50,
+      elapsedMs: 5_000,
+      etaMs: 5_000,
+      detail: "samples=2/4",
+    });
 
     vi.resetModules();
     const reloadedCache = await import("../src/analysisSessionCache");
 
-    expect(reloadedCache.getInFlight(ROOM)).toEqual({ revision: 7, level: "quick" });
+    expect(reloadedCache.getInFlight(ROOM)).toMatchObject({
+      revision: 7,
+      level: "quick",
+      progress: { percent: 50 },
+    });
   });
 
   it("remembers a completed result across a page reload in the same tab", async () => {

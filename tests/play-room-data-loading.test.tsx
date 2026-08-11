@@ -83,6 +83,7 @@ vi.mock("../src/bot/botController", async (importOriginal) => {
 
 import App from "../src/App";
 import { EngineApiError } from "../src/bot/engineApi";
+import * as botActivityCache from "../src/botActivityCache";
 import * as playSnapshotCache from "../src/playSnapshotCache";
 
 const ROOM_ID = "22222222-2222-4222-8222-222222222222";
@@ -110,6 +111,7 @@ describe("play route data loading", () => {
       cancel: vi.fn(),
     }));
     playSnapshotCache.forget(ROOM_ID);
+    botActivityCache.forget(ROOM_ID);
     warmUpBotEngine.mockClear();
     realtimeHarness.statusHandler = undefined;
     window.location.hash = `#/play/${ROOM_ID}`;
@@ -358,7 +360,9 @@ describe("play route data loading", () => {
       needsCompaction: false,
       needsInviteRepair: false,
     });
-    readRoom.mockResolvedValueOnce(payload(revisionFive)).mockResolvedValueOnce(payload(revisionSix));
+    readRoom
+      .mockResolvedValueOnce(payload(revisionFive))
+      .mockResolvedValueOnce(payload(revisionSix));
     thinkWithBot.mockImplementation((_roomId, game) => ({
       promise:
         (game as typeof revisionFive).revision === 5
@@ -428,35 +432,17 @@ describe("play route data loading", () => {
       needsCompaction: false,
       needsInviteRepair: false,
     });
-    let botObserverCalls = 0;
-    thinkWithBot.mockImplementation((_roomId, _game, onState) => {
-      botObserverCalls += 1;
-      if (botObserverCalls === 1) {
-        (
-          onState as (state: {
-            kind: "running";
-            progress: {
-              phase: "sim";
-              percent: number;
-              elapsedMs: number;
-              etaMs: number;
-              bestScore: number;
-              detail: string;
-            };
-          }) => void
-        )({
-          kind: "running",
-          progress: {
-            phase: "sim",
-            percent: 50,
-            elapsedMs: 5000,
-            etaMs: 5000,
-            bestScore: 0,
-            detail: "samples=2/4",
-          },
-        });
-      }
-      return { promise: new Promise<never>(() => undefined), cancel: vi.fn() };
+    botActivityCache.remember(ROOM_ID, {
+      commitId: game.commitId,
+      revision: 5,
+      progress: {
+        phase: "sim",
+        percent: 50,
+        elapsedMs: 5000,
+        etaMs: 5000,
+        bestScore: 0,
+        detail: "samples=2/4",
+      },
     });
 
     const view = render(<App />);

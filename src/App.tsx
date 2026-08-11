@@ -129,6 +129,7 @@ import {
 } from "./bot/botController";
 import { EngineApiError, isEngineApiConfigured } from "./bot/engineApi";
 import type { BotProgress, BotResponse } from "./bot/types";
+import * as botActivityCache from "./botActivityCache";
 import { botRecordFromGame, recordBotGame } from "./botStats";
 import { BotThinkingCard } from "./components/game/BotThinkingCard";
 import { BotReasoningPanel } from "./components/game/BotReasoningPanel";
@@ -1703,13 +1704,36 @@ function App() {
   //   • Overload is retried, not treated as a verdict. Falling back to a pass
   //     is a real, scoring, irreversible game action; "the server was busy for
   //     four seconds" is not a reason to take one.
-  const [botStatus, setBotStatus] = useState<BotThinkingState | null>(null);
+  const restoredBotActivity = activeRoomId ? botActivityCache.get(activeRoomId) : undefined;
+  const restoredBotActivityMatches = Boolean(
+    restoredBotActivity &&
+    game?.botSide &&
+    game.status === "playing" &&
+    game.activeSide === game.botSide &&
+    game.phase === "choose_action" &&
+    canControlActiveGame &&
+    !readOnly &&
+    restoredBotActivity.commitId === game.commitId &&
+    restoredBotActivity.revision === (game.revision ?? 0),
+  );
+  const restoredBotActivityKey = restoredBotActivityMatches
+    ? `${restoredBotActivity?.commitId}:${restoredBotActivity?.revision}`
+    : null;
+  const [botStatus, setBotStatus] = useState<BotThinkingState | null>(() =>
+    restoredBotActivityMatches
+      ? { kind: "reconnecting", progress: restoredBotActivity?.progress ?? null }
+      : null,
+  );
   /** A line explaining an engine problem the player can otherwise only observe
    *  as the bot not moving. Cleared as soon as the bot moves. */
   const [botNotice, setBotNotice] = useState<string | null>(null);
   // Survives a visibility/focus reconnect so the progress bar never flashes
   // away or falls back to zero while this tab attaches to the same server job.
-  const botActivityRef = useRef<{ key: string; progress: BotProgress | null } | null>(null);
+  const botActivityRef = useRef<{ key: string; progress: BotProgress | null } | null>(
+    restoredBotActivityKey
+      ? { key: restoredBotActivityKey, progress: restoredBotActivity?.progress ?? null }
+      : null,
+  );
   // Reasoning behind the bot's most recent move, kept so the player can open a
   // full "why this move" breakdown (chosen move + every alternative weighed).
   const [botReasoning, setBotReasoning] = useState<{
@@ -1744,7 +1768,10 @@ function App() {
     if (botShouldMove) return;
     botActivityRef.current = null;
     setBotStatus(null);
-  }, [botShouldMove, game?.commitId]);
+    // Do not erase a refresh survivor before the room snapshot has loaded.
+    // Once a real game says this is no longer the bot's turn, it is obsolete.
+    if (game && activeRoomId) botActivityCache.forget(activeRoomId);
+  }, [botShouldMove, game?.commitId, activeRoomId]);
 
   // ── Turn analysis availability ─────────────────────────────────────────────
   //
@@ -1819,16 +1846,30 @@ function App() {
       const roomId = activeRoomIdRef.current;
       if (!alive || !current || !roomId || current.commitId !== commitId) return;
       const activityKey = `${commitId}:${current.revision ?? 0}`;
-      const priorActivity = botActivityRef.current?.key === activityKey ? botActivityRef.current : null;
+      const persisted = botActivityCache.get(roomId);
+      const persistedKey = persisted ? `${persisted.commitId}:${persisted.revision}` : null;
+      const priorActivity =
+        botActivityRef.current?.key === activityKey
+          ? botActivityRef.current
+          : persistedKey === activityKey
+            ? { key: activityKey, progress: persisted?.progress ?? null }
+            : null;
+      if (persisted && persistedKey !== activityKey) botActivityCache.forget(roomId);
 
       // A new attempt always starts by reconnecting to the server-owned job.
       // Clear an earlier stale warning so replayed progress (for example 50%)
       // is what the returning player sees while that same search continues.
       setBotNotice(null);
       if (priorActivity) {
+        botActivityRef.current = priorActivity;
         setBotStatus({ kind: "reconnecting", progress: priorActivity.progress });
       } else {
         botActivityRef.current = { key: activityKey, progress: null };
+        botActivityCache.remember(roomId, {
+          commitId,
+          revision: current.revision ?? 0,
+          progress: null,
+        });
         setBotStatus({ kind: "requesting" });
       }
       // The request names the LIVE ROOM and its revision; the backend reads the
@@ -1847,11 +1888,21 @@ function App() {
               : null;
           const progress = state.progress ?? remembered;
           botActivityRef.current = { key: activityKey, progress };
+          botActivityCache.remember(roomId, {
+            commitId,
+            revision: current.revision ?? 0,
+            progress,
+          });
           setBotStatus({ kind: "running", progress });
           return;
         }
         if (state.kind === "queued") {
           botActivityRef.current = { key: activityKey, progress: null };
+          botActivityCache.remember(roomId, {
+            commitId,
+            revision: current.revision ?? 0,
+            progress: null,
+          });
         }
         setBotStatus(state);
       });
@@ -1859,6 +1910,7 @@ function App() {
         .then((response) => {
           if (!alive) return;
           botActivityRef.current = null;
+          botActivityCache.forget(roomId);
           setBotStatus(null);
           setBotNotice(null);
           if (gameRef.current?.commitId === commitId) commitBotResponse(response);
@@ -1893,6 +1945,7 @@ function App() {
 
           console.error("Bot engine failed; falling back to pass.", error);
           botActivityRef.current = null;
+          botActivityCache.forget(roomId);
           setBotStatus(null);
           setBotNotice(botNoticeFor(error));
           commitBotResponse(null);

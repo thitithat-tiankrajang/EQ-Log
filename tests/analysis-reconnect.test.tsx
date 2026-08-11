@@ -87,6 +87,29 @@ describe("returning to a finished analysis", () => {
 });
 
 describe("returning to a running analysis", () => {
+  it("renders the persisted percentage immediately after a page refresh", async () => {
+    analysisCache.markInFlight(ROOM_ID, { revision: 7, level: "quick" });
+    analysisCache.rememberProgress(ROOM_ID, {
+      phase: "sim",
+      percent: 50,
+      elapsedMs: 5_000,
+      etaMs: 5_000,
+      detail: "samples=2/4",
+    });
+    attachAnalysis.mockImplementation(() => new Promise(() => undefined));
+
+    const view = render(
+      <TurnAnalysisLauncher roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />,
+    );
+
+    await waitFor(() => expect(attachAnalysis).toHaveBeenCalledTimes(1));
+    expect(screen.getByText(/กำลังเชื่อมต่องานวิเคราะห์เดิม/)).toBeInTheDocument();
+    expect(screen.getByText(/50%/)).toBeInTheDocument();
+    expect((view.container.querySelector(".bot-thinking-fill") as HTMLElement).style.width).toBe(
+      "50%",
+    );
+  });
+
   it("keeps the job address after a dropped stream and reconnects on wake", async () => {
     analysisCache.markInFlight(ROOM_ID, { revision: 7, level: "quick" });
     let finishReconnect!: (outcome: SseOutcome<AnalysisResult>) => void;

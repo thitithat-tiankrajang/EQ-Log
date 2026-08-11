@@ -20,11 +20,17 @@
 // caller's OWN turn, which the server already authorised sending them. No
 // tokens, no opponent rack, no bag.
 
-import type { AnalysisLevel, AnalysisResult } from "./bot/engineApi";
+import type { AnalysisLevel, AnalysisResult, EngineProgress } from "./bot/engineApi";
 
 /** An analysis that was running when the panel unmounted, so a remount can
  *  reconnect to the same server job instead of starting a new one. */
-export type AnalysisInFlight = { revision: number; level: AnalysisLevel };
+export type AnalysisInFlight = {
+  revision: number;
+  level: AnalysisLevel;
+  /** Last server-reported progress, persisted so a refresh does not erase the
+   * visible percentage while the new page reconnects to the same job. */
+  progress?: EngineProgress;
+};
 
 const results = new Map<string, AnalysisResult>();
 const inflight = new Map<string, AnalysisInFlight>();
@@ -40,6 +46,19 @@ function storageKey(roomId: string): string {
   return `${STORAGE_PREFIX}${roomId}`;
 }
 
+function isProgress(value: unknown): value is EngineProgress {
+  if (!value || typeof value !== "object") return false;
+  const progress = value as Partial<EngineProgress>;
+  return (
+    (progress.phase === "movegen" || progress.phase === "sim" || progress.phase === "endgame") &&
+    typeof progress.percent === "number" &&
+    Number.isFinite(progress.percent) &&
+    typeof progress.elapsedMs === "number" &&
+    typeof progress.etaMs === "number" &&
+    typeof progress.detail === "string"
+  );
+}
+
 function hydrate(roomId: string): void {
   if (results.has(roomId) || inflight.has(roomId)) return;
   try {
@@ -51,7 +70,8 @@ function hydrate(roomId: string): void {
     if (
       stored.inflight &&
       Number.isInteger(stored.inflight.revision) &&
-      LEVELS.has(stored.inflight.level)
+      LEVELS.has(stored.inflight.level) &&
+      (stored.inflight.progress === undefined || isProgress(stored.inflight.progress))
     ) {
       inflight.set(roomId, stored.inflight);
     }
@@ -111,6 +131,14 @@ export function markInFlight(roomId: string, descriptor: AnalysisInFlight): void
 export function getInFlight(roomId: string): AnalysisInFlight | undefined {
   hydrate(roomId);
   return inflight.get(roomId);
+}
+
+export function rememberProgress(roomId: string, progress: EngineProgress): void {
+  hydrate(roomId);
+  const pending = inflight.get(roomId);
+  if (!pending) return;
+  inflight.set(roomId, { ...pending, progress });
+  persist(roomId);
 }
 
 export function clearInFlight(roomId: string): void {

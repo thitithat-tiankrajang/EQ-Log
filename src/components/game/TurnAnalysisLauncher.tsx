@@ -133,9 +133,16 @@ export function TurnAnalysisLauncher({
    * may be unchanged, but the old SSE connection may no longer exist. */
   reconnectEpoch?: number;
 }) {
+  const initialPending = analysisCache.getInFlight(roomId);
+  const initialPendingForPosition =
+    initialPending?.revision === revision ? initialPending : undefined;
   const [open, setOpen] = useState(false);
-  const [level, setLevel] = useState<AnalysisLevel>("quick");
-  const [phase, setPhase] = useState<AnalysisPhase>({ kind: "idle" });
+  const [level, setLevel] = useState<AnalysisLevel>(initialPendingForPosition?.level ?? "quick");
+  const [phase, setPhase] = useState<AnalysisPhase>(() =>
+    initialPendingForPosition
+      ? { kind: "reconnecting", progress: initialPendingForPosition.progress ?? null }
+      : { kind: "idle" },
+  );
   const [error, setError] = useState<string | null>(null);
   // Seed from the session cache so returning to Play shows a result the engine
   // already computed for THIS position, without pressing Analyze again. A cached
@@ -223,7 +230,8 @@ export function TurnAnalysisLauncher({
       lastProgressRef.current.revision === revision &&
       lastProgressRef.current.level === pending.level
         ? lastProgressRef.current.progress
-        : null;
+        : (pending.progress ?? null);
+    lastProgressRef.current = { roomId, revision, level: pending.level, progress: remembered };
     setPhase({ kind: "reconnecting", progress: remembered });
     attachAnalysis({
       gameId: roomId,
@@ -240,6 +248,7 @@ export function TurnAnalysisLauncher({
       onProgress: (progress) => {
         if (controller.signal.aborted) return;
         lastProgressRef.current = { roomId, revision, level: pending.level, progress };
+        analysisCache.rememberProgress(roomId, progress);
         setPhase({ kind: "running", progress });
       },
       signal: controller.signal,
@@ -342,6 +351,7 @@ export function TurnAnalysisLauncher({
               level: chosen,
               progress,
             };
+            analysisCache.rememberProgress(roomId, progress);
             setPhase({ kind: "running", progress });
           },
           signal: controller.signal,
