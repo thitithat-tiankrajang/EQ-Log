@@ -237,6 +237,17 @@ describe("queued → running → completed", () => {
 });
 
 describe("overload and failure", () => {
+  it("keeps the in-flight marker when the stream drops after starting", async () => {
+    const control = controllable();
+    await startAnalysis();
+    await waitFor(() => expect(requestAnalysis).toHaveBeenCalled());
+    control.hooks.onRunning?.();
+    control.reject(new EngineApiError("offline", "stream dropped"));
+
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    expect(analysisCache.getInFlight(ROOM_ID)).toEqual({ revision: 7, level: "quick" });
+  });
+
   it("explains a full queue in the player's terms, with no server detail", async () => {
     const control = controllable();
     const { container } = await startAnalysis();

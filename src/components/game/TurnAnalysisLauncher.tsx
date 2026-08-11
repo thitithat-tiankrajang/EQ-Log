@@ -94,12 +94,19 @@ function messageFor(error: EngineApiError): string {
     case "unconfigured":
       return "ระบบวิเคราะห์ยังไม่ได้เปิดใช้งานในเซิร์ฟเวอร์นี้";
     case "offline":
-      return "ติดต่อเซิร์ฟเวอร์วิเคราะห์ไม่ได้ — ตรวจสอบการเชื่อมต่อแล้วลองใหม่";
+      return "การเชื่อมต่อกับงานวิเคราะห์ขาดหาย — ระบบจะเชื่อมต่องานเดิมให้อัตโนมัติเมื่อกลับมา";
     case "invalid_state":
       return "สถานะเกมบนเซิร์ฟเวอร์ไม่สมบูรณ์ จึงวิเคราะห์ไม่ได้";
     default:
       return "วิเคราะห์ไม่สำเร็จ — ลองใหม่อีกครั้ง";
   }
+}
+
+/** A broken stream does not prove the POST failed. It may have reached the
+ * server and started a job before the browser suspended the connection, so the
+ * reconnect descriptor must survive until a GET proves the job is idle. */
+function serverMayStillBeWorking(failure: unknown): boolean {
+  return failure instanceof EngineApiError && failure.code === "offline";
 }
 
 export function TurnAnalysisLauncher({
@@ -108,6 +115,7 @@ export function TurnAnalysisLauncher({
   playerName,
   disabled,
   disabledReason,
+  reconnectEpoch = 0,
 }: {
   /** The LIVE ROOM's id (`room_live.room_id`, this app's `activeRoomId`) — not
    *  `GameState.gameId`, which is a client-generated UUID the server has never
@@ -120,6 +128,9 @@ export function TurnAnalysisLauncher({
    *  only — the backend decides, and refuses regardless of what is rendered. */
   disabled: boolean;
   disabledReason?: string;
+  /** Increments whenever the browser wakes from the background. The revision
+   * may be unchanged, but the old SSE connection may no longer exist. */
+  reconnectEpoch?: number;
 }) {
   const [open, setOpen] = useState(false);
   const [level, setLevel] = useState<AnalysisLevel>("quick");
@@ -213,10 +224,11 @@ export function TurnAnalysisLauncher({
         // it behind a "see latest" button.
         setPanelOpen(true);
       })
-      .catch(() => {
-        // A reconnect that failed is not an error the player caused; the Analyze
-        // button is there if they want to try the current turn again.
-        analysisCache.clearInFlight(roomId);
+      .catch((failure: unknown) => {
+        if (controller.signal.aborted) return;
+        // Losing the observer stream says nothing about the server-owned job.
+        // Keep its address so the next focus/visibility/online wake retries GET.
+        if (!serverMayStillBeWorking(failure)) analysisCache.clearInFlight(roomId);
       })
       .finally(() => {
         if (abortRef.current === controller) {
@@ -229,7 +241,7 @@ export function TurnAnalysisLauncher({
     // `phase`/`result` are deliberately absent: this must fire on revision or
     // room changes, not when a run it started advances its own state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revision, roomId]);
+  }, [revision, roomId, reconnectEpoch]);
 
   // Leaving the screen stops this tab watching the search. It does NOT stop the
   // search: the server keeps it running, and a return reconnects to it above.
@@ -289,7 +301,9 @@ export function TurnAnalysisLauncher({
         setPanelOpen(true);
       } catch (failure) {
         if (controller.signal.aborted) return;
-        analysisCache.clearInFlight(roomId);
+        // The POST may have been accepted before its response stream broke.
+        // Only a later reconnect returning `idle` proves there is no job.
+        if (!serverMayStillBeWorking(failure)) analysisCache.clearInFlight(roomId);
         setError(
           failure instanceof EngineApiError
             ? messageFor(failure)

@@ -378,4 +378,64 @@ describe("play route data loading", () => {
     expect(thinkWithBot.mock.calls[1]?.[1]).toMatchObject({ revision: 6 });
     view.unmount();
   });
+
+  it("reattaches Aether immediately when the tab wakes without a revision change", async () => {
+    const ownerId = "11111111-1111-4111-8111-111111111111";
+    const initial = createNewGame({
+      ...DEFAULT_NEW_GAME_SETTINGS,
+      name: "Owner vs Aether",
+      playerA: "Owner",
+      playerB: "Aether",
+      botSide: "B",
+      startingSide: "B",
+      tileDrawMode: "play",
+    });
+    const game = { ...initial, playerUserIds: { A: ownerId }, revision: 5 };
+    readRoom.mockResolvedValue({
+      game,
+      meta: {
+        id: ROOM_ID,
+        ownerId,
+        ownerName: "Owner",
+        name: game.name,
+        playerA: game.players.A,
+        playerB: game.players.B,
+        gameMode: "versus",
+        inviteUserAId: ownerId,
+        startingSide: game.startingSide,
+        turnNumber: game.turnNumber,
+        scoreA: 0,
+        scoreB: 0,
+        status: "playing",
+        visibility: "public",
+        regionId: null,
+        createdAt: game.createdAt,
+        updatedAt: game.lastSavedAt,
+      },
+      session: {
+        version: 1,
+        actorId: null,
+        gameId: null,
+        turnNumber: null,
+        activeSide: null,
+        actionMode: "none",
+        pendingPlacements: [],
+        exchangeDraft: { outgoingIds: [], incomingTiles: [] },
+        selectedRackTileId: null,
+        selectedPendingTileId: null,
+        updatedAt: game.lastSavedAt,
+      },
+      needsCompaction: false,
+      needsInviteRepair: false,
+    });
+
+    const view = render(<App />);
+    await waitFor(() => expect(thinkWithBot).toHaveBeenCalledTimes(1));
+
+    window.dispatchEvent(new Event("focus"));
+
+    await waitFor(() => expect(thinkWithBot).toHaveBeenCalledTimes(2));
+    expect(thinkWithBot.mock.calls[1]?.[1]).toMatchObject({ revision: 5 });
+    view.unmount();
+  });
 });

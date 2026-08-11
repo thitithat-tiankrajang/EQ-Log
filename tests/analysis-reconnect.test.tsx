@@ -19,7 +19,7 @@ vi.mock("../src/bot/engineApi", async (importOriginal) => {
 });
 
 import * as analysisCache from "../src/analysisSessionCache";
-import type { AnalysisResult, SseOutcome } from "../src/bot/engineApi";
+import { EngineApiError, type AnalysisResult, type SseOutcome } from "../src/bot/engineApi";
 import { TurnAnalysisLauncher } from "../src/components/game/TurnAnalysisLauncher";
 
 const ROOM_ID = "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa";
@@ -87,6 +87,66 @@ describe("returning to a finished analysis", () => {
 });
 
 describe("returning to a running analysis", () => {
+  it("keeps the job address after a dropped stream and reconnects on wake", async () => {
+    analysisCache.markInFlight(ROOM_ID, { revision: 7, level: "quick" });
+    let finishReconnect!: (outcome: SseOutcome<AnalysisResult>) => void;
+    attachAnalysis
+      .mockRejectedValueOnce(new EngineApiError("offline", "stream dropped"))
+      .mockImplementationOnce(
+        (options: {
+          onProgress?: (progress: {
+            phase: string;
+            percent: number;
+            elapsedMs: number;
+            etaMs: number;
+            detail: string;
+          }) => void;
+        }): Promise<SseOutcome<AnalysisResult>> => {
+          options.onProgress?.({
+            phase: "sim",
+            percent: 50,
+            elapsedMs: 900,
+            etaMs: 900,
+            detail: "samples=2/4",
+          });
+          return new Promise<SseOutcome<AnalysisResult>>((resolve) => {
+            finishReconnect = resolve;
+          });
+        },
+      );
+
+    const view = render(
+      <TurnAnalysisLauncher
+        roomId={ROOM_ID}
+        revision={7}
+        playerName="Player"
+        disabled={false}
+        reconnectEpoch={0}
+      />,
+    );
+
+    await waitFor(() => expect(attachAnalysis).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(analysisCache.getInFlight(ROOM_ID)).toBeDefined());
+
+    view.rerender(
+      <TurnAnalysisLauncher
+        roomId={ROOM_ID}
+        revision={7}
+        playerName="Player"
+        disabled={false}
+        reconnectEpoch={1}
+      />,
+    );
+
+    await waitFor(() => expect(attachAnalysis).toHaveBeenCalledTimes(2));
+    await waitFor(() => {
+      const fill = view.container.querySelector(".bot-thinking-fill") as HTMLElement;
+      expect(fill.style.width).toBe("50%");
+    });
+    finishReconnect({ kind: "result", result: analysisAt(7) });
+    await waitFor(() => expect(screen.getByText("A summary.")).toBeInTheDocument());
+  });
+
   it("reconnects to the in-flight search and shows its result when it lands", async () => {
     analysisCache.markInFlight(ROOM_ID, { revision: 7, level: "quick" });
     attachAnalysis.mockImplementation(

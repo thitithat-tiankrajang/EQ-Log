@@ -1876,7 +1876,7 @@ function App() {
       setBotStatus(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [botShouldMove, game?.commitId, game?.revision]);
+  }, [botShouldMove, game?.commitId, game?.revision, subscriptionEpoch]);
 
   // Set the selection from a log id (called by TurnRecordList / LogPanel).
   // Selecting a log opens the "action applied" view of that log.
@@ -5088,6 +5088,7 @@ function App() {
             <TurnAnalysisLauncher
               roomId={activeRoomId}
               revision={game.revision ?? 0}
+              reconnectEpoch={subscriptionEpoch}
               playerName={game.players[game.activeSide] || game.activeSide}
               disabled={!canAnalyzeTurn}
               disabledReason={analysisDisabledReason}
