@@ -118,12 +118,16 @@ import { getExchangeRule, getTilebagView, refillRackFromQueue } from "./gameplay
 import { advanceRunningClock } from "./gameplay/timer";
 import { clearTileAssignment } from "./gameplay/tiles";
 import {
+  isDesyncBotFailure,
+  isRetryableBotFailure,
   mapBotResponse,
   thinkWithBot,
   warmUpBotEngine,
+  type BotThinkHandle,
+  type BotThinkingState,
 } from "./bot/botController";
-import { isEngineApiConfigured } from "./bot/engineApi";
-import type { BotProgress, BotResponse } from "./bot/types";
+import { EngineApiError, isEngineApiConfigured } from "./bot/engineApi";
+import type { BotResponse } from "./bot/types";
 import { botRecordFromGame, recordBotGame } from "./botStats";
 import { BotThinkingCard } from "./components/game/BotThinkingCard";
 import { BotReasoningPanel } from "./components/game/BotReasoningPanel";
@@ -131,6 +135,45 @@ import { TurnAnalysisLauncher } from "./components/game/TurnAnalysisLauncher";
 import { makeRoomScope, type RoomScope, type RoomVisibility } from "./roomScope";
 
 type ActionMode = "none" | ActionType;
+
+/**
+ * How long to wait before asking the engine again after a transient refusal.
+ *
+ * The length of this array is also the retry LIMIT. Three attempts over about
+ * fourteen seconds covers the case this exists for — a burst of other people's
+ * searches on a one-CPU server — without letting the bot sit forever on a
+ * service that is genuinely down.
+ */
+const BOT_RETRY_DELAYS_MS = [1_500, 4_000, 8_000] as const;
+
+/**
+ * What to tell the player about an engine problem, in one line.
+ *
+ * Deliberately says nothing about queues, concurrency, status codes, hosts or
+ * the shape of the backend. The player needs to know why the bot has not moved
+ * and whether to wait; everything else is our problem.
+ */
+function botNoticeFor(error: unknown): string {
+  if (error instanceof EngineApiError) {
+    switch (error.code) {
+      case "queue_full":
+        return "ขณะนี้มีการใช้งานบอทจำนวนมาก กำลังลองใหม่ให้อัตโนมัติ";
+      case "offline":
+        return "ติดต่อเซิร์ฟเวอร์บอทไม่ได้ กำลังลองใหม่ให้อัตโนมัติ";
+      case "engine_timeout":
+        return "การคำนวณของบอทใช้เวลานานเกินกำหนดและถูกหยุดไว้ — บอทจึงผ่านตานี้";
+      case "budget_exhausted":
+        return "ใช้โควตาการคำนวณครบแล้ว — บอทจึงผ่านตานี้";
+      case "unauthenticated":
+        return "เซสชันหมดอายุ — กรุณาเข้าสู่ระบบใหม่";
+      case "unconfigured":
+        return "ระบบบอทยังไม่ได้เปิดใช้งานในเซิร์ฟเวอร์นี้";
+      default:
+        return "บอทคำนวณตานี้ไม่สำเร็จ — บอทจึงผ่านตานี้";
+    }
+  }
+  return "บอทคำนวณตานี้ไม่สำเร็จ — บอทจึงผ่านตานี้";
+}
 
 type ActionStart = {
   startedAt: string;
@@ -1623,7 +1666,20 @@ function App() {
   }, [replayCursor, game?.gameId, game?.logs.length]);
 
   // ── Bot match: the engine plays its side automatically ─────────────────────
-  const [botProgress, setBotProgress] = useState<BotProgress | null>(null);
+  //
+  // The engine is a shared server-side resource now, not this tab's CPU, so a
+  // bot turn can be QUEUED before it is COMPUTED and can be refused because
+  // other people are using the engine. Two consequences are handled here:
+  //
+  //   • The player is told which of the two is happening. An unmoving board
+  //     with no explanation is indistinguishable from a broken app.
+  //   • Overload is retried, not treated as a verdict. Falling back to a pass
+  //     is a real, scoring, irreversible game action; "the server was busy for
+  //     four seconds" is not a reason to take one.
+  const [botStatus, setBotStatus] = useState<BotThinkingState | null>(null);
+  /** A line explaining an engine problem the player can otherwise only observe
+   *  as the bot not moving. Cleared as soon as the bot moves. */
+  const [botNotice, setBotNotice] = useState<string | null>(null);
   // Reasoning behind the bot's most recent move, kept so the player can open a
   // full "why this move" breakdown (chosen move + every alternative weighed).
   const [botReasoning, setBotReasoning] = useState<{
@@ -1711,28 +1767,69 @@ function App() {
     if (botTurnRef.current === commitId) return;
     botTurnRef.current = commitId;
     let alive = true;
-    // The request names the game and its revision; the backend reads the
-    // position for itself. Nothing about the board, the racks or the bag is
-    // described by this client any more.
-    const handle = thinkWithBot(game, (progress) => {
-      if (alive) setBotProgress(progress);
-    });
-    handle.promise
-      .then((response) => {
-        if (alive && gameRef.current?.commitId === commitId) commitBotResponse(response);
-      })
-      .catch((error) => {
-        console.error("Bot engine failed; falling back to pass.", error);
-        if (alive && gameRef.current?.commitId === commitId) commitBotResponse(null);
-      })
-      .finally(() => {
-        if (alive) setBotProgress(null);
+    let handle: BotThinkHandle | null = null;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const attempt = (tries: number) => {
+      // Re-read the game each time rather than closing over it: a retry must
+      // ask about the position as it stands, and if the game has moved on this
+      // effect's work is already void.
+      const current = gameRef.current;
+      if (!alive || !current || current.commitId !== commitId) return;
+
+      setBotStatus({ kind: "requesting" });
+      // The request names the game and its revision; the backend reads the
+      // position for itself. Nothing about the board, the racks or the bag is
+      // described by this client any more.
+      handle = thinkWithBot(current, (state) => {
+        if (alive) setBotStatus(state);
       });
+      handle.promise
+        .then((response) => {
+          if (!alive) return;
+          setBotStatus(null);
+          setBotNotice(null);
+          if (gameRef.current?.commitId === commitId) commitBotResponse(response);
+        })
+        .catch((error: unknown) => {
+          if (!alive) return;
+          setBotStatus(null);
+          // The game moved on under us. Whatever came back describes a board
+          // that no longer exists, and the effect for the new position is
+          // already running.
+          if (gameRef.current?.commitId !== commitId) return;
+
+          if (isDesyncBotFailure(error)) {
+            // The server's view of this game is ahead of ours. Committing
+            // anything — including a pass — would write into a position we do
+            // not actually have. Wait for sync to catch up instead.
+            setBotNotice("กระดานบนเซิร์ฟเวอร์เปลี่ยนไปแล้ว — กำลังรอข้อมูลล่าสุด");
+            return;
+          }
+
+          if (isRetryableBotFailure(error) && tries < BOT_RETRY_DELAYS_MS.length) {
+            setBotNotice(botNoticeFor(error));
+            retryTimer = setTimeout(
+              () => attempt(tries + 1),
+              BOT_RETRY_DELAYS_MS[tries] ?? 8_000,
+            );
+            return;
+          }
+
+          console.error("Bot engine failed; falling back to pass.", error);
+          setBotNotice(botNoticeFor(error));
+          commitBotResponse(null);
+        });
+    };
+
+    attempt(0);
+
     return () => {
       alive = false;
-      handle.cancel();
+      handle?.cancel();
+      if (retryTimer) clearTimeout(retryTimer);
       if (botTurnRef.current === commitId) botTurnRef.current = null;
-      setBotProgress(null);
+      setBotStatus(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [botShouldMove, game?.commitId]);
@@ -4906,14 +5003,23 @@ function App() {
             />
           </div>
 
-          {botProgress && game.botSide && !reviewing && (
+          {botStatus && game.botSide && !reviewing && (
             <BotThinkingCard
-              progress={botProgress}
+              state={botStatus}
               botName={game.players[game.botSide] || "Aether"}
             />
           )}
 
-          {!botProgress &&
+          {/* Why the bot has not moved. Shown while a retry is pending and
+              after a failure that ended in a pass, so the board never simply
+              sits there with no explanation. */}
+          {botNotice && game.botSide && !reviewing && (
+            <div className="bot-notice" role="status" aria-live="polite">
+              {botNotice}
+            </div>
+          )}
+
+          {!botStatus &&
             !reviewing &&
             game.botSide &&
             botReasoning &&

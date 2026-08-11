@@ -78,19 +78,48 @@ export type EngineProgress = {
 };
 
 /**
+ * Where a request sits in the engine's queue, as the server reported it.
+ *
+ * The engine now runs on ONE server with a finite number of CPUs, so a request
+ * can genuinely be accepted and then wait. `ahead` is the number of jobs the
+ * server said would be served first at the moment it said so; it re-sends the
+ * event whenever that changes. It is a fact about the queue, not a prediction:
+ * a bot turn arriving later legitimately overtakes queued analysis, and the UI
+ * must phrase it as a place in line rather than as a time.
+ */
+export type EngineQueueState = { ahead: number; position: number };
+
+/** The lifecycle a long engine request goes through, as the server reports it.
+ *  Every callback here corresponds to a real server-side transition; none of
+ *  them is inferred from a timer on this side. */
+export type EngineLifecycle = {
+  /** The request was accepted but no engine process exists for it yet. May fire
+   *  more than once as the queue moves. Never fires for a request that started
+   *  immediately. */
+  onQueued?: (state: EngineQueueState) => void;
+  /** An engine process is now working on it. */
+  onRunning?: () => void;
+  /** The engine's own progress report. Only ever real numbers from the search. */
+  onProgress?: (progress: EngineProgress) => void;
+};
+
+/**
  * Post and read a Server-Sent Events response.
  *
  * `EventSource` cannot be used: it only issues GETs and cannot carry an
  * Authorization header, and this API is authenticated. So the stream is parsed
  * off a `fetch` body directly.
  *
- * A search at full strength can run for minutes. Streaming is what keeps that
- * survivable — the connection stays warm because the engine reports as it goes,
- * and the player sees the search move rather than a spinner that might be dead.
+ * A search at full strength can run for minutes, and on a busy server it can
+ * wait before it even begins. Streaming is what keeps that survivable — the
+ * connection stays warm, and the player is told which of the two is happening
+ * rather than watching one spinner that means both.
  */
 async function postStream<T>(options: {
   path: string;
   body: Record<string, unknown>;
+  onQueued?: (state: EngineQueueState) => void;
+  onRunning?: () => void;
   onProgress?: (progress: EngineProgress) => void;
   signal?: AbortSignal;
 }): Promise<T> {
@@ -147,6 +176,29 @@ async function postStream<T>(options: {
     const event = /^event:\s*(.+)$/m.exec(block)?.[1]?.trim() ?? "message";
     const data = /^data:\s*(.+)$/m.exec(block)?.[1];
     if (!data) return;
+    // Lifecycle events are advisory: they drive what the player sees, never
+    // whether the request succeeds. A malformed one is dropped rather than
+    // failing a search that is otherwise fine.
+    if (event === "queued") {
+      try {
+        const state = JSON.parse(data) as Partial<EngineQueueState>;
+        const ahead = Number(state.ahead);
+        if (Number.isInteger(ahead) && ahead >= 0) {
+          options.onQueued?.({ ahead, position: ahead + 1 });
+        } else {
+          // Accepted-but-waiting is still true even when the count is not
+          // usable, and that is the part the player needs.
+          options.onQueued?.({ ahead: -1, position: -1 });
+        }
+      } catch {
+        options.onQueued?.({ ahead: -1, position: -1 });
+      }
+      return;
+    }
+    if (event === "running") {
+      options.onRunning?.();
+      return;
+    }
     if (event === "progress") {
       try {
         options.onProgress?.(JSON.parse(data) as EngineProgress);
@@ -219,15 +271,18 @@ export type BotMoveResult = {
   stats: { elapsedMs: number; nodes: number; samples: number };
 };
 
-export function requestBotMove(options: {
-  gameId: string;
-  expectedRevision: number;
-  onProgress?: (progress: EngineProgress) => void;
-  signal?: AbortSignal;
-}): Promise<BotMoveResult> {
+export function requestBotMove(
+  options: {
+    gameId: string;
+    expectedRevision: number;
+    signal?: AbortSignal;
+  } & EngineLifecycle,
+): Promise<BotMoveResult> {
   return postStream<BotMoveResult>({
     path: `/v1/games/${encodeURIComponent(options.gameId)}/bot-move`,
     body: { expectedRevision: options.expectedRevision },
+    ...(options.onQueued ? { onQueued: options.onQueued } : {}),
+    ...(options.onRunning ? { onRunning: options.onRunning } : {}),
     ...(options.onProgress ? { onProgress: options.onProgress } : {}),
     ...(options.signal ? { signal: options.signal } : {}),
   });
@@ -277,16 +332,19 @@ export type AnalysisResult = {
   };
 };
 
-export function requestAnalysis(options: {
-  gameId: string;
-  expectedRevision: number;
-  level: AnalysisLevel;
-  onProgress?: (progress: EngineProgress) => void;
-  signal?: AbortSignal;
-}): Promise<AnalysisResult> {
+export function requestAnalysis(
+  options: {
+    gameId: string;
+    expectedRevision: number;
+    level: AnalysisLevel;
+    signal?: AbortSignal;
+  } & EngineLifecycle,
+): Promise<AnalysisResult> {
   return postStream<AnalysisResult>({
     path: `/v1/games/${encodeURIComponent(options.gameId)}/analysis`,
     body: { expectedRevision: options.expectedRevision, level: options.level },
+    ...(options.onQueued ? { onQueued: options.onQueued } : {}),
+    ...(options.onRunning ? { onRunning: options.onRunning } : {}),
     ...(options.onProgress ? { onProgress: options.onProgress } : {}),
     ...(options.signal ? { signal: options.signal } : {}),
   });

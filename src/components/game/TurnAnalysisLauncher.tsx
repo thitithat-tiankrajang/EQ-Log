@@ -21,6 +21,14 @@ import { TurnAnalysisPanel } from "./TurnAnalysisPanel";
 // That single rule covers most of the cases that look separate: the player moved
 // while it was running, the opponent moved, the room resynchronised, a
 // reconnect replaced the state. All of them are "the revision changed".
+//
+// The second rule, new since the engine moved to a shared server: **a request
+// that has been accepted has not necessarily started**. The server has a finite
+// number of CPUs and a queue in front of them, so "asked" and "computing" are
+// now different states and the player is told which one they are in. A queued
+// analysis showing a progress bar at 0% would look frozen and would be lying
+// about what the server is doing; a queued analysis that says it is queued is
+// neither.
 
 const LEVEL_LABEL: Record<AnalysisLevel, string> = {
   quick: "เร็ว",
@@ -36,8 +44,23 @@ const LEVEL_HINT: Record<AnalysisLevel, string> = {
   max: "หลายนาที",
 };
 
+/**
+ * The lifecycle of one analysis request, as the server actually reports it.
+ *
+ * `queued` and `running` are separate because on the server they are separate:
+ * one means no CPU has been given to this yet, the other means a process is
+ * searching. `stale` is its own outcome rather than an error, because nobody
+ * did anything wrong — the game simply moved on.
+ */
+type AnalysisPhase =
+  | { kind: "idle" }
+  | { kind: "requesting" }
+  | { kind: "queued"; position: number | null }
+  | { kind: "running"; progress: EngineProgress | null };
+
 /** Failures the player can do something about, phrased as what happened rather
- *  than as an error code. */
+ *  than as an error code. Nothing here quotes the server: no status codes, no
+ *  queue internals, no infrastructure. */
 function messageFor(error: EngineApiError): string {
   switch (error.code) {
     case "stale_revision":
@@ -47,7 +70,7 @@ function messageFor(error: EngineApiError): string {
     case "turn_rule":
       return "ตอนนี้ยังวิเคราะห์ไม่ได้ — เกมยังไม่ถึงจังหวะที่ต้องตัดสินใจ";
     case "engine_timeout":
-      return "เอนจินใช้เวลานานเกินกำหนดในตานี้ — ลองระดับที่เบากว่านี้";
+      return "การคำนวณใช้เวลานานเกินกำหนดและถูกหยุดไว้ — ลองระดับที่เบากว่านี้";
     case "budget_exhausted": {
       const seconds = Math.ceil((error.detail?.retryAfterMs ?? 0) / 1000);
       return seconds > 0
@@ -57,7 +80,7 @@ function messageFor(error: EngineApiError): string {
     case "analysis_in_progress":
       return "มีการวิเคราะห์ที่กำลังทำงานอยู่แล้ว";
     case "queue_full":
-      return "เอนจินกำลังทำงานหนัก — ลองอีกครั้งในอีกสักครู่";
+      return "ขณะนี้มีการใช้งานบอทจำนวนมาก กรุณาลองใหม่อีกครั้ง";
     case "analysis_unavailable":
       return "ตานี้ไม่มีทางเลือกให้เปรียบเทียบ";
     case "unauthenticated":
@@ -93,8 +116,7 @@ export function TurnAnalysisLauncher({
 }) {
   const [open, setOpen] = useState(false);
   const [level, setLevel] = useState<AnalysisLevel>("quick");
-  const [running, setRunning] = useState(false);
-  const [progress, setProgress] = useState<EngineProgress | null>(null);
+  const [phase, setPhase] = useState<AnalysisPhase>({ kind: "idle" });
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<AnalysisResult | null>(null);
   // Whether the result panel is on screen. Kept apart from `result` so closing
@@ -102,12 +124,15 @@ export function TurnAnalysisLauncher({
   // search cost real server time.
   const [panelOpen, setPanelOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const inFlight = phase.kind !== "idle";
 
   const cancel = useCallback(() => {
+    // Aborting releases the server's reference to the search. A job still in
+    // the queue gives its place back at once; a job already running has its
+    // engine process killed once nobody is waiting on it.
     abortRef.current?.abort();
     abortRef.current = null;
-    setRunning(false);
-    setProgress(null);
+    setPhase({ kind: "idle" });
   }, []);
 
   // The game moved on. Anything on screen or in flight describes a board that
@@ -118,10 +143,12 @@ export function TurnAnalysisLauncher({
       setResult(null);
       setPanelOpen(false);
     }
-    if (running) cancel();
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setPhase({ kind: "idle" });
     setError(null);
-    // `running` is deliberately absent: this must fire on revision changes, not
-    // when a run it started sets the flag.
+    // `phase` is deliberately absent: this must fire on revision changes, not
+    // when a run it started advances its own state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revision, gameId]);
 
@@ -134,10 +161,9 @@ export function TurnAnalysisLauncher({
       const requestedRevision = revision;
       const controller = new AbortController();
       abortRef.current = controller;
-      setRunning(true);
+      setPhase({ kind: "requesting" });
       setError(null);
       setResult(null);
-      setProgress(null);
       setOpen(false);
 
       try {
@@ -145,7 +171,20 @@ export function TurnAnalysisLauncher({
           gameId,
           expectedRevision: requestedRevision,
           level: chosen,
-          onProgress: setProgress,
+          // Each of these is a transition the server reported. None is a timer
+          // on this side pretending to know what the server is doing.
+          onQueued: (state) => {
+            if (controller.signal.aborted) return;
+            setPhase({ kind: "queued", position: state.position > 0 ? state.position : null });
+          },
+          onRunning: () => {
+            if (controller.signal.aborted) return;
+            setPhase({ kind: "running", progress: null });
+          },
+          onProgress: (progress) => {
+            if (controller.signal.aborted) return;
+            setPhase({ kind: "running", progress });
+          },
           signal: controller.signal,
         });
         if (controller.signal.aborted) return;
@@ -167,9 +206,10 @@ export function TurnAnalysisLauncher({
             : "วิเคราะห์ไม่สำเร็จ — ลองใหม่อีกครั้ง",
         );
       } finally {
-        if (abortRef.current === controller) abortRef.current = null;
-        setRunning(false);
-        setProgress(null);
+        if (abortRef.current === controller) {
+          abortRef.current = null;
+          setPhase({ kind: "idle" });
+        }
       }
     },
     [gameId, revision],
@@ -180,29 +220,56 @@ export function TurnAnalysisLauncher({
   // drawn, so no later state change can slip a stale panel back on screen.
   const showable = result && result.revision === revision ? result : null;
 
-  if (running) {
-    const percent = Math.max(0, Math.min(100, progress?.percent ?? 0));
+  if (inFlight) {
+    // Waiting for a CPU is not analysing, and saying so is the whole point of
+    // this branch: a queued request drawn as a stalled progress bar looks
+    // broken, and looking broken is how a working server loses a user.
+    const queued = phase.kind === "queued" ? phase : null;
+    const progress = phase.kind === "running" ? phase.progress : null;
     const eta = progress && progress.etaMs > 500 ? Math.ceil(progress.etaMs / 1000) : null;
     return (
-      <div className="analysis-running" role="status" aria-live="polite">
+      <div
+        className={`analysis-running${queued ? " is-queued" : ""}`}
+        role="status"
+        aria-live="polite"
+        data-phase={phase.kind}
+      >
         <div className="analysis-running-head">
           <span className="analysis-running-label">
             <span className="bot-thinking-dot" aria-hidden="true" />
-            กำลังวิเคราะห์ ({LEVEL_LABEL[level]})
+            {queued
+              ? `กำลังรอคิววิเคราะห์ (${LEVEL_LABEL[level]})`
+              : `กำลังวิเคราะห์ (${LEVEL_LABEL[level]})`}
           </span>
           <span className="analysis-running-eta">
-            {eta !== null
-              ? `~${eta}s`
-              : progress
-                ? `${(progress.elapsedMs / 1000).toFixed(1)}s`
-                : "เริ่มต้น…"}
+            {queued
+              ? // Only shown when the server gave a place in line it stands
+                // behind. Never a fabricated position, and never a time — a
+                // bot turn may legitimately overtake this.
+                queued.position !== null && queued.position > 1
+                ? `คิวที่ ${queued.position}`
+                : "รอเครื่องว่าง"
+              : eta !== null
+                ? `~${eta}s`
+                : progress
+                  ? `${(progress.elapsedMs / 1000).toFixed(1)}s`
+                  : "เริ่มต้น…"}
           </span>
           <button type="button" className="analysis-cancel" onClick={cancel}>
             ยกเลิก
           </button>
         </div>
         <div className="bot-thinking-track">
-          <div className="bot-thinking-fill" style={{ width: `${percent}%` }} />
+          {progress ? (
+            <div
+              className="bot-thinking-fill"
+              style={{ width: `${Math.max(0, Math.min(100, progress.percent))}%` }}
+            />
+          ) : (
+            // Indeterminate: nothing has produced a percentage yet, so nothing
+            // here claims one.
+            <div className="bot-thinking-fill is-indeterminate" />
+          )}
         </div>
       </div>
     );

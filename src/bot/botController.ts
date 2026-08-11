@@ -24,8 +24,27 @@ import {
   requestBotMove,
   type BotMoveResult,
   type EngineProgress,
+  type EngineQueueState,
 } from "./engineApi";
 import type { BotProgress, BotResponse } from "./types";
+
+/**
+ * What the bot is doing right now, from the player's point of view.
+ *
+ * The engine used to run in this tab, so "asked" and "computing" were the same
+ * instant. It now runs on a shared server with a bounded number of CPUs, and
+ * those are three different states — a bot that has not moved because it is
+ * WAITING FOR A SLOT is not a bot that is thinking, and telling the player it
+ * is thinking would be a lie the progress bar then has to keep up.
+ */
+export type BotThinkingState =
+  | { kind: "requesting" }
+  /** Accepted by the server, waiting for engine capacity. `position` is the
+   *  server's own count of jobs ahead, or null when it could not be trusted. */
+  | { kind: "queued"; position: number | null }
+  /** An engine process is working on it. `progress` is absent until the engine
+   *  reports its first sample — indeterminate, rather than a fake 0%. */
+  | { kind: "running"; progress: BotProgress | null };
 
 export type BotThinkHandle = {
   promise: Promise<BotResponse>;
@@ -89,36 +108,66 @@ function toBotResponse(result: BotMoveResult): BotResponse {
  * Ask the backend for the bot's move in this game at this revision.
  *
  * `game.revision` is the whole concurrency story. The server compares it with
- * the revision it holds and refuses a mismatch, so a move computed for a
- * position the game has already left cannot come back and be applied to a
- * newer one.
+ * the revision it holds and refuses a mismatch — at admission AND again when a
+ * queued job finally reaches a CPU — so a move computed for a position the game
+ * has already left cannot come back and be applied to a newer one.
+ *
+ * `onState` is called with every lifecycle change the server reports, so the
+ * caller can distinguish waiting from thinking instead of showing one spinner
+ * for both.
  */
 export function thinkWithBot(
   game: GameState,
-  onProgress: (progress: BotProgress) => void,
+  onState: (state: BotThinkingState) => void,
 ): BotThinkHandle {
   const controller = new AbortController();
   const promise = requestBotMove({
     gameId: game.gameId,
     expectedRevision: game.revision ?? 0,
-    onProgress: (progress) => onProgress(toBotProgress(progress)),
+    onQueued: (state: EngineQueueState) =>
+      onState({ kind: "queued", position: state.position > 0 ? state.position : null }),
+    // The engine reports progress only once it is actually searching, so
+    // "running with nothing to show yet" is a real state, rendered as an
+    // indeterminate one rather than as a fabricated 0%.
+    onRunning: () => onState({ kind: "running", progress: null }),
+    onProgress: (progress) => onState({ kind: "running", progress: toBotProgress(progress) }),
     signal: controller.signal,
   }).then(toBotResponse);
 
   return {
     promise,
     // Aborting the request also releases the server-side reference to the
-    // search; the engine process is stopped once nobody is waiting on it.
+    // search; the engine process is stopped once nobody is waiting on it, and a
+    // job still in the queue gives its place back immediately.
     cancel: () => controller.abort(),
   };
 }
 
-/** Whether a failed bot request is worth retrying, or is a settled refusal.
- *  A stale revision resolves itself — the game moved on and the caller will
- *  compose a fresh request against the new position. */
+/**
+ * Whether a failed bot request is worth retrying, or is a settled refusal.
+ *
+ * This matters far more now than it did with a per-tab engine. `queue_full` is
+ * no longer exotic: it is the ordinary response of a busy single-CPU server,
+ * and treating it as a permanent failure would make the bot PASS its turn
+ * because someone else was analysing. A pass is a real, scoring, irreversible
+ * game action — never the right answer to server load.
+ *
+ * A stale revision is deliberately NOT retryable-as-a-pass either: it means the
+ * server's view of the game has moved past ours, and the only safe response is
+ * to wait for state to catch up.
+ */
 export function isRetryableBotFailure(error: unknown): boolean {
   if (!(error instanceof EngineApiError)) return true;
+  // `engine_timeout` is deliberately absent: the service's ceilings sit above
+  // the engine's own, so reaching one means a malfunction that another five
+  // minutes of the same shared CPU will not fix.
   return error.code === "queue_full" || error.code === "offline" || error.code === "internal";
+}
+
+/** Failures where committing ANY move on the bot's behalf would be wrong,
+ *  because the server and this client disagree about what the game is. */
+export function isDesyncBotFailure(error: unknown): boolean {
+  return error instanceof EngineApiError && error.code === "stale_revision";
 }
 
 export type MappedBotMove =
