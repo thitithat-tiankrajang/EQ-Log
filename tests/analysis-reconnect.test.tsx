@@ -127,6 +127,7 @@ describe("returning to a running analysis", () => {
 
     await waitFor(() => expect(attachAnalysis).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(analysisCache.getInFlight(ROOM_ID)).toBeDefined());
+    expect(screen.getByText(/กำลังเชื่อมต่องานวิเคราะห์เดิม/)).toBeInTheDocument();
 
     view.rerender(
       <TurnAnalysisLauncher
@@ -143,6 +144,8 @@ describe("returning to a running analysis", () => {
       const fill = view.container.querySelector(".bot-thinking-fill") as HTMLElement;
       expect(fill.style.width).toBe("50%");
     });
+    expect(screen.getByText(/50%/)).toBeInTheDocument();
+    expect(view.container.querySelector(".analysis-running")).toHaveClass("engine-activity-dock");
     finishReconnect({ kind: "result", result: analysisAt(7) });
     await waitFor(() => expect(screen.getByText("A summary.")).toBeInTheDocument());
   });

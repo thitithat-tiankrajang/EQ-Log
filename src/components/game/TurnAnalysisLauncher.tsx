@@ -58,6 +58,7 @@ const LEVEL_HINT: Record<AnalysisLevel, string> = {
 type AnalysisPhase =
   | { kind: "idle" }
   | { kind: "requesting" }
+  | { kind: "reconnecting"; progress: EngineProgress | null }
   | { kind: "queued"; position: number | null }
   | { kind: "running"; progress: EngineProgress | null };
 
@@ -149,7 +150,23 @@ export function TurnAnalysisLauncher({
   // search cost real server time.
   const [panelOpen, setPanelOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const lastProgressRef = useRef<{
+    roomId: string;
+    revision: number;
+    level: AnalysisLevel;
+    progress: EngineProgress | null;
+  } | null>(null);
+  const [reconnectAttempt, setReconnectAttempt] = useState(0);
+  const reconnectTimerRef = useRef<number | null>(null);
   const inFlight = phase.kind !== "idle";
+
+  const scheduleReconnect = useCallback(() => {
+    if (reconnectTimerRef.current !== null) window.clearTimeout(reconnectTimerRef.current);
+    reconnectTimerRef.current = window.setTimeout(() => {
+      reconnectTimerRef.current = null;
+      setReconnectAttempt((attempt) => attempt + 1);
+    }, 2_000);
+  }, []);
 
   const cancel = useCallback(() => {
     // Stop watching this run, and — because the player asked to cancel, not
@@ -157,6 +174,11 @@ export function TurnAnalysisLauncher({
     // alone would leave it running for a return that is not coming.
     abortRef.current?.abort();
     abortRef.current = null;
+    lastProgressRef.current = null;
+    if (reconnectTimerRef.current !== null) {
+      window.clearTimeout(reconnectTimerRef.current);
+      reconnectTimerRef.current = null;
+    }
     setPhase({ kind: "idle" });
     const pending = analysisCache.getInFlight(roomId);
     analysisCache.clearInFlight(roomId);
@@ -188,6 +210,7 @@ export function TurnAnalysisLauncher({
     if (!pending || pending.revision !== revision) {
       // Nothing of ours is running for this position.
       if (pending) analysisCache.clearInFlight(roomId);
+      lastProgressRef.current = null;
       setPhase({ kind: "idle" });
       return;
     }
@@ -195,7 +218,13 @@ export function TurnAnalysisLauncher({
     const controller = new AbortController();
     abortRef.current = controller;
     setLevel(pending.level);
-    setPhase({ kind: "requesting" });
+    const remembered =
+      lastProgressRef.current?.roomId === roomId &&
+      lastProgressRef.current.revision === revision &&
+      lastProgressRef.current.level === pending.level
+        ? lastProgressRef.current.progress
+        : null;
+    setPhase({ kind: "reconnecting", progress: remembered });
     attachAnalysis({
       gameId: roomId,
       expectedRevision: revision,
@@ -206,10 +235,11 @@ export function TurnAnalysisLauncher({
       },
       onRunning: () => {
         if (controller.signal.aborted) return;
-        setPhase({ kind: "running", progress: null });
+        setPhase({ kind: "running", progress: remembered });
       },
       onProgress: (progress) => {
         if (controller.signal.aborted) return;
+        lastProgressRef.current = { roomId, revision, level: pending.level, progress };
         setPhase({ kind: "running", progress });
       },
       signal: controller.signal,
@@ -217,6 +247,7 @@ export function TurnAnalysisLauncher({
       .then((outcome) => {
         if (controller.signal.aborted) return;
         analysisCache.clearInFlight(roomId);
+        lastProgressRef.current = null;
         if (outcome.kind === "idle" || outcome.result.revision !== revision) return;
         analysisCache.rememberResult(roomId, outcome.result);
         setResult(outcome.result);
@@ -228,24 +259,47 @@ export function TurnAnalysisLauncher({
         if (controller.signal.aborted) return;
         // Losing the observer stream says nothing about the server-owned job.
         // Keep its address so the next focus/visibility/online wake retries GET.
-        if (!serverMayStillBeWorking(failure)) analysisCache.clearInFlight(roomId);
+        if (serverMayStillBeWorking(failure)) {
+          setPhase({ kind: "reconnecting", progress: lastProgressRef.current?.progress ?? null });
+          scheduleReconnect();
+        } else {
+          analysisCache.clearInFlight(roomId);
+          lastProgressRef.current = null;
+        }
       })
       .finally(() => {
         if (abortRef.current === controller) {
           abortRef.current = null;
-          setPhase({ kind: "idle" });
+          const stillPending = analysisCache.getInFlight(roomId);
+          setPhase(
+            stillPending?.revision === revision
+              ? { kind: "reconnecting", progress: lastProgressRef.current?.progress ?? null }
+              : { kind: "idle" },
+          );
         }
       });
 
-    return () => controller.abort();
+    return () => {
+      controller.abort();
+      if (reconnectTimerRef.current !== null) {
+        window.clearTimeout(reconnectTimerRef.current);
+        reconnectTimerRef.current = null;
+      }
+    };
     // `phase`/`result` are deliberately absent: this must fire on revision or
     // room changes, not when a run it started advances its own state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revision, roomId, reconnectEpoch]);
+  }, [revision, roomId, reconnectEpoch, reconnectAttempt, scheduleReconnect]);
 
   // Leaving the screen stops this tab watching the search. It does NOT stop the
   // search: the server keeps it running, and a return reconnects to it above.
-  useEffect(() => () => abortRef.current?.abort(), []);
+  useEffect(
+    () => () => {
+      abortRef.current?.abort();
+      if (reconnectTimerRef.current !== null) window.clearTimeout(reconnectTimerRef.current);
+    },
+    [],
+  );
 
   const analyze = useCallback(
     async (chosen: AnalysisLevel) => {
@@ -256,6 +310,7 @@ export function TurnAnalysisLauncher({
       setError(null);
       setResult(null);
       setOpen(false);
+      lastProgressRef.current = { roomId, revision: requestedRevision, level: chosen, progress: null };
       // Record what is running for this position, so if the panel unmounts
       // (navigation, tab switch) a remount can reconnect to this exact search
       // instead of starting another.
@@ -277,10 +332,16 @@ export function TurnAnalysisLauncher({
           },
           onRunning: () => {
             if (controller.signal.aborted) return;
-            setPhase({ kind: "running", progress: null });
+            setPhase({ kind: "running", progress: lastProgressRef.current?.progress ?? null });
           },
           onProgress: (progress) => {
             if (controller.signal.aborted) return;
+            lastProgressRef.current = {
+              roomId,
+              revision: requestedRevision,
+              level: chosen,
+              progress,
+            };
             setPhase({ kind: "running", progress });
           },
           signal: controller.signal,
@@ -296,6 +357,7 @@ export function TurnAnalysisLauncher({
           return;
         }
         analysisCache.clearInFlight(roomId);
+        lastProgressRef.current = null;
         analysisCache.rememberResult(roomId, analysis);
         setResult(analysis);
         setPanelOpen(true);
@@ -303,7 +365,12 @@ export function TurnAnalysisLauncher({
         if (controller.signal.aborted) return;
         // The POST may have been accepted before its response stream broke.
         // Only a later reconnect returning `idle` proves there is no job.
-        if (!serverMayStillBeWorking(failure)) analysisCache.clearInFlight(roomId);
+        if (serverMayStillBeWorking(failure)) {
+          scheduleReconnect();
+        } else {
+          analysisCache.clearInFlight(roomId);
+          lastProgressRef.current = null;
+        }
         setError(
           failure instanceof EngineApiError
             ? messageFor(failure)
@@ -312,11 +379,16 @@ export function TurnAnalysisLauncher({
       } finally {
         if (abortRef.current === controller) {
           abortRef.current = null;
-          setPhase({ kind: "idle" });
+          const stillPending = analysisCache.getInFlight(roomId);
+          setPhase(
+            stillPending?.revision === requestedRevision
+              ? { kind: "reconnecting", progress: lastProgressRef.current?.progress ?? null }
+              : { kind: "idle" },
+          );
         }
       }
     },
-    [roomId, revision],
+    [roomId, revision, scheduleReconnect],
   );
 
   // A result is only ever rendered for the revision it was computed at. Two
@@ -329,11 +401,14 @@ export function TurnAnalysisLauncher({
     // this branch: a queued request drawn as a stalled progress bar looks
     // broken, and looking broken is how a working server loses a user.
     const queued = phase.kind === "queued" ? phase : null;
-    const progress = phase.kind === "running" ? phase.progress : null;
+    const reconnecting = phase.kind === "reconnecting";
+    const progress =
+      phase.kind === "running" || phase.kind === "reconnecting" ? phase.progress : null;
+    const percent = progress ? Math.round(Math.max(0, Math.min(100, progress.percent))) : null;
     const eta = progress && progress.etaMs > 500 ? Math.ceil(progress.etaMs / 1000) : null;
     return (
       <div
-        className={`analysis-running${queued ? " is-queued" : ""}`}
+        className={`analysis-running engine-activity-dock${queued ? " is-queued" : ""}${reconnecting ? " is-reconnecting" : ""}`}
         role="status"
         aria-live="polite"
         data-phase={phase.kind}
@@ -343,7 +418,9 @@ export function TurnAnalysisLauncher({
             <span className="bot-thinking-dot" aria-hidden="true" />
             {queued
               ? `กำลังรอคิววิเคราะห์ (${LEVEL_LABEL[level]})`
-              : `กำลังวิเคราะห์ (${LEVEL_LABEL[level]})`}
+              : reconnecting
+                ? "กำลังเชื่อมต่องานวิเคราะห์เดิม"
+                : `กำลังวิเคราะห์ (${LEVEL_LABEL[level]})`}
           </span>
           <span className="analysis-running-eta">
             {queued
@@ -353,10 +430,10 @@ export function TurnAnalysisLauncher({
                 queued.position !== null && queued.position > 1
                 ? `คิวที่ ${queued.position}`
                 : "รอเครื่องว่าง"
-              : eta !== null
-                ? `~${eta}s`
-                : progress
-                  ? `${(progress.elapsedMs / 1000).toFixed(1)}s`
+              : progress
+                ? `${percent}% · ${eta !== null ? `~${eta}s` : `${(progress.elapsedMs / 1000).toFixed(1)}s`}`
+                : reconnecting
+                  ? "เรียกสถานะล่าสุด…"
                   : "เริ่มต้น…"}
           </span>
           <button type="button" className="analysis-cancel" onClick={cancel}>

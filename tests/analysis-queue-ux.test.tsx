@@ -244,7 +244,9 @@ describe("overload and failure", () => {
     control.hooks.onRunning?.();
     control.reject(new EngineApiError("offline", "stream dropped"));
 
-    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/กำลังเชื่อมต่องานวิเคราะห์เดิม/)).toBeInTheDocument(),
+    );
     expect(analysisCache.getInFlight(ROOM_ID)).toEqual({ revision: 7, level: "quick" });
   });
 

@@ -40,6 +40,9 @@ import type { BotProgress, BotResponse } from "./types";
  */
 export type BotThinkingState =
   | { kind: "requesting" }
+  /** This tab is attaching to the server-owned search again. The last progress
+   * stays visible until the server replays a newer value. */
+  | { kind: "reconnecting"; progress: BotProgress | null }
   /** Accepted by the server, waiting for engine capacity. `position` is the
    *  server's own count of jobs ahead, or null when it could not be trusted. */
   | { kind: "queued"; position: number | null }

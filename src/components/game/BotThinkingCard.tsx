@@ -35,7 +35,12 @@ export function BotThinkingCard({
 }) {
   if (state.kind === "queued") {
     return (
-      <div className="bot-thinking-card is-queued" role="status" aria-live="polite">
+      <div
+        className="bot-thinking-card engine-activity-dock is-queued"
+        role="status"
+        aria-live="polite"
+        data-phase="queued"
+      >
         <div className="bot-thinking-head">
           <span className="bot-thinking-name">
             <span className="bot-thinking-dot" aria-hidden="true" />
@@ -54,23 +59,38 @@ export function BotThinkingCard({
     );
   }
 
-  const progress = state.kind === "running" ? state.progress : null;
+  const progress = state.kind === "running" || state.kind === "reconnecting" ? state.progress : null;
+  const reconnecting = state.kind === "reconnecting";
+  const percent = progress ? Math.round(Math.max(0, Math.min(100, progress.percent))) : null;
+  const timing = progress
+    ? progress.etaMs > 500
+      ? `~${Math.ceil(progress.etaMs / 1000)}s`
+      : `${(progress.elapsedMs / 1000).toFixed(1)}s`
+    : null;
 
   return (
-    <div className="bot-thinking-card" role="status" aria-live="polite">
+    <div
+      className={`bot-thinking-card engine-activity-dock${reconnecting ? " is-reconnecting" : ""}`}
+      role="status"
+      aria-live="polite"
+      data-phase={state.kind}
+    >
       <div className="bot-thinking-head">
         <span className="bot-thinking-name">
           <span className="bot-thinking-dot" aria-hidden="true" />
-          {botName} กำลังคิด
+          {reconnecting ? `${botName} กำลังกลับไปคิดต่อ` : `${botName} กำลังคิด`}
         </span>
         <span className="bot-thinking-phase">
-          {progress ? (PHASE_LABELS[progress.phase] ?? progress.phase) : "กำลังเริ่มคำนวณ"}
+          {reconnecting
+            ? "กำลังเชื่อมต่องานเดิม"
+            : progress
+              ? (PHASE_LABELS[progress.phase] ?? progress.phase)
+              : "กำลังเริ่มคำนวณ"}
         </span>
         {progress ? (
           <span className="bot-thinking-eta">
-            {progress.etaMs > 500
-              ? `~${Math.ceil(progress.etaMs / 1000)}s`
-              : `${(progress.elapsedMs / 1000).toFixed(1)}s`}
+            <strong>{percent}%</strong>
+            {timing ? ` · ${timing}` : null}
           </span>
         ) : null}
       </div>

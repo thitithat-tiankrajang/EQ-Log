@@ -128,7 +128,7 @@ import {
   type BotThinkingState,
 } from "./bot/botController";
 import { EngineApiError, isEngineApiConfigured } from "./bot/engineApi";
-import type { BotResponse } from "./bot/types";
+import type { BotProgress, BotResponse } from "./bot/types";
 import { botRecordFromGame, recordBotGame } from "./botStats";
 import { BotThinkingCard } from "./components/game/BotThinkingCard";
 import { BotReasoningPanel } from "./components/game/BotReasoningPanel";
@@ -1707,6 +1707,9 @@ function App() {
   /** A line explaining an engine problem the player can otherwise only observe
    *  as the bot not moving. Cleared as soon as the bot moves. */
   const [botNotice, setBotNotice] = useState<string | null>(null);
+  // Survives a visibility/focus reconnect so the progress bar never flashes
+  // away or falls back to zero while this tab attaches to the same server job.
+  const botActivityRef = useRef<{ key: string; progress: BotProgress | null } | null>(null);
   // Reasoning behind the bot's most recent move, kept so the player can open a
   // full "why this move" breakdown (chosen move + every alternative weighed).
   const [botReasoning, setBotReasoning] = useState<{
@@ -1737,6 +1740,11 @@ function App() {
   useEffect(() => {
     if (game?.botSide) warmUpBotEngine();
   }, [game?.gameId, game?.botSide]);
+  useEffect(() => {
+    if (botShouldMove) return;
+    botActivityRef.current = null;
+    setBotStatus(null);
+  }, [botShouldMove, game?.commitId]);
 
   // ── Turn analysis availability ─────────────────────────────────────────────
   //
@@ -1810,12 +1818,19 @@ function App() {
       const current = gameRef.current;
       const roomId = activeRoomIdRef.current;
       if (!alive || !current || !roomId || current.commitId !== commitId) return;
+      const activityKey = `${commitId}:${current.revision ?? 0}`;
+      const priorActivity = botActivityRef.current?.key === activityKey ? botActivityRef.current : null;
 
       // A new attempt always starts by reconnecting to the server-owned job.
       // Clear an earlier stale warning so replayed progress (for example 50%)
       // is what the returning player sees while that same search continues.
       setBotNotice(null);
-      setBotStatus({ kind: "requesting" });
+      if (priorActivity) {
+        setBotStatus({ kind: "reconnecting", progress: priorActivity.progress });
+      } else {
+        botActivityRef.current = { key: activityKey, progress: null };
+        setBotStatus({ kind: "requesting" });
+      }
       // The request names the LIVE ROOM and its revision; the backend reads the
       // position for itself. Nothing about the board, the racks or the bag is
       // described by this client any more.
@@ -1824,18 +1839,32 @@ function App() {
       // `room_live.room_id`, and `GameState.gameId` is an unrelated
       // client-generated UUID it has never stored.
       handle = thinkWithBot(roomId, current, (state) => {
-        if (alive) setBotStatus(state);
+        if (!alive) return;
+        if (state.kind === "running") {
+          const remembered =
+            botActivityRef.current?.key === activityKey
+              ? botActivityRef.current.progress
+              : null;
+          const progress = state.progress ?? remembered;
+          botActivityRef.current = { key: activityKey, progress };
+          setBotStatus({ kind: "running", progress });
+          return;
+        }
+        if (state.kind === "queued") {
+          botActivityRef.current = { key: activityKey, progress: null };
+        }
+        setBotStatus(state);
       });
       handle.promise
         .then((response) => {
           if (!alive) return;
+          botActivityRef.current = null;
           setBotStatus(null);
           setBotNotice(null);
           if (gameRef.current?.commitId === commitId) commitBotResponse(response);
         })
         .catch((error: unknown) => {
           if (!alive) return;
-          setBotStatus(null);
           // The game moved on under us. Whatever came back describes a board
           // that no longer exists, and the effect for the new position is
           // already running.
@@ -1847,11 +1876,13 @@ function App() {
             // not actually have. Wait for sync to catch up instead; the
             // revision dependency below reconnects to the server-owned job
             // for this turn once it does.
+            setBotStatus({ kind: "reconnecting", progress: botActivityRef.current?.progress ?? null });
             setBotNotice("กระดานบนเซิร์ฟเวอร์เปลี่ยนไปแล้ว — กำลังรอข้อมูลล่าสุด");
             return;
           }
 
           if (isRetryableBotFailure(error) && tries < BOT_RETRY_DELAYS_MS.length) {
+            setBotStatus({ kind: "reconnecting", progress: botActivityRef.current?.progress ?? null });
             setBotNotice(botNoticeFor(error));
             retryTimer = setTimeout(
               () => attempt(tries + 1),
@@ -1861,6 +1892,8 @@ function App() {
           }
 
           console.error("Bot engine failed; falling back to pass.", error);
+          botActivityRef.current = null;
+          setBotStatus(null);
           setBotNotice(botNoticeFor(error));
           commitBotResponse(null);
         });
@@ -1873,7 +1906,6 @@ function App() {
       handle?.cancel();
       if (retryTimer) clearTimeout(retryTimer);
       if (botTurnRef.current === commitId) botTurnRef.current = null;
-      setBotStatus(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [botShouldMove, game?.commitId, game?.revision, subscriptionEpoch]);

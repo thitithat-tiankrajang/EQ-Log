@@ -56,6 +56,30 @@ describe("the bot is queued", () => {
 });
 
 describe("the bot is running", () => {
+  it("keeps the last percentage visible while reconnecting to the same job", () => {
+    const { container } = render(
+      <BotThinkingCard
+        state={{
+          kind: "reconnecting",
+          progress: {
+            phase: "sim",
+            percent: 50,
+            elapsedMs: 5000,
+            etaMs: 5000,
+            bestScore: 0,
+            detail: "samples=2/4",
+          },
+        }}
+        botName="Aether"
+      />,
+    );
+
+    expect(screen.getByText(/Aether กำลังกลับไปคิดต่อ/)).toBeInTheDocument();
+    expect(screen.getByText(/50%/)).toBeInTheDocument();
+    expect(container.querySelector(".bot-thinking-card")).toHaveClass("engine-activity-dock");
+    expect((container.querySelector(".bot-thinking-fill") as HTMLElement).style.width).toBe("50%");
+  });
+
   it("says it is thinking once an engine process actually has it", () => {
     render(<BotThinkingCard state={{ kind: "running", progress: null }} botName="Aether" />);
     expect(screen.getByText(/Aether กำลังคิด/)).toBeInTheDocument();
@@ -90,7 +114,8 @@ describe("the bot is running", () => {
     const fill = container.querySelector(".bot-thinking-fill") as HTMLElement;
     expect(fill).not.toHaveClass("is-indeterminate");
     expect(fill.style.width).toBe("42%");
-    expect(screen.getByText("~5s")).toBeInTheDocument();
+    expect(screen.getByText(/42%/)).toBeInTheDocument();
+    expect(screen.getByText(/~5s/)).toBeInTheDocument();
     expect(screen.getByText("กำลังจำลองการตอบของคู่แข่ง")).toBeInTheDocument();
   });
 

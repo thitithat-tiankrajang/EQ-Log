@@ -56,6 +56,11 @@
   opacity: 0.9;
 }
 
+.bot-thinking-eta strong {
+  color: #bfdbfe;
+  font-size: 14px;
+}
+
 .bot-thinking-track {
   height: 6px;
   border-radius: 999px;
@@ -103,6 +108,15 @@
 
 .bot-thinking-card.is-queued .bot-thinking-fill {
   background: linear-gradient(90deg, #64748b, #94a3b8);
+}
+
+.bot-thinking-card.is-reconnecting {
+  border-color: color-mix(in srgb, #22d3ee 48%, transparent);
+  background: color-mix(in srgb, var(--surface-2, #10131a) 84%, #0891b2 16%);
+}
+
+.bot-thinking-card.is-reconnecting .bot-thinking-dot {
+  background: #22d3ee;
 }
 
 /* Why the bot has not moved: a retry in progress, or a failure that ended in a
@@ -868,6 +882,15 @@ fieldset.bot-config-section {
   background: linear-gradient(90deg, #64748b, #94a3b8);
 }
 
+.analysis-running.is-reconnecting {
+  border-color: color-mix(in srgb, #22d3ee 48%, transparent);
+  background: color-mix(in srgb, var(--surface-2, #10131a) 84%, #0891b2 16%);
+}
+
+.analysis-running.is-reconnecting .bot-thinking-dot {
+  background: #22d3ee;
+}
+
 .analysis-running-head {
   display: flex;
   align-items: center;
@@ -896,6 +919,49 @@ fieldset.bot-config-section {
 }
 .analysis-cancel:hover {
   background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+/* Engine work must stay visible even when the board itself fills the mobile
+   viewport. Both bot and analysis reuse this one dock; their turns are mutually
+   exclusive, so the player always gets one clear source of truth. */
+.engine-activity-dock {
+  position: fixed;
+  z-index: 1400;
+  top: calc(env(safe-area-inset-top, 0px) + 68px);
+  left: 50%;
+  width: min(680px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  margin: 0;
+  box-sizing: border-box;
+  transform: translateX(-50%);
+  box-shadow:
+    0 18px 45px rgb(2 6 23 / 28%),
+    0 2px 10px rgb(2 6 23 / 20%);
+  backdrop-filter: blur(16px) saturate(135%);
+  -webkit-backdrop-filter: blur(16px) saturate(135%);
+  animation: engine-activity-enter 180ms ease-out;
+}
+
+.engine-activity-dock .bot-thinking-track {
+  height: 9px;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 8%);
+}
+
+@keyframes engine-activity-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -8px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .engine-activity-dock {
+    animation: none;
+  }
 }
 
 .analysis-error {

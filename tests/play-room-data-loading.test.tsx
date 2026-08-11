@@ -428,14 +428,47 @@ describe("play route data loading", () => {
       needsCompaction: false,
       needsInviteRepair: false,
     });
+    let botObserverCalls = 0;
+    thinkWithBot.mockImplementation((_roomId, _game, onState) => {
+      botObserverCalls += 1;
+      if (botObserverCalls === 1) {
+        (
+          onState as (state: {
+            kind: "running";
+            progress: {
+              phase: "sim";
+              percent: number;
+              elapsedMs: number;
+              etaMs: number;
+              bestScore: number;
+              detail: string;
+            };
+          }) => void
+        )({
+          kind: "running",
+          progress: {
+            phase: "sim",
+            percent: 50,
+            elapsedMs: 5000,
+            etaMs: 5000,
+            bestScore: 0,
+            detail: "samples=2/4",
+          },
+        });
+      }
+      return { promise: new Promise<never>(() => undefined), cancel: vi.fn() };
+    });
 
     const view = render(<App />);
     await waitFor(() => expect(thinkWithBot).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(view.getByText(/50%/)).toBeInTheDocument());
 
     window.dispatchEvent(new Event("focus"));
 
     await waitFor(() => expect(thinkWithBot).toHaveBeenCalledTimes(2));
     expect(thinkWithBot.mock.calls[1]?.[1]).toMatchObject({ revision: 5 });
+    expect(view.getByText(/Aether กำลังกลับไปคิดต่อ/)).toBeInTheDocument();
+    expect(view.getByText(/50%/)).toBeInTheDocument();
     view.unmount();
   });
 });
