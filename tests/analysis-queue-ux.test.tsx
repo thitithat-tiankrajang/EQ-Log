@@ -331,6 +331,12 @@ describe("a result that is no longer about this position", () => {
   it("abandons a queued analysis the moment the game moves on", async () => {
     // Silently: the player did nothing wrong by taking their turn. The request
     // is aborted, which on the server hands its queue place straight back.
+    //
+    // Two owners, deliberately. STOPPING THE DISPLAY is this component's job and
+    // keys off the revision it was handed. RETIRING THE WORK is the shell's, and
+    // waits for that revision to be CONFIRMED — a component handed a snapshot
+    // seed can be a turn behind for a moment, and abandoning a live search on
+    // that number is unrecoverable, where merely not drawing it is not.
     const control = controllable();
     const { rerender } = await startAnalysis(7);
     await waitFor(() => expect(requestAnalysis).toHaveBeenCalled());
@@ -342,8 +348,15 @@ describe("a result that is no longer about this position", () => {
       <TurnAnalysisLauncher roomId={ROOM_ID} revision={8} playerName="Player" disabled={false} />,
     );
 
-    await waitFor(() => expect(signal.aborted).toBe(true));
-    expect(screen.queryByText(/กำลังรอคิววิเคราะห์/)).not.toBeInTheDocument();
+    // The old turn's queue notice is off screen at once, and nothing is blamed
+    // on the player for taking their turn.
+    await waitFor(() => expect(screen.queryByText(/กำลังรอคิววิเคราะห์/)).not.toBeInTheDocument());
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    // Not yet abandoned: the shell has not confirmed the new position.
+    expect(signal.aborted).toBe(false);
+
+    // The shell confirms revision 8, and the queue place goes back.
+    engineSessions.dropStale(ROOM_ID, 8);
+    await waitFor(() => expect(signal.aborted).toBe(true));
   });
 });

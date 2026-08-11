@@ -939,7 +939,8 @@ function App() {
           // Broadcast of a committed canonical position: authoritative, so the
           // adopted content is confirmed.
           setConfirmedStateKey(makeRemoteStateKey(nextGame));
-          if (activeRoomIdRef.current) playSnapshotCache.remember(activeRoomIdRef.current, nextGame);
+          if (activeRoomIdRef.current)
+            playSnapshotCache.remember(activeRoomIdRef.current, nextGame);
           setSyncError(null);
         } catch (error) {
           // The broadcast did not describe the physical set. Say so and fall
@@ -1169,6 +1170,15 @@ function App() {
         // We watched this revision come into existence, so nothing can already
         // be running for it: the bot may POST straight away instead of asking.
         selfAdmittedRevisionRef.current = result.revision;
+        // Keep the render seed at the CONFIRMED revision. Without this the cache
+        // holds the position with its pre-commit revision, so a later remount
+        // paints a board that is a turn behind — and everything keyed on the
+        // revision (which engine job is ours, whether one is stale) is briefly
+        // asking about the wrong turn.
+        const confirmed = gameRef.current;
+        if (confirmed && confirmed.gameId === game.gameId) {
+          playSnapshotCache.remember(activeRoomId, withRevision(confirmed, result.revision));
+        }
         setSyncError(null);
         setRooms((current) =>
           current.map((room) =>
@@ -1837,13 +1847,26 @@ function App() {
   // rendered. `discover` shares one round trip between callers and never
   // disturbs an observation already under way.
   useEffect(() => {
-    if (!remoteEnabled || !activeRoomId || !positionIsConfirmed || !game) return;
+    if (!remoteEnabled || !activeRoomId) return;
+    // Deliberately ahead of the confirmation guard below. Rejoining work this tab
+    // was ALREADY watching is read out of storage: it needs no revision and no
+    // room row, so making it wait for one leaves the bar blank through the very
+    // round trip it exists to cover. The bot's bar felt this worst — its only
+    // discovery call is this one, so a refresh mid-search showed nothing at all
+    // until the room row came back.
+    engineSessions.adoptHints(activeRoomId);
+    if (!positionIsConfirmed || !game) return;
     const revision = game.revision ?? 0;
-    void engineSessions.discover({
-      roomId: activeRoomId,
-      revision,
-      hints: engineSessions.restoreHints(activeRoomId),
-    });
+    // Retiring work is gated on the revision being CONFIRMED, and lives here
+    // rather than in the panels for one reason: a component is handed a
+    // revision, and on a snapshot-seeded mount that number can briefly be a turn
+    // behind the server. Dropping a session from an unconfirmed revision killed
+    // live searches on return — permanently, because correcting the revision a
+    // moment later cannot resurrect an observation that has been thrown away.
+    //
+    // Dropped, never cancelled: another observer may still want the answer.
+    engineSessions.dropStale(activeRoomId, revision);
+    void engineSessions.discover({ roomId: activeRoomId, revision });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remoteEnabled, activeRoomId, positionIsConfirmed, game?.revision, subscriptionEpoch]);
 
@@ -1867,11 +1890,7 @@ function App() {
     !reviewing,
   );
   const canAnalyzeTurn = Boolean(
-    analysisAvailable &&
-    game &&
-    !analysisTurnIsBot &&
-    canActActiveSide &&
-    game.phase !== "refill",
+    analysisAvailable && game && !analysisTurnIsBot && canActActiveSide && game.phase !== "refill",
   );
   const analysisDisabledReason = analysisTurnIsBot
     ? "วิเคราะห์ได้เฉพาะตาของผู้เล่นที่เป็นมนุษย์"
@@ -1914,9 +1933,6 @@ function App() {
     if (!botShouldMove || !game || !activeRoomId) return;
     const revision = game.revision ?? 0;
     const roomId = activeRoomId;
-    // Every other revision's work is finished with. Dropped, never cancelled:
-    // another observer may still be waiting on it.
-    engineSessions.dropStale(roomId, revision);
 
     let alive = true;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
@@ -5211,10 +5227,7 @@ function App() {
           </div>
 
           {botStatus && game.botSide && !reviewing && (
-            <BotThinkingCard
-              state={botStatus}
-              botName={game.players[game.botSide] || "Aether"}
-            />
+            <BotThinkingCard state={botStatus} botName={game.players[game.botSide] || "Aether"} />
           )}
 
           {/* Why the bot has not moved. Shown while a retry is pending and
@@ -5689,7 +5702,6 @@ function commandIdFor(ids: Map<string, string>, stateKey: string): string {
   }
   return id;
 }
-
 
 function reconcileRackLayout(current: (string | null)[], rack: TileInstance[]): (string | null)[] {
   const presentIds = new Set(rack.map((tile) => tile.id));

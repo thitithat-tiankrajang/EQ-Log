@@ -138,8 +138,7 @@ export function TurnAnalysisLauncher({
   // or on a device that has never seen this game, the answer is the same.
   useEffect(() => {
     let cancelled = false;
-    const hints = engineSessions.restoreHints(roomId);
-    void engineSessions.discover({ roomId, revision, hints }).then(() => {
+    void engineSessions.discover({ roomId, revision }).then(() => {
       if (cancelled) return;
     });
     return () => {
@@ -147,13 +146,16 @@ export function TurnAnalysisLauncher({
     };
   }, [roomId, revision, reconnectEpoch]);
 
-  // The position moved on. Anything for another revision is no longer about
-  // this turn: stop watching it and stop showing its answer. Note what this does
-  // NOT do — it never cancels, because the job may still be wanted by another
-  // observer, and it is keyed on the revision rather than on this component's
-  // lifetime.
+  // Stop SHOWING an answer that is no longer about this turn.
+  //
+  // Note what this deliberately does not do: retire the session. This component
+  // is handed a revision; it does not know whether that revision is the
+  // authoritative one or a snapshot seed that is briefly a turn behind. Acting
+  // on it destroyed live searches — a mount at a stale seed dropped the session
+  // permanently, and correcting the revision a moment later could not bring it
+  // back. Retiring work is the shell's job, and only once the revision is
+  // confirmed. Display eligibility is this component's job, and it is reversible.
   useEffect(() => {
-    engineSessions.dropStale(roomId, revision);
     if (result && result.revision !== revision) {
       setResult(null);
       setPanelOpen(false);
@@ -196,8 +198,7 @@ export function TurnAnalysisLauncher({
   // drawn, so no later state change can slip a stale panel back on screen.
   const showable = result && result.revision === revision ? result : null;
   const status = session?.status;
-  const inFlight =
-    status !== undefined && status.kind !== "completed" && status.kind !== "failed";
+  const inFlight = status !== undefined && status.kind !== "completed" && status.kind !== "failed";
   const failure =
     status?.kind === "failed" ? messageFor(new EngineApiError(status.code, status.message)) : null;
 

@@ -186,11 +186,27 @@ function isPending(status: EngineSessionStatus): boolean {
 }
 
 /**
- * Paint hints for a room, read straight after a reload.
+ * A session whose VIEW of the server was lost, as opposed to one that finished or
+ * was refused.
  *
- * Returns sessions in a `reconnecting` shape carrying the last percentage this
- * tab saw. They describe nothing the server has confirmed yet — `discover()` is
- * what makes them real, and anything it does not confirm is dropped.
+ * The distinction matters because discovery skips any key it already holds, and a
+ * settled session is held forever. A search the server refused (`stale_revision`,
+ * `budget_exhausted`, `analysis_not_allowed`) must stay refused — re-attaching
+ * would loop. But `offline` says only that this tab stopped watching: the job is
+ * very likely still running, and the message the player is shown promises exactly
+ * this reconnection. Without reclaiming, that promise cannot be kept, because the
+ * tombstone makes the running job permanently invisible to `GET /jobs`.
+ */
+function isLostView(status: EngineSessionStatus): boolean {
+  return status.kind === "failed" && status.code === "offline";
+}
+
+/**
+ * What this tab was watching when it was last destroyed, in a `reconnecting`
+ * shape carrying the last percentage it saw.
+ *
+ * Describes nothing the server has confirmed. `adoptHints` is what acts on it,
+ * and the attach that follows is what makes it real or throws it away.
  */
 export function restoreHints(roomId: string): EngineSession[] {
   let stored: StoredSession[] = [];
@@ -227,6 +243,45 @@ export function restoreHints(roomId: string): EngineSession[] {
     });
   }
   return hints;
+}
+
+/**
+ * Rejoin, from storage alone, whatever this tab was watching before it died.
+ *
+ * The bug this replaces: a hint used to be *decoration*. It was read, handed to
+ * `discover`, and then sat unused until `GET /jobs` came back — so for the whole
+ * of that round trip `analysisFor` answered "nothing is running" and the player,
+ * who had watched a bar reach 60% a second earlier, got the Analyze button back.
+ * The percentage was in hand the entire time and nothing was allowed to draw it.
+ *
+ * What makes rejoining directly safe is that a hint records the LEVEL, which is
+ * the one part of a job's identity the game row cannot supply and the only reason
+ * discovery had to exist. With it, the round trip is not needed: attach IS the
+ * confirmation. A job the server has replays its real progress; one it does not
+ * have comes back `idle` and the session is dropped. Same authority, one less
+ * round trip, and a first frame that tells the truth.
+ *
+ * Idempotent, because `restoreHints` skips keys already live and `drop` rewrites
+ * storage — so a session that has been retired is never adopted twice.
+ */
+export function adoptHints(roomId: string): void {
+  for (const hint of restoreHints(roomId)) {
+    if (hint.kind === "analysis" && hint.level) {
+      void observeAnalysis({
+        roomId,
+        revision: hint.revision,
+        level: hint.level,
+        hint: hint.progress,
+      });
+    } else if (hint.kind === "bot") {
+      void observeBot({
+        roomId,
+        revision: hint.revision,
+        freshlyAdmitted: false,
+        hint: hint.progress,
+      });
+    }
+  }
 }
 
 // ── internals ────────────────────────────────────────────────────────────────
@@ -312,16 +367,22 @@ export function observeBot(options: {
   /** True when this position was just admitted by the server, so no earlier job
    *  for it can exist and the discovery round trip can be skipped. */
   freshlyAdmitted: boolean;
+  /** Last percentage this tab saw, so the bar does not blink while attaching. */
+  hint?: EngineProgress | null;
 }): Promise<EngineSession> {
   const key = botKey(options.roomId, options.revision);
+  // A freshly admitted position is brand new, so no hint can describe it.
+  const hint = options.freshlyAdmitted ? null : (options.hint ?? null);
   const entry = begin(
     {
       key,
       kind: "bot",
       roomId: options.roomId,
       revision: options.revision,
-      status: { kind: options.freshlyAdmitted ? "requesting" : "reconnecting", progress: null },
-      progress: null,
+      status: options.freshlyAdmitted
+        ? { kind: "requesting" }
+        : { kind: "reconnecting", progress: hint },
+      progress: hint,
     },
     (controller) =>
       (async (): Promise<EngineSession> => {
@@ -476,13 +537,14 @@ export function observeAnalysis(options: {
  * a device that has never seen this game — the cases that previously ranged from
  * "loses the percentage" to "the running analysis is unreachable forever".
  */
-export async function discover(options: {
-  roomId: string;
-  revision: number;
-  /** Paint hints from `restoreHints`, matched onto whatever the server confirms. */
-  hints?: EngineSession[];
-}): Promise<void> {
+export async function discover(options: { roomId: string; revision: number }): Promise<void> {
   if (!isEngineApiConfigured) return;
+  // Synchronously, and BEFORE the round trip below — that ordering is the whole
+  // point. Anything this tab was already watching is rejoined from storage on
+  // this tick, so the very next render has a number to draw; the round trip is
+  // left to find only what storage could not know about (a job started in
+  // another tab, or on a device that has never seen this game).
+  adoptHints(options.roomId);
   // Several places legitimately ask at once — the Play shell on mount, the
   // analysis panel, a wake. They are asking the same question about the same
   // position, so they share one answer rather than one round trip each.
@@ -496,11 +558,7 @@ export async function discover(options: {
 
 const discoveries = new Map<string, Promise<void>>();
 
-async function runDiscovery(options: {
-  roomId: string;
-  revision: number;
-  hints?: EngineSession[];
-}): Promise<void> {
+async function runDiscovery(options: { roomId: string; revision: number }): Promise<void> {
   let jobs;
   try {
     jobs = await listJobs({ gameId: options.roomId, revision: options.revision });
@@ -510,25 +568,31 @@ async function runDiscovery(options: {
     return;
   }
 
-  const hintFor = (kind: EngineSessionKind, level?: string) =>
-    options.hints?.find((hint) => hint.kind === kind && (level === undefined || hint.level === level))
-      ?.progress ?? null;
+  // The server says this work exists. A session this tab merely lost sight of is
+  // therefore stale evidence, and holding it would make the running job
+  // unreachable: everything below skips a key it already has.
+  const reclaim = (key: string): boolean => {
+    const existing = live.get(key);
+    if (!existing) return true;
+    if (!isLostView(existing.session.status)) return false;
+    drop(key);
+    return true;
+  };
 
   for (const job of jobs) {
     if (job.kind === "analysis" && job.level) {
       const key = analysisKey(options.roomId, options.revision, job.level);
-      if (live.has(key)) continue;
+      if (!reclaim(key)) continue;
       void observeAnalysis({
         roomId: options.roomId,
         revision: options.revision,
         level: job.level,
-        // The server's own number when it has one, this tab's last otherwise.
-        hint: job.progress ?? hintFor("analysis", job.level),
+        hint: job.progress ?? null,
       });
     }
     if (job.kind === "bot") {
       const key = botKey(options.roomId, options.revision);
-      if (live.has(key)) continue;
+      if (!reclaim(key)) continue;
       const session = observeBot({
         roomId: options.roomId,
         revision: options.revision,

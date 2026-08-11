@@ -112,6 +112,39 @@ describe("observation outlives the component tree", () => {
     });
   });
 
+  it("rejoins the bot's search from storage alone, percentage intact", async () => {
+    // The bot's bar had the worse version of the reload gap. Its only discovery
+    // call is the shell's, which waits for the room row to confirm the position,
+    // so a refresh mid-search showed nothing at all until that came back — and
+    // `observeBot` then ignored the stored percentage anyway, restarting the bar
+    // at empty for a search that was most of the way done.
+    let report!: (progress: typeof PROGRESS) => void;
+    attachBotMove.mockImplementation(() => new Promise(() => undefined));
+    requestBotMove.mockImplementation(
+      (options: { onProgress?: (progress: typeof PROGRESS) => void }) =>
+        new Promise(() => {
+          report = options.onProgress!;
+        }),
+    );
+    void engineSessions.observeBot({ roomId: ROOM, revision: 7, freshlyAdmitted: true });
+    await Promise.resolve();
+    report(PROGRESS);
+
+    // The reload. Storage survives; nothing else does. Note `listJobs` is never
+    // answered — rejoining must not depend on it.
+    engineSessions.resetForTests();
+    listJobs.mockImplementation(() => new Promise(() => undefined));
+    engineSessions.adoptHints(ROOM);
+
+    const session = engineSessions.botFor(ROOM, 7);
+    expect(session?.status).toEqual({ kind: "reconnecting", progress: PROGRESS });
+    expect(session?.progress).toMatchObject({ percent: 63 });
+    await Promise.resolve();
+    expect(attachBotMove).toHaveBeenCalledWith(
+      expect.objectContaining({ gameId: ROOM, expectedRevision: 7 }),
+    );
+  });
+
   it("forgets a finished session, so a reload does not resurrect it", async () => {
     requestAnalysis.mockResolvedValue({ revision: 7, level: "quick" });
     await engineSessions.startAnalysis({ roomId: ROOM, revision: 7, level: "quick" });

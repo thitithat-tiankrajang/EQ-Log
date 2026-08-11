@@ -11,18 +11,20 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { attachAnalysis, listJobs } = vi.hoisted(() => ({
+const { attachAnalysis, listJobs, requestAnalysis } = vi.hoisted(() => ({
   attachAnalysis: vi.fn(),
   listJobs: vi.fn(),
+  requestAnalysis: vi.fn(),
 }));
 
 vi.mock("../src/bot/engineApi", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/bot/engineApi")>();
-  return { ...actual, attachAnalysis, listJobs, isEngineApiConfigured: true };
+  return { ...actual, attachAnalysis, listJobs, requestAnalysis, isEngineApiConfigured: true };
 });
 
 import * as analysisCache from "../src/analysisSessionCache";
 import * as engineSessions from "../src/engineSessions";
+import { EngineApiError } from "../src/bot/engineApi";
 import type { AnalysisLevel, AnalysisResult, SseOutcome } from "../src/bot/engineApi";
 import { TurnAnalysisLauncher } from "../src/components/game/TurnAnalysisLauncher";
 
@@ -70,6 +72,7 @@ beforeEach(() => {
   attachAnalysis.mockReset();
   attachAnalysis.mockResolvedValue({ kind: "idle" } satisfies SseOutcome<AnalysisResult>);
   listJobs.mockReset().mockResolvedValue([]);
+  requestAnalysis.mockReset().mockImplementation(() => new Promise(() => undefined));
   analysisCache.clearResult(ROOM_ID);
 });
 
@@ -144,10 +147,16 @@ describe("returning to a running analysis", () => {
     );
   });
 
-  it("renders the persisted percentage immediately after a page refresh", async () => {
-    // A reload destroys the store before the server can be asked. The mirror in
-    // session storage is a PAINT HINT for exactly that gap: it shows the last
-    // real number for the one round trip discovery takes.
+  it("renders the persisted percentage without waiting for the server", async () => {
+    // A reload destroys the store, and asking the server takes a round trip. The
+    // bug: for the whole of that round trip the player got the Analyze button
+    // back, having watched a bar reach 50% a second earlier. The number was in
+    // hand the entire time and nothing was allowed to draw it.
+    //
+    // `listJobs` is deliberately left hanging FOREVER here. Everything below has
+    // to work off storage alone, which is the property that was missing: the
+    // stored hint records the level, so attaching needs no discovery at all.
+    listJobs.mockImplementation(() => new Promise(() => undefined));
     window.sessionStorage.setItem(
       `eq-lab:engine-session:v1:${ROOM_ID}`,
       JSON.stringify([
@@ -168,7 +177,6 @@ describe("returning to a running analysis", () => {
         },
       ]),
     );
-    listJobs.mockResolvedValue(runningJob("quick"));
     attachAnalysis.mockImplementation(() => new Promise(() => undefined));
 
     const view = render(
@@ -176,11 +184,60 @@ describe("returning to a running analysis", () => {
     );
 
     await waitFor(() => expect(attachAnalysis).toHaveBeenCalledTimes(1));
+    // Rejoined at the level STORAGE remembered, with no discovery answer at all.
+    expect(attachAnalysis.mock.calls[0][0]).toMatchObject({
+      gameId: ROOM_ID,
+      expectedRevision: 7,
+      level: "quick",
+    });
     expect(screen.getByText(/กำลังเชื่อมต่องานวิเคราะห์เดิม/)).toBeInTheDocument();
     expect(screen.getByText(/50%/)).toBeInTheDocument();
     expect((view.container.querySelector(".bot-thinking-fill") as HTMLElement).style.width).toBe(
       "50%",
     );
+    // And the Analyze button was never offered back for work still running.
+    expect(screen.queryByRole("button", { name: /วิเคราะห์ตานี้/ })).not.toBeInTheDocument();
+  });
+
+  it("drops a restored hint the server turns out not to have", async () => {
+    // The other half. A hint is evidence, not authority: rejoining it must not
+    // be able to leave a phantom bar filling for a search that finished, aged
+    // out, or never existed. The attach IS the confirmation, and `idle` retires
+    // the session — which is also what puts the Analyze button back honestly.
+    listJobs.mockImplementation(() => new Promise(() => undefined));
+    window.sessionStorage.setItem(
+      `eq-lab:engine-session:v1:${ROOM_ID}`,
+      JSON.stringify([
+        {
+          key: `analysis:${ROOM_ID}:7:quick`,
+          kind: "analysis",
+          roomId: ROOM_ID,
+          revision: 7,
+          level: "quick",
+          progress: {
+            phase: "sim",
+            percent: 50,
+            elapsedMs: 5_000,
+            etaMs: 5_000,
+            detail: "samples=2/4",
+          },
+          startedAt: Date.now(),
+        },
+      ]),
+    );
+    attachAnalysis.mockResolvedValue({ kind: "idle" } satisfies SseOutcome<AnalysisResult>);
+
+    render(
+      <TurnAnalysisLauncher roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />,
+    );
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /วิเคราะห์ตานี้/ })).toBeInTheDocument(),
+    );
+    expect(screen.queryByText(/50%/)).not.toBeInTheDocument();
+    expect(engineSessions.analysisFor(ROOM_ID, 7)).toBeUndefined();
+    // Retired from storage too, so the next mount does not resurrect it.
+    expect(engineSessions.restoreHints(ROOM_ID)).toEqual([]);
   });
 
   it("survives a page the player navigated away from and back to", async () => {
@@ -269,6 +326,145 @@ describe("returning to a running analysis", () => {
       level: "quick",
     });
     await waitFor(() => expect(screen.getByText("A summary.")).toBeInTheDocument());
+  });
+
+  it("survives a mount whose revision is briefly a turn behind", async () => {
+    // The bug this exists to prevent, and it is subtle enough to have shipped
+    // once already: a returning mount is seeded from the snapshot cache, and
+    // that seed can be one revision behind the server for the moment before
+    // reconcile corrects it. When the panel acted on that number it dropped the
+    // live session — permanently. Correcting the revision a moment later cannot
+    // resurrect an observation that has been thrown away, so the bar went out
+    // and stayed out.
+    //
+    // Retiring work now belongs to the shell, which only acts on a CONFIRMED
+    // revision. A component that is merely handed the wrong number stops
+    // DISPLAYING, which is reversible.
+    let report!: (progress: {
+      phase: string;
+      percent: number;
+      elapsedMs: number;
+      etaMs: number;
+      detail: string;
+    }) => void;
+    requestAnalysis.mockImplementation(
+      (options: { onProgress?: (progress: never) => void }) =>
+        new Promise<never>(() => {
+          report = options.onProgress as typeof report;
+        }),
+    );
+    void engineSessions.startAnalysis({ roomId: ROOM_ID, revision: 7, level: "quick" });
+    report({ phase: "sim", percent: 42, elapsedMs: 1_000, etaMs: 1_000, detail: "samples=2/4" });
+
+    const view = render(
+      <TurnAnalysisLauncher roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />,
+    );
+    await waitFor(() => expect(screen.getByText(/42%/)).toBeInTheDocument());
+
+    // Leave, and come back onto a seed that lags by one.
+    view.unmount();
+    const back = render(
+      <TurnAnalysisLauncher roomId={ROOM_ID} revision={6} playerName="Player" disabled={false} />,
+    );
+    await Promise.resolve();
+    // Reconcile corrects the revision.
+    back.rerender(
+      <TurnAnalysisLauncher roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />,
+    );
+
+    expect(engineSessions.analysisFor(ROOM_ID, 7)).toBeDefined();
+    expect(screen.getByText(/42%/)).toBeInTheDocument();
+  });
+
+  it("rejoins a search whose stream died while the tab was in the background", async () => {
+    // The reported bug, and the reason it was so hard to see: nothing in the
+    // client drops the session, so the tab switch itself is innocent. What
+    // happens is that Chrome freezes a backgrounded tab and the SSE stream dies
+    // with it. That is `offline`, the one failure the player is explicitly
+    // promised recovery from — "ระบบจะเชื่อมต่องานเดิมให้อัตโนมัติเมื่อกลับมา".
+    //
+    // The promise could not be kept. A settled session stays in the map forever,
+    // and discovery skips every key the map already holds, so the still-running
+    // job on the server was permanently invisible to `GET /jobs`. The player got
+    // the plain Analyze button back and paying again was the only way forward.
+    //
+    // Note it never reproduced after a refresh: `persist` stores only pending
+    // sessions, so a reload cleared the tombstone. It needed the module to
+    // SURVIVE — which is exactly what switching tabs does.
+    let fail!: (error: unknown) => void;
+    requestAnalysis.mockImplementation(
+      () =>
+        new Promise<never>((_resolve, reject) => {
+          fail = reject;
+        }),
+    );
+    void engineSessions.startAnalysis({ roomId: ROOM_ID, revision: 7, level: "quick" });
+    const view = render(
+      <TurnAnalysisLauncher
+        roomId={ROOM_ID}
+        revision={7}
+        playerName="Player"
+        disabled={false}
+        reconnectEpoch={0}
+      />,
+    );
+
+    // The tab is frozen; the connection goes, and the one immediate re-attach
+    // fires while the tab is still away, so it finds nothing.
+    attachAnalysis.mockResolvedValue({ kind: "idle" } satisfies SseOutcome<AnalysisResult>);
+    fail(new EngineApiError("offline", "The engine connection was lost."));
+    await waitFor(() => expect(attachAnalysis).toHaveBeenCalledTimes(1));
+
+    // The player comes back. The search never stopped: the server has it at 60%.
+    listJobs.mockResolvedValue(runningJob("quick", 60));
+    attachAnalysis.mockImplementation(() => new Promise(() => undefined));
+    view.rerender(
+      <TurnAnalysisLauncher
+        roomId={ROOM_ID}
+        revision={7}
+        playerName="Player"
+        disabled={false}
+        reconnectEpoch={1}
+      />,
+    );
+
+    await waitFor(() => expect(attachAnalysis).toHaveBeenCalledTimes(2));
+    expect(screen.getByText(/60%/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /วิเคราะห์ตานี้/ })).not.toBeInTheDocument();
+  });
+
+  it("leaves a refused search refused instead of re-attaching to it", async () => {
+    // The other half of the rule. Only a LOST VIEW is reclaimable. A search the
+    // server turned down has an answer, and reconnecting to it in a loop would
+    // replace a clear message with a bar that never fills.
+    requestAnalysis.mockRejectedValue(
+      new EngineApiError("budget_exhausted", "Out of analysis budget."),
+    );
+    void engineSessions.startAnalysis({ roomId: ROOM_ID, revision: 7, level: "quick" });
+    const view = render(
+      <TurnAnalysisLauncher
+        roomId={ROOM_ID}
+        revision={7}
+        playerName="Player"
+        disabled={false}
+        reconnectEpoch={0}
+      />,
+    );
+    await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument());
+
+    listJobs.mockResolvedValue(runningJob("quick", 60));
+    view.rerender(
+      <TurnAnalysisLauncher
+        roomId={ROOM_ID}
+        revision={7}
+        playerName="Player"
+        disabled={false}
+        reconnectEpoch={1}
+      />,
+    );
+    await waitFor(() => expect(listJobs).toHaveBeenCalled());
+    expect(attachAnalysis).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toBeInTheDocument();
   });
 
   it("does not reconnect to an analysis from a different revision", async () => {
