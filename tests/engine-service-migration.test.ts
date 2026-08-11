@@ -86,7 +86,9 @@ describe("engine service migration", () => {
 
   it("reports whether the caller controls the side on move", () => {
     const body = functionBody("get_live_game_engine_context");
-    expect(body).toContain("public.controls_live_game_side(l.room_id, l.canonical ->> 'activeSide')");
+    expect(body).toContain(
+      "public.controls_live_game_side(l.room_id, l.canonical ->> 'activeSide')",
+    );
   });
 
   it("grants the new functions to authenticated users only", () => {
@@ -97,7 +99,9 @@ describe("engine service migration", () => {
       expect(migration).toContain(`revoke all on function ${name}`);
       expect(migration).toContain(`grant execute on function ${name} to authenticated`);
     }
-    expect(migration).not.toMatch(/grant execute on function public\.(controls_live_game_side|get_live_game_engine_context)[^\n]*to anon/);
+    expect(migration).not.toMatch(
+      /grant execute on function public\.(controls_live_game_side|get_live_game_engine_context)[^\n]*to anon/,
+    );
   });
 
   it("reloads PostgREST so the new functions are callable immediately", () => {

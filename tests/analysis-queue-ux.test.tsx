@@ -76,7 +76,12 @@ function analysisAt(revision: number): AnalysisResult {
 /** Render the launcher and press Analyse → quick. */
 async function startAnalysis(revision = 7) {
   const view = render(
-    <TurnAnalysisLauncher roomId={ROOM_ID} revision={revision} playerName="Player" disabled={false} />,
+    <TurnAnalysisLauncher
+      roomId={ROOM_ID}
+      revision={revision}
+      playerName="Player"
+      disabled={false}
+    />,
   );
   const user = userEvent.setup();
   await user.click(screen.getByRole("button", { name: /วิเคราะห์ตานี้/ }));

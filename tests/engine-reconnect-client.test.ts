@@ -56,14 +56,20 @@ beforeEach(() => {
 describe("attaching to existing work", () => {
   it("reads a completed result off the reconnect stream", async () => {
     const { attachAnalysis } = await loadApi();
-    vi.stubGlobal("fetch", vi.fn(async () => streamOf([frame("result", { revision: 7 })])));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => streamOf([frame("result", { revision: 7 })])),
+    );
     const outcome = await attachAnalysis({ gameId: "room-1", expectedRevision: 7, level: "quick" });
     expect(outcome).toEqual({ kind: "result", result: { revision: 7 } });
   });
 
   it("reads `idle` as a settled outcome, not an error", async () => {
     const { attachAnalysis } = await loadApi();
-    vi.stubGlobal("fetch", vi.fn(async () => streamOf([frame("idle", {})])));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => streamOf([frame("idle", {})])),
+    );
     const outcome = await attachAnalysis({ gameId: "room-1", expectedRevision: 7, level: "quick" });
     expect(outcome).toEqual({ kind: "idle" });
   });
@@ -103,7 +109,11 @@ describe("cancelling is explicit", () => {
         }),
     );
     vi.stubGlobal("fetch", fetchMock);
-    const cancelled = await cancelAnalysis({ gameId: "room-1", expectedRevision: 7, level: "quick" });
+    const cancelled = await cancelAnalysis({
+      gameId: "room-1",
+      expectedRevision: 7,
+      level: "quick",
+    });
     expect(cancelled).toBe(true);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toContain("/v1/games/room-1/analysis/cancel");
@@ -112,9 +122,12 @@ describe("cancelling is explicit", () => {
 
   it("treats an unreachable server as simply not cancelled", async () => {
     const { cancelAnalysis } = await loadApi();
-    vi.stubGlobal("fetch", vi.fn(async () => {
-      throw new Error("offline");
-    }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("offline");
+      }),
+    );
     await expect(
       cancelAnalysis({ gameId: "room-1", expectedRevision: 7, level: "quick" }),
     ).resolves.toBe(false);
