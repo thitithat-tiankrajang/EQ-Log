@@ -1840,7 +1840,8 @@ function App() {
           if (isDesyncBotFailure(error)) {
             // The server's view of this game is ahead of ours. Committing
             // anything — including a pass — would write into a position we do
-            // not actually have. Wait for sync to catch up instead.
+            // not actually have. Wait for sync to catch up instead; the
+            // revision dependency below restarts this turn once it does.
             setBotNotice("กระดานบนเซิร์ฟเวอร์เปลี่ยนไปแล้ว — กำลังรอข้อมูลล่าสุด");
             return;
           }
@@ -1870,7 +1871,7 @@ function App() {
       setBotStatus(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [botShouldMove, game?.commitId]);
+  }, [botShouldMove, game?.commitId, game?.revision]);
 
   // Set the selection from a log id (called by TurnRecordList / LogPanel).
   // Selecting a log opens the "action applied" view of that log.

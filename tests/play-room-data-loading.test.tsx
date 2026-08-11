@@ -36,7 +36,7 @@ const { listRooms, readRoom, realtimeHarness, subscribeToGameCommits, subscribeT
   });
 
 const { thinkWithBot, warmUpBotEngine } = vi.hoisted(() => ({
-  thinkWithBot: vi.fn(() => ({
+  thinkWithBot: vi.fn((_roomId: string, _game: unknown, _onState: unknown) => ({
     promise: new Promise<never>(() => undefined),
     cancel: vi.fn(),
   })),
@@ -82,6 +82,10 @@ vi.mock("../src/bot/botController", async (importOriginal) => {
 });
 
 import App from "../src/App";
+import { EngineApiError } from "../src/bot/engineApi";
+import * as playSnapshotCache from "../src/playSnapshotCache";
+
+const ROOM_ID = "22222222-2222-4222-8222-222222222222";
 
 describe("play route data loading", () => {
   beforeEach(() => {
@@ -101,10 +105,14 @@ describe("play route data loading", () => {
     readRoom.mockReset();
     subscribeToRoom.mockClear();
     subscribeToGameCommits.mockClear();
-    thinkWithBot.mockClear();
+    thinkWithBot.mockReset().mockImplementation((_roomId, _game, _onState) => ({
+      promise: new Promise<never>(() => undefined),
+      cancel: vi.fn(),
+    }));
+    playSnapshotCache.forget(ROOM_ID);
     warmUpBotEngine.mockClear();
     realtimeHarness.statusHandler = undefined;
-    window.location.hash = "#/play/22222222-2222-4222-8222-222222222222";
+    window.location.hash = `#/play/${ROOM_ID}`;
   });
 
   it("does not replace the opened room's full metadata with a lobby summary", async () => {
@@ -297,6 +305,77 @@ describe("play route data loading", () => {
 
     await waitFor(() => expect(readRoom).toHaveBeenCalled());
     await waitFor(() => expect(thinkWithBot).toHaveBeenCalledTimes(1));
+    view.unmount();
+  });
+
+  it("retries Aether after sync confirms a newer revision of the same turn", async () => {
+    const ownerId = "11111111-1111-4111-8111-111111111111";
+    const initial = createNewGame({
+      ...DEFAULT_NEW_GAME_SETTINGS,
+      name: "Owner vs Aether",
+      playerA: "Owner",
+      playerB: "Aether",
+      botSide: "B",
+      startingSide: "B",
+      tileDrawMode: "play",
+    });
+    const revisionFive = { ...initial, playerUserIds: { A: ownerId }, revision: 5 };
+    const revisionSix = { ...revisionFive, revision: 6 };
+    const payload = (game: typeof revisionFive) => ({
+      game,
+      meta: {
+        id: "22222222-2222-4222-8222-222222222222",
+        ownerId,
+        ownerName: "Owner",
+        name: game.name,
+        playerA: game.players.A,
+        playerB: game.players.B,
+        gameMode: "versus" as const,
+        inviteUserAId: ownerId,
+        startingSide: game.startingSide,
+        turnNumber: game.turnNumber,
+        scoreA: 0,
+        scoreB: 0,
+        status: "playing" as const,
+        visibility: "public" as const,
+        regionId: null,
+        createdAt: game.createdAt,
+        updatedAt: game.lastSavedAt,
+      },
+      session: {
+        version: 1 as const,
+        actorId: null,
+        gameId: null,
+        turnNumber: null,
+        activeSide: null,
+        actionMode: "none" as const,
+        pendingPlacements: [],
+        exchangeDraft: { outgoingIds: [], incomingTiles: [] },
+        selectedRackTileId: null,
+        selectedPendingTileId: null,
+        updatedAt: game.lastSavedAt,
+      },
+      needsCompaction: false,
+      needsInviteRepair: false,
+    });
+    readRoom.mockResolvedValueOnce(payload(revisionFive)).mockResolvedValueOnce(payload(revisionSix));
+    thinkWithBot.mockImplementation((_roomId, game) => ({
+      promise:
+        (game as typeof revisionFive).revision === 5
+          ? Promise.reject(new EngineApiError("stale_revision", "moved on"))
+          : new Promise<never>(() => undefined),
+      cancel: vi.fn(),
+    }));
+
+    const view = render(<App />);
+
+    await waitFor(() => expect(thinkWithBot).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(realtimeHarness.statusHandler).toBeTypeOf("function"));
+    realtimeHarness.statusHandler?.("SUBSCRIBED");
+    await waitFor(() => expect(readRoom).toHaveBeenCalledTimes(2));
+
+    await waitFor(() => expect(thinkWithBot).toHaveBeenCalledTimes(2));
+    expect(thinkWithBot.mock.calls[1]?.[1]).toMatchObject({ revision: 6 });
     view.unmount();
   });
 });
