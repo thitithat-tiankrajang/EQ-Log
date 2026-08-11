@@ -14,6 +14,14 @@ export default tseslint.config(
       "playwright-report",
       "decode_game.mts",
       "export_turns.mts",
+      // Emscripten output. A generated artifact kept for engine regression
+      // comparison — see tools/engine-wasm/README.md. Not application code and
+      // not worth linting.
+      "tools/engine-wasm/amath_engine.mjs",
+      // The browser worker that used to drive that WASM build. Dead in
+      // production, kept beside the artifact it belongs to.
+      "tools/engine-wasm/engineWorker.ts",
+      "tools/engine-wasm/wasm.d.ts",
       "src/App.tsx",
       "src/bot/**",
       "src/codec.ts",
@@ -49,5 +57,10 @@ export default tseslint.config(
   {
     files: ["public/sw.js"],
     languageOptions: { globals: globals.serviceworker },
+  },
+  {
+    // Development scripts, run by Node directly rather than bundled.
+    files: ["tools/**/*.mjs"],
+    languageOptions: { globals: globals.node },
   },
 );

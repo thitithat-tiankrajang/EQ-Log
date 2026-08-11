@@ -1,192 +1,124 @@
-// Bridge between EQ-Lab game state and the C++ engine worker.
+// Bridge between EQ-Lab game state and the C++ engine.
 //
-// The engine is the single source of truth for A-Math legality (exact
-// rational arithmetic); every bot move is still re-validated by the official
-// game validator before it is committed, so an engine bug can never corrupt a
-// match.
+// The engine now runs on a backend service rather than as WASM in this tab, so
+// what crosses this boundary changed shape: the client no longer describes the
+// position. It names the game and the revision it believes the game is at, and
+// the server reads the authoritative state for itself. A client that is wrong
+// about the revision is refused rather than answered.
+//
+// What did NOT change is the safety net below it. Every bot move is still
+// re-validated by the official game validator before it is committed, so an
+// engine bug — or a service returning something unexpected — can never corrupt
+// a match; it degrades to a pass.
 import {
-  displayToken,
   getRack,
-  otherSide,
   tileNeedsAssignment,
   type AmathToken,
-  type BotDifficulty,
   type GameState,
   type PendingPlacement,
   type TileInstance,
 } from "../game";
-import { getExchangeRule } from "../gameplay/tilebag";
-import { AMATH_TOKENS } from "../constants/tileDefinitions";
-import type { BotProgress, BotRequest, BotResponse, WorkerOutbound } from "./types";
-
-// ── TEMP endgame-dispatch instrumentation (remove after debugging) ────────────
-// Mirrors the C++ engine's tile accounting: unseen = full distribution minus
-// every board + rack tile (guarded against underflow, exactly like parseRequest),
-// then endgameEligible = oppRackCount>0 && unseen.total == oppRackCount + bagCount.
-const KIND_COUNTS: Record<string, number> = Object.fromEntries(
-  Object.entries(AMATH_TOKENS).map(([k, v]) => [k, v.count]),
-);
-function logBotRequestDiag(req: BotRequest, pendingReturns: number, tilebagLength: number): void {
-  const unseen: Record<string, number> = { ...KIND_COUNTS };
-  const dec = (k: string) => {
-    if ((unseen[k] ?? 0) > 0) unseen[k] -= 1;
-  };
-  for (const cell of req.board) dec(cell.kind as string);
-  for (const t of req.rack) dec(t as string);
-  const unseenTotal = Object.values(unseen).reduce((a, b) => a + b, 0);
-  const endgameEligible =
-    req.oppRackCount > 0 && unseenTotal === req.oppRackCount + req.bagCount;
-  // eslint-disable-next-line no-console
-  console.log("[BOT-DIAG] request", {
-    bagCount: req.bagCount,
-    tilebagLength,
-    pendingReturns,
-    oppRackCount: req.oppRackCount,
-    boardTiles: req.board.length,
-    myRack: req.rack.length,
-    unseenTotal,
-    conservationSum: req.board.length + req.rack.length + req.oppRackCount + tilebagLength + pendingReturns,
-    endgameEligible,
-  });
-}
+import {
+  EngineApiError,
+  isEngineApiConfigured,
+  requestBotMove,
+  type BotMoveResult,
+  type EngineProgress,
+} from "./engineApi";
+import type { BotProgress, BotResponse } from "./types";
 
 export type BotThinkHandle = {
   promise: Promise<BotResponse>;
   cancel: () => void;
 };
 
-let worker: Worker | null = null;
-let requestCounter = 0;
-
-function getWorker(): Worker {
-  if (!worker) {
-    worker = new Worker(new URL("./engineWorker.ts", import.meta.url), { type: "module" });
-  }
-  return worker;
-}
-
-/** Preload the WASM module so the first bot turn has no startup hiccup. */
+/**
+ * Nothing to warm up any more.
+ *
+ * This used to spin up a Web Worker and instantiate the WASM module so the
+ * first bot turn had no startup hiccup. The engine now lives on a server that
+ * is already running, so the call is kept as a no-op rather than removed:
+ * `App.tsx` still calls it when a bot room opens, and a hook that costs nothing
+ * is a better seam than one that has to be threaded out of a 5,000-line
+ * component.
+ */
 export function warmUpBotEngine(): void {
-  getWorker();
+  // Deliberately empty.
 }
 
-function hashSeed(text: string): number {
-  let h = 2166136261;
-  for (let i = 0; i < text.length; i += 1) {
-    h ^= text.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return (h >>> 0) % 2147483647 || 1;
-}
+/** Whether a bot can play at all in this deployment. */
+export const isBotAvailable = isEngineApiConfigured;
 
-/** Count the trailing run of pass/exchange turns (the no-score streak). */
-function trailingNoScoreStreak(game: GameState): number {
-  let streak = 0;
-  for (let i = game.logs.length - 1; i >= 0; i -= 1) {
-    const action = game.logs[i].action;
-    if (action === "end_game") continue;
-    if (action === "pass" || action === "exchange") streak += 1;
-    else break;
-  }
-  return streak;
-}
-
-// The engine ignores the `difficulty` string and is steered purely by
-// `budgetMs`: less thinking time → shallower search → weaker play. `max` sends
-// no cap so the engine falls back to its own (untimed) ceilings — full strength,
-// exact endgame solving. The lower tiers trade strength for a snappier reply.
-const BOT_THINK_BUDGET_MS: Record<BotDifficulty, number | null> = {
-  easy: 200,
-  medium: 1000,
-  hard: 4000,
-  max: null,
-};
-
-export function buildBotRequest(game: GameState): BotRequest {
-  const botSide = game.botSide ?? "B";
-  const board: BotRequest["board"] = [];
-  for (let r = 0; r < game.board.length; r += 1) {
-    for (let c = 0; c < game.board[r].length; c += 1) {
-      const cell = game.board[r][c];
-      if (!cell) continue;
-      board.push({ r, c, kind: cell.tile.token, token: displayToken(cell.tile) });
-    }
-  }
-  const rack = getRack(game, botSide).map((tile) => tile.token as string);
-  const pendingReturns =
-    (game.pendingExchangeReturnBySide?.A?.length ?? 0) +
-    (game.pendingExchangeReturnBySide?.B?.length ?? 0);
-  const difficulty = game.botDifficulty ?? "max";
-  const budgetMs = BOT_THINK_BUDGET_MS[difficulty];
-  const req: BotRequest = {
-    board,
-    rack,
-    // Pending exchange returns are off-board and out of every rack; from the
-    // bot's accounting view they are still part of the unseen "bag" pool.
-    bagCount: game.tilebag.length + pendingReturns,
-    oppRackCount: getRack(game, otherSide(botSide)).length,
-    myScore: game.scores[botSide],
-    oppScore: game.scores[otherSide(botSide)],
-    noScoreStreak: trailingNoScoreStreak(game),
-    exchangeAllowed: getExchangeRule(game).allowed,
-    difficulty,
-    // Omitted for `max` so the engine uses its own full-strength ceilings.
-    ...(budgetMs != null ? { budgetMs } : {}),
-    seed: hashSeed(`${game.gameId}:${game.turnNumber}`),
+function toBotProgress(progress: EngineProgress): BotProgress {
+  return {
+    phase: progress.phase,
+    percent: progress.percent,
+    elapsedMs: progress.elapsedMs,
+    etaMs: progress.etaMs,
+    // The server does not report a running best score: it would describe the
+    // bot's own rack, and the player watching the bar is the opponent.
+    bestScore: 0,
+    detail: progress.detail,
   };
-  logBotRequestDiag(req, pendingReturns, game.tilebag.length);  // TEMP
-  return req;
 }
 
+/** Reshape the service's answer into the response shape the app already
+ *  applies. The evaluation fields are absent by design — the bot's reasoning
+ *  concerns tiles the requester may not see — so they are reported as zero
+ *  rather than invented. */
+function toBotResponse(result: BotMoveResult): BotResponse {
+  return {
+    type: result.move.type,
+    placements: result.move.placements,
+    exchange: result.move.exchange,
+    score: result.move.score,
+    equity: 0,
+    solver: result.solver,
+    endgameSolved: result.endgameSolved,
+    stats: {
+      moves: 0,
+      nodes: result.stats.nodes,
+      elapsedMs: result.stats.elapsedMs,
+      candidates: 0,
+      samples: result.stats.samples,
+    },
+  };
+}
+
+/**
+ * Ask the backend for the bot's move in this game at this revision.
+ *
+ * `game.revision` is the whole concurrency story. The server compares it with
+ * the revision it holds and refuses a mismatch, so a move computed for a
+ * position the game has already left cannot come back and be applied to a
+ * newer one.
+ */
 export function thinkWithBot(
-  request: BotRequest,
+  game: GameState,
   onProgress: (progress: BotProgress) => void,
 ): BotThinkHandle {
-  const id = ++requestCounter;
-  const w = getWorker();
-
-  let settled = false;
-  let cleanup = () => {};
-  const promise = new Promise<BotResponse>((resolve, reject) => {
-    const onMessage = (event: MessageEvent<WorkerOutbound>) => {
-      const msg = event.data;
-      if (msg.type === "progress" && msg.id === id) {
-        if (!settled) onProgress(msg.progress);
-      } else if (msg.type === "result" && msg.id === id) {
-        settled = true;
-        cleanup();
-        // eslint-disable-next-line no-console
-        console.log("[BOT-DIAG] response", {
-          solver: msg.response.solver,
-          endgameSolved: msg.response.endgameSolved,
-          type: msg.response.type,
-        });  // TEMP
-        if (msg.response.error) reject(new Error(msg.response.error));
-        else resolve(msg.response);
-      } else if (msg.type === "error" && msg.id === id) {
-        settled = true;
-        cleanup();
-        reject(new Error(msg.message));
-      }
-    };
-    cleanup = () => w.removeEventListener("message", onMessage);
-    w.addEventListener("message", onMessage);
-    w.postMessage({ type: "think", id, request });
-  });
+  const controller = new AbortController();
+  const promise = requestBotMove({
+    gameId: game.gameId,
+    expectedRevision: game.revision ?? 0,
+    onProgress: (progress) => onProgress(toBotProgress(progress)),
+    signal: controller.signal,
+  }).then(toBotResponse);
 
   return {
     promise,
-    cancel: () => {
-      // The engine is synchronous inside the worker; cancelling means killing
-      // the worker so a stale result can never reach a newer game state.
-      settled = true;
-      cleanup();
-      if (worker) {
-        worker.terminate();
-        worker = null;
-      }
-    },
+    // Aborting the request also releases the server-side reference to the
+    // search; the engine process is stopped once nobody is waiting on it.
+    cancel: () => controller.abort(),
   };
+}
+
+/** Whether a failed bot request is worth retrying, or is a settled refusal.
+ *  A stale revision resolves itself — the game moved on and the caller will
+ *  compose a fresh request against the new position. */
+export function isRetryableBotFailure(error: unknown): boolean {
+  if (!(error instanceof EngineApiError)) return true;
+  return error.code === "queue_full" || error.code === "offline" || error.code === "internal";
 }
 
 export type MappedBotMove =

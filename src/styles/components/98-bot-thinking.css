@@ -716,3 +716,203 @@ fieldset.bot-config-section {
     background: #f3f4f6;
   }
 }
+
+/* ── Turn analysis ─────────────────────────────────────────────────────────
+   Shares the bot-reason panel chrome on purpose: both explain the same engine,
+   so a different visual language would imply a different source of truth.
+   These rules only cover what analysis adds — the launcher, the level picker,
+   the running state, and the recommendation block. */
+
+.analysis-launcher {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.analysis-btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.analysis-reopen {
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  background: transparent;
+  color: inherit;
+  border-radius: 8px;
+  padding: 5px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.analysis-reopen:hover {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.analysis-levels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(84px, 1fr));
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.analysis-level {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 8px 6px;
+  border-radius: 10px;
+  cursor: pointer;
+  color: inherit;
+  border: 1px solid color-mix(in srgb, #8b5cf6 32%, transparent);
+  background: color-mix(in srgb, #8b5cf6 8%, transparent);
+  /* Comfortably past the 44px touch target the rest of the app holds to. */
+  min-height: 46px;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.analysis-level:hover,
+.analysis-level.active {
+  background: color-mix(in srgb, #8b5cf6 20%, transparent);
+  border-color: color-mix(in srgb, #8b5cf6 60%, transparent);
+}
+.analysis-level-name {
+  font-size: 13px;
+  font-weight: 700;
+}
+.analysis-level-hint {
+  font-size: 10.5px;
+  opacity: 0.65;
+}
+
+.analysis-running {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, #8b5cf6 28%, transparent);
+  background: color-mix(in srgb, #8b5cf6 10%, transparent);
+}
+.analysis-running-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+}
+.analysis-running-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+}
+.analysis-running-eta {
+  margin-left: auto;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+.analysis-cancel {
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  background: transparent;
+  color: inherit;
+  border-radius: 8px;
+  padding: 4px 9px;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.analysis-cancel:hover {
+  background: color-mix(in srgb, currentColor 10%, transparent);
+}
+
+.analysis-error {
+  margin-top: 8px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  background: color-mix(in srgb, #f87171 14%, transparent);
+  border: 1px solid color-mix(in srgb, #f87171 40%, transparent);
+}
+
+/* The recommendation gets its own block rather than being the first table row,
+   so it reads as the answer instead of as one option among several. */
+.analysis-pick {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: color-mix(in srgb, #22c55e 14%, transparent);
+  border: 1px solid color-mix(in srgb, #22c55e 45%, transparent);
+}
+.analysis-pick-tag {
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  color: #052e16;
+  background: #4ade80;
+  flex: none;
+}
+.analysis-pick-move {
+  font-size: 15px;
+  font-weight: 800;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.analysis-pick-score {
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+
+.analysis-factors {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+  background: color-mix(in srgb, currentColor 4%, transparent);
+}
+.analysis-factors-title,
+.analysis-alt-title {
+  font-size: 12.5px;
+  font-weight: 800;
+  opacity: 0.8;
+  margin-bottom: 6px;
+}
+.analysis-factors ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 4px 14px;
+}
+.analysis-factors li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12.5px;
+  padding: 3px 0;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 7%, transparent);
+}
+.analysis-factor-label {
+  opacity: 0.75;
+}
+.analysis-factor-value {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.analysis-alt-title {
+  margin-bottom: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .analysis-level,
+  .analysis-reopen,
+  .analysis-cancel {
+    transition: none;
+  }
+}

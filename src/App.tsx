@@ -118,15 +118,16 @@ import { getExchangeRule, getTilebagView, refillRackFromQueue } from "./gameplay
 import { advanceRunningClock } from "./gameplay/timer";
 import { clearTileAssignment } from "./gameplay/tiles";
 import {
-  buildBotRequest,
   mapBotResponse,
   thinkWithBot,
   warmUpBotEngine,
 } from "./bot/botController";
+import { isEngineApiConfigured } from "./bot/engineApi";
 import type { BotProgress, BotResponse } from "./bot/types";
 import { botRecordFromGame, recordBotGame } from "./botStats";
 import { BotThinkingCard } from "./components/game/BotThinkingCard";
 import { BotReasoningPanel } from "./components/game/BotReasoningPanel";
+import { TurnAnalysisLauncher } from "./components/game/TurnAnalysisLauncher";
 import { makeRoomScope, type RoomScope, type RoomVisibility } from "./roomScope";
 
 type ActionMode = "none" | ActionType;
@@ -1644,11 +1645,43 @@ function App() {
     canControlActiveGame &&
     !readOnly,
   );
-  // Preload the WASM engine as soon as a bot room opens, so the first bot
-  // turn starts instantly.
   useEffect(() => {
     if (game?.botSide) warmUpBotEngine();
   }, [game?.gameId, game?.botSide]);
+
+  // ── Turn analysis availability ─────────────────────────────────────────────
+  //
+  // Analysis assists a HUMAN decision, so it is offered on any turn a human is
+  // on move and the viewer is the one who controls it. That covers every mode
+  // where it means anything: pass-and-play, hosted, direct, solo, and the human
+  // side of an Aether match. It is never offered on the bot's turn.
+  //
+  // These flags decide what is RENDERED. They are not the decision — the
+  // backend re-derives all of it from the room row and refuses a request that
+  // does not satisfy it, whether or not a button was ever drawn.
+  const analysisTurnIsBot = Boolean(game?.botSide && game.activeSide === game.botSide);
+  const analysisAvailable = Boolean(
+    game &&
+    isEngineApiConfigured &&
+    remoteEnabled &&
+    game.status === "playing" &&
+    getRoomStage(game) === "playing" &&
+    !reviewing,
+  );
+  const canAnalyzeTurn = Boolean(
+    analysisAvailable &&
+    game &&
+    !analysisTurnIsBot &&
+    canActActiveSide &&
+    game.phase !== "refill",
+  );
+  const analysisDisabledReason = analysisTurnIsBot
+    ? "วิเคราะห์ได้เฉพาะตาของผู้เล่นที่เป็นมนุษย์"
+    : !canActActiveSide
+      ? "วิเคราะห์ได้เฉพาะตาของคุณเอง"
+      : game?.phase === "refill"
+        ? "จั่วไทล์ให้ครบก่อนจึงจะวิเคราะห์ได้"
+        : undefined;
   // When a bot match finishes, append its summary to whichever stat folder the
   // admin currently has open (the server no-ops if none is open). Only games we
   // watched go from in-progress → finished this session are recorded, so merely
@@ -1678,7 +1711,10 @@ function App() {
     if (botTurnRef.current === commitId) return;
     botTurnRef.current = commitId;
     let alive = true;
-    const handle = thinkWithBot(buildBotRequest(game), (progress) => {
+    // The request names the game and its revision; the backend reads the
+    // position for itself. Nothing about the board, the racks or the bag is
+    // described by this client any more.
+    const handle = thinkWithBot(game, (progress) => {
       if (alive) setBotProgress(progress);
     });
     handle.promise
@@ -4886,6 +4922,25 @@ function App() {
                 🧠 ทำไม {botReasoning.playerName} เลือกตานี้?
               </button>
             )}
+
+          {/* Analyse this turn. Shown wherever a human is on move and the
+              viewer is the one who controls that turn — pass-and-play, hosted,
+              direct, solo, and the human side of an Aether match alike.
+              `canActActiveSide` is the same flag the action controls use, so
+              the button cannot appear on a turn the player could not take.
+
+              This is a convenience gate. The backend enforces the same rule and
+              refuses regardless of what is rendered here, which is why hiding
+              the button is not relied on for anything. */}
+          {analysisAvailable && game.gameId && (
+            <TurnAnalysisLauncher
+              gameId={game.gameId}
+              revision={game.revision ?? 0}
+              playerName={game.players[game.activeSide] || game.activeSide}
+              disabled={!canAnalyzeTurn}
+              disabledReason={analysisDisabledReason}
+            />
+          )}
 
           <div className="play-bar">
             <div className="play-caption">
