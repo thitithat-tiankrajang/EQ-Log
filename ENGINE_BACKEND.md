@@ -44,6 +44,7 @@ entitled to know.
 | `POST` | `/v1/games/:gameId/analysis` | Analyse the human's own turn |
 | `GET` | `/v1/games/:gameId/analysis?revision=N&level=L` | Reattach to a running analysis |
 | `POST` | `/v1/games/:gameId/analysis/cancel` | Explicitly cancel your own analysis |
+| `GET` | `/v1/games/:gameId/jobs?revision=N` | Discover what is already running for a position |
 | `GET` | `/health` | Liveness and queue depth |
 
 `POST` bodies are `{ expectedRevision, level? }`. With `Accept: text/event-stream`
@@ -51,6 +52,27 @@ the response streams `queued` → `running` → `progress`* → `result` | `erro
 `GET` may also answer `idle`, meaning "no job exists; start one if you want".
 
 A `GET` never starts work and never spends budget.
+
+### Why discovery is an endpoint
+
+An analysis is identified partly by its **level**, and the level is not derivable
+from the game row. So a client that lost its note about what it had started could
+not find the search again — even though the registry still had it — and the only
+way forward was to press Analyze and pay for it a second time. Losing that note
+is ordinary: a second tab never had it, a reload can drop it, a mistimed reset
+can erase it.
+
+`GET /jobs` moves that question to the side that actually knows. It reports the
+SHAPE of what exists (kind, level/difficulty, status, the engine's own progress),
+never an answer: reading a result still goes through the attach endpoints, which
+apply the same presentation and the same hidden-information rules. Each kind is
+gated by exactly the rule its own attach endpoint applies, so discovery can never
+reveal work the caller could not otherwise observe — a spectator sees an empty
+list.
+
+Responses carry `Server-Timing` with the pre-engine stages (`auth`, `context`,
+`gates`) so a slow launch can be attributed to a stage rather than guessed at.
+Durations only; no identifiers.
 
 ## 4. Authorization
 

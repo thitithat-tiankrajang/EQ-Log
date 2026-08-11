@@ -38,6 +38,17 @@ export type BotCandidate = {
 
 export type BotResponse = {
   type: "place" | "exchange" | "pass";
+  /**
+   * The authoritative revision this move was computed for.
+   *
+   * Carried all the way to the point of application, because a move is an answer
+   * to ONE position: applying it to any other is the most damaging thing this
+   * client could do. The server already refuses to compute against a revision it
+   * does not hold; this is the matching check on the way back in, so a result
+   * that arrives late — after a resync, an undo, a second tab's move — is
+   * discarded rather than played.
+   */
+  revision: number;
   placements: Array<{ r: number; c: number; kind: string; token: string }>;
   exchange: string[];
   score: number;

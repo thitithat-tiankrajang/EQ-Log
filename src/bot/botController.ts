@@ -9,7 +9,10 @@
 // What did NOT change is the safety net below it. Every bot move is still
 // re-validated by the official game validator before it is committed, so an
 // engine bug — or a service returning something unexpected — can never corrupt
-// a match; it degrades to a pass.
+// a match.
+//
+// Observation of a running search does NOT live here — see `engineSessions.ts`.
+// This module is the translation layer: engine answer in, game action out.
 import {
   getRack,
   tileNeedsAssignment,
@@ -18,42 +21,8 @@ import {
   type PendingPlacement,
   type TileInstance,
 } from "../game";
-import {
-  EngineApiError,
-  attachBotMove,
-  isEngineApiConfigured,
-  requestBotMove,
-  type BotMoveResult,
-  type EngineProgress,
-  type EngineQueueState,
-} from "./engineApi";
-import type { BotProgress, BotResponse } from "./types";
-
-/**
- * What the bot is doing right now, from the player's point of view.
- *
- * The engine used to run in this tab, so "asked" and "computing" were the same
- * instant. It now runs on a shared server with a bounded number of CPUs, and
- * those are three different states — a bot that has not moved because it is
- * WAITING FOR A SLOT is not a bot that is thinking, and telling the player it
- * is thinking would be a lie the progress bar then has to keep up.
- */
-export type BotThinkingState =
-  | { kind: "requesting" }
-  /** This tab is attaching to the server-owned search again. The last progress
-   * stays visible until the server replays a newer value. */
-  | { kind: "reconnecting"; progress: BotProgress | null }
-  /** Accepted by the server, waiting for engine capacity. `position` is the
-   *  server's own count of jobs ahead, or null when it could not be trusted. */
-  | { kind: "queued"; position: number | null }
-  /** An engine process is working on it. `progress` is absent until the engine
-   *  reports its first sample — indeterminate, rather than a fake 0%. */
-  | { kind: "running"; progress: BotProgress | null };
-
-export type BotThinkHandle = {
-  promise: Promise<BotResponse>;
-  cancel: () => void;
-};
+import { EngineApiError, isEngineApiConfigured, type BotMoveResult } from "./engineApi";
+import type { BotResponse } from "./types";
 
 /**
  * Nothing to warm up any more.
@@ -72,26 +41,17 @@ export function warmUpBotEngine(): void {
 /** Whether a bot can play at all in this deployment. */
 export const isBotAvailable = isEngineApiConfigured;
 
-function toBotProgress(progress: EngineProgress): BotProgress {
-  return {
-    phase: progress.phase,
-    percent: progress.percent,
-    elapsedMs: progress.elapsedMs,
-    etaMs: progress.etaMs,
-    // The server does not report a running best score: it would describe the
-    // bot's own rack, and the player watching the bar is the opponent.
-    bestScore: 0,
-    detail: progress.detail,
-  };
-}
-
 /** Reshape the service's answer into the response shape the app already
  *  applies. The evaluation fields are absent by design — the bot's reasoning
  *  concerns tiles the requester may not see — so they are reported as zero
  *  rather than invented. */
-function toBotResponse(result: BotMoveResult): BotResponse {
+export function toBotResponse(result: BotMoveResult): BotResponse {
   return {
     type: result.move.type,
+    // The position this answer is about. Preserved rather than dropped: without
+    // it the application step has no way to tell a move for the current turn
+    // from one that arrived after the game moved on.
+    revision: result.revision,
     placements: result.move.placements,
     exchange: result.move.exchange,
     score: result.move.score,
@@ -109,97 +69,45 @@ function toBotResponse(result: BotMoveResult): BotResponse {
 }
 
 /**
- * Ask the backend for the bot's move in this room at this revision.
+ * Whether a failed bot request is worth retrying.
  *
- * `roomId` is the LIVE ROOM's id — `room_live.room_id`, the same value every
- * other server call already names `target_game_id`. It is deliberately a
- * separate parameter rather than something read off `game`, because
- * `GameState.gameId` is a *different identifier*: a client-generated UUID
- * minted by `createNewGame`, which the server has never seen and cannot look a
- * room up by. Passing it produced a `not_found` on every request. Taking the id
- * explicitly is what stops that mistake being available to make again.
+ * **Everything is, now.** This used to answer a second, unstated question —
+ * "and if not, should the bot pass?" — and every code that fell out of the list
+ * became a turn the bot threw away. `turn_rule` was reachable from an ordinary
+ * race (the client asking about a position the server had not been told about
+ * yet) and cost the player a scoring move.
  *
- * `game.revision` is the whole concurrency story. The server compares it with
- * the revision it holds and refuses a mismatch — at admission AND again when a
- * queued job finally reaches a CPU — so a move computed for a position the game
- * has already left cannot come back and be applied to a newer one.
+ * A pass is a real, irreversible game action. Nothing about a failed HTTP
+ * request is evidence that passing is the right move, so no failure produces
+ * one: the bot waits, retries, and says why. The only thing that can pass is the
+ * engine authoritatively choosing to.
  *
- * `onState` is called with every lifecycle change the server reports, so the
- * caller can distinguish waiting from thinking instead of showing one spinner
- * for both.
- */
-export function thinkWithBot(
-  roomId: string,
-  game: GameState,
-  onState: (state: BotThinkingState) => void,
-): BotThinkHandle {
-  const controller = new AbortController();
-  const expectedRevision = game.revision ?? 0;
-
-  // Lifecycle callbacks are shared by the attach and the start, so a job that
-  // was already running when we rejoined reports exactly as one we launched.
-  const lifecycle = {
-    onQueued: (state: EngineQueueState) =>
-      onState({ kind: "queued", position: state.position > 0 ? state.position : null }),
-    // The engine reports progress only once it is actually searching, so
-    // "running with nothing to show yet" is a real state, rendered as an
-    // indeterminate one rather than as a fabricated 0%.
-    onRunning: () => onState({ kind: "running", progress: null }),
-    onProgress: (progress: EngineProgress) =>
-      onState({ kind: "running", progress: toBotProgress(progress) }),
-    signal: controller.signal,
-  };
-
-  const promise = (async (): Promise<BotResponse> => {
-    // First, try to REJOIN a search already in flight for this exact turn — the
-    // one this tab (or another) started before navigating away — or read the
-    // move it already produced. This is what keeps a bot turn a single search
-    // across a remount, a second tab, or a return to the page. The server
-    // starts nothing here; it answers `idle` when there is no such job.
-    const attached = await attachBotMove({ gameId: roomId, expectedRevision, ...lifecycle });
-    if (attached.kind === "result") return toBotResponse(attached.result);
-
-    // Nothing was running: this is a fresh turn, so start the search. Duplicate
-    // starts (two tabs, a double-fired effect) still collapse to one search on
-    // the server by key, and only one move can ever commit regardless.
-    const started = await requestBotMove({ gameId: roomId, expectedRevision, ...lifecycle });
-    return toBotResponse(started);
-  })();
-
-  return {
-    promise,
-    // Aborting now only DETACHES this observer on the server: the search keeps
-    // running for any other watcher and for the player when they return. It is
-    // no longer a cancellation — a closed page must not stop the bot's turn.
-    cancel: () => controller.abort(),
-  };
-}
-
-/**
- * Whether a failed bot request is worth retrying, or is a settled refusal.
- *
- * This matters far more now than it did with a per-tab engine. `queue_full` is
- * no longer exotic: it is the ordinary response of a busy single-CPU server,
- * and treating it as a permanent failure would make the bot PASS its turn
- * because someone else was analysing. A pass is a real, scoring, irreversible
- * game action — never the right answer to server load.
- *
- * A stale revision is deliberately NOT retryable-as-a-pass either: it means the
- * server's view of the game has moved past ours, and the only safe response is
- * to wait for state to catch up.
+ * The distinctions that remain are about HOW to retry, not whether:
+ * `stale_revision` waits for state to catch up rather than re-asking the same
+ * question, because the question itself was wrong.
  */
 export function isRetryableBotFailure(error: unknown): boolean {
   if (!(error instanceof EngineApiError)) return true;
-  // `engine_timeout` is deliberately absent: the service's ceilings sit above
-  // the engine's own, so reaching one means a malfunction that another five
-  // minutes of the same shared CPU will not fix.
-  return error.code === "queue_full" || error.code === "offline" || error.code === "internal";
+  // A desync is retried by re-deriving the position, not by re-sending — see
+  // `isDesyncBotFailure`. Everything else is worth asking again.
+  return !isDesyncBotFailure(error);
 }
 
-/** Failures where committing ANY move on the bot's behalf would be wrong,
- *  because the server and this client disagree about what the game is. */
+/**
+ * Failures that mean "this client and the server disagree about what the game
+ * is". Re-sending the same request cannot help; the position has to be
+ * re-derived from authoritative state first.
+ *
+ * `turn_rule` joins `stale_revision` here. It is the answer you get for asking
+ * about a position the server holds but whose turn does not match what you
+ * believe — which, before the request was gated on a confirmed revision, was the
+ * routine outcome of asking one round trip too early.
+ */
 export function isDesyncBotFailure(error: unknown): boolean {
-  return error instanceof EngineApiError && error.code === "stale_revision";
+  return (
+    error instanceof EngineApiError &&
+    (error.code === "stale_revision" || error.code === "turn_rule")
+  );
 }
 
 export type MappedBotMove =

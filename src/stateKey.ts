@@ -43,12 +43,14 @@ export function canonicalStringify(value: unknown): string {
 }
 
 /**
- * Content key for a position. Deliberately excludes `revision` — the key must
- * identify the position itself, so that a confirmed commit (same content, new
- * revision) is recognized as the position this client already has.
+ * The fields the key is built from, in one place.
+ *
+ * Split out so `remoteStateIdentity` below cannot drift from what is actually
+ * serialized: both walk this object, one stringifying it and one taking the
+ * identity of its parts.
  */
-export function makeRemoteStateKey(game: GameState): string {
-  return canonicalStringify({
+function keyedFields(game: GameState) {
+  return {
     activeSide: game.activeSide,
     board: game.board,
     gameId: game.gameId,
@@ -82,5 +84,101 @@ export function makeRemoteStateKey(game: GameState): string {
       untimed: game.timers.untimed,
     },
     turnNumber: game.turnNumber,
-  });
+  };
+}
+
+/**
+ * Content key for a position. Deliberately excludes `revision` — the key must
+ * identify the position itself, so that a confirmed commit (same content, new
+ * revision) is recognized as the position this client already has.
+ *
+ * **This is O(the whole game history.)** `logs` holds two full board snapshots
+ * and two full bags per turn, and every one of them is walked and sorted here.
+ * At turn 40 that is tens of thousands of objects. Call it when the POSITION
+ * changes, and only then — see `remoteStateIdentity`.
+ */
+export function makeRemoteStateKey(game: GameState): string {
+  return canonicalStringify(keyedFields(game));
+}
+
+/**
+ * A cheap stand-in for "has the keyed content changed?".
+ *
+ * The running clock rewrites `game` and `game.timers` once a second, and the
+ * board, racks, bag and logs keep their identities across that rewrite because
+ * every update in this codebase is a shallow spread. So comparing the IDENTITY
+ * of each keyed part answers, in a few dozen reference comparisons, the question
+ * `makeRemoteStateKey` was answering by serializing the entire match.
+ *
+ * The timer VALUES (`timers.A`, `timers.B`) are deliberately absent, exactly as
+ * they are absent from the key: a tick changes what is displayed, never what is
+ * synchronized. Every scalar the key does read is included by value, so a
+ * settings change still registers.
+ *
+ * Correctness rests on one property: nothing mutates a keyed sub-object in
+ * place. `remote-state-identity.test.ts` pins the two halves against each other.
+ */
+export function remoteStateIdentity(game: GameState): readonly unknown[] {
+  const fields = keyedFields(game);
+  return [
+    fields.activeSide,
+    fields.board,
+    fields.gameId,
+    fields.gameMode,
+    fields.historyIndex,
+    fields.logs,
+    fields.name,
+    fields.phase,
+    fields.playerUserIds,
+    fields.playerEmails,
+    fields.emailPlayMode,
+    fields.emailPlayersCanSeeOpponentRack,
+    fields.matchControl,
+    fields.roomStage,
+    fields.lobbyReadyBySide,
+    fields.players,
+    // Rebuilt arrays: compare their contents' identities, not the wrapper's.
+    ...fields.pendingExchangeReturn,
+    fields.pendingExchangeReturn.length,
+    fields.pendingExchangeReturnBySide.A,
+    fields.pendingExchangeReturnBySide.B,
+    fields.rackA,
+    fields.rackB,
+    fields.scores,
+    fields.status,
+    fields.tileDrawMode,
+    fields.tilebag,
+    fields.timers.initialSeconds,
+    fields.timers.initialSecondsBySide,
+    fields.timers.sideUntimed,
+    fields.timers.minSeconds,
+    fields.timers.paused,
+    fields.timers.untimed,
+    fields.turnNumber,
+  ];
+}
+
+/**
+ * `makeRemoteStateKey`, skipped when nothing it reads has changed.
+ *
+ * Stateful by design: it holds the last identity and the key that went with it.
+ * One instance per caller — `createRemoteStateKeyCache()` rather than a module
+ * singleton, so two rooms cannot share a slot and invalidate each other.
+ */
+export function createRemoteStateKeyCache(): (game: GameState | null) => string {
+  let last: { identity: readonly unknown[]; key: string } | null = null;
+  return (game) => {
+    if (!game) return "";
+    const identity = remoteStateIdentity(game);
+    if (
+      last &&
+      last.identity.length === identity.length &&
+      last.identity.every((value, index) => Object.is(value, identity[index]))
+    ) {
+      return last.key;
+    }
+    const key = makeRemoteStateKey(game);
+    last = { identity, key };
+    return key;
+  };
 }

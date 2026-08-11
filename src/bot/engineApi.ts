@@ -20,6 +20,7 @@
 // from "this is no longer your turn" from "the engine is busy", and a bare
 // error string cannot carry that.
 
+import * as engineTrace from "../engineTrace";
 import { supabase } from "../supabaseClient";
 
 export const ANALYSIS_LEVELS = ["quick", "normal", "deep", "max"] as const;
@@ -147,6 +148,8 @@ async function runSse<T>(options: {
   onRunning?: () => void;
   onProgress?: (progress: EngineProgress) => void;
   signal?: AbortSignal;
+  /** Trace key, when the caller is measuring this request. Off in normal use. */
+  traceKey?: string;
 }): Promise<SseOutcome<T>> {
   if (!BASE_URL) {
     throw new EngineApiError("unconfigured", "The engine service is not configured.");
@@ -189,6 +192,13 @@ async function runSse<T>(options: {
         ...(payload.retryAfterMs != null ? { retryAfterMs: payload.retryAfterMs } : {}),
       },
     );
+  }
+
+  if (options.traceKey) {
+    // The server's own decomposition of everything that happened before this
+    // head was written — the part the client cannot otherwise see.
+    engineTrace.mark(options.traceKey, "head");
+    engineTrace.absorbServerTiming(options.traceKey, response.headers.get("Server-Timing"));
   }
 
   const reader = response.body.getReader();
@@ -294,6 +304,7 @@ async function postStream<T>(options: {
   onRunning?: () => void;
   onProgress?: (progress: EngineProgress) => void;
   signal?: AbortSignal;
+  traceKey?: string;
 }): Promise<T> {
   const outcome = await runSse<T>({ method: "POST", ...options });
   if (outcome.kind === "idle") {
@@ -326,6 +337,7 @@ export function requestBotMove(
     gameId: string;
     expectedRevision: number;
     signal?: AbortSignal;
+    traceKey?: string;
   } & EngineLifecycle,
 ): Promise<BotMoveResult> {
   return postStream<BotMoveResult>({
@@ -335,6 +347,7 @@ export function requestBotMove(
     ...(options.onRunning ? { onRunning: options.onRunning } : {}),
     ...(options.onProgress ? { onProgress: options.onProgress } : {}),
     ...(options.signal ? { signal: options.signal } : {}),
+    ...(options.traceKey ? { traceKey: options.traceKey } : {}),
   });
 }
 
@@ -350,6 +363,7 @@ export function attachBotMove(
     gameId: string;
     expectedRevision: number;
     signal?: AbortSignal;
+    traceKey?: string;
   } & EngineLifecycle,
 ): Promise<SseOutcome<BotMoveResult>> {
   const query = `?revision=${encodeURIComponent(String(options.expectedRevision))}`;
@@ -360,6 +374,7 @@ export function attachBotMove(
     ...(options.onRunning ? { onRunning: options.onRunning } : {}),
     ...(options.onProgress ? { onProgress: options.onProgress } : {}),
     ...(options.signal ? { signal: options.signal } : {}),
+    ...(options.traceKey ? { traceKey: options.traceKey } : {}),
   });
 }
 
@@ -413,6 +428,7 @@ export function requestAnalysis(
     expectedRevision: number;
     level: AnalysisLevel;
     signal?: AbortSignal;
+    traceKey?: string;
   } & EngineLifecycle,
 ): Promise<AnalysisResult> {
   return postStream<AnalysisResult>({
@@ -422,6 +438,7 @@ export function requestAnalysis(
     ...(options.onRunning ? { onRunning: options.onRunning } : {}),
     ...(options.onProgress ? { onProgress: options.onProgress } : {}),
     ...(options.signal ? { signal: options.signal } : {}),
+    ...(options.traceKey ? { traceKey: options.traceKey } : {}),
   });
 }
 
@@ -438,6 +455,7 @@ export function attachAnalysis(
     expectedRevision: number;
     level: AnalysisLevel;
     signal?: AbortSignal;
+    traceKey?: string;
   } & EngineLifecycle,
 ): Promise<SseOutcome<AnalysisResult>> {
   const query =
@@ -450,7 +468,66 @@ export function attachAnalysis(
     ...(options.onRunning ? { onRunning: options.onRunning } : {}),
     ...(options.onProgress ? { onProgress: options.onProgress } : {}),
     ...(options.signal ? { signal: options.signal } : {}),
+    ...(options.traceKey ? { traceKey: options.traceKey } : {}),
   });
+}
+
+// ── discovery ────────────────────────────────────────────────────────────────
+
+/** One job the server is holding for a position, as `GET /jobs` describes it.
+ *  Describes; never answers — reading a result still goes through `attach*`. */
+export type EngineJobListing = {
+  kind: "bot" | "analysis";
+  level?: AnalysisLevel;
+  difficulty?: string;
+  status: "queued" | "running" | "completed";
+  progress?: EngineProgress;
+  queue?: { ahead: number; position: number };
+};
+
+/**
+ * Ask the server what work already exists for a position.
+ *
+ * The question this answers is the one the browser could not previously ask. An
+ * analysis is identified partly by its LEVEL, and the level is not derivable
+ * from the game — so a client that lost its note about what it started could
+ * never find the search again, even though the server still had it. Losing that
+ * note is ordinary: a second tab never had it, a reload can drop it, a mistimed
+ * reset can erase it.
+ *
+ * Starts nothing, spends no budget, and returns only jobs the caller is
+ * authorised to observe.
+ */
+export async function listJobs(options: {
+  gameId: string;
+  revision: number;
+  signal?: AbortSignal;
+}): Promise<EngineJobListing[]> {
+  if (!BASE_URL) return [];
+  const token = await accessToken();
+  const response = await fetch(
+    `${BASE_URL}/v1/games/${encodeURIComponent(options.gameId)}/jobs` +
+      `?revision=${encodeURIComponent(String(options.revision))}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      ...(options.signal ? { signal: options.signal } : {}),
+    },
+  );
+  if (!response.ok) {
+    let payload: { code?: string; error?: string; currentRevision?: number } = {};
+    try {
+      payload = (await response.json()) as typeof payload;
+    } catch {
+      // keep the defaults
+    }
+    throw new EngineApiError(
+      (payload.code ?? "internal") as EngineErrorCode,
+      payload.error ?? "Could not read engine jobs.",
+      payload.currentRevision != null ? { currentRevision: payload.currentRevision } : {},
+    );
+  }
+  const body = (await response.json()) as { jobs?: EngineJobListing[] };
+  return Array.isArray(body.jobs) ? body.jobs : [];
 }
 
 /**

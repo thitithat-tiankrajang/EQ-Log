@@ -3,44 +3,50 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_NEW_GAME_SETTINGS } from "../src/constants/roomDefaults";
 import { createNewGame } from "../src/game";
 
-const { listRooms, readRoom, realtimeHarness, subscribeToGameCommits, subscribeToRoom } =
-  vi.hoisted(() => {
-    const harness = {
-      listRooms: vi.fn(),
-      readRoom: vi.fn(),
-      statusHandler: undefined as ((status: "SUBSCRIBED") => void) | undefined,
-      commitHandler: undefined as ((commit: unknown) => void) | undefined,
-      subscribeToRoom: vi.fn(
-        (
-          _id: string,
-          _onState: unknown,
-          _onSession: unknown,
-          onStatus?: (status: "SUBSCRIBED") => void,
-        ) => {
-          harness.statusHandler = onStatus;
-          return () => undefined;
-        },
-      ),
-      subscribeToGameCommits: vi.fn((_id: string, onCommit: (commit: unknown) => void) => {
-        harness.commitHandler = onCommit;
+const {
+  listRooms,
+  readRoom,
+  realtimeHarness,
+  subscribeToGameCommits,
+  subscribeToRoom,
+  commitRoomState,
+} = vi.hoisted(() => {
+  const harness = {
+    listRooms: vi.fn(),
+    readRoom: vi.fn(),
+    statusHandler: undefined as ((status: "SUBSCRIBED") => void) | undefined,
+    commitHandler: undefined as ((commit: unknown) => void) | undefined,
+    subscribeToRoom: vi.fn(
+      (
+        _id: string,
+        _onState: unknown,
+        _onSession: unknown,
+        onStatus?: (status: "SUBSCRIBED") => void,
+      ) => {
+        harness.statusHandler = onStatus;
         return () => undefined;
-      }),
-    };
-    return {
-      listRooms: harness.listRooms,
-      readRoom: harness.readRoom,
-      realtimeHarness: harness,
-      subscribeToGameCommits: harness.subscribeToGameCommits,
-      subscribeToRoom: harness.subscribeToRoom,
-    };
-  });
+      },
+    ),
+    subscribeToGameCommits: vi.fn((_id: string, onCommit: (commit: unknown) => void) => {
+      harness.commitHandler = onCommit;
+      return () => undefined;
+    }),
+    commitRoomState: vi.fn(),
+  };
+  return {
+    listRooms: harness.listRooms,
+    readRoom: harness.readRoom,
+    realtimeHarness: harness,
+    subscribeToGameCommits: harness.subscribeToGameCommits,
+    subscribeToRoom: harness.subscribeToRoom,
+    commitRoomState: harness.commitRoomState,
+  };
+});
 
-const { thinkWithBot, warmUpBotEngine } = vi.hoisted(() => ({
-  thinkWithBot: vi.fn((_roomId: string, _game: unknown, _onState: unknown) => ({
-    promise: new Promise<never>(() => undefined),
-    cancel: vi.fn(),
-  })),
-  warmUpBotEngine: vi.fn(),
+const { requestBotMove, attachBotMove, listJobs } = vi.hoisted(() => ({
+  requestBotMove: vi.fn(),
+  attachBotMove: vi.fn(),
+  listJobs: vi.fn(),
 }));
 
 vi.mock("../src/auth", () => ({
@@ -73,17 +79,21 @@ vi.mock("../src/remoteRooms", async (importOriginal) => {
     readRoom,
     subscribeToGameCommits,
     subscribeToRoom,
+    commitRoomState,
   };
 });
 
-vi.mock("../src/bot/botController", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("../src/bot/botController")>();
-  return { ...actual, thinkWithBot, warmUpBotEngine };
+// Mocked at the HTTP boundary so the real `engineSessions` store runs. These
+// tests are about what the APP does with a server lifecycle, and the store is
+// what connects the two.
+vi.mock("../src/bot/engineApi", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/bot/engineApi")>();
+  return { ...actual, requestBotMove, attachBotMove, listJobs, isEngineApiConfigured: true };
 });
 
 import App from "../src/App";
 import { EngineApiError } from "../src/bot/engineApi";
-import * as botActivityCache from "../src/botActivityCache";
+import * as engineSessions from "../src/engineSessions";
 import * as playSnapshotCache from "../src/playSnapshotCache";
 
 const ROOM_ID = "22222222-2222-4222-8222-222222222222";
@@ -106,13 +116,14 @@ describe("play route data loading", () => {
     readRoom.mockReset();
     subscribeToRoom.mockClear();
     subscribeToGameCommits.mockClear();
-    thinkWithBot.mockReset().mockImplementation((_roomId, _game, _onState) => ({
-      promise: new Promise<never>(() => undefined),
-      cancel: vi.fn(),
-    }));
+    commitRoomState.mockReset().mockResolvedValue({ outcome: "committed", revision: 1 });
+    // A search that never settles, unless a test says otherwise.
+    requestBotMove.mockReset().mockImplementation(() => new Promise<never>(() => undefined));
+    attachBotMove.mockReset().mockResolvedValue({ kind: "idle" });
+    listJobs.mockReset().mockResolvedValue([]);
+    engineSessions.resetForTests();
+    window.sessionStorage.clear();
     playSnapshotCache.forget(ROOM_ID);
-    botActivityCache.forget(ROOM_ID);
-    warmUpBotEngine.mockClear();
     realtimeHarness.statusHandler = undefined;
     window.location.hash = `#/play/${ROOM_ID}`;
   });
@@ -253,80 +264,12 @@ describe("play route data loading", () => {
     view.unmount();
   });
 
-  it("starts Aether when the reserved human side is linked to the room owner", async () => {
-    const ownerId = "11111111-1111-4111-8111-111111111111";
-    const initial = createNewGame({
-      ...DEFAULT_NEW_GAME_SETTINGS,
-      name: "Owner vs Aether",
-      playerA: "Owner",
-      playerB: "Aether",
-      botSide: "B",
-      startingSide: "B",
-      tileDrawMode: "play",
-    });
-    const game = { ...initial, playerUserIds: { A: ownerId } };
-    readRoom.mockResolvedValue({
+  /** The authoritative room payload for a bot game at `revision`. */
+  function botPayload(game: ReturnType<typeof createNewGame>, ownerId: string) {
+    return {
       game,
       meta: {
-        id: "22222222-2222-4222-8222-222222222222",
-        ownerId,
-        ownerName: "Owner",
-        name: game.name,
-        playerA: game.players.A,
-        playerB: game.players.B,
-        gameMode: "versus",
-        inviteUserAId: ownerId,
-        startingSide: game.startingSide,
-        turnNumber: game.turnNumber,
-        scoreA: 0,
-        scoreB: 0,
-        status: "playing",
-        visibility: "public",
-        regionId: null,
-        createdAt: game.createdAt,
-        updatedAt: game.lastSavedAt,
-      },
-      session: {
-        version: 1,
-        actorId: null,
-        gameId: null,
-        turnNumber: null,
-        activeSide: null,
-        actionMode: "none",
-        pendingPlacements: [],
-        exchangeDraft: { outgoingIds: [], incomingTiles: [] },
-        selectedRackTileId: null,
-        selectedPendingTileId: null,
-        updatedAt: game.lastSavedAt,
-      },
-      needsCompaction: false,
-      needsInviteRepair: false,
-    });
-
-    const view = render(<App />);
-
-    await waitFor(() => expect(readRoom).toHaveBeenCalled());
-    await waitFor(() => expect(thinkWithBot).toHaveBeenCalledTimes(1));
-    view.unmount();
-  });
-
-  it("retries Aether after sync confirms a newer revision of the same turn", async () => {
-    const ownerId = "11111111-1111-4111-8111-111111111111";
-    const initial = createNewGame({
-      ...DEFAULT_NEW_GAME_SETTINGS,
-      name: "Owner vs Aether",
-      playerA: "Owner",
-      playerB: "Aether",
-      botSide: "B",
-      startingSide: "B",
-      tileDrawMode: "play",
-    });
-    const revisionFive = { ...initial, playerUserIds: { A: ownerId }, revision: 5 };
-    const revisionSix = { ...revisionFive, revision: 6 };
-    const payload = (game: typeof revisionFive) => ({
-      game,
-      meta: {
-        id: "22222222-2222-4222-8222-222222222222",
+        id: ROOM_ID,
         ownerId,
         ownerName: "Owner",
         name: game.name,
@@ -359,32 +302,12 @@ describe("play route data loading", () => {
       },
       needsCompaction: false,
       needsInviteRepair: false,
-    });
-    readRoom
-      .mockResolvedValueOnce(payload(revisionFive))
-      .mockResolvedValueOnce(payload(revisionSix));
-    thinkWithBot.mockImplementation((_roomId, game) => ({
-      promise:
-        (game as typeof revisionFive).revision === 5
-          ? Promise.reject(new EngineApiError("stale_revision", "moved on"))
-          : new Promise<never>(() => undefined),
-      cancel: vi.fn(),
-    }));
+    };
+  }
 
-    const view = render(<App />);
+  const OWNER_ID = "11111111-1111-4111-8111-111111111111";
 
-    await waitFor(() => expect(thinkWithBot).toHaveBeenCalledTimes(1));
-    await waitFor(() => expect(realtimeHarness.statusHandler).toBeTypeOf("function"));
-    realtimeHarness.statusHandler?.("SUBSCRIBED");
-    await waitFor(() => expect(readRoom).toHaveBeenCalledTimes(2));
-
-    await waitFor(() => expect(thinkWithBot).toHaveBeenCalledTimes(2));
-    expect(thinkWithBot.mock.calls[1]?.[1]).toMatchObject({ revision: 6 });
-    view.unmount();
-  });
-
-  it("reattaches Aether immediately when the tab wakes without a revision change", async () => {
-    const ownerId = "11111111-1111-4111-8111-111111111111";
+  function botGame(revision: number) {
     const initial = createNewGame({
       ...DEFAULT_NEW_GAME_SETTINGS,
       name: "Owner vs Aether",
@@ -394,67 +317,144 @@ describe("play route data loading", () => {
       startingSide: "B",
       tileDrawMode: "play",
     });
-    const game = { ...initial, playerUserIds: { A: ownerId }, revision: 5 };
-    readRoom.mockResolvedValue({
-      game,
-      meta: {
-        id: ROOM_ID,
-        ownerId,
-        ownerName: "Owner",
-        name: game.name,
-        playerA: game.players.A,
-        playerB: game.players.B,
-        gameMode: "versus",
-        inviteUserAId: ownerId,
-        startingSide: game.startingSide,
-        turnNumber: game.turnNumber,
-        scoreA: 0,
-        scoreB: 0,
-        status: "playing",
-        visibility: "public",
-        regionId: null,
-        createdAt: game.createdAt,
-        updatedAt: game.lastSavedAt,
-      },
-      session: {
-        version: 1,
-        actorId: null,
-        gameId: null,
-        turnNumber: null,
-        activeSide: null,
-        actionMode: "none",
-        pendingPlacements: [],
-        exchangeDraft: { outgoingIds: [], incomingTiles: [] },
-        selectedRackTileId: null,
-        selectedPendingTileId: null,
-        updatedAt: game.lastSavedAt,
-      },
-      needsCompaction: false,
-      needsInviteRepair: false,
-    });
-    botActivityCache.remember(ROOM_ID, {
-      commitId: game.commitId,
-      revision: 5,
-      progress: {
-        phase: "sim",
-        percent: 50,
-        elapsedMs: 5000,
-        etaMs: 5000,
-        bestScore: 0,
-        detail: "samples=2/4",
-      },
-    });
+    return { ...initial, playerUserIds: { A: OWNER_ID }, revision };
+  }
+
+  it("starts Aether when the reserved human side is linked to the room owner", async () => {
+    const game = botGame(0);
+    readRoom.mockResolvedValue(botPayload(game, OWNER_ID));
 
     const view = render(<App />);
-    await waitFor(() => expect(thinkWithBot).toHaveBeenCalledTimes(1));
+
+    await waitFor(() => expect(readRoom).toHaveBeenCalled());
+    // Loaded from the authority, so the position is confirmed and the bot may
+    // ask about it. It was NOT freshly admitted by this client, so it looks
+    // before it leaps.
+    await waitFor(() => expect(attachBotMove).toHaveBeenCalledTimes(1));
+    view.unmount();
+  });
+
+  it("retries Aether after sync confirms a newer revision of the same turn", async () => {
+    const revisionFive = botGame(5);
+    const revisionSix = { ...revisionFive, revision: 6 };
+    readRoom
+      .mockResolvedValueOnce(botPayload(revisionFive, OWNER_ID))
+      .mockResolvedValueOnce(botPayload(revisionSix, OWNER_ID));
+    attachBotMove.mockImplementation(async (options: { expectedRevision: number }) =>
+      options.expectedRevision === 5
+        ? Promise.reject(new EngineApiError("stale_revision", "moved on"))
+        : new Promise<never>(() => undefined),
+    );
+
+    const view = render(<App />);
+
+    await waitFor(() => expect(attachBotMove).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(realtimeHarness.statusHandler).toBeTypeOf("function"));
+    realtimeHarness.statusHandler?.("SUBSCRIBED");
+    await waitFor(() => expect(readRoom).toHaveBeenCalledTimes(2));
+
+    await waitFor(() => expect(attachBotMove).toHaveBeenCalledTimes(2));
+    expect(attachBotMove.mock.calls[1]?.[0]).toMatchObject({ expectedRevision: 6 });
+    view.unmount();
+  });
+
+  it("does not wipe a live bot search while room ownership is still unresolved", async () => {
+    // THE regression. A snapshot-seeded mount paints the board instantly, but
+    // `activeRoomMeta` — and with it ownership — arrives a round trip later.
+    // Until it does, every capability flag reads "spectator", and the teardown
+    // used to take that as "the bot's turn is over" and delete the progress the
+    // player came back to look at. Absence of information is not an answer.
+    const game = botGame(5);
+    playSnapshotCache.remember(ROOM_ID, game);
+    window.sessionStorage.setItem(
+      `eq-lab:engine-session:v1:${ROOM_ID}`,
+      JSON.stringify([
+        {
+          key: `bot:${ROOM_ID}:5`,
+          kind: "bot",
+          roomId: ROOM_ID,
+          revision: 5,
+          progress: {
+            phase: "sim",
+            percent: 50,
+            elapsedMs: 5_000,
+            etaMs: 5_000,
+            detail: "samples=2/4",
+          },
+          startedAt: Date.now(),
+        },
+      ]),
+    );
+    listJobs.mockResolvedValue([
+      {
+        kind: "bot",
+        difficulty: "medium",
+        status: "running",
+        progress: {
+          phase: "sim",
+          percent: 50,
+          elapsedMs: 5_000,
+          etaMs: 5_000,
+          detail: "samples=2/4",
+        },
+      },
+    ]);
+    attachBotMove.mockImplementation(() => new Promise<never>(() => undefined));
+    // Metadata never arrives during this test: ownership stays unresolved for
+    // its whole duration, which is the worst case the old code failed on.
+    readRoom.mockImplementation(() => new Promise(() => undefined));
+
+    const view = render(<App />);
+
+    // The remembered percentage is still there — not deleted, not replaced by a
+    // fresh "requesting", not 0%.
     await waitFor(() => expect(view.getByText(/50%/)).toBeInTheDocument());
+    expect(
+      JSON.parse(window.sessionStorage.getItem(`eq-lab:engine-session:v1:${ROOM_ID}`) ?? "[]"),
+    ).toHaveLength(1);
+    view.unmount();
+  });
 
-    window.dispatchEvent(new Event("focus"));
+  it("never asks the engine about a position the server has not confirmed", async () => {
+    // The unconfirmed-revision race, in the shape that actually reaches
+    // production: the board is on screen (from the snapshot seed) and says it is
+    // the bot's turn, but nothing has been read back from the server yet, so
+    // `revision` may name a position the server does not hold. Asking then
+    // returned `turn_rule` — which used to fall through to a PASS and hand the
+    // bot's turn away over a timing accident.
+    const game = botGame(5);
+    playSnapshotCache.remember(ROOM_ID, game);
+    readRoom.mockImplementation(() => new Promise(() => undefined));
 
-    await waitFor(() => expect(thinkWithBot).toHaveBeenCalledTimes(2));
-    expect(thinkWithBot.mock.calls[1]?.[1]).toMatchObject({ revision: 5 });
-    expect(view.getByText(/Aether กำลังกลับไปคิดต่อ/)).toBeInTheDocument();
-    expect(view.getByText(/50%/)).toBeInTheDocument();
+    const view = render(<App />);
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // Not a request of any kind: not a start, and not a discovery attach.
+    expect(requestBotMove).not.toHaveBeenCalled();
+    expect(attachBotMove).not.toHaveBeenCalled();
+    view.unmount();
+  });
+
+  it("does not pass the bot's turn when the engine refuses on a turn rule", async () => {
+    // `turn_rule` is a disagreement about the position, not a verdict on the
+    // move. A pass is scoring and irreversible; nothing but the engine choosing
+    // one may play one.
+    const game = botGame(5);
+    readRoom.mockResolvedValue(botPayload(game, OWNER_ID));
+    attachBotMove.mockRejectedValue(
+      new EngineApiError("turn_rule", "It is not the engine's turn."),
+    );
+
+    const view = render(<App />);
+    await waitFor(() => expect(attachBotMove).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // No move was written for the bot — no pass, nothing.
+    const passes = commitRoomState.mock.calls.filter((call) => {
+      const committed = (call[0] as { game?: { logs?: Array<{ action: string }> } }).game;
+      return committed?.logs?.some((log) => log.action === "pass");
+    });
+    expect(passes).toHaveLength(0);
     view.unmount();
   });
 });

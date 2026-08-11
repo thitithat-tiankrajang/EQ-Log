@@ -12,14 +12,22 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { requestAnalysis } = vi.hoisted(() => ({ requestAnalysis: vi.fn() }));
+const { requestAnalysis, attachAnalysis, listJobs } = vi.hoisted(() => ({
+  requestAnalysis: vi.fn(),
+  attachAnalysis: vi.fn(),
+  listJobs: vi.fn(),
+}));
 
+// Mocked at the HTTP client boundary, so the real `engineSessions` store runs:
+// these tests are about what the player sees for a given server lifecycle, and
+// the store is now the thing that turns one into the other.
 vi.mock("../src/bot/engineApi", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/bot/engineApi")>();
-  return { ...actual, requestAnalysis };
+  return { ...actual, requestAnalysis, attachAnalysis, listJobs, isEngineApiConfigured: true };
 });
 
 import * as analysisCache from "../src/analysisSessionCache";
+import * as engineSessions from "../src/engineSessions";
 import { EngineApiError, type AnalysisResult } from "../src/bot/engineApi";
 import { TurnAnalysisLauncher } from "../src/components/game/TurnAnalysisLauncher";
 
@@ -29,11 +37,15 @@ const ROOM_ID = "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa";
 
 afterEach(cleanup);
 beforeEach(() => {
+  engineSessions.resetForTests();
+  window.sessionStorage.clear();
   requestAnalysis.mockReset();
+  attachAnalysis.mockReset().mockResolvedValue({ kind: "idle" });
+  // No prior work for the position unless a test says otherwise.
+  listJobs.mockReset().mockResolvedValue([]);
   // The session cache is module state that outlives a single render, which is
   // the point in the app and a cross-test leak here: an analysis left in flight
   // by one test would make the next mount reconnect instead of starting fresh.
-  analysisCache.clearInFlight(ROOM_ID);
   analysisCache.clearResult(ROOM_ID);
 });
 
@@ -242,17 +254,19 @@ describe("queued → running → completed", () => {
 });
 
 describe("overload and failure", () => {
-  it("keeps the in-flight marker when the stream drops after starting", async () => {
+  it("asks the server what happened when the stream drops after starting", async () => {
+    // A broken stream says nothing about the search. The POST may well have
+    // been accepted, so the client re-attaches rather than reporting a failure
+    // and inviting the player to pay for the same position again.
     const control = controllable();
+    attachAnalysis.mockResolvedValue({ kind: "result", result: analysisAt(7) });
     await startAnalysis();
     await waitFor(() => expect(requestAnalysis).toHaveBeenCalled());
     control.hooks.onRunning?.();
     control.reject(new EngineApiError("offline", "stream dropped"));
 
-    await waitFor(() =>
-      expect(screen.getByText(/กำลังเชื่อมต่องานวิเคราะห์เดิม/)).toBeInTheDocument(),
-    );
-    expect(analysisCache.getInFlight(ROOM_ID)).toEqual({ revision: 7, level: "quick" });
+    await waitFor(() => expect(attachAnalysis).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText("A summary.")).toBeInTheDocument());
   });
 
   it("explains a full queue in the player's terms, with no server detail", async () => {

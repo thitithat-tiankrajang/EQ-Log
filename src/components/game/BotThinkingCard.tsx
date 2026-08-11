@@ -1,7 +1,7 @@
-import type { BotThinkingState } from "../../bot/botController";
-import type { BotProgress } from "../../bot/types";
+import type { EngineProgress } from "../../bot/engineApi";
+import type { EngineSessionStatus } from "../../engineSessions";
 
-const PHASE_LABELS: Record<BotProgress["phase"], string> = {
+const PHASE_LABELS: Record<EngineProgress["phase"], string> = {
   movegen: "กำลังไล่ทุกตาที่เล่นได้",
   sim: "กำลังจำลองการตอบของคู่แข่ง",
   endgame: "กำลังไขเกมท้ายแบบแม่นตรง",
@@ -30,7 +30,9 @@ export function BotThinkingCard({
   state,
   botName,
 }: {
-  state: BotThinkingState;
+  /** A projection of the server-owned session. This component renders it; it
+   *  never owns it, and unmounting it stops nothing. */
+  state: EngineSessionStatus;
   botName: string;
 }) {
   if (state.kind === "queued") {

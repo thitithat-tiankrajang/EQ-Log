@@ -134,11 +134,16 @@ describe("cancelling is explicit", () => {
   });
 });
 
-describe("thinkWithBot rejoins before it starts", () => {
-  it("resumes from the server's last progress without starting another search", async () => {
+describe("observing the bot's turn", () => {
+  async function sessions() {
     await loadApi();
-    const { thinkWithBot } = await import("../src/bot/botController");
-    const states: Array<{ kind: string; progress?: { percent: number } | null }> = [];
+    const mod = await import("../src/engineSessions");
+    mod.resetForTests();
+    return mod;
+  }
+
+  it("resumes from the server's last progress without starting another search", async () => {
+    const engineSessions = await sessions();
     const fetchMock = vi.fn(async () =>
       streamOf([
         frame("running", {}),
@@ -154,45 +159,40 @@ describe("thinkWithBot rejoins before it starts", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await thinkWithBot(
-      "room-1",
-      { gameId: "blob", revision: 5 } as unknown as Parameters<typeof thinkWithBot>[1],
-      (state) => states.push(state),
-    ).promise;
+    // Not freshly admitted: this is a return to a turn already under way, so
+    // the client must look before it leaps.
+    await engineSessions.observeBot({ roomId: "room-1", revision: 5, freshlyAdmitted: false });
 
-    expect(states).toContainEqual(
-      expect.objectContaining({
-        kind: "running",
-        progress: expect.objectContaining({ percent: 50 }),
-      }),
-    );
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(init.method).toBe("GET");
+    // The percentage the server replayed is held by the session, which is what
+    // a remounting component reads on its first render.
+    expect(engineSessions.botFor("room-1", 5)?.progress).toMatchObject({ percent: 50 });
+    engineSessions.resetForTests();
   });
 
   it("returns the move from an existing search without starting a new one", async () => {
-    await loadApi();
-    const { thinkWithBot } = await import("../src/bot/botController");
+    const engineSessions = await sessions();
     // The first (and only) fetch is the GET reconnect, which already has the move.
     const fetchMock = vi.fn(async () => streamOf([frame("result", BOT_RESULT)]));
     vi.stubGlobal("fetch", fetchMock);
 
-    await thinkWithBot(
-      "room-1",
-      { gameId: "blob", revision: 5 } as unknown as Parameters<typeof thinkWithBot>[1],
-      () => undefined,
-    ).promise;
+    const session = await engineSessions.observeBot({
+      roomId: "room-1",
+      revision: 5,
+      freshlyAdmitted: false,
+    });
 
-    // No second request: the running/cached search served this turn.
+    expect(session.status.kind).toBe("completed");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(init.method).toBe("GET");
+    engineSessions.resetForTests();
   });
 
   it("starts a search only when the server has none", async () => {
-    await loadApi();
-    const { thinkWithBot } = await import("../src/bot/botController");
+    const engineSessions = await sessions();
     const fetchMock = vi
       .fn()
       // GET reconnect: nothing running for this position.
@@ -203,14 +203,57 @@ describe("thinkWithBot rejoins before it starts", () => {
       );
     vi.stubGlobal("fetch", fetchMock);
 
-    await thinkWithBot(
-      "room-1",
-      { gameId: "blob", revision: 5 } as unknown as Parameters<typeof thinkWithBot>[1],
-      () => undefined,
-    ).promise;
+    await engineSessions.observeBot({ roomId: "room-1", revision: 5, freshlyAdmitted: false });
 
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect((fetchMock.mock.calls[0][1] as RequestInit).method).toBe("GET");
     expect((fetchMock.mock.calls[1][1] as RequestInit).method).toBe("POST");
+    engineSessions.resetForTests();
+  });
+
+  it("skips the discovery round trip on a turn the server just admitted", async () => {
+    // The saving: this client watched the server accept the human's move a
+    // moment ago, so no job can predate the revision it produced and the GET
+    // could only ever answer `idle`. One round trip per bot turn, removed —
+    // without weakening dedup, because the registry still collapses identical
+    // POSTs onto one search.
+    const engineSessions = await sessions();
+    const fetchMock = vi.fn(async () =>
+      streamOf([frame("running", {}), frame("result", BOT_RESULT)]),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await engineSessions.observeBot({ roomId: "room-1", revision: 5, freshlyAdmitted: true });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.method).toBe("POST");
+    expect(url).toContain("/v1/games/room-1/bot-move");
+    engineSessions.resetForTests();
+  });
+
+  it("shares one observation between two callers for the same position", async () => {
+    // Two effects firing for the same turn — a re-render, a wake, StrictMode —
+    // must not each open a stream. One session, one request.
+    const engineSessions = await sessions();
+    const fetchMock = vi.fn(async () =>
+      streamOf([frame("running", {}), frame("result", BOT_RESULT)]),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = engineSessions.observeBot({
+      roomId: "room-1",
+      revision: 5,
+      freshlyAdmitted: true,
+    });
+    const second = engineSessions.observeBot({
+      roomId: "room-1",
+      revision: 5,
+      freshlyAdmitted: true,
+    });
+    await Promise.all([first, second]);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    engineSessions.resetForTests();
   });
 });

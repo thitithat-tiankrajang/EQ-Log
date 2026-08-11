@@ -14,7 +14,7 @@ import {
   Undo2,
 } from "lucide-react";
 import "./play-styles.css";
-import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
+import { CSSProperties, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { ActionPanel } from "./components/actions/ActionPanel";
 import { Board, type BoardScoreAnchor } from "./components/board/Board";
 import { GlobalActivity, LoadingScreen } from "./components/feedback/LoadingActivity";
@@ -73,7 +73,8 @@ import {
   validateMove,
 } from "./game";
 import * as roomStore from "./rooms";
-import { canonicalStringify, makeRemoteStateKey } from "./stateKey";
+import { canonicalStringify, createRemoteStateKeyCache, makeRemoteStateKey } from "./stateKey";
+import * as engineTrace from "./engineTrace";
 import type { RoomMeta } from "./rooms";
 import * as remoteRooms from "./remoteRooms";
 import type { LiveRoomSession, RoomSessionEvent } from "./remoteRooms";
@@ -122,14 +123,12 @@ import {
   isDesyncBotFailure,
   isRetryableBotFailure,
   mapBotResponse,
-  thinkWithBot,
+  toBotResponse,
   warmUpBotEngine,
-  type BotThinkHandle,
-  type BotThinkingState,
 } from "./bot/botController";
-import { EngineApiError, isEngineApiConfigured } from "./bot/engineApi";
-import type { BotProgress, BotResponse } from "./bot/types";
-import * as botActivityCache from "./botActivityCache";
+import { EngineApiError, isEngineApiConfigured, type BotMoveResult } from "./bot/engineApi";
+import type { BotResponse } from "./bot/types";
+import * as engineSessions from "./engineSessions";
 import { botRecordFromGame, recordBotGame } from "./botStats";
 import { BotThinkingCard } from "./components/game/BotThinkingCard";
 import { BotReasoningPanel } from "./components/game/BotReasoningPanel";
@@ -629,7 +628,40 @@ function App() {
     ],
   );
   const liveSessionKey = useMemo(() => makeLiveSessionKey(liveSession), [liveSession]);
-  const remoteStateKey = useMemo(() => (game ? makeRemoteStateKey(game) : ""), [game]);
+  // `makeRemoteStateKey` walks the whole match — every turn log carries two full
+  // board snapshots and two full bags — so it must run when the POSITION
+  // changes, not on every new `game` object. The running clock produces one of
+  // those a second, and none of what it changes is in the key.
+  const remoteStateKeyCache = useRef(createRemoteStateKeyCache());
+  const remoteStateKey = remoteStateKeyCache.current(game);
+  /**
+   * The content key of the last position the SERVER acknowledged.
+   *
+   * Distinct from `lastAppliedStateKeyRef`, which is set optimistically before a
+   * write so the echo can be recognised. This one is set only by an answer: a
+   * successful commit, an authoritative read, or an adopted realtime update. The
+   * gap between them is exactly the window in which a human move exists locally
+   * and nowhere else — the window the bot must not act in.
+   */
+  const [confirmedStateKey, setConfirmedStateKey] = useState("");
+  const positionIsConfirmed = remoteStateKey !== "" && confirmedStateKey === remoteStateKey;
+  /** Set once the room row has been read, so "ownership unknown" can be told
+   *  apart from "not the owner". See `roomFactsResolved`. */
+  const roomMetaReadRef = useRef(false);
+  /**
+   * The revision this tab watched the server admit, from its own commit.
+   *
+   * This is the only circumstance in which skipping the discovery round trip is
+   * provably safe: we saw the position come into existence a moment ago, so no
+   * job can predate it, and the attach that used to precede every bot POST could
+   * only ever have answered `idle`.
+   *
+   * Anything else — a remount, a reload, a revision learned from a read or from
+   * realtime — makes no such claim. A job may well exist there (this tab may
+   * have started it before navigating away), and attaching is what rejoins it
+   * instead of paying for a second search.
+   */
+  const selfAdmittedRevisionRef = useRef<number | null>(null);
   // Signature of everything that counts as an undoable mutation (excludes the
   // per-second timer tick and pure tile-selection highlights).
   const undoMutationKey = useMemo(() => {
@@ -806,7 +838,12 @@ function App() {
         if (!remoteEnabled) roomStore.setActiveRoomId(routeRoomId);
         setActiveRoomId(routeRoomId);
         setGame(saved);
-        lastAppliedStateKeyRef.current = makeRemoteStateKey(saved);
+        const savedKey = makeRemoteStateKey(saved);
+        lastAppliedStateKeyRef.current = savedKey;
+        // Read straight from the authority: this position is confirmed by
+        // definition.
+        setConfirmedStateKey(savedKey);
+        roomMetaReadRef.current = true;
         if (remoteEnabled) playSnapshotCache.remember(routeRoomId, saved);
         if (remotePayload) {
           setLobbyVisibility(remotePayload.meta.visibility ?? "public");
@@ -899,6 +936,9 @@ function App() {
             commit.revision,
           ) as GameState;
           setGame(nextGame);
+          // Broadcast of a committed canonical position: authoritative, so the
+          // adopted content is confirmed.
+          setConfirmedStateKey(makeRemoteStateKey(nextGame));
           if (activeRoomIdRef.current) playSnapshotCache.remember(activeRoomIdRef.current, nextGame);
           setSyncError(null);
         } catch (error) {
@@ -1088,6 +1128,11 @@ function App() {
     // recognizes the id and refuses to apply the change a second time.
     const commandId = commandIdFor(commandIdsByStateKeyRef.current, remoteStateKey);
     const expectedRevision = revisionOf(game);
+    // The clock on the human's move being ACCEPTED. This is the step that mints
+    // the revision, so it is the floor under every "why did the bot take so long
+    // to start" question: nothing can be asked of the engine before it finishes.
+    const commitTraceKey = `commit:${activeRoomId}:${expectedRevision}`;
+    engineTrace.begin(commitTraceKey, `commit r${expectedRevision}`);
     setBackgroundSyncCount((count) => count + 1);
     void remoteRooms
       .commitRoomState({
@@ -1100,6 +1145,7 @@ function App() {
         issuedBy: invitedSides.length === 1 ? invitedSides[0] : "host",
       })
       .then((result) => {
+        engineTrace.end(commitTraceKey, result.outcome);
         if (result.outcome === "conflict") {
           // Someone else committed against this revision first. This client's
           // change was not applied and must not be retried on top of a position
@@ -1116,6 +1162,13 @@ function App() {
             ? withRevision(current, result.revision)
             : current,
         );
+        // The server now holds this position. Anything gated on the position
+        // being real — the bot's turn above all — is unblocked here and not one
+        // moment earlier.
+        setConfirmedStateKey(remoteStateKey);
+        // We watched this revision come into existence, so nothing can already
+        // be running for it: the bot may POST straight away instead of asking.
+        selfAdmittedRevisionRef.current = result.revision;
         setSyncError(null);
         setRooms((current) =>
           current.map((room) =>
@@ -1143,6 +1196,7 @@ function App() {
         );
       })
       .catch(async (error: Error) => {
+        engineTrace.end(commitTraceKey, "failed");
         setSyncError(error.message);
         try {
           const authoritative = await remoteRooms.readRoom(activeRoomId);
@@ -1704,36 +1758,24 @@ function App() {
   //   • Overload is retried, not treated as a verdict. Falling back to a pass
   //     is a real, scoring, irreversible game action; "the server was busy for
   //     four seconds" is not a reason to take one.
-  const restoredBotActivity = activeRoomId ? botActivityCache.get(activeRoomId) : undefined;
-  const restoredBotActivityMatches = Boolean(
-    restoredBotActivity &&
-    game?.botSide &&
-    game.status === "playing" &&
-    game.activeSide === game.botSide &&
-    game.phase === "choose_action" &&
-    canControlActiveGame &&
-    !readOnly &&
-    restoredBotActivity.commitId === game.commitId &&
-    restoredBotActivity.revision === (game.revision ?? 0),
+  // The progress bar is a projection of `engineSessions`, which lives outside
+  // this component. Leaving Play and coming back does not interrupt the
+  // observation, so there is nothing to restore and no window in which the
+  // percentage is unknown.
+  const sessionVersion = useSyncExternalStore(
+    engineSessions.subscribe,
+    engineSessions.getVersion,
+    engineSessions.getVersion,
   );
-  const restoredBotActivityKey = restoredBotActivityMatches
-    ? `${restoredBotActivity?.commitId}:${restoredBotActivity?.revision}`
-    : null;
-  const [botStatus, setBotStatus] = useState<BotThinkingState | null>(() =>
-    restoredBotActivityMatches
-      ? { kind: "reconnecting", progress: restoredBotActivity?.progress ?? null }
-      : null,
-  );
+  const botSession =
+    activeRoomId && game ? engineSessions.botFor(activeRoomId, game.revision ?? 0) : undefined;
+  const botStatus =
+    botSession && botSession.status.kind !== "completed" && botSession.status.kind !== "failed"
+      ? botSession.status
+      : null;
   /** A line explaining an engine problem the player can otherwise only observe
    *  as the bot not moving. Cleared as soon as the bot moves. */
   const [botNotice, setBotNotice] = useState<string | null>(null);
-  // Survives a visibility/focus reconnect so the progress bar never flashes
-  // away or falls back to zero while this tab attaches to the same server job.
-  const botActivityRef = useRef<{ key: string; progress: BotProgress | null } | null>(
-    restoredBotActivityKey
-      ? { key: restoredBotActivityKey, progress: restoredBotActivity?.progress ?? null }
-      : null,
-  );
   // Reasoning behind the bot's most recent move, kept so the player can open a
   // full "why this move" breakdown (chosen move + every alternative weighed).
   const [botReasoning, setBotReasoning] = useState<{
@@ -1743,14 +1785,30 @@ function App() {
     response: BotResponse;
   } | null>(null);
   const [reasoningOpen, setReasoningOpen] = useState(false);
-  const botTurnRef = useRef<string | null>(null);
+  /**
+   * Whether this client's view of the room is settled enough to act on.
+   *
+   * `activeRoomMeta` supplies ownership, and on the Play route it arrives one
+   * round trip after the board does — the snapshot cache paints instantly, the
+   * metadata does not. Until it lands, `isOwner` is false, so every
+   * capability-derived flag reads as "spectator".
+   *
+   * That is an ABSENCE OF INFORMATION, and treating it as an answer is what
+   * erased a running bot search on every return to Play: the teardown below saw
+   * `botShouldMove === false`, concluded the bot's turn was over, and deleted
+   * the progress the player came back to look at.
+   *
+   * So: "not known yet" is its own state. Nothing destructive runs until the
+   * room row has actually been read, whatever it then says.
+   */
+  const roomFactsResolved =
+    !remoteEnabled || hasAdminAccess || activeRoomMeta !== null || roomMetaReadRef.current;
   const botShouldMove = Boolean(
     game &&
     game.botSide &&
     // The engine reads the position out of Postgres for itself, so it can only
     // play a room that exists there. Without a live room id there is nothing to
-    // ask about, and firing anyway would spend three retries to arrive at a
-    // pass the player never asked for.
+    // ask about.
     remoteEnabled &&
     activeRoomId &&
     game.status === "playing" &&
@@ -1758,20 +1816,36 @@ function App() {
     game.activeSide === game.botSide &&
     game.phase === "choose_action" &&
     !reviewing &&
+    roomFactsResolved &&
     canControlActiveGame &&
-    !readOnly,
+    !readOnly &&
+    // The whole correctness fix. A local move is not a move the server has
+    // accepted: until the commit is acknowledged, `game.revision` still names
+    // the position BEFORE the human played, and asking the engine about it gets
+    // either "not your turn" or "stale" — one of which used to cost the bot its
+    // turn. Wait for the revision that actually contains the human's move.
+    positionIsConfirmed,
   );
   useEffect(() => {
     if (game?.botSide) warmUpBotEngine();
   }, [game?.gameId, game?.botSide]);
+  // Ask the server what is already running for this position, as soon as the
+  // position is one the server agrees exists.
+  //
+  // Deliberately at the shell level rather than inside a panel: whether a bot
+  // search can be rediscovered must not depend on which components happen to be
+  // rendered. `discover` shares one round trip between callers and never
+  // disturbs an observation already under way.
   useEffect(() => {
-    if (botShouldMove) return;
-    botActivityRef.current = null;
-    setBotStatus(null);
-    // Do not erase a refresh survivor before the room snapshot has loaded.
-    // Once a real game says this is no longer the bot's turn, it is obsolete.
-    if (game && activeRoomId) botActivityCache.forget(activeRoomId);
-  }, [botShouldMove, game?.commitId, activeRoomId]);
+    if (!remoteEnabled || !activeRoomId || !positionIsConfirmed || !game) return;
+    const revision = game.revision ?? 0;
+    void engineSessions.discover({
+      roomId: activeRoomId,
+      revision,
+      hints: engineSessions.restoreHints(activeRoomId),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remoteEnabled, activeRoomId, positionIsConfirmed, game?.revision, subscriptionEpoch]);
 
   // ── Turn analysis availability ─────────────────────────────────────────────
   //
@@ -1829,126 +1903,77 @@ function App() {
       recordedBotGamesRef.current.delete(game.gameId);
     });
   }, [game?.gameId, game?.botSide, game?.status]);
+  // ── Driving the bot's turn ─────────────────────────────────────────────────
+  //
+  // What this effect does NOT do is as important as what it does. It does not
+  // own the search (`engineSessions` observes it, the server owns it), it does
+  // not own the progress (the session holds it), and it cannot end the turn by
+  // giving it away. Its whole job is: make sure a session exists for this
+  // confirmed position, and apply the answer when it arrives.
   useEffect(() => {
-    if (!botShouldMove || !game) return;
-    const commitId = game.commitId;
-    if (botTurnRef.current === commitId) return;
-    botTurnRef.current = commitId;
+    if (!botShouldMove || !game || !activeRoomId) return;
+    const revision = game.revision ?? 0;
+    const roomId = activeRoomId;
+    // Every other revision's work is finished with. Dropped, never cancelled:
+    // another observer may still be waiting on it.
+    engineSessions.dropStale(roomId, revision);
+
     let alive = true;
-    let handle: BotThinkHandle | null = null;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
     const attempt = (tries: number) => {
-      // Re-read the game each time rather than closing over it: a retry must
-      // ask about the position as it stands, and if the game has moved on this
-      // effect's work is already void.
+      if (!alive) return;
       const current = gameRef.current;
-      const roomId = activeRoomIdRef.current;
-      if (!alive || !current || !roomId || current.commitId !== commitId) return;
-      const activityKey = `${commitId}:${current.revision ?? 0}`;
-      const persisted = botActivityCache.get(roomId);
-      const persistedKey = persisted ? `${persisted.commitId}:${persisted.revision}` : null;
-      const priorActivity =
-        botActivityRef.current?.key === activityKey
-          ? botActivityRef.current
-          : persistedKey === activityKey
-            ? { key: activityKey, progress: persisted?.progress ?? null }
-            : null;
-      if (persisted && persistedKey !== activityKey) botActivityCache.forget(roomId);
-
-      // A new attempt always starts by reconnecting to the server-owned job.
-      // Clear an earlier stale warning so replayed progress (for example 50%)
-      // is what the returning player sees while that same search continues.
+      if (!current || (current.revision ?? 0) !== revision) return;
       setBotNotice(null);
-      if (priorActivity) {
-        botActivityRef.current = priorActivity;
-        setBotStatus({ kind: "reconnecting", progress: priorActivity.progress });
-      } else {
-        botActivityRef.current = { key: activityKey, progress: null };
-        botActivityCache.remember(roomId, {
-          commitId,
-          revision: current.revision ?? 0,
-          progress: null,
-        });
-        setBotStatus({ kind: "requesting" });
-      }
-      // The request names the LIVE ROOM and its revision; the backend reads the
-      // position for itself. Nothing about the board, the racks or the bag is
-      // described by this client any more.
-      //
-      // `roomId`, not `current.gameId`: the server knows this game by its
-      // `room_live.room_id`, and `GameState.gameId` is an unrelated
-      // client-generated UUID it has never stored.
-      handle = thinkWithBot(roomId, current, (state) => {
-        if (!alive) return;
-        if (state.kind === "running") {
-          const remembered =
-            botActivityRef.current?.key === activityKey
-              ? botActivityRef.current.progress
-              : null;
-          const progress = state.progress ?? remembered;
-          botActivityRef.current = { key: activityKey, progress };
-          botActivityCache.remember(roomId, {
-            commitId,
-            revision: current.revision ?? 0,
-            progress,
-          });
-          setBotStatus({ kind: "running", progress });
-          return;
-        }
-        if (state.kind === "queued") {
-          botActivityRef.current = { key: activityKey, progress: null };
-          botActivityCache.remember(roomId, {
-            commitId,
-            revision: current.revision ?? 0,
-            progress: null,
-          });
-        }
-        setBotStatus(state);
-      });
-      handle.promise
-        .then((response) => {
-          if (!alive) return;
-          botActivityRef.current = null;
-          botActivityCache.forget(roomId);
-          setBotStatus(null);
-          setBotNotice(null);
-          if (gameRef.current?.commitId === commitId) commitBotResponse(response);
+      engineTrace.begin(`apply:${roomId}:${revision}`, `bot apply r${revision}`);
+
+      // `freshlyAdmitted` on the first attempt: this position was confirmed by
+      // the server moments ago, so no earlier job for this exact revision can
+      // exist and the discovery round trip would be a guaranteed `idle`. A retry
+      // makes no such claim — by then a job may well exist, including one this
+      // tab started before the connection dropped.
+      void engineSessions
+        .observeBot({
+          roomId,
+          revision,
+          freshlyAdmitted: tries === 0 && selfAdmittedRevisionRef.current === revision,
         })
-        .catch((error: unknown) => {
+        .then((session) => {
           if (!alive) return;
-          // The game moved on under us. Whatever came back describes a board
-          // that no longer exists, and the effect for the new position is
-          // already running.
-          if (gameRef.current?.commitId !== commitId) return;
+          if (session.status.kind === "completed" && session.result) {
+            setBotNotice(null);
+            applyBotResult(toBotResponse(session.result as BotMoveResult), revision);
+            engineTrace.end(`apply:${roomId}:${revision}`, "applied");
+            return;
+          }
+          if (session.status.kind !== "failed") return;
+
+          const error = new EngineApiError(session.status.code, session.status.message);
+          // The session settled unhappily. Forget it so the next attempt opens a
+          // clean observation rather than reading this one's corpse.
+          engineSessions.drop(session.key);
 
           if (isDesyncBotFailure(error)) {
-            // The server's view of this game is ahead of ours. Committing
-            // anything — including a pass — would write into a position we do
-            // not actually have. Wait for sync to catch up instead; the
-            // revision dependency below reconnects to the server-owned job
-            // for this turn once it does.
-            setBotStatus({ kind: "reconnecting", progress: botActivityRef.current?.progress ?? null });
+            // The server and this client disagree about the position. Asking
+            // again with the same numbers cannot help; wait for sync to deliver
+            // the real revision, which re-runs this effect.
             setBotNotice("กระดานบนเซิร์ฟเวอร์เปลี่ยนไปแล้ว — กำลังรอข้อมูลล่าสุด");
             return;
           }
+          if (!isRetryableBotFailure(error)) return;
 
-          if (isRetryableBotFailure(error) && tries < BOT_RETRY_DELAYS_MS.length) {
-            setBotStatus({ kind: "reconnecting", progress: botActivityRef.current?.progress ?? null });
-            setBotNotice(botNoticeFor(error));
-            retryTimer = setTimeout(
-              () => attempt(tries + 1),
-              BOT_RETRY_DELAYS_MS[tries] ?? 8_000,
-            );
-            return;
-          }
-
-          console.error("Bot engine failed; falling back to pass.", error);
-          botActivityRef.current = null;
-          botActivityCache.forget(roomId);
-          setBotStatus(null);
+          // NOTHING here ends the turn. A pass is a scoring, irreversible move,
+          // and no amount of server trouble is evidence that passing is the
+          // right one — so the bot keeps asking, tells the player why, and waits
+          // for a human or the network to resolve it. The delay grows and then
+          // holds; it never gives up, because giving up meant giving the turn
+          // away.
           setBotNotice(botNoticeFor(error));
-          commitBotResponse(null);
+          retryTimer = setTimeout(
+            () => attempt(tries + 1),
+            BOT_RETRY_DELAYS_MS[Math.min(tries, BOT_RETRY_DELAYS_MS.length - 1)],
+          );
         });
     };
 
@@ -1956,12 +1981,13 @@ function App() {
 
     return () => {
       alive = false;
-      handle?.cancel();
       if (retryTimer) clearTimeout(retryTimer);
-      if (botTurnRef.current === commitId) botTurnRef.current = null;
+      // Deliberately does not touch the session. Unmounting this component, or
+      // navigating away from Play, stops nothing: the observation outlives the
+      // tree, which is the only reason returning shows the real percentage.
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [botShouldMove, game?.commitId, game?.revision, subscriptionEpoch]);
+  }, [botShouldMove, activeRoomId, game?.revision]);
 
   // Set the selection from a log id (called by TurnRecordList / LogPanel).
   // Selecting a log opens the "action applied" view of that log.
@@ -2777,6 +2803,9 @@ function App() {
   ): GameState | null {
     const remoteGame = advanceRunningClock(normalizeFinishedGame(payload.game));
     const key = makeRemoteStateKey(remoteGame);
+    // Whatever this payload turns out to say about the board, the room row has
+    // now been read — ownership is known rather than merely absent.
+    roomMetaReadRef.current = true;
     setRooms((current) => upsertRoomMeta(current, payload.meta));
     const localGame = gameRef.current;
     const sameGame = Boolean(localGame && localGame.gameId === remoteGame.gameId);
@@ -2785,9 +2814,20 @@ function App() {
       // A lower revision carries nothing this client has not already applied.
       // Delayed delivery, duplicate delivery and a slow read racing a fast one
       // all land here, and none of them can undo a committed turn.
+      //
+      // Deliberately does NOT touch `confirmedStateKey`: this payload describes
+      // an OLDER position, and letting it overwrite the confirmation of a newer
+      // one would un-confirm a position the server has already accepted and
+      // stall the bot until the next read.
       setSyncError(null);
       return null;
     }
+
+    // Past the staleness gate, this content is the authority's and is at least
+    // as new as ours. Confirming it here — rather than in each branch below —
+    // keeps "the server holds this position" independent of whether this client
+    // happens to be rendering it (it may be composing a draft on top).
+    setConfirmedStateKey(key);
 
     if (localGame && sameGame && makeRemoteStateKey(localGame) === key) {
       // Identical position: this is this client's own commit echoing back, or a
@@ -4215,13 +4255,33 @@ function App() {
     commitLog(log, game.board, rackAfter, game.tilebag);
   }
 
-  // Commit an engine response as the bot side's turn. Every placement passes
-  // through the official validator first — an engine bug can therefore never
-  // corrupt a match (it degrades to a pass instead). `response === null`
-  // forces the pass fallback.
-  function commitBotResponse(response: BotResponse | null) {
+  /**
+   * Apply an engine answer as the bot side's turn.
+   *
+   * Two gates stand in front of the board, and neither can be satisfied by a
+   * failure:
+   *
+   *   • **Position.** The answer names the revision it was computed for, and it
+   *     is applied only to that exact revision. A result that arrives after a
+   *     resync, an undo, or another tab's move describes a board that no longer
+   *     exists, and is dropped.
+   *   • **Legality.** Every placement is re-validated by the official validator,
+   *     so an engine bug cannot corrupt a match.
+   *
+   * What it will NOT do is turn a problem into a pass. A pass is a scoring,
+   * irreversible action; it is played when the ENGINE chose it and at no other
+   * time. If the answer cannot be honoured — an unmappable tile, a rejected
+   * placement, an exchange that is no longer legal — the turn is left alone and
+   * the caller is told, because a bot that has not moved yet can still move,
+   * and a bot that has passed cannot take it back.
+   */
+  function applyBotResult(response: BotResponse, forRevision: number): void {
     const g = gameRef.current;
     if (!g || !g.botSide || g.status !== "playing" || g.activeSide !== g.botSide) return;
+    if ((g.revision ?? 0) !== forRevision || response.revision !== forRevision) {
+      // Computed for a different position than the one on the board.
+      return;
+    }
     const now = new Date().toISOString();
     const botActionStart: ActionStart = {
       startedAt: g.currentTurnStartedAt,
@@ -4230,11 +4290,11 @@ function App() {
       tilebagBefore: deepClone(g.tilebag),
       timerBefore: { A: g.timers.A, B: g.timers.B },
     };
-    const mapped = response ? mapBotResponse(g, response) : null;
+    const mapped = mapBotResponse(g, response);
     // Tie the reasoning to the log this move produces, so the "why" panel shows
     // it only while that bot move is the latest one on the board.
     const recordReasoning = (logId: string) => {
-      if (response && g.botSide) {
+      if (g.botSide) {
         setBotReasoning({
           logId,
           turnNumber: g.turnNumber,
@@ -4268,14 +4328,21 @@ function App() {
         recordReasoning(log.id);
         return;
       }
+      // The engine named a placement the rules reject. That is a bug worth
+      // shouting about, but it is not a reason to spend the bot's turn: leave
+      // the board alone and let the retry ask again.
       console.error("Bot move rejected by the official validator:", validation.errors);
+      setBotNotice("คำตอบของบอทไม่ผ่านการตรวจกติกา — กำลังคำนวณใหม่");
+      return;
     }
 
-    if (
-      mapped?.kind === "exchange" &&
-      mapped.outgoingIds.length > 0 &&
-      getExchangeRule(g).allowed
-    ) {
+    if (mapped?.kind === "exchange") {
+      if (mapped.outgoingIds.length === 0 || !getExchangeRule(g).allowed) {
+        // The engine chose an exchange the position no longer permits. Same rule
+        // as above: report it, do not convert it into a pass.
+        setBotNotice("คำตอบของบอทไม่ผ่านการตรวจกติกา — กำลังคำนวณใหม่");
+        return;
+      }
       const outgoingSet = new Set(mapped.outgoingIds);
       const outgoingTiles = getRack(g, g.activeSide).filter((tile) => outgoingSet.has(tile.id));
       const rackAfter = getRack(g, g.activeSide).filter((tile) => !outgoingSet.has(tile.id));
@@ -4297,6 +4364,15 @@ function App() {
       return;
     }
 
+    if (mapped?.kind !== "pass") {
+      // `mapBotResponse` could not place the engine's answer on the actual rack
+      // — the two disagree about what the bot is holding. Never guess, and never
+      // spend the turn guessing.
+      setBotNotice("คำตอบของบอทไม่ตรงกับเบี้ยในมือ — กำลังคำนวณใหม่");
+      return;
+    }
+
+    // The engine chose to pass. This is the ONLY path that plays one.
     const rackAfter = deepClone(getRack(g, g.activeSide));
     const detail: PassDetail = {};
     const log = createTurnLog({

@@ -12,31 +12,14 @@ const RESULT = {
 
 beforeEach(() => {
   window.sessionStorage.clear();
-  cache.clearInFlight(ROOM);
   cache.clearResult(ROOM);
 });
 
-describe("analysis session cache", () => {
-  it("remembers an in-flight analysis across a page reload in the same tab", async () => {
-    cache.markInFlight(ROOM, { revision: 7, level: "quick" });
-    cache.rememberProgress(ROOM, {
-      phase: "sim",
-      percent: 50,
-      elapsedMs: 5_000,
-      etaMs: 5_000,
-      detail: "samples=2/4",
-    });
-
-    vi.resetModules();
-    const reloadedCache = await import("../src/analysisSessionCache");
-
-    expect(reloadedCache.getInFlight(ROOM)).toMatchObject({
-      revision: 7,
-      level: "quick",
-      progress: { percent: 50 },
-    });
-  });
-
+// The cache remembers ANSWERS, not running work. What is in flight is the
+// server's to report (`GET /jobs`) and `engineSessions`' to observe — keeping a
+// second copy of it here is what made a live search unreachable when this tab
+// lost its note about it.
+describe("analysis result cache", () => {
   it("remembers a completed result across a page reload in the same tab", async () => {
     cache.rememberResult(ROOM, RESULT);
 

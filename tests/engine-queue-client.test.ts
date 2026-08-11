@@ -222,13 +222,13 @@ describe("overload reaches the client as a distinguishable condition", () => {
 
 describe("which identifier the bot asks about", () => {
   it("names the live room, never the game blob's own id", async () => {
-    // Regression, and the reason `thinkWithBot` takes the room id as its own
-    // argument instead of reading one off `game`. `GameState.gameId` is a
+    // Regression, and the reason every engine call takes the room id explicitly
+    // instead of reading one off `game`. `GameState.gameId` is a
     // client-generated UUID that the server has never stored; a request built
     // from it comes back `not_found` every single time, for the bot's turn and
     // for analysis alike.
     await loadApi();
-    const { thinkWithBot } = await import("../src/bot/botController");
+    const sessions = await import("../src/engineSessions");
     const roomId = "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa";
 
     const fetchMock = vi.fn(async () =>
@@ -246,25 +246,21 @@ describe("which identifier the bot asks about", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    await thinkWithBot(
-      roomId,
-      {
-        gameId: "bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb",
-        revision: 5,
-      } as unknown as Parameters<typeof thinkWithBot>[1],
-      () => undefined,
-    ).promise;
+    await sessions.observeBot({ roomId, revision: 5, freshlyAdmitted: true });
 
     const requested = String(fetchMock.mock.calls[0]?.[0]);
     expect(requested).toContain(`/v1/games/${roomId}/bot-move`);
     expect(requested).not.toContain("bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb");
+    sessions.resetForTests();
   });
 });
 
 describe("classifying a failed bot turn", () => {
+  // The single rule: NOTHING here can end the turn. `isRetryableBotFailure`
+  // used to answer a second, unstated question — "and if not, should the bot
+  // pass?" — so every code that fell out of its list cost the player a scoring
+  // move. Now it only chooses HOW to retry.
   it("treats server overload as worth retrying, not as a reason to pass", async () => {
-    // A pass is a real, scoring, irreversible game action. "Someone else was
-    // analysing for four seconds" must never produce one.
     const { EngineApiError } = await loadApi();
     const { isRetryableBotFailure, isDesyncBotFailure } = await import("../src/bot/botController");
     expect(isRetryableBotFailure(new EngineApiError("queue_full", "busy"))).toBe(true);
@@ -281,10 +277,26 @@ describe("classifying a failed bot turn", () => {
     expect(isRetryableBotFailure(stale)).toBe(false);
   });
 
-  it("does not retry a timeout, which another five minutes will not fix", async () => {
+  it("treats a turn-rule refusal as a desync too, not as a settled verdict", async () => {
+    // This is the code the client got for asking one round trip early — before
+    // the server had been told about the human's move. It was not in the
+    // retryable list, so it fell through to the pass fallback and threw the
+    // bot's turn away over a race. It is a disagreement about the position, and
+    // the answer is to wait for state, exactly as with a stale revision.
+    const { EngineApiError } = await loadApi();
+    const { isRetryableBotFailure, isDesyncBotFailure } = await import("../src/bot/botController");
+    const turnRule = new EngineApiError("turn_rule", "It is not the engine's turn.");
+    expect(isDesyncBotFailure(turnRule)).toBe(true);
+    expect(isRetryableBotFailure(turnRule)).toBe(false);
+  });
+
+  it("retries even a timeout, because the alternative was giving the turn away", async () => {
+    // A timeout is a malfunction and re-asking may well fail again — but the
+    // cost of asking again is a delay, and the cost of not asking was an
+    // irreversible pass. Only the engine may choose to pass.
     const { EngineApiError } = await loadApi();
     const { isRetryableBotFailure } = await import("../src/bot/botController");
-    expect(isRetryableBotFailure(new EngineApiError("engine_timeout", "too long"))).toBe(false);
-    expect(isRetryableBotFailure(new EngineApiError("analysis_not_allowed", "no"))).toBe(false);
+    expect(isRetryableBotFailure(new EngineApiError("engine_timeout", "too long"))).toBe(true);
+    expect(isRetryableBotFailure(new EngineApiError("budget_exhausted", "spent"))).toBe(true);
   });
 });
