@@ -5,19 +5,22 @@
 // a returning mount can never be seeded with a position the game has already
 // left. A different game replaces wholesale, because that is not a comparison —
 // it is a different subject.
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { GameState } from "../src/game";
+import { DEFAULT_NEW_GAME_SETTINGS } from "../src/constants/roomDefaults";
+import { createNewGame, type GameState } from "../src/game";
 import * as cache from "../src/playSnapshotCache";
 
 // The cache only reads `gameId` and `revision`; a full snapshot is unnecessary
 // and would only obscure what is under test.
-const snap = (gameId: string, revision: number) =>
-  ({ gameId, revision }) as unknown as GameState;
+const snap = (gameId: string, revision: number) => ({ gameId, revision }) as unknown as GameState;
 
 const ROOM = "room-1";
 
-beforeEach(() => cache.forget(ROOM));
+beforeEach(() => {
+  window.sessionStorage.clear();
+  cache.forget(ROOM);
+});
 
 describe("play snapshot cache", () => {
   it("returns the snapshot it was given", () => {
@@ -47,5 +50,15 @@ describe("play snapshot cache", () => {
     cache.remember(ROOM, snap("g1", 7));
     cache.forget(ROOM);
     expect(cache.get(ROOM)).toBeUndefined();
+  });
+
+  it("survives a page reload in the same tab", async () => {
+    const game = { ...createNewGame(DEFAULT_NEW_GAME_SETTINGS), revision: 7 };
+    cache.remember(ROOM, game);
+
+    vi.resetModules();
+    const reloadedCache = await import("../src/playSnapshotCache");
+
+    expect(reloadedCache.get(ROOM)).toMatchObject({ gameId: game.gameId, revision: 7 });
   });
 });
