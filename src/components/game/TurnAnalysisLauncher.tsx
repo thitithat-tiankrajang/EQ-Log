@@ -3,11 +3,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ANALYSIS_LEVELS,
   EngineApiError,
+  attachAnalysis,
+  cancelAnalysis,
   requestAnalysis,
   type AnalysisLevel,
   type AnalysisResult,
   type EngineProgress,
 } from "../../bot/engineApi";
+import * as analysisCache from "../../analysisSessionCache";
 import { TurnAnalysisPanel } from "./TurnAnalysisPanel";
 
 // The Analyze control and everything that can go wrong behind it.
@@ -122,7 +125,14 @@ export function TurnAnalysisLauncher({
   const [level, setLevel] = useState<AnalysisLevel>("quick");
   const [phase, setPhase] = useState<AnalysisPhase>({ kind: "idle" });
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<AnalysisResult | null>(null);
+  // Seed from the session cache so returning to Play shows a result the engine
+  // already computed for THIS position, without pressing Analyze again. A cached
+  // result for a revision the game has since left is ignored — the same rule the
+  // revision-change effect below enforces continuously.
+  const [result, setResult] = useState<AnalysisResult | null>(() => {
+    const cached = analysisCache.getResult(roomId);
+    return cached && cached.revision === revision ? cached : null;
+  });
   // Whether the result panel is on screen. Kept apart from `result` so closing
   // the panel does not throw away an analysis the player may want again — the
   // search cost real server time.
@@ -131,33 +141,98 @@ export function TurnAnalysisLauncher({
   const inFlight = phase.kind !== "idle";
 
   const cancel = useCallback(() => {
-    // Aborting releases the server's reference to the search. A job still in
-    // the queue gives its place back at once; a job already running has its
-    // engine process killed once nobody is waiting on it.
+    // Stop watching this run, and — because the player asked to cancel, not
+    // merely to look away — tell the server to stop the search too. A disconnect
+    // alone would leave it running for a return that is not coming.
     abortRef.current?.abort();
     abortRef.current = null;
     setPhase({ kind: "idle" });
-  }, []);
+    const pending = analysisCache.getInFlight(roomId);
+    analysisCache.clearInFlight(roomId);
+    if (pending) {
+      void cancelAnalysis({ gameId: roomId, expectedRevision: pending.revision, level: pending.level });
+    }
+  }, [roomId]);
 
-  // The game moved on. Anything on screen or in flight describes a board that
-  // no longer exists, so it goes — silently, because the player did not do
-  // anything wrong by moving.
+  // Reconcile the panel with the position, and reconnect to work that outlived
+  // the last mount. Two jobs in one effect because they share the same trigger:
+  //
+  //   • The game moved on → anything for a different revision is stale and goes,
+  //     silently, because the player did nothing wrong by moving.
+  //   • An analysis was IN FLIGHT for THIS revision when the panel unmounted →
+  //     rejoin the same server job (it kept running), restoring queued/running
+  //     and delivering the result when it lands. If it already finished, the
+  //     server returns it from cache; if it is gone, we quietly fall back to idle.
   useEffect(() => {
     if (result && result.revision !== revision) {
       setResult(null);
       setPanelOpen(false);
+      analysisCache.clearResult(roomId);
     }
     abortRef.current?.abort();
     abortRef.current = null;
-    setPhase({ kind: "idle" });
     setError(null);
-    // `phase` is deliberately absent: this must fire on revision changes, not
-    // when a run it started advances its own state.
+
+    const pending = analysisCache.getInFlight(roomId);
+    if (!pending || pending.revision !== revision) {
+      // Nothing of ours is running for this position.
+      if (pending) analysisCache.clearInFlight(roomId);
+      setPhase({ kind: "idle" });
+      return;
+    }
+
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setLevel(pending.level);
+    setPhase({ kind: "requesting" });
+    attachAnalysis({
+      gameId: roomId,
+      expectedRevision: revision,
+      level: pending.level,
+      onQueued: (state) => {
+        if (controller.signal.aborted) return;
+        setPhase({ kind: "queued", position: state.position > 0 ? state.position : null });
+      },
+      onRunning: () => {
+        if (controller.signal.aborted) return;
+        setPhase({ kind: "running", progress: null });
+      },
+      onProgress: (progress) => {
+        if (controller.signal.aborted) return;
+        setPhase({ kind: "running", progress });
+      },
+      signal: controller.signal,
+    })
+      .then((outcome) => {
+        if (controller.signal.aborted) return;
+        analysisCache.clearInFlight(roomId);
+        if (outcome.kind === "idle" || outcome.result.revision !== revision) return;
+        analysisCache.rememberResult(roomId, outcome.result);
+        setResult(outcome.result);
+        // The player was waiting on this one, so surface it rather than leaving
+        // it behind a "see latest" button.
+        setPanelOpen(true);
+      })
+      .catch(() => {
+        // A reconnect that failed is not an error the player caused; the Analyze
+        // button is there if they want to try the current turn again.
+        analysisCache.clearInFlight(roomId);
+      })
+      .finally(() => {
+        if (abortRef.current === controller) {
+          abortRef.current = null;
+          setPhase({ kind: "idle" });
+        }
+      });
+
+    return () => controller.abort();
+    // `phase`/`result` are deliberately absent: this must fire on revision or
+    // room changes, not when a run it started advances its own state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revision, roomId]);
 
-  // Leaving the screen must not leave a search running on the server with
-  // nobody waiting for it.
+  // Leaving the screen stops this tab watching the search. It does NOT stop the
+  // search: the server keeps it running, and a return reconnects to it above.
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const analyze = useCallback(
@@ -169,6 +244,10 @@ export function TurnAnalysisLauncher({
       setError(null);
       setResult(null);
       setOpen(false);
+      // Record what is running for this position, so if the panel unmounts
+      // (navigation, tab switch) a remount can reconnect to this exact search
+      // instead of starting another.
+      analysisCache.markInFlight(roomId, { revision: requestedRevision, level: chosen });
 
       try {
         const analysis = await requestAnalysis({
@@ -200,13 +279,17 @@ export function TurnAnalysisLauncher({
         // server answered the question we asked; it is no longer the question
         // worth answering.
         if (analysis.revision !== requestedRevision) {
+          analysisCache.clearInFlight(roomId);
           setError("กระดานเปลี่ยนไปแล้วระหว่างวิเคราะห์ — กดวิเคราะห์อีกครั้งเพื่อดูตาปัจจุบัน");
           return;
         }
+        analysisCache.clearInFlight(roomId);
+        analysisCache.rememberResult(roomId, analysis);
         setResult(analysis);
         setPanelOpen(true);
       } catch (failure) {
         if (controller.signal.aborted) return;
+        analysisCache.clearInFlight(roomId);
         setError(
           failure instanceof EngineApiError
             ? messageFor(failure)

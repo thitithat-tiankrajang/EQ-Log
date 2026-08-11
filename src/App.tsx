@@ -80,6 +80,7 @@ import type { LiveRoomSession, RoomSessionEvent } from "./remoteRooms";
 import { navigate, useRoute } from "./router";
 import { getRoomActorCapabilities } from "./roomAccess";
 import { isRemoteGameAhead, isRemoteGameStale, revisionOf, withRevision } from "./gameSync";
+import * as playSnapshotCache from "./playSnapshotCache";
 import { applyCanonicalToSnapshot, decodeCanonical, inventoryFrom } from "./domain/projection";
 import {
   createWaitingGame,
@@ -366,8 +367,14 @@ function App() {
   const [backgroundSyncCount, setBackgroundSyncCount] = useState(0);
   const [joinError, setJoinError] = useState<string | null>(null);
   const routeRoomId = route.kind === "room" || route.kind === "play" ? route.roomId : null;
+  // On a remount for the Play route, seed the board from the last authoritative
+  // snapshot this session held for the room, so returning renders the game at
+  // once instead of a blank loader. The seed is revalidated in the background
+  // (see the mount effect below); it never authorises anything.
+  const seededRemoteGame =
+    remoteEnabled && routeRoomId ? (playSnapshotCache.get(routeRoomId) ?? null) : null;
   const [game, setGame] = useState<GameState | null>(() => {
-    if (remoteEnabled) return null;
+    if (remoteEnabled) return seededRemoteGame;
     const id = routeRoomId ?? roomStore.getActiveRoomId();
     if (!id) return null;
     const saved = roomStore.readRoom(id);
@@ -375,6 +382,9 @@ function App() {
       ? advanceRunningClock(normalizeFinishedGame(saved))
       : null;
   });
+  // True only for the first mount that rendered a cached seed, so that mount can
+  // kick a single background revalidation. Cleared once fired.
+  const seededFromCacheRef = useRef(seededRemoteGame !== null);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(() => {
     if (routeRoomId) return routeRoomId;
     if (remoteEnabled) return null;
@@ -796,6 +806,7 @@ function App() {
         setActiveRoomId(routeRoomId);
         setGame(saved);
         lastAppliedStateKeyRef.current = makeRemoteStateKey(saved);
+        if (remoteEnabled) playSnapshotCache.remember(routeRoomId, saved);
         if (remotePayload) {
           setLobbyVisibility(remotePayload.meta.visibility ?? "public");
           setRooms((current) => upsertRoomMeta(current, remotePayload.meta));
@@ -820,6 +831,17 @@ function App() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeRoomId]);
+
+  // A mount that rendered a cached snapshot shows the board immediately, then
+  // revalidates once against the authoritative room row — silently, without the
+  // full-screen loader. The revision-guarded reconcile adopts newer state and
+  // discards anything older, so the seed can only ever be corrected forward.
+  useEffect(() => {
+    if (!seededFromCacheRef.current) return;
+    seededFromCacheRef.current = false;
+    if (remoteEnabled && activeRoomId) void reconcileActiveRoom();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     // AppRoot mounts this application for the Play route only. Loading lobby
@@ -871,9 +893,12 @@ function App() {
         if (commit.revision <= revisionOf(local)) return;
         try {
           const canonical = decodeCanonical(commit.canonical);
-          setGame(
-            withRevision(applyCanonicalToSnapshot(local, canonical), commit.revision) as GameState,
-          );
+          const nextGame = withRevision(
+            applyCanonicalToSnapshot(local, canonical),
+            commit.revision,
+          ) as GameState;
+          setGame(nextGame);
+          if (activeRoomIdRef.current) playSnapshotCache.remember(activeRoomIdRef.current, nextGame);
           setSyncError(null);
         } catch (error) {
           // The broadcast did not describe the physical set. Say so and fall
@@ -916,6 +941,7 @@ function App() {
               setShowResult(true);
               return;
             }
+            playSnapshotCache.forget(changedId);
             setActiveRoomId(null);
             setGame(null);
             navigate({ kind: "home", visibility: lobbyVisibility });
@@ -969,6 +995,7 @@ function App() {
       (payload) => {
         const record = payload.new as remoteRooms.RemoteRoomRecord | null | undefined;
         if (payload.eventType === "DELETE") {
+          if (activeRoomId) playSnapshotCache.forget(activeRoomId);
           setActiveRoomId(null);
           setGame(null);
           navigate({ kind: "home", visibility: lobbyVisibility });
@@ -2681,6 +2708,7 @@ function App() {
       lastAppliedStateKeyRef.current = key;
       applyDeferredRemoteSession(remoteGame);
       setSyncError(null);
+      if (activeRoomIdRef.current) playSnapshotCache.remember(activeRoomIdRef.current, remoteGame);
       return remoteGame;
     }
 
@@ -2715,6 +2743,7 @@ function App() {
       applyDeferredRemoteSession(remoteGame);
     }
     setSyncError(null);
+    if (activeRoomIdRef.current) playSnapshotCache.remember(activeRoomIdRef.current, remoteGame);
     return remoteGame;
   }
 

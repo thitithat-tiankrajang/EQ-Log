@@ -19,6 +19,7 @@ vi.mock("../src/bot/engineApi", async (importOriginal) => {
   return { ...actual, requestAnalysis };
 });
 
+import * as analysisCache from "../src/analysisSessionCache";
 import { EngineApiError, type AnalysisResult } from "../src/bot/engineApi";
 import { TurnAnalysisLauncher } from "../src/components/game/TurnAnalysisLauncher";
 
@@ -29,6 +30,11 @@ const ROOM_ID = "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa";
 afterEach(cleanup);
 beforeEach(() => {
   requestAnalysis.mockReset();
+  // The session cache is module state that outlives a single render, which is
+  // the point in the app and a cross-test leak here: an analysis left in flight
+  // by one test would make the next mount reconnect instead of starting fresh.
+  analysisCache.clearInFlight(ROOM_ID);
+  analysisCache.clearResult(ROOM_ID);
 });
 
 function analysisAt(revision: number): AnalysisResult {

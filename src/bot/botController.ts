@@ -20,6 +20,7 @@ import {
 } from "../game";
 import {
   EngineApiError,
+  attachBotMove,
   isEngineApiConfigured,
   requestBotMove,
   type BotMoveResult,
@@ -130,24 +131,43 @@ export function thinkWithBot(
   onState: (state: BotThinkingState) => void,
 ): BotThinkHandle {
   const controller = new AbortController();
-  const promise = requestBotMove({
-    gameId: roomId,
-    expectedRevision: game.revision ?? 0,
+  const expectedRevision = game.revision ?? 0;
+
+  // Lifecycle callbacks are shared by the attach and the start, so a job that
+  // was already running when we rejoined reports exactly as one we launched.
+  const lifecycle = {
     onQueued: (state: EngineQueueState) =>
       onState({ kind: "queued", position: state.position > 0 ? state.position : null }),
     // The engine reports progress only once it is actually searching, so
     // "running with nothing to show yet" is a real state, rendered as an
     // indeterminate one rather than as a fabricated 0%.
     onRunning: () => onState({ kind: "running", progress: null }),
-    onProgress: (progress) => onState({ kind: "running", progress: toBotProgress(progress) }),
+    onProgress: (progress: EngineProgress) =>
+      onState({ kind: "running", progress: toBotProgress(progress) }),
     signal: controller.signal,
-  }).then(toBotResponse);
+  };
+
+  const promise = (async (): Promise<BotResponse> => {
+    // First, try to REJOIN a search already in flight for this exact turn — the
+    // one this tab (or another) started before navigating away — or read the
+    // move it already produced. This is what keeps a bot turn a single search
+    // across a remount, a second tab, or a return to the page. The server
+    // starts nothing here; it answers `idle` when there is no such job.
+    const attached = await attachBotMove({ gameId: roomId, expectedRevision, ...lifecycle });
+    if (attached.kind === "result") return toBotResponse(attached.result);
+
+    // Nothing was running: this is a fresh turn, so start the search. Duplicate
+    // starts (two tabs, a double-fired effect) still collapse to one search on
+    // the server by key, and only one move can ever commit regardless.
+    const started = await requestBotMove({ gameId: roomId, expectedRevision, ...lifecycle });
+    return toBotResponse(started);
+  })();
 
   return {
     promise,
-    // Aborting the request also releases the server-side reference to the
-    // search; the engine process is stopped once nobody is waiting on it, and a
-    // job still in the queue gives its place back immediately.
+    // Aborting now only DETACHES this observer on the server: the search keeps
+    // running for any other watcher and for the player when they return. It is
+    // no longer a cancellation — a closed page must not stop the bot's turn.
     cancel: () => controller.abort(),
   };
 }

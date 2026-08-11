@@ -123,14 +123,31 @@ export type EngineLifecycle = {
  * connection stays warm, and the player is told which of the two is happening
  * rather than watching one spinner that means both.
  */
-async function postStream<T>(options: {
+/**
+ * The result of an SSE request. `idle` is the reconnect answer for "there is no
+ * job for this position" — a real, expected outcome on the GET path, never an
+ * error. The POST path never returns it (a POST that could not start says so
+ * with a status code), so `postStream` treats it as a lost stream.
+ */
+export type SseOutcome<T> = { kind: "result"; result: T } | { kind: "idle" };
+
+/**
+ * Open an SSE request and read it to a terminal event.
+ *
+ * `POST` starts work; `GET` reconnects to work that already exists and may
+ * answer `idle`. Everything decidable before the stream opens still arrives as a
+ * status code and is read here the same way on both methods; only failures after
+ * the head is written arrive as an `error` event.
+ */
+async function runSse<T>(options: {
+  method: "GET" | "POST";
   path: string;
-  body: Record<string, unknown>;
+  body?: Record<string, unknown>;
   onQueued?: (state: EngineQueueState) => void;
   onRunning?: () => void;
   onProgress?: (progress: EngineProgress) => void;
   signal?: AbortSignal;
-}): Promise<T> {
+}): Promise<SseOutcome<T>> {
   if (!BASE_URL) {
     throw new EngineApiError("unconfigured", "The engine service is not configured.");
   }
@@ -139,13 +156,13 @@ async function postStream<T>(options: {
   let response: Response;
   try {
     response = await fetch(`${BASE_URL}${options.path}`, {
-      method: "POST",
+      method: options.method,
       headers: {
         Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
         Accept: "text/event-stream",
+        ...(options.body ? { "Content-Type": "application/json" } : {}),
       },
-      body: JSON.stringify(options.body),
+      ...(options.body ? { body: JSON.stringify(options.body) } : {}),
       ...(options.signal ? { signal: options.signal } : {}),
     });
   } catch {
@@ -177,7 +194,7 @@ async function postStream<T>(options: {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
-  let result: T | undefined;
+  let outcome: SseOutcome<T> | undefined;
   let settled = false;
 
   const handleBlock = (block: string) => {
@@ -216,7 +233,14 @@ async function postStream<T>(options: {
       return;
     }
     if (event === "result") {
-      result = JSON.parse(data) as T;
+      outcome = { kind: "result", result: JSON.parse(data) as T };
+      settled = true;
+      return;
+    }
+    if (event === "idle") {
+      // Reconnect only: nothing is running for this position. A settled,
+      // non-error verdict the caller acts on, not a failure.
+      outcome = { kind: "idle" };
       settled = true;
       return;
     }
@@ -252,12 +276,30 @@ async function postStream<T>(options: {
     void reader.cancel().catch(() => {});
   }
 
-  if (!settled || result === undefined) {
+  if (!settled || outcome === undefined) {
     // The stream ended without a verdict. Treated as a failure rather than
     // hopefully retried: the search may or may not have run.
     throw new EngineApiError("offline", "The engine connection ended without a result.");
   }
-  return result;
+  return outcome;
+}
+
+/** POST an SSE request that STARTS work and returns its result. The reconnect
+ *  `idle` outcome cannot occur here; a POST that could not begin already failed
+ *  with a status code, so seeing it means a truncated stream. */
+async function postStream<T>(options: {
+  path: string;
+  body: Record<string, unknown>;
+  onQueued?: (state: EngineQueueState) => void;
+  onRunning?: () => void;
+  onProgress?: (progress: EngineProgress) => void;
+  signal?: AbortSignal;
+}): Promise<T> {
+  const outcome = await runSse<T>({ method: "POST", ...options });
+  if (outcome.kind === "idle") {
+    throw new EngineApiError("offline", "The engine connection ended without a result.");
+  }
+  return outcome.result;
 }
 
 // ── bot moves ────────────────────────────────────────────────────────────────
@@ -289,6 +331,31 @@ export function requestBotMove(
   return postStream<BotMoveResult>({
     path: `/v1/games/${encodeURIComponent(options.gameId)}/bot-move`,
     body: { expectedRevision: options.expectedRevision },
+    ...(options.onQueued ? { onQueued: options.onQueued } : {}),
+    ...(options.onRunning ? { onRunning: options.onRunning } : {}),
+    ...(options.onProgress ? { onProgress: options.onProgress } : {}),
+    ...(options.signal ? { signal: options.signal } : {}),
+  });
+}
+
+/**
+ * Reconnect to a bot search already in flight for this room+revision, or read
+ * its cached move. Starts NOTHING: if the server has no job for this position it
+ * answers `idle`, and the caller decides whether to start one with
+ * `requestBotMove`. This is how a player returning to Play rejoins the bot turn
+ * they left running instead of launching a second identical search.
+ */
+export function attachBotMove(
+  options: {
+    gameId: string;
+    expectedRevision: number;
+    signal?: AbortSignal;
+  } & EngineLifecycle,
+): Promise<SseOutcome<BotMoveResult>> {
+  const query = `?revision=${encodeURIComponent(String(options.expectedRevision))}`;
+  return runSse<BotMoveResult>({
+    method: "GET",
+    path: `/v1/games/${encodeURIComponent(options.gameId)}/bot-move${query}`,
     ...(options.onQueued ? { onQueued: options.onQueued } : {}),
     ...(options.onRunning ? { onRunning: options.onRunning } : {}),
     ...(options.onProgress ? { onProgress: options.onProgress } : {}),
@@ -356,4 +423,66 @@ export function requestAnalysis(
     ...(options.onProgress ? { onProgress: options.onProgress } : {}),
     ...(options.signal ? { signal: options.signal } : {}),
   });
+}
+
+/**
+ * Reconnect to an analysis already in flight for this room+revision+level, or
+ * read its cached result. Starts nothing and spends no budget; answers `idle`
+ * when there is no such job. This is how the Analyze panel restores a running or
+ * finished analysis when the player returns to Play, without pressing Analyze
+ * again or paying for the same immutable position twice.
+ */
+export function attachAnalysis(
+  options: {
+    gameId: string;
+    expectedRevision: number;
+    level: AnalysisLevel;
+    signal?: AbortSignal;
+  } & EngineLifecycle,
+): Promise<SseOutcome<AnalysisResult>> {
+  const query =
+    `?revision=${encodeURIComponent(String(options.expectedRevision))}` +
+    `&level=${encodeURIComponent(options.level)}`;
+  return runSse<AnalysisResult>({
+    method: "GET",
+    path: `/v1/games/${encodeURIComponent(options.gameId)}/analysis${query}`,
+    ...(options.onQueued ? { onQueued: options.onQueued } : {}),
+    ...(options.onRunning ? { onRunning: options.onRunning } : {}),
+    ...(options.onProgress ? { onProgress: options.onProgress } : {}),
+    ...(options.signal ? { signal: options.signal } : {}),
+  });
+}
+
+/**
+ * Explicitly cancel an in-flight analysis — the player pressed "cancel".
+ * Best-effort: a network failure here is harmless, because an abandoned search
+ * is superseded or times out on its own. Distinct from merely closing the page,
+ * which the server does NOT treat as cancellation.
+ */
+export async function cancelAnalysis(options: {
+  gameId: string;
+  expectedRevision: number;
+  level: AnalysisLevel;
+}): Promise<boolean> {
+  if (!BASE_URL) return false;
+  let token: string;
+  try {
+    token = await accessToken();
+  } catch {
+    return false;
+  }
+  try {
+    const response = await fetch(
+      `${BASE_URL}/v1/games/${encodeURIComponent(options.gameId)}/analysis/cancel`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ expectedRevision: options.expectedRevision, level: options.level }),
+      },
+    );
+    const data = (await response.json().catch(() => ({}))) as { cancelled?: boolean };
+    return Boolean(data.cancelled);
+  } catch {
+    return false;
+  }
 }
