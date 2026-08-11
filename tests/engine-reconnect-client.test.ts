@@ -122,6 +122,42 @@ describe("cancelling is explicit", () => {
 });
 
 describe("thinkWithBot rejoins before it starts", () => {
+  it("resumes from the server's last progress without starting another search", async () => {
+    await loadApi();
+    const { thinkWithBot } = await import("../src/bot/botController");
+    const states: Array<{ kind: string; progress?: { percent: number } | null }> = [];
+    const fetchMock = vi.fn(async () =>
+      streamOf([
+        frame("running", {}),
+        frame("progress", {
+          phase: "sim",
+          percent: 50,
+          elapsedMs: 900,
+          etaMs: 900,
+          detail: "samples=2/4",
+        }),
+        frame("result", BOT_RESULT),
+      ]),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await thinkWithBot(
+      "room-1",
+      { gameId: "blob", revision: 5 } as unknown as Parameters<typeof thinkWithBot>[1],
+      (state) => states.push(state),
+    ).promise;
+
+    expect(states).toContainEqual(
+      expect.objectContaining({
+        kind: "running",
+        progress: expect.objectContaining({ percent: 50 }),
+      }),
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.method).toBe("GET");
+  });
+
   it("returns the move from an existing search without starting a new one", async () => {
     await loadApi();
     const { thinkWithBot } = await import("../src/bot/botController");

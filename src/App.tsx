@@ -1811,6 +1811,10 @@ function App() {
       const roomId = activeRoomIdRef.current;
       if (!alive || !current || !roomId || current.commitId !== commitId) return;
 
+      // A new attempt always starts by reconnecting to the server-owned job.
+      // Clear an earlier stale warning so replayed progress (for example 50%)
+      // is what the returning player sees while that same search continues.
+      setBotNotice(null);
       setBotStatus({ kind: "requesting" });
       // The request names the LIVE ROOM and its revision; the backend reads the
       // position for itself. Nothing about the board, the racks or the bag is
@@ -1841,7 +1845,8 @@ function App() {
             // The server's view of this game is ahead of ours. Committing
             // anything — including a pass — would write into a position we do
             // not actually have. Wait for sync to catch up instead; the
-            // revision dependency below restarts this turn once it does.
+            // revision dependency below reconnects to the server-owned job
+            // for this turn once it does.
             setBotNotice("กระดานบนเซิร์ฟเวอร์เปลี่ยนไปแล้ว — กำลังรอข้อมูลล่าสุด");
             return;
           }
