@@ -1693,6 +1693,12 @@ function App() {
   const botShouldMove = Boolean(
     game &&
     game.botSide &&
+    // The engine reads the position out of Postgres for itself, so it can only
+    // play a room that exists there. Without a live room id there is nothing to
+    // ask about, and firing anyway would spend three retries to arrive at a
+    // pass the player never asked for.
+    remoteEnabled &&
+    activeRoomId &&
     game.status === "playing" &&
     getRoomStage(game) === "playing" &&
     game.activeSide === game.botSide &&
@@ -1775,13 +1781,18 @@ function App() {
       // ask about the position as it stands, and if the game has moved on this
       // effect's work is already void.
       const current = gameRef.current;
-      if (!alive || !current || current.commitId !== commitId) return;
+      const roomId = activeRoomIdRef.current;
+      if (!alive || !current || !roomId || current.commitId !== commitId) return;
 
       setBotStatus({ kind: "requesting" });
-      // The request names the game and its revision; the backend reads the
+      // The request names the LIVE ROOM and its revision; the backend reads the
       // position for itself. Nothing about the board, the racks or the bag is
       // described by this client any more.
-      handle = thinkWithBot(current, (state) => {
+      //
+      // `roomId`, not `current.gameId`: the server knows this game by its
+      // `room_live.room_id`, and `GameState.gameId` is an unrelated
+      // client-generated UUID it has never stored.
+      handle = thinkWithBot(roomId, current, (state) => {
         if (alive) setBotStatus(state);
       });
       handle.promise
@@ -5038,9 +5049,9 @@ function App() {
               This is a convenience gate. The backend enforces the same rule and
               refuses regardless of what is rendered here, which is why hiding
               the button is not relied on for anything. */}
-          {analysisAvailable && game.gameId && (
+          {analysisAvailable && activeRoomId && (
             <TurnAnalysisLauncher
-              gameId={game.gameId}
+              roomId={activeRoomId}
               revision={game.revision ?? 0}
               playerName={game.players[game.activeSide] || game.activeSide}
               disabled={!canAnalyzeTurn}

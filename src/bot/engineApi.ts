@@ -8,6 +8,14 @@
 // is at. The server holds the authoritative state and refuses if the two
 // disagree — so a result can never be about a board that has already moved on.
 //
+// ⚠ `gameId` here means the LIVE ROOM's id — `room_live.room_id`, the value the
+// database calls `target_game_id` in every RPC and the value this app tracks as
+// `activeRoomId`. It is NOT `GameState.gameId`, which is a client-generated
+// UUID from `createNewGame` that the server has never stored and cannot look a
+// room up by. The two are both UUIDs and both called "game id", which is
+// exactly why this note is here: passing the wrong one is silent at the type
+// level and comes back as `not_found` for every request.
+//
 // Every failure has a named kind, because the UI has to distinguish "try again"
 // from "this is no longer your turn" from "the engine is busy", and a bare
 // error string cannot carry that.

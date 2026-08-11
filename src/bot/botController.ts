@@ -105,7 +105,15 @@ function toBotResponse(result: BotMoveResult): BotResponse {
 }
 
 /**
- * Ask the backend for the bot's move in this game at this revision.
+ * Ask the backend for the bot's move in this room at this revision.
+ *
+ * `roomId` is the LIVE ROOM's id — `room_live.room_id`, the same value every
+ * other server call already names `target_game_id`. It is deliberately a
+ * separate parameter rather than something read off `game`, because
+ * `GameState.gameId` is a *different identifier*: a client-generated UUID
+ * minted by `createNewGame`, which the server has never seen and cannot look a
+ * room up by. Passing it produced a `not_found` on every request. Taking the id
+ * explicitly is what stops that mistake being available to make again.
  *
  * `game.revision` is the whole concurrency story. The server compares it with
  * the revision it holds and refuses a mismatch — at admission AND again when a
@@ -117,12 +125,13 @@ function toBotResponse(result: BotMoveResult): BotResponse {
  * for both.
  */
 export function thinkWithBot(
+  roomId: string,
   game: GameState,
   onState: (state: BotThinkingState) => void,
 ): BotThinkHandle {
   const controller = new AbortController();
   const promise = requestBotMove({
-    gameId: game.gameId,
+    gameId: roomId,
     expectedRevision: game.revision ?? 0,
     onQueued: (state: EngineQueueState) =>
       onState({ kind: "queued", position: state.position > 0 ? state.position : null }),

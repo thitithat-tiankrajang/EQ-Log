@@ -100,13 +100,17 @@ function messageFor(error: EngineApiError): string {
 }
 
 export function TurnAnalysisLauncher({
-  gameId,
+  roomId,
   revision,
   playerName,
   disabled,
   disabledReason,
 }: {
-  gameId: string;
+  /** The LIVE ROOM's id (`room_live.room_id`, this app's `activeRoomId`) — not
+   *  `GameState.gameId`, which is a client-generated UUID the server has never
+   *  seen. Named `roomId` here precisely so the two cannot be confused: passing
+   *  the game blob's id returned `not_found` on every analysis request. */
+  roomId: string;
   revision: number;
   playerName: string;
   /** The frontend's own view of whether this turn can be analysed. Convenience
@@ -150,7 +154,7 @@ export function TurnAnalysisLauncher({
     // `phase` is deliberately absent: this must fire on revision changes, not
     // when a run it started advances its own state.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revision, gameId]);
+  }, [revision, roomId]);
 
   // Leaving the screen must not leave a search running on the server with
   // nobody waiting for it.
@@ -168,7 +172,10 @@ export function TurnAnalysisLauncher({
 
       try {
         const analysis = await requestAnalysis({
-          gameId,
+          // The service's path segment is named `gameId`; the value it wants
+          // is the room id. See engineApi.ts for why those are different words
+          // for the same thing here.
+          gameId: roomId,
           expectedRevision: requestedRevision,
           level: chosen,
           // Each of these is a transition the server reported. None is a timer
@@ -212,7 +219,7 @@ export function TurnAnalysisLauncher({
         }
       }
     },
-    [gameId, revision],
+    [roomId, revision],
   );
 
   // A result is only ever rendered for the revision it was computed at. Two

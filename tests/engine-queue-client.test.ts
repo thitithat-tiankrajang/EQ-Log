@@ -220,6 +220,47 @@ describe("overload reaches the client as a distinguishable condition", () => {
   });
 });
 
+describe("which identifier the bot asks about", () => {
+  it("names the live room, never the game blob's own id", async () => {
+    // Regression, and the reason `thinkWithBot` takes the room id as its own
+    // argument instead of reading one off `game`. `GameState.gameId` is a
+    // client-generated UUID that the server has never stored; a request built
+    // from it comes back `not_found` every single time, for the bot's turn and
+    // for analysis alike.
+    await loadApi();
+    const { thinkWithBot } = await import("../src/bot/botController");
+    const roomId = "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa";
+
+    const fetchMock = vi.fn(async () =>
+      streamOf([
+        frame("result", {
+          revision: 5,
+          gameId: roomId,
+          side: "B",
+          move: { type: "pass", placements: [], exchange: [], score: 0 },
+          solver: "greedy",
+          endgameSolved: false,
+          stats: { elapsedMs: 12, nodes: 1, samples: 0 },
+        }),
+      ]),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await thinkWithBot(
+      roomId,
+      {
+        gameId: "bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb",
+        revision: 5,
+      } as unknown as Parameters<typeof thinkWithBot>[1],
+      () => undefined,
+    ).promise;
+
+    const requested = String(fetchMock.mock.calls[0]?.[0]);
+    expect(requested).toContain(`/v1/games/${roomId}/bot-move`);
+    expect(requested).not.toContain("bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb");
+  });
+});
+
 describe("classifying a failed bot turn", () => {
   it("treats server overload as worth retrying, not as a reason to pass", async () => {
     // A pass is a real, scoring, irreversible game action. "Someone else was

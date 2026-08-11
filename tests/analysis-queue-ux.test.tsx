@@ -22,6 +22,10 @@ vi.mock("../src/bot/engineApi", async (importOriginal) => {
 import { EngineApiError, type AnalysisResult } from "../src/bot/engineApi";
 import { TurnAnalysisLauncher } from "../src/components/game/TurnAnalysisLauncher";
 
+/** The LIVE ROOM's id — what `room_live.room_id` holds and what every server
+ *  RPC calls `target_game_id`. Deliberately unlike a `GameState.gameId`. */
+const ROOM_ID = "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa";
+
 afterEach(cleanup);
 beforeEach(() => {
   requestAnalysis.mockReset();
@@ -66,7 +70,7 @@ function analysisAt(revision: number): AnalysisResult {
 /** Render the launcher and press Analyse → quick. */
 async function startAnalysis(revision = 7) {
   const view = render(
-    <TurnAnalysisLauncher gameId="g1" revision={revision} playerName="Player" disabled={false} />,
+    <TurnAnalysisLauncher roomId={ROOM_ID} revision={revision} playerName="Player" disabled={false} />,
   );
   const user = userEvent.setup();
   await user.click(screen.getByRole("button", { name: /วิเคราะห์ตานี้/ }));
@@ -98,6 +102,22 @@ function controllable() {
     reject: (error: unknown) => fail(error),
   };
 }
+
+describe("which identifier reaches the server", () => {
+  it("asks about the live room, not the game blob's own id", async () => {
+    // Regression. `GameState.gameId` is a client-generated UUID from
+    // `createNewGame`; the engine service looks a room up by
+    // `room_live.room_id`. Sending the former made every analysis request come
+    // back `{"code":"not_found"}` — the server was correctly reporting that no
+    // such room exists, because none does under that id.
+    controllable();
+    await startAnalysis(7);
+    await waitFor(() => expect(requestAnalysis).toHaveBeenCalled());
+
+    const sent = requestAnalysis.mock.calls[0]?.[0] as { gameId: string };
+    expect(sent.gameId).toBe(ROOM_ID);
+  });
+});
 
 describe("a queued analysis", () => {
   it("says it is waiting for engine capacity, not that it is analysing", async () => {
@@ -265,7 +285,7 @@ describe("a result that is no longer about this position", () => {
     await waitFor(() => expect(screen.getByText("A summary.")).toBeInTheDocument());
 
     rerender(
-      <TurnAnalysisLauncher gameId="g1" revision={8} playerName="Player" disabled={false} />,
+      <TurnAnalysisLauncher roomId={ROOM_ID} revision={8} playerName="Player" disabled={false} />,
     );
     await waitFor(() => expect(screen.queryByText("A summary.")).not.toBeInTheDocument());
   });
@@ -281,7 +301,7 @@ describe("a result that is no longer about this position", () => {
 
     const signal = requestAnalysis.mock.calls[0]?.[0]?.signal as AbortSignal;
     rerender(
-      <TurnAnalysisLauncher gameId="g1" revision={8} playerName="Player" disabled={false} />,
+      <TurnAnalysisLauncher roomId={ROOM_ID} revision={8} playerName="Player" disabled={false} />,
     );
 
     await waitFor(() => expect(signal.aborted).toBe(true));
