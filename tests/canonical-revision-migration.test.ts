@@ -13,6 +13,10 @@ const eventCascadeRepair = readFileSync(
   `${process.cwd()}/supabase/live_game_event_cascade_repair.sql`,
   "utf8",
 );
+const waitingRoomReadyRepair = readFileSync(
+  `${process.cwd()}/supabase/waiting_room_ready_repair.sql`,
+  "utf8",
+);
 
 function functionBody(name: string): string {
   const body = migration.match(
@@ -130,6 +134,24 @@ describe("commit_live_game_command", () => {
     expect(text).toMatch(/next_revision := live\.revision \+ 1;/);
     // One update statement: state and revision can never disagree.
     expect(text.match(/update public\.room_live/g)).toHaveLength(1);
+  });
+
+  it("keeps a newly created versus room waiting so the other player can mark ready", () => {
+    expect(body()).toMatch(
+      /when coalesce\(target_state ->> 'roomStage', ''\) = 'waiting' then 'waiting'/,
+    );
+  });
+
+  it("repairs both future commits and rooms already stranded as paused", () => {
+    expect(waitingRoomReadyRepair).toMatch(
+      /when coalesce\(target_state ->> 'roomStage', ''\) = 'waiting' then 'waiting'/,
+    );
+    expect(waitingRoomReadyRepair).toMatch(
+      /update public\.room_live\s+set status = 'waiting'\s+where status = 'paused'\s+and state ->> 'roomStage' = 'waiting'/,
+    );
+    expect(waitingRoomReadyRepair).toContain(
+      "grant execute on function public.commit_live_game_command",
+    );
   });
 
   it("refuses writes from accounts without write access, which is every spectator", () => {

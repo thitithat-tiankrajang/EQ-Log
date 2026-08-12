@@ -268,6 +268,7 @@ begin
          score_a = coalesce((target_canonical #>> '{scores,A}')::int, score_a),
          score_b = coalesce((target_canonical #>> '{scores,B}')::int, score_b),
          status = case
+           when coalesce(target_state ->> 'roomStage', '') = 'waiting' then 'waiting'
            when coalesce(target_canonical ->> 'status', '') = 'draft' then 'paused'
            else 'playing'
          end,

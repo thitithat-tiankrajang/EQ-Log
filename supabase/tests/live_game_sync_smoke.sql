@@ -31,9 +31,75 @@ declare
   player_id constant uuid := '10000000-0000-4000-8000-000000000002';
   bot_room record;
   versus_room record;
+  waiting_room record;
   joined record;
   next_state jsonb;
 begin
+  perform set_config('request.jwt.claim.sub', owner_id::text, true);
+  perform set_config(
+    'request.jwt.claims',
+    jsonb_build_object('sub', owner_id, 'role', 'authenticated')::text,
+    true
+  );
+
+  -- A waiting room's initial canonical commit must not turn it into a paused
+  -- game. The invited side must still be able to use set_room_ready afterward.
+  select * into waiting_room
+  from public.create_live_game(
+    jsonb_build_object(
+      'gameId', gen_random_uuid(),
+      'name', 'Waiting room ready smoke test',
+      'gameMode', 'versus',
+      'roomStage', 'waiting',
+      'players', jsonb_build_object('A', 'Sync Owner', 'B', 'Sync Player'),
+      'playerUserIds', jsonb_build_object('A', owner_id, 'B', player_id),
+      'lobbyReadyBySide', jsonb_build_object('A', true),
+      'status', 'draft',
+      'phase', 'setup',
+      'activeSide', 'A',
+      'scores', jsonb_build_object('A', 0, 'B', 0),
+      'startingSide', 'A',
+      'turnNumber', 1
+    ),
+    'public', 'public', null, 'invite_only', null
+  );
+
+  perform public.commit_live_game_command(
+    waiting_room.room_id,
+    0,
+    'smoke-waiting-create',
+    'host',
+    jsonb_build_object('kind', 'create'),
+    jsonb_build_object(
+      'turnNumber', 1,
+      'activeSide', 'A',
+      'status', 'draft',
+      'scores', jsonb_build_object('A', 0, 'B', 0)
+    ),
+    'smoke-digest-waiting',
+    (select state from public.room_live where room_id = waiting_room.room_id),
+    jsonb_build_object('version', 1, 'actionMode', 'none')
+  );
+
+  if (select status from public.room_live where room_id = waiting_room.room_id) <> 'waiting' then
+    raise exception 'the initial canonical commit moved a waiting room out of waiting';
+  end if;
+
+  perform set_config('request.jwt.claim.sub', player_id::text, true);
+  perform set_config(
+    'request.jwt.claims',
+    jsonb_build_object('sub', player_id, 'role', 'authenticated')::text,
+    true
+  );
+  perform public.set_room_ready(waiting_room.room_id, 'B', true);
+  if not coalesce(
+    (select (state #>> '{lobbyReadyBySide,B}')::boolean
+     from public.room_live where room_id = waiting_room.room_id),
+    false
+  ) then
+    raise exception 'the invited side could not mark the waiting room ready';
+  end if;
+
   perform set_config('request.jwt.claim.sub', owner_id::text, true);
   perform set_config(
     'request.jwt.claims',

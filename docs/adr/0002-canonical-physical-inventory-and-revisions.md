@@ -124,6 +124,10 @@ tile to make the numbers work.
   `supabase/room_live_revision_acl_repair.sql`; it restores authenticated reads
   of the non-sensitive revision counter without exposing canonical payloads or
   other internal Live Game columns.
+- Deployments where an invited player cannot mark Ready after room creation must
+  apply `supabase/waiting_room_ready_repair.sql`. It preserves the waiting
+  lifecycle during the initial canonical commit and recovers rooms already
+  stranded as paused while their stored state is still waiting.
 - Deployments whose End Game action fails with `committed game events are
   immutable` must apply `supabase/live_game_event_cascade_repair.sql`. Direct
   event mutation remains forbidden by table ACL/RLS, while the update trigger

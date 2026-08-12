@@ -19,6 +19,7 @@ supabase/*
 !supabase/live_game_sync_repair_migration.sql
 !supabase/canonical_revision_migration.sql
 !supabase/live_game_event_cascade_repair.sql
+!supabase/waiting_room_ready_repair.sql
 !supabase/room_live_revision_acl_repair.sql
 !supabase/room_live_access_contract_migration.sql
 !supabase/room_live_function_acl_repair.sql
