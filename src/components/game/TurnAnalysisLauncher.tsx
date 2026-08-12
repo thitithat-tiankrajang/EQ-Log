@@ -7,6 +7,7 @@ import {
   type AnalysisResult,
 } from "../../bot/engineApi";
 import * as analysisCache from "../../analysisSessionCache";
+import * as engineDebug from "../../engineDebug";
 import * as engineSessions from "../../engineSessions";
 import { TurnAnalysisPanel } from "./TurnAnalysisPanel";
 
@@ -138,6 +139,7 @@ export function TurnAnalysisLauncher({
   // or on a device that has never seen this game, the answer is the same.
   useEffect(() => {
     let cancelled = false;
+    engineDebug.note("launcher_discover", { revision, reconnectEpoch });
     void engineSessions.discover({ roomId, revision }).then(() => {
       if (cancelled) return;
     });
@@ -145,6 +147,18 @@ export function TurnAnalysisLauncher({
       cancelled = true;
     };
   }, [roomId, revision, reconnectEpoch]);
+
+  // What this component is actually looking up, every time it renders. If the
+  // store holds a session and this still finds nothing, the revision is the
+  // culprit; if the store is empty, something retired it. Guarded so that
+  // walking the store is not paid for on every render when the probe is off.
+  if (engineDebug.isEngineDebugging) {
+    engineDebug.note("launcher_render", {
+      revision,
+      found: session ? `${session.level}@${session.revision}=${session.status.kind}` : null,
+      holding: engineSessions.forRoom(roomId).map((one) => `${one.key}=${one.status.kind}`),
+    });
+  }
 
   // Stop SHOWING an answer that is no longer about this turn.
   //

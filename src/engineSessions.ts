@@ -44,6 +44,7 @@ import {
   type EngineProgress,
   type EngineQueueState,
 } from "./bot/engineApi";
+import * as engineDebug from "./engineDebug";
 import * as engineTrace from "./engineTrace";
 
 /**
@@ -288,7 +289,18 @@ export function adoptHints(roomId: string): void {
 
 function update(key: string, patch: Partial<EngineSession>): void {
   const entry = live.get(key);
-  if (!entry) return;
+  if (!entry) {
+    engineDebug.note("update_on_missing", { key, patch: patch.status?.kind });
+    return;
+  }
+  if (patch.status && patch.status.kind !== entry.session.status.kind) {
+    engineDebug.note("status", {
+      key,
+      from: entry.session.status.kind,
+      to: patch.status.kind,
+      ...(patch.status.kind === "failed" ? { code: patch.status.code } : {}),
+    });
+  }
   entry.session = { ...entry.session, ...patch, updatedAt: Date.now() };
   persist(entry.session.roomId);
   changed();
@@ -321,7 +333,11 @@ function begin(
   run: (controller: AbortController) => Promise<EngineSession>,
 ): Live {
   const existing = live.get(session.key);
-  if (existing) return existing;
+  if (existing) {
+    engineDebug.note("begin_deduped", { key: session.key, status: existing.session.status.kind });
+    return existing;
+  }
+  engineDebug.note("begin", { key: session.key, status: session.status.kind });
 
   const controller = new AbortController();
   const now = Date.now();
@@ -562,9 +578,17 @@ async function runDiscovery(options: { roomId: string; revision: number }): Prom
   let jobs;
   try {
     jobs = await listJobs({ gameId: options.roomId, revision: options.revision });
-  } catch {
+    engineDebug.note("listJobs", {
+      revision: options.revision,
+      jobs: jobs.map((job) => `${job.kind}:${job.level ?? "-"}:${job.status}`),
+    });
+  } catch (failure) {
     // Discovery is an optimisation over "ask again later". A failure here must
     // never destroy a session this tab is already watching.
+    engineDebug.note("listJobs_failed", {
+      revision: options.revision,
+      code: failure instanceof EngineApiError ? failure.code : "unknown",
+    });
     return;
   }
 
@@ -614,6 +638,16 @@ async function runDiscovery(options: { roomId: string; revision: number }): Prom
 export function drop(key: string): void {
   const entry = live.get(key);
   if (!entry) return;
+  // Guarded, not just no-op'd: building a stack trace is far too expensive to
+  // pay for on every drop when the probe is off.
+  if (engineDebug.isEngineDebugging) {
+    engineDebug.note("drop", {
+      key,
+      status: entry.session.status.kind,
+      // Who asked. The whole question is which caller retires a live session.
+      by: new Error().stack?.split("\n")[2]?.trim().slice(0, 120),
+    });
+  }
   entry.controller.abort();
   live.delete(key);
   persist(entry.session.roomId);
@@ -640,6 +674,12 @@ export function cancel(key: string): void {
  * every unmount and every navigation, and only a real change of position ends it.
  */
 export function dropStale(roomId: string, currentRevision: number): void {
+  if (engineDebug.isEngineDebugging) {
+    engineDebug.note("dropStale", {
+      currentRevision,
+      holding: forRoom(roomId).map((session) => `${session.key}=${session.status.kind}`),
+    });
+  }
   for (const session of forRoom(roomId)) {
     if (session.revision !== currentRevision) drop(session.key);
   }

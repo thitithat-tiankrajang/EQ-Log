@@ -128,6 +128,7 @@ import {
 } from "./bot/botController";
 import { EngineApiError, isEngineApiConfigured, type BotMoveResult } from "./bot/engineApi";
 import type { BotResponse } from "./bot/types";
+import * as engineDebug from "./engineDebug";
 import * as engineSessions from "./engineSessions";
 import { botRecordFromGame, recordBotGame } from "./botStats";
 import { BotThinkingCard } from "./components/game/BotThinkingCard";
@@ -468,7 +469,22 @@ function App() {
   const readOnlyRef = useRef(false);
   const activeRoomIdRef = useRef<string | null>(activeRoomId);
   const pendingSessionEventRef = useRef<RoomSessionEvent | null>(null);
-  const lastAppliedStateKeyRef = useRef<string>("");
+  // Seeded, not empty, whenever this mount rendered a cached snapshot.
+  //
+  // The sync effect below treats "the key differs from the last applied one" as
+  // "the player changed something, push it". An empty ref makes a cache-seeded
+  // mount look exactly like that, so it committed a position the server already
+  // held — a write that changes nothing and yet MINTS A REVISION.
+  //
+  // That is not a harmless no-op. The revision is the identity every engine job
+  // is keyed on, so a phantom bump silently retires the analysis or bot search
+  // in flight, and the server goes on computing an answer that can no longer be
+  // delivered. Every snapshot in the cache came from the authority (see the
+  // `remember` call sites), so seeding this ref with it is simply telling the
+  // truth: that position has already been applied.
+  const lastAppliedStateKeyRef = useRef<string>(
+    seededRemoteGame ? makeRemoteStateKey(seededRemoteGame) : "",
+  );
   const lastAppliedSessionKeyRef = useRef<string>("");
   const lastAppliedSessionUpdatedAtRef = useRef("");
   const lastAppliedSessionScopeRef = useRef("");
@@ -1855,6 +1871,11 @@ function App() {
     // discovery call is this one, so a refresh mid-search showed nothing at all
     // until the room row came back.
     engineSessions.adoptHints(activeRoomId);
+    engineDebug.note("shell_effect", {
+      positionIsConfirmed,
+      gameRevision: game?.revision ?? null,
+      subscriptionEpoch,
+    });
     if (!positionIsConfirmed || !game) return;
     const revision = game.revision ?? 0;
     // Retiring work is gated on the revision being CONFIRMED, and lives here

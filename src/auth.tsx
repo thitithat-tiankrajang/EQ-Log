@@ -45,12 +45,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const profileRequestRef = useRef(0);
+  /** Who the profile on screen belongs to, so a refresh for that same person can
+   *  be told apart from a sign-in that needs the account checked. */
+  const loadedProfileUserIdRef = useRef<string | null>(null);
 
-  async function loadProfile(userId: string) {
+  /**
+   * Fetch the account profile.
+   *
+   * `silent` refreshes it WITHOUT raising `profileLoading`, and the distinction
+   * matters far more than it looks: `AuthGate` renders a splash instead of its
+   * children while that flag is up, so raising it unmounts the entire
+   * application and mounts a brand new one when it clears.
+   *
+   * That is the right thing to do when there is nothing to show yet. It is the
+   * wrong thing to do for a token refresh — which Supabase performs whenever the
+   * tab regains focus. Returning to the tab therefore tore the game down and
+   * rebuilt it: every ref reset, the position re-seeded from cache, and the
+   * shell committed that seed back as a NEW REVISION. A revision the player
+   * never caused, which then retired the analysis they were watching and left
+   * the server computing an answer nobody could see any more.
+   */
+  async function loadProfile(userId: string, options: { silent?: boolean } = {}) {
     if (!supabase) return;
     const requestId = profileRequestRef.current + 1;
     profileRequestRef.current = requestId;
-    setProfileLoading(true);
+    if (!options.silent) setProfileLoading(true);
     setProfileError(null);
     try {
       let result = await withTimeout(supabase.rpc("get_my_profile"), PROFILE_LOAD_TIMEOUT_MS);
@@ -65,23 +84,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       if (profileRequestRef.current !== requestId) return;
       if (result.error) {
+        loadedProfileUserIdRef.current = null;
         setProfile(null);
         setProfileError(result.error.message);
         return;
       }
       const profileData = Array.isArray(result.data) ? result.data[0] : result.data;
+      loadedProfileUserIdRef.current = profileData ? userId : null;
       setProfile((profileData as Profile | null) ?? null);
     } catch (error) {
       if (profileRequestRef.current !== requestId) return;
+      loadedProfileUserIdRef.current = null;
       setProfile(null);
       setProfileError(error instanceof Error ? error.message : "Unable to load account profile.");
     } finally {
-      if (profileRequestRef.current === requestId) setProfileLoading(false);
+      // Only lower the flag this call raised. A silent refresh never raised it,
+      // and clearing it here would end a blocking load that is still running.
+      if (profileRequestRef.current === requestId && !options.silent) setProfileLoading(false);
     }
   }
 
   function clearProfile() {
     profileRequestRef.current += 1;
+    loadedProfileUserIdRef.current = null;
     setProfile(null);
     setProfileError(null);
     setProfileLoading(false);
@@ -112,8 +137,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setLoading(false);
       setSession(nextSession);
-      if (nextSession) void loadProfile(nextSession.user.id);
-      else clearProfile();
+      if (!nextSession) {
+        clearProfile();
+        return;
+      }
+      // Still the same signed-in person, so their profile is still on screen and
+      // still valid. Refresh it in the background rather than taking the app
+      // down to ask a question that is already answered — `TOKEN_REFRESHED`
+      // fires every time the tab regains focus, and blocking on it is what made
+      // switching tabs mid-game destructive.
+      const silent = loadedProfileUserIdRef.current === nextSession.user.id;
+      void loadProfile(nextSession.user.id, { silent });
     });
     return () => {
       active = false;

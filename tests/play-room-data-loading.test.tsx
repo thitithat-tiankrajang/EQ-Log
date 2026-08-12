@@ -307,6 +307,25 @@ describe("play route data loading", () => {
 
   const OWNER_ID = "11111111-1111-4111-8111-111111111111";
 
+  /** The same room, but with the HUMAN on move, so nothing the bot does can be
+   *  mistaken for the write under test. */
+  function humanTurnGame(revision: number) {
+    const initial = createNewGame({
+      ...DEFAULT_NEW_GAME_SETTINGS,
+      name: "Owner vs Aether",
+      playerA: "Owner",
+      playerB: "Aether",
+      botSide: "B",
+      startingSide: "A",
+      tileDrawMode: "play",
+    });
+    return { ...initial, playerUserIds: { A: OWNER_ID }, revision };
+  }
+
+  function payloadForHumanTurn(game: ReturnType<typeof humanTurnGame>) {
+    return botPayload(game as unknown as ReturnType<typeof botGame>, OWNER_ID);
+  }
+
   function botGame(revision: number) {
     const initial = createNewGame({
       ...DEFAULT_NEW_GAME_SETTINGS,
@@ -432,6 +451,29 @@ describe("play route data loading", () => {
     // Not a request of any kind: not a start, and not a discovery attach.
     expect(requestBotMove).not.toHaveBeenCalled();
     expect(attachBotMove).not.toHaveBeenCalled();
+    view.unmount();
+  });
+
+  it("does not commit a cached snapshot back as a new revision", async () => {
+    // A phantom revision is not a harmless extra write. The revision is the
+    // identity every engine job is keyed on, so minting one retires the analysis
+    // or bot search in flight — silently, while the server goes on computing an
+    // answer that can no longer be delivered and the player's budget stays
+    // spent. The player sees the Analyze button back and nothing explaining it.
+    //
+    // The mount that did this is the one that renders a CACHED snapshot: the
+    // "last applied" key started empty, which looks exactly like "the player
+    // changed something, push it". Every snapshot in that cache came from the
+    // authority, so there is nothing to push.
+    const game = humanTurnGame(5);
+    playSnapshotCache.remember(ROOM_ID, game);
+    readRoom.mockResolvedValue(payloadForHumanTurn(game));
+
+    const view = render(<App />);
+    await waitFor(() => expect(readRoom).toHaveBeenCalled());
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(commitRoomState).not.toHaveBeenCalled();
     view.unmount();
   });
 
