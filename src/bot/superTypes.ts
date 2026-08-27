@@ -40,6 +40,22 @@ export type SuperEngineRequest = {
    * was that second.
    */
   sampleCap?: number;
+  /**
+   * How many threads the sample loop may use, and the size of the WASM pthread
+   * pool that must already be up to serve them.
+   *
+   * The exception to "field for field with the backend adapter", and it is
+   * allowed to be one because it is not a property of the POSITION — it is a
+   * property of where the search is running. `service/src/adapter.ts` never
+   * sends it and never should; the backend runs one search per process.
+   *
+   * It is also not a strength dial, which is the only reason a device is
+   * allowed to choose it at all: the engine reduces its samples in sample order
+   * whatever the thread count, so one thread and eight return the same move
+   * with the same numbers behind it. `superWorker.ts` stamps this on, next to
+   * the pool it has to agree with. See `superThreads.ts`.
+   */
+  threads?: number;
   topN?: number;
   seed: number;
   /** Tuning, served and versioned by the backend. Absent means the engine's
@@ -96,7 +112,15 @@ export type SuperWorkerInbound =
   | { type: "think"; id: number; request: SuperEngineRequest };
 
 export type SuperWorkerOutbound =
-  | { type: "ready"; initMs: number }
+  | {
+      type: "ready";
+      initMs: number;
+      /** Threads the loaded engine will use. 1 means the single-threaded module,
+       *  which is the floor every device can run rather than a failure. */
+      threads: number;
+      /** Why that number, in a few words — for telemetry and the stats panel. */
+      threadReason: string;
+    }
   | { type: "progress"; id: number; progress: BotProgress }
   | { type: "calibration"; id: number; result: CalibrationResult }
   | { type: "result"; id: number; response: SuperEngineResponse; wallMs: number }
