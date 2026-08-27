@@ -1,0 +1,33 @@
+/* The board and the tiles, without the Play screen's layout.
+ *
+ * `play-styles.css` is loaded only by the lazily imported Play chunk
+ * (AppRoot.tsx routes `play` to App.tsx, and nothing else imports it), so any
+ * other page that renders a <Board> or a <Tile> gets the markup with none of
+ * the styling — an unstyled board is a 15-row vertical stack, and an unstyled
+ * tile is transparent.
+ *
+ * What is deliberately NOT here: `layout/20-board-first-layout.css`,
+ * `layout/50-board-first-rail.css` and `pages/10-lobby-and-responsive.css`.
+ * Those size the board against the Play screen's side rail — their `--cell`
+ * subtracts a rail width of `clamp(480px, 48vw, 700px)` — so importing them
+ * anywhere else produces a board scaled for furniture that is not on the page.
+ * Without them `--cell` falls back to the 36px in `00-base.css`, which is what
+ * a standalone board wants: one fixed, predictable size.
+ *
+ * The order is a strict SUBSEQUENCE of the order in `play-styles.css`. Both
+ * sheets end up in the document once a session visits Play and Study, and
+ * keeping the relative order identical is what makes the second one to load a
+ * no-op rather than a re-cascade with a different answer.
+ *
+ * Every import carries `layer(legacy)` on purpose. An unlayered stylesheet wins
+ * over every named layer, so importing these bare from a .tsx file would put
+ * the Play screen's legacy rules ON TOP of the application shell instead of
+ * underneath it, and take the page's own chrome with it.
+ */
+
+@import "./styles/00-base.css" layer(legacy);
+@import "./styles/components/30-visual-system.css" layer(legacy);
+@import "./styles/components/60-tiles-log-rack.css" layer(legacy);
+@import "./styles/90-refinement-layer.css" layer(legacy);
+@import "./styles/tokens.css" layer(legacy);
+@import "./styles/95-material-ai.css" layer(legacy);

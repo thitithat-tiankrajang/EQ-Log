@@ -221,7 +221,7 @@ test("shows the styled coffee return control outside Play and returns to the pau
   const styles = await returnButton.evaluate((element) => {
     const style = getComputedStyle(element);
     const bounds = element.getBoundingClientRect();
-    const navigationBounds = document.querySelector(".eq-bottom-nav")?.getBoundingClientRect();
+    const navigationBounds = document.querySelector(".eq-primary-nav")?.getBoundingClientRect();
     return {
       position: style.position,
       display: style.display,

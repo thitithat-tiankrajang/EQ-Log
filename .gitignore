@@ -24,6 +24,8 @@ supabase/*
 !supabase/room_live_access_contract_migration.sql
 !supabase/room_live_function_acl_repair.sql
 !supabase/room_code_secret_setup.example.sql
+!supabase/bot_super_tier_migration.sql
+!supabase/study_positions_migration.sql
 !supabase/tests/
 supabase/tests/*
 !supabase/tests/game_archive_room_code_smoke.sql

@@ -244,6 +244,11 @@ function encodeSnapshot(snapshot: GameSnapshot): EncodedSnapshot {
     startingSide: snapshot.startingSide,
     botSide: snapshot.botSide,
     botDifficulty: snapshot.botDifficulty,
+    // The versions this game's client-side bot is pinned to. Persisted with the
+    // game so the pin survives a reload and reaches a SECOND DEVICE — which is
+    // the only way it can stop one match being played by two evaluators.
+    superEngineVersion: snapshot.superEngineVersion,
+    superWeightsVersion: snapshot.superWeightsVersion,
     tileDrawMode: getTileDrawMode(snapshot),
     turnNumber: snapshot.turnNumber,
     activeSide: snapshot.activeSide,
@@ -300,6 +305,12 @@ function decodeSnapshot(
     startingSide: snapshot.startingSide ?? (snapshot.activeSide as Side),
     botSide: snapshot.botSide,
     botDifficulty: snapshot.botDifficulty,
+    // Absent on every game saved before pinning existed, and on every game that
+    // never computed a Super move locally. Left absent rather than defaulted:
+    // claiming a game was pinned to the current version when it was not is the
+    // one thing a reproducibility record must never do.
+    superEngineVersion: snapshot.superEngineVersion,
+    superWeightsVersion: snapshot.superWeightsVersion,
     tileDrawMode: snapshot.tileDrawMode ?? "manual",
     turnNumber: snapshot.turnNumber,
     activeSide: snapshot.activeSide as Side,

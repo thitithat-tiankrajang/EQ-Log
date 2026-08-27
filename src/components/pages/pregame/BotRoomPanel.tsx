@@ -13,13 +13,18 @@ const DIFFICULTY_OPTIONS: Array<{
   /** Filled bars in the strength meter (1–4). */
   level: number;
 }> = [
-  { value: "easy", label: "Instant", desc: "Replies right away — a relaxed game.", level: 1 },
-  { value: "medium", label: "Fast", desc: "Quick thinking, still solid play.", level: 2 },
-  { value: "hard", label: "Balanced", desc: "Searches deeper and plays sharply.", level: 3 },
+  { value: "medium", label: "Fast", desc: "Quick thinking, still solid play.", level: 1 },
+  { value: "hard", label: "Balanced", desc: "Searches deeper and plays sharply.", level: 2 },
   {
     value: "max",
     label: "Deep",
     desc: "Full strength — explores every move and solves the endgame exactly.",
+    level: 3,
+  },
+  {
+    value: "super",
+    label: "Unlimited",
+    desc: "No time limit — thinks until the search is 100% finished. Minutes a move.",
     level: 4,
   },
 ];
@@ -37,10 +42,10 @@ function StrengthMeter({ level }: { level: number }) {
 
 /**
  * Setup for a match against the built-in engine (Aether). Pick a strength: it
- * maps to how long the engine may think, from a quick Easy reply up to the
- * full-strength Max that solves the endgame exactly. The bot always plays side
- * B; timers default to untimed so the engine's thinking time never costs anyone
- * the game.
+ * maps to how long the engine may think, from a fast reply up to Unlimited,
+ * which has no clock on it at all and returns when the search has finished
+ * rather than when time ran out. The bot always plays side B; timers default to
+ * untimed so the engine's thinking time never costs anyone the game.
  */
 export function BotRoomPanel({
   busy,
@@ -258,7 +263,7 @@ export function BotRoomPanel({
           </small>
         </span>
         <button className="ui-button-primary" type="submit" disabled={busy || !trimmedPlayerName}>
-          {busy ? "Creating..." : "Start Aether match"}
+          {busy ? "Creating…" : "Start Aether match"}
         </button>
       </footer>
     </form>

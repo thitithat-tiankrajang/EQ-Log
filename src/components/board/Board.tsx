@@ -1,5 +1,5 @@
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from "lucide-react";
-import { useRef, type CSSProperties } from "react";
+import { memo, useRef, type CSSProperties } from "react";
 import {
   slotTypeAt,
   tileNeedsAssignment,
@@ -24,7 +24,104 @@ export type BoardScoreAnchor = {
   isValid: boolean;
 };
 
-export function Board({
+type BoardProps = {
+  board: BoardSnapshot;
+  pendingPlacements: PendingPlacement[];
+  placementCursor?: PlacementCursor;
+  scoreAnchor?: BoardScoreAnchor | null;
+  scoringKeys?: Set<string>;
+  selectedRackTileId: string | null;
+  selectedPendingTileId: string | null;
+  /** Must be stable across renders — see `sameBoardPicture`. */
+  onCellClick: (row: number, col: number) => void;
+  /** Must be stable across renders — see `sameBoardPicture`. */
+  onPendingAssignmentEdit?: (tileId: string) => void;
+};
+
+/**
+ * Are two renders of the board the same picture?
+ *
+ * The board is 225 buttons, and the component that owns it re-renders on every
+ * keystroke, every tile selection and every clock tick — none of which change
+ * what the grid looks like. Comparing the props costs a few hundred reference
+ * checks; skipping the render saves rebuilding and reconciling 225 elements.
+ *
+ * Two props are deliberately NOT compared: `onCellClick` and
+ * `onPendingAssignmentEdit`. Callers must pass STABLE callbacks (see the ref
+ * indirection in App), because a fresh closure per render would defeat this
+ * comparison entirely. A stable callback that reads current state through a ref
+ * is always up to date, so ignoring its identity is safe.
+ *
+ * `board` is compared cell by cell rather than by identity on purpose: while a
+ * move is being composed the caller rebuilds the array every render
+ * (`boardWithPending`), so its identity is never stable even when every square
+ * on it is.
+ */
+function sameBoardPicture(a: BoardProps, b: BoardProps): boolean {
+  if (
+    a.selectedRackTileId !== b.selectedRackTileId ||
+    a.selectedPendingTileId !== b.selectedPendingTileId
+  ) {
+    return false;
+  }
+
+  const ac = a.placementCursor;
+  const bc = b.placementCursor;
+  if (ac !== bc && (!ac || !bc || ac.row !== bc.row || ac.col !== bc.col || ac.dir !== bc.dir)) {
+    return false;
+  }
+
+  const aa = a.scoreAnchor;
+  const ba = b.scoreAnchor;
+  if (aa !== ba) {
+    if (!aa || !ba) return false;
+    if (
+      aa.row !== ba.row || aa.col !== ba.col || aa.score !== ba.score ||
+      aa.isValid !== ba.isValid || aa.orientation !== ba.orientation ||
+      aa.side !== ba.side || aa.alignX !== ba.alignX || aa.alignY !== ba.alignY
+    ) {
+      return false;
+    }
+  }
+
+  const ak = a.scoringKeys;
+  const bk = b.scoringKeys;
+  if (ak !== bk) {
+    if ((ak?.size ?? 0) !== (bk?.size ?? 0)) return false;
+    if (ak && bk) for (const key of ak) if (!bk.has(key)) return false;
+  }
+
+  const ap = a.pendingPlacements;
+  const bp = b.pendingPlacements;
+  if (ap !== bp) {
+    if (ap.length !== bp.length) return false;
+    for (let i = 0; i < ap.length; i += 1) {
+      const x = ap[i];
+      const y = bp[i];
+      if (
+        x !== y &&
+        (x.row !== y.row || x.col !== y.col || x.tile !== y.tile ||
+          x.assignedToken !== y.assignedToken)
+      ) {
+        return false;
+      }
+    }
+  }
+
+  if (a.board !== b.board) {
+    for (let r = 0; r < a.board.length; r += 1) {
+      const rowA = a.board[r];
+      const rowB = b.board[r];
+      if (rowA === rowB) continue;
+      if (!rowB || rowA.length !== rowB.length) return false;
+      for (let c = 0; c < rowA.length; c += 1) if (rowA[c] !== rowB[c]) return false;
+    }
+  }
+
+  return true;
+}
+
+export const Board = memo(function Board({
   board,
   pendingPlacements,
   placementCursor = null,
@@ -34,17 +131,7 @@ export function Board({
   selectedPendingTileId,
   onCellClick,
   onPendingAssignmentEdit,
-}: {
-  board: BoardSnapshot;
-  pendingPlacements: PendingPlacement[];
-  placementCursor?: PlacementCursor;
-  scoreAnchor?: BoardScoreAnchor | null;
-  scoringKeys?: Set<string>;
-  selectedRackTileId: string | null;
-  selectedPendingTileId: string | null;
-  onCellClick: (row: number, col: number) => void;
-  onPendingAssignmentEdit?: (tileId: string) => void;
-}) {
+}: BoardProps) {
   const pendingByKey = new Map(pendingPlacements.map((item) => [`${item.row}:${item.col}`, item]));
   const editPressTimerRef = useRef<number | null>(null);
   const suppressClickKeyRef = useRef<string | null>(null);
@@ -167,4 +254,4 @@ export function Board({
       </div>
     </div>
   );
-}
+}, sameBoardPicture);

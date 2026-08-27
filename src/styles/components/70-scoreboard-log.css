@@ -347,6 +347,50 @@ button.turn-record-summary:hover {
     margin-right: auto;
   }
 
+  /* Undo / Redo / Break / Log are reversible tools; Stop and End Game change
+     the game's lifecycle. A hairline says which is which before the colour
+     does, so the destructive end of the bar is never entered by momentum. */
+  .top-actions > .top-stop-time {
+    position: relative;
+    margin-inline-start: 13px;
+  }
+
+  .top-actions > .top-stop-time::after {
+    content: "";
+    position: absolute;
+    inset-block: 3px;
+    inset-inline-start: -7px;
+    width: 1px;
+    background: var(--border, #d6ddd5);
+  }
+
+  /* The bar never wraps, so below ~1180px the buttons were squeezed narrower
+     than their own text and clipped it mid-word ("End Game" → "nd G").
+     Dropping to icon-only keeps every control at full size; each button
+     carries an aria-label and a title, so the name survives the collapse. */
+  .top-actions .icon-button,
+  .top-actions .top-end-game {
+    flex: 0 0 auto;
+  }
+
+  @media (max-width: 1179px) {
+    .top-actions .top-action-label {
+      display: none;
+    }
+
+    .top-actions .icon-button,
+    .top-actions .danger-button.top-end-game,
+    .top-actions .resume-button.top-end-game,
+    .top-actions .top-end-game {
+      gap: 0 !important;
+      justify-content: center;
+      /* Width freed by dropping the labels goes back into the hit area; the
+         bar's own height caps how tall these can get. */
+      min-width: 38px;
+      padding: 5px 8px !important;
+    }
+  }
+
   .top-actions .icon-button {
     display: inline-flex !important;
     align-items: center;
@@ -777,7 +821,7 @@ button.turn-record-summary:hover {
 /* ============================================================================
    Action buttons — Place / Exchange / Pass.
    Reuse the original Stop / Resume / End Game flat-solid look:
-   Place   = teal  (#247b6f), white text  — "go"
+   Place   = teal  (var(--success)), white text  — "go"
    Exchange= amber (#f3c64e), dark text   — "caution/trade"
    Pass    = red   (#b6402f), white text  — "skip turn"
    ============================================================================ */
@@ -805,7 +849,7 @@ button.turn-record-summary:hover {
 }
 
 .action-buttons button:nth-child(1) {
-  background: #247b6f !important;
+  background: var(--success) !important;
   color: #fff !important;
 }
 
@@ -815,7 +859,7 @@ button.turn-record-summary:hover {
 }
 
 .action-buttons button:nth-child(3) {
-  background: #b6402f !important;
+  background: var(--danger) !important;
   color: #fff !important;
 }
 
@@ -922,7 +966,7 @@ button.turn-record-summary:hover {
 }
 
 .scoreboard-stop.paused {
-  background: #247b6f !important;
+  background: var(--success) !important;
   color: #ffffff !important;
 }
 
@@ -940,7 +984,7 @@ button.turn-record-summary:hover {
   .top-actions .top-end-game,
   .top-actions .danger-button.top-end-game,
   .top-actions .resume-button.top-end-game {
-    background: #b6402f !important;
+    background: var(--danger) !important;
     color: #ffffff !important;
     border: 1px solid transparent !important;
     box-shadow: none !important;
@@ -952,7 +996,7 @@ button.turn-record-summary:hover {
   }
 
   .top-actions .top-end-game.resume-button {
-    background: #247b6f !important;
+    background: var(--success) !important;
     color: #ffffff !important;
   }
 
@@ -1371,7 +1415,7 @@ button.turn-record-summary:hover {
 }
 
 .action-buttons button:nth-child(1) {
-  background: #247b6f !important;
+  background: var(--success) !important;
   color: #fff !important;
 }
 
@@ -1381,7 +1425,7 @@ button.turn-record-summary:hover {
 }
 
 .action-buttons button:nth-child(3) {
-  background: #b6402f !important;
+  background: var(--danger) !important;
   color: #fff !important;
 }
 
@@ -1498,7 +1542,7 @@ button.turn-record-summary:hover {
 
 .action-status.valid .action-metrics strong {
   border-color: rgba(36, 123, 111, 0.5) !important;
-  color: #247b6f !important;
+  color: var(--success) !important;
 }
 
 .action-status.invalid .action-metrics strong {
@@ -1647,7 +1691,7 @@ button.turn-record-summary:hover {
   min-height: 46px !important;
   width: 100% !important;
   border-radius: 10px !important;
-  background: #247b6f !important;
+  background: var(--success) !important;
   color: #fff !important;
   border: 1px solid transparent !important;
   padding: 12px 16px !important;
@@ -1866,7 +1910,7 @@ button.turn-record-summary:hover {
 /* Invalid state: error message itself becomes the prominent line. */
 .action-status.invalid + .place-workspace .action-equation-preview > span,
 .action-status.invalid ~ .place-workspace .action-equation-preview > span {
-  color: #b6402f !important;
+  color: var(--danger) !important;
   font-size: 14px !important;
   font-weight: 900 !important;
   letter-spacing: 0.01em !important;
@@ -2401,7 +2445,7 @@ button.tilebag-stat.active .ts-count {
 }
 
 .scoreboard-side.negative .ss-clock {
-  color: #b6402f !important;
+  color: var(--danger) !important;
   font-weight: 800 !important;
 }
 
@@ -2464,7 +2508,7 @@ button.tilebag-stat.active .ts-count {
 }
 
 .top-actions .icon-button.top-stop-time.paused {
-  background: #247b6f !important;
+  background: var(--success) !important;
   color: #fff !important;
   border-color: #1c635a !important;
 }
@@ -2486,7 +2530,7 @@ button.tilebag-stat.active .ts-count {
 /* ---- Cancel button promoted to red. ---- */
 .draft-header button,
 .control-panel:has(.draft-panel) .draft-header button {
-  background: #b6402f !important;
+  background: var(--danger) !important;
   color: #ffffff !important;
   border-color: #8c2c20 !important;
   font-weight: 800 !important;
@@ -3122,7 +3166,7 @@ button.tilebag-stat.active .ts-count {
 }
 
 .board-score-badge.invalid {
-  background: linear-gradient(180deg, #b6402f, #8c2c20);
+  background: linear-gradient(180deg, var(--danger), #8c1a29);
 }
 
 /* ============================================================================
@@ -3190,7 +3234,7 @@ button.tilebag-stat.active .ts-count {
 
 .action-buttons.two button:nth-child(2) {
   /* Pass = red */
-  background: #b6402f !important;
+  background: var(--danger) !important;
   color: #fff !important;
 }
 
@@ -3254,7 +3298,7 @@ button.tilebag-stat.active .ts-count {
 }
 
 .board-score-badge.invalid {
-  background: linear-gradient(180deg, #b6402f, #8c2c20);
+  background: linear-gradient(180deg, var(--danger), #8c1a29);
 }
 
 @keyframes badge-pop {
@@ -3753,7 +3797,7 @@ button.tilebag-stat.active .ts-count {
 
 /* Invalid placements: red ribbon. */
 .board-score-badge.invalid {
-  background: #b6402f !important;
+  background: var(--danger) !important;
 }
 
 .board-score-badge.invalid small {

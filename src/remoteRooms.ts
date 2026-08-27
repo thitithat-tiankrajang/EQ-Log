@@ -456,7 +456,7 @@ export function commitRoomState(args: CommitStateArgs): Promise<CommitOutcome> {
         target_completion_reason: completion.reason,
         target_surrendered_side: completion.surrenderedSide,
       });
-      if (error) throw schemaError(error.message);
+      if (error) throw describeDatabaseError(error);
       return { outcome: "committed", revision: nextRevision };
     }
 
@@ -471,7 +471,7 @@ export function commitRoomState(args: CommitStateArgs): Promise<CommitOutcome> {
       target_state: encodeGame(withRevision(args.game, nextRevision)),
       target_session: args.session,
     });
-    if (error) throw schemaError(error.message);
+    if (error) throw describeDatabaseError(error);
     const row = (Array.isArray(data) ? data[0] : data) as {
       outcome?: string;
       revision?: number;
@@ -925,14 +925,50 @@ function schemaError(message: string): Error {
       "Live game sync needs an upgrade. Run supabase/live_game_sync_repair_migration.sql.",
     );
   }
+  // Naming one of these functions is NOT on its own a sign that the schema is
+  // missing — the same name appears in "permission denied for function ...",
+  // in a signature mismatch, and in anything the function itself raises. This
+  // branch used to fire on the name alone, which replaced every one of those
+  // with an instruction to run a migration that was already applied: a precise
+  // failure became a wrong answer, and the real message was lost. Both halves
+  // are required, exactly as in the first branch above.
   if (
-    /does not exist|schema cache|PGRST20|create_live_game|finalize_live_game|sync_live_game|update_live_game|cancel_live_game|join_live_game/i.test(
+    /create_live_game|finalize_live_game|sync_live_game|update_live_game|cancel_live_game|join_live_game/i.test(
       message,
-    )
+    ) &&
+    /does not exist|schema cache|PGRST20|42883/i.test(message)
   ) {
     return new Error(
       "Live game storage is not enabled yet. Run supabase/game_archives_migration.sql.",
     );
   }
+  // A schema signal with no function name still means what it says.
+  if (/schema cache|PGRST20/i.test(message)) {
+    return new Error(
+      "Live game storage is not enabled yet. Run supabase/game_archives_migration.sql.",
+    );
+  }
   return new Error(message);
+}
+
+/**
+ * Everything Postgres said, not just the sentence.
+ *
+ * A `PostgrestError` carries `code`, `details` and `hint` alongside `message`,
+ * and passing the message alone throws away the half that identifies WHICH rule
+ * refused — `23514` (a check constraint) and `42501` (permission) read very
+ * differently to anyone diagnosing a failure, and neither is visible in the
+ * sentence a `raise` produces.
+ */
+function describeDatabaseError(error: {
+  message: string;
+  code?: string | null;
+  details?: string | null;
+  hint?: string | null;
+}): Error {
+  const parts = [error.message];
+  if (error.details) parts.push(error.details);
+  if (error.hint) parts.push(error.hint);
+  const suffix = error.code ? ` [${error.code}]` : "";
+  return schemaError(`${parts.join(" — ")}${suffix}`);
 }

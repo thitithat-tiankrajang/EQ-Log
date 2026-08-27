@@ -26,20 +26,50 @@ import {
   type GameState,
 } from "./game";
 
+/**
+ * Serialized form of every object this process has already serialized.
+ *
+ * The expensive part of a state key is not the position — it is the MATCH
+ * HISTORY behind it. Every `TurnLog` carries two full board snapshots and two
+ * full tilebags, so at turn 40 `logs` alone is tens of thousands of objects and
+ * ~400 KB of output, and the key was rebuilt from scratch on every tile the
+ * player moved.
+ *
+ * None of that work is ever different the second time. State in this codebase is
+ * immutable — every update is a spread, so a sub-object that did not change
+ * keeps its identity — which makes object identity a sound cache key for the
+ * string it produces. A finished turn's log is serialized once and then reused
+ * for the rest of the match; editing a note replaces the log object and so
+ * misses the cache exactly as it should.
+ *
+ * Weakly held, so nothing is retained past the state that owns it.
+ *
+ * The one property this rests on is the one `remoteStateIdentity` below already
+ * rests on: NOTHING IS MUTATED IN PLACE. `stateKey.test.ts` pins it.
+ */
+const serialized = new WeakMap<object, string>();
+
 export function canonicalStringify(value: unknown): string {
   if (value === null || typeof value !== "object") {
     return JSON.stringify(value) ?? "null";
   }
+  const cached = serialized.get(value as object);
+  if (cached !== undefined) return cached;
+
+  let result: string;
   if (Array.isArray(value)) {
-    return `[${value.map((item) => canonicalStringify(item === undefined ? null : item)).join(",")}]`;
+    result = `[${value.map((item) => canonicalStringify(item === undefined ? null : item)).join(",")}]`;
+  } else {
+    const record = value as Record<string, unknown>;
+    const parts: string[] = [];
+    for (const key of Object.keys(record).sort()) {
+      if (record[key] === undefined) continue;
+      parts.push(`${JSON.stringify(key)}:${canonicalStringify(record[key])}`);
+    }
+    result = `{${parts.join(",")}}`;
   }
-  const record = value as Record<string, unknown>;
-  const parts: string[] = [];
-  for (const key of Object.keys(record).sort()) {
-    if (record[key] === undefined) continue;
-    parts.push(`${JSON.stringify(key)}:${canonicalStringify(record[key])}`);
-  }
-  return `{${parts.join(",")}}`;
+  serialized.set(value as object, result);
+  return result;
 }
 
 /**
@@ -92,10 +122,11 @@ function keyedFields(game: GameState) {
  * identify the position itself, so that a confirmed commit (same content, new
  * revision) is recognized as the position this client already has.
  *
- * **This is O(the whole game history.)** `logs` holds two full board snapshots
- * and two full bags per turn, and every one of them is walked and sorted here.
- * At turn 40 that is tens of thousands of objects. Call it when the POSITION
- * changes, and only then — see `remoteStateIdentity`.
+ * Cost is O(what has CHANGED since the last call), not O(the whole match:
+ * `canonicalStringify` memoizes on object identity, so the history behind the
+ * position is serialized once and reused. Calling it per interaction is
+ * therefore affordable — but `remoteStateIdentity` below still skips it
+ * entirely when nothing it reads has moved, which is cheaper again.
  */
 export function makeRemoteStateKey(game: GameState): string {
   return canonicalStringify(keyedFields(game));

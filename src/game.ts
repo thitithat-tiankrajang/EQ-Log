@@ -27,7 +27,7 @@ export type Side = "A" | "B";
 
 export type GameMode = "versus" | "solo";
 export type TileDrawMode = "manual" | "play";
-export type BotDifficulty = "easy" | "medium" | "hard" | "max";
+export type BotDifficulty = "medium" | "hard" | "max" | "super";
 export type EmailPlayMode = "hosted" | "direct";
 export type RoomStage = "waiting" | "playing";
 export type SideTimerMinutes = Record<Side, number | null>;
@@ -237,6 +237,24 @@ export type GameSnapshot = {
   botSide?: Side;
   /** Bot strength; maps to the engine's search budget. */
   botDifficulty?: BotDifficulty;
+  /**
+   * The engine build and weights version this game's bot is PINNED to, written
+   * the first time a Super turn is computed on the device.
+   *
+   * Stored with the game rather than on the device because a pin that lived in
+   * one browser's storage would not survive a reload on another machine, and a
+   * second device would happily start playing the same match under whatever
+   * version had become current. Two halves of one game played by two different
+   * evaluators is precisely what pinning exists to prevent, and no record
+   * written afterwards could say which half was which.
+   *
+   * Absent on every game that has never computed a Super move locally —
+   * including every human-vs-human room and every game played entirely on the
+   * backend engine — and absent is the honest encoding of "no client engine has
+   * claimed this game".
+   */
+  superEngineVersion?: string;
+  superWeightsVersion?: string;
   /** manual = record a physical bag; play = app draws from a shuffled queue. */
   tileDrawMode?: TileDrawMode;
   turnNumber: number;
@@ -350,37 +368,53 @@ export function createInitialTilebag(options: { shuffleForPlay?: boolean } = {})
   return options.shuffleForPlay ? shuffleTilebagQueue(tiles) : tiles;
 }
 
+/**
+ * A uniformly random permutation of the bag: every one of the `n!` orderings is
+ * exactly as likely as every other, and no tile's position depends on what it
+ * is.
+ *
+ * This deliberately does NOT space identical tokens apart. An earlier version
+ * did — it grouped the bag by token and dealt each token's copies at even
+ * intervals with a little jitter — which produced a queue that *looks* well
+ * mixed while being materially easier to predict: knowing three 1s had already
+ * come out told you roughly when the fourth would. A fair bag clumps. Drawing
+ * four 1s in a row is unlikely, not impossible, and suppressing it is a bias in
+ * the players' hands, not a nicety.
+ */
 export function shuffleTilebagQueue(tilebag: TileInstance[]): TileInstance[] {
-  if (tilebag.length <= 1) return tilebag.slice();
-
-  const total = tilebag.length;
-  const groups = new Map<AmathToken, TileInstance[]>();
-  for (const tile of tilebag) {
-    const group = groups.get(tile.token);
-    if (group) group.push(tile);
-    else groups.set(tile.token, [tile]);
-  }
-
-  const positioned = Array.from(groups.values()).flatMap((group) => {
-    const shuffledGroup = shuffleArray(group);
-    const spacing = total / shuffledGroup.length;
-    const offset = Math.random() * spacing;
-    return shuffledGroup.map((tile, index) => ({
-      tile,
-      position: (offset + index * spacing + (Math.random() - 0.5) * spacing * 0.45 + total) % total,
-      tieBreaker: Math.random(),
-    }));
-  });
-
-  return positioned
-    .sort((a, b) => a.position - b.position || a.tieBreaker - b.tieBreaker)
-    .map((item) => item.tile);
+  return shuffleArray(tilebag);
 }
 
+/**
+ * A uniformly random integer in `[0, bound)`, free of modulo bias.
+ *
+ * `Math.floor(Math.random() * bound)` is close to uniform but not exactly so:
+ * `Math.random()` returns one of a finite set of doubles, and that set does not
+ * divide evenly into `bound` buckets, so some outcomes are very slightly more
+ * likely than others. Rejection sampling over the CSPRNG removes the residue
+ * entirely rather than making it small. The bag is dealt by the machine, so the
+ * fairness of the deal should not rest on "the skew is too small to notice".
+ */
+function randomInt(bound: number): number {
+  if (bound <= 1) return 0;
+  // The largest multiple of `bound` that fits in a uint32. Draws at or above it
+  // would over-represent the low remainders, so they are thrown away and redrawn.
+  const limit = Math.floor(0x100000000 / bound) * bound;
+  const buffer = new Uint32Array(1);
+  for (;;) {
+    crypto.getRandomValues(buffer);
+    const draw = buffer[0];
+    if (draw < limit) return draw % bound;
+  }
+}
+
+/** Fisher-Yates. Each step swaps with a uniform pick from the unshuffled
+ *  prefix INCLUDING the current index — the off-by-one that excludes it is the
+ *  classic way to end up with a permutation that is not uniform. */
 function shuffleArray<T>(items: T[]): T[] {
   const next = items.slice();
   for (let index = next.length - 1; index > 0; index -= 1) {
-    const swapIndex = Math.floor(Math.random() * (index + 1));
+    const swapIndex = randomInt(index + 1);
     [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
   }
   return next;
@@ -598,6 +632,8 @@ export function makeSnapshot(game: GameState | Omit<GameState, "history" | "hist
     startingSide: game.startingSide,
     botSide: game.botSide,
     botDifficulty: game.botDifficulty,
+    superEngineVersion: game.superEngineVersion,
+    superWeightsVersion: game.superWeightsVersion,
     tileDrawMode: getTileDrawMode(game),
     turnNumber: game.turnNumber,
     activeSide: game.activeSide,
@@ -981,6 +1017,73 @@ function detectEquations(
   }
 
   return equations;
+}
+
+/** One run of two or more adjacent tiles that does not read as a valid
+ *  equation. Used by Study, where a board is typed in rather than played and so
+ *  has never been through the move validator. */
+export type BoardEquationIssue = {
+  direction: "horizontal" | "vertical";
+  cells: Array<{ row: number; col: number }>;
+  expressionText: string;
+  error: string;
+};
+
+/**
+ * Every invalid run on a finished board.
+ *
+ * `detectEquations` answers a different question — "is the move I am about to
+ * make legal" — and only looks at runs the pending tiles touch. A study
+ * position has no move and no pending tiles: it is a whole board someone typed,
+ * so every run has to be looked at.
+ *
+ * This REPORTS rather than refuses. A position with a broken row is usually a
+ * typo, but it is occasionally the point (a board mid-repair, or one copied
+ * from a photo with a tile still missing), and the engine will happily reason
+ * about it either way — it validates the moves it makes, not the board it
+ * starts from.
+ */
+export function findBoardEquationIssues(board: BoardSnapshot): BoardEquationIssue[] {
+  const size = board.length;
+  const seen = new Set<string>();
+  const issues: BoardEquationIssue[] = [];
+
+  for (let row = 0; row < size; row += 1) {
+    for (let col = 0; col < size; col += 1) {
+      if (!board[row]?.[col]) continue;
+      for (const direction of ["horizontal", "vertical"] as const) {
+        const [dr, dc] = direction === "horizontal" ? [0, 1] : [1, 0];
+        // Only start a run at its own beginning, so each run is examined once.
+        if (board[row - dr]?.[col - dc]) continue;
+
+        const cells: Array<{ row: number; col: number }> = [];
+        let r = row;
+        let c = col;
+        while (r < size && c < size && board[r]?.[c]) {
+          cells.push({ row: r, col: c });
+          r += dr;
+          c += dc;
+        }
+        if (cells.length < 2) continue;
+
+        const key = `${direction}:${row}:${col}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        const tokens = cells.map((cell) => displayToken(board[cell.row]![cell.col]!.tile));
+        const result = validateEquationTokens(tokens);
+        if (result.isValid) continue;
+        issues.push({
+          direction,
+          cells,
+          expressionText: tokens.join(" "),
+          error: result.error ?? "This run is not a valid equation.",
+        });
+      }
+    }
+  }
+
+  return issues;
 }
 
 function validateEquationTokens(tokens: string[]): {

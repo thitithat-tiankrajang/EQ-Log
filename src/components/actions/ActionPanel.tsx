@@ -1,4 +1,5 @@
 import { Check, Save, X } from "lucide-react";
+import type { ReactNode } from "react";
 import {
   type ActionType,
   type GameState,
@@ -28,6 +29,20 @@ type ExchangeDraft = {
 };
 
 type ActionPanelProps = {
+  /**
+   * Per-turn insight and status: why the bot played what it played, the
+   * Analyse launcher, the thinking card, and the "why hasn't the bot moved"
+   * notice.
+   *
+   * They live HERE rather than under the board because `.board-zone` is a
+   * two-row grid — board, then rack — and anything else placed in it lands in
+   * an implicit third row. The board's size comes from `--cell`, a viewport
+   * formula that knows nothing about those extra rows, so the board would
+   * overflow its own row and the rack would be drawn over the top of it. A
+   * slot on the control panel is somewhere they can appear and disappear
+   * without moving the board at all.
+   */
+  insights?: ReactNode;
   activeRack: TileInstance[];
   actionMode: ActionMode;
   canChooseAction: boolean;
@@ -60,6 +75,7 @@ type ActionPanelProps = {
 };
 
 export function ActionPanel({
+  insights,
   activeRack,
   actionMode,
   canChooseAction,
@@ -92,6 +108,7 @@ export function ActionPanel({
 }: ActionPanelProps) {
   return (
     <section className="control-panel">
+      {insights && <div className="control-insights">{insights}</div>}
       <PanelHeading
         title={showViewPanel ? (reviewing ? "Replay" : "Live View") : "Actions"}
         detail={getPanelDetail({
@@ -388,6 +405,10 @@ function PlaceActionDetails({
       >
         <Check size={18} />
         Submit Action
+        {/* The keyboard does this too, and a shortcut nobody knows about is a
+            shortcut nobody uses. Hidden from assistive tech: the button already
+            announces itself, and the hint is about a second way to reach it. */}
+        <kbd aria-hidden="true">Enter</kbd>
       </button>
     </>
   );

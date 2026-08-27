@@ -1,10 +1,11 @@
-import { useEffect } from "react";
+import { useEffect, useId } from "react";
 import { X } from "lucide-react";
 import { type GameState, type TileInstance } from "../../game";
 import { RACK_SIZE } from "../../constants/gameRules";
 import { ACTION_LABELS } from "../../uiText";
 import { TurnDetail } from "../replay/TurnDetail";
 import { TurnRecordList } from "./TurnRecordList";
+import { useDialogBehavior } from "../ui/useDialogBehavior";
 
 export function LogModal({
   game,
@@ -35,21 +36,27 @@ export function LogModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  const titleId = useId();
+  const dialogRef = useDialogBehavior<HTMLElement>({ open, onClose });
+
   if (!open) return null;
   const selectedLog = selectedLogId ? game.logs.find((log) => log.id === selectedLogId) : null;
 
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section
+        ref={dialogRef}
+        aria-labelledby={titleId}
         aria-modal="true"
         className="log-modal"
         role="dialog"
+        tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
       >
         <header className="modal-head">
           <div>
             <span className="eyebrow">Review</span>
-            <h2>Turn Log · {game.logs.length} turns</h2>
+            <h2 id={titleId}>Turn Log · {game.logs.length} turns</h2>
           </div>
           <button className="icon-button" type="button" onClick={onClose}>
             <X size={18} />

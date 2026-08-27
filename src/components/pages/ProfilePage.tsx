@@ -10,7 +10,13 @@ import {
 } from "../../features/gameRecords/domain";
 import { listMyModeStats, type UserModeStat } from "../../features/gameRecords/repository";
 
-const AETHER_DIFFICULTIES = ["easy", "medium", "hard", "max"] as const;
+const AETHER_DIFFICULTIES = ["medium", "hard", "max", "super"] as const;
+
+/** Tiers that can no longer be chosen but that finished games were played at.
+ *  Listed only when the player actually has games there — dropping them
+ *  outright would quietly subtract those games from a breakdown whose total is
+ *  still counting them. */
+const RETIRED_AETHER_DIFFICULTIES = ["easy"] as const;
 
 export function ProfilePage() {
   const { configured, profile, userId } = useAuth();
@@ -145,7 +151,10 @@ export function ProfilePage() {
               </div>
             </div>
             <div className="eq-game-table-wrap">
-              <table className="eq-game-table eq-profile-table" aria-label="Profile overview">
+              <table
+                className="eq-game-table eq-profile-table eq-profile-overview-table"
+                aria-label="Profile overview"
+              >
                 <thead>
                   <tr>
                     <th scope="col">Content</th>
@@ -242,10 +251,19 @@ export function ProfilePage() {
                           <span className="eq-profile-table-cell-stack">
                             {mode.key === "aether" && (
                               <span className="eq-aether-variants">
-                                {AETHER_DIFFICULTIES.map(
-                                  (difficulty) =>
-                                    `${difficulty} ${stats.find((item) => item.modeKey === `aether_${difficulty}`)?.gamesPlayed ?? 0}`,
-                                ).join(" · ")}
+                                {[
+                                  ...RETIRED_AETHER_DIFFICULTIES.filter(
+                                    (difficulty) =>
+                                      (stats.find((item) => item.modeKey === `aether_${difficulty}`)
+                                        ?.gamesPlayed ?? 0) > 0,
+                                  ),
+                                  ...AETHER_DIFFICULTIES,
+                                ]
+                                  .map(
+                                    (difficulty) =>
+                                      `${difficulty} ${stats.find((item) => item.modeKey === `aether_${difficulty}`)?.gamesPlayed ?? 0}`,
+                                  )
+                                  .join(" · ")}
                               </span>
                             )}
                             <span>{formatLastPlayed(row.lastPlayedAt)}</span>

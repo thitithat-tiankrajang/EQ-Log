@@ -41,6 +41,7 @@ entitled to know.
 |---|---|---|
 | `POST` | `/v1/games/:gameId/bot-move` | Compute the bot's move on its own turn |
 | `GET` | `/v1/games/:gameId/bot-move?revision=N` | Reattach to a bot search already running (reconnect) |
+| `GET` | `/v1/games/:gameId/bot-move/reasoning?revision=N&offset=O&limit=L` | Read the ranking behind a bot move already played, one page at a time |
 | `POST` | `/v1/games/:gameId/analysis` | Analyse the human's own turn |
 | `GET` | `/v1/games/:gameId/analysis?revision=N&level=L` | Reattach to a running analysis |
 | `POST` | `/v1/games/:gameId/analysis/cancel` | Explicitly cancel your own analysis |
@@ -111,8 +112,22 @@ side's. The opponent reaches the engine as an integer count, and the bag as an
 integer count. No field on the wire *could* carry a tile the requester may not
 see.
 
-The bot endpoint returns **only the move**: the candidate report describes the
-bot's own rack, and the human across the board is not entitled to it.
+The bot MOVE endpoint returns **only the move**: the candidate report describes
+the bot's own rack, so it is not shipped alongside an answer a client applies
+mid-turn.
+
+The report is read afterwards, by the one caller who controls that bot room, from
+`GET /v1/games/:gameId/bot-move/reasoning` — **paged**, so opening the "why this
+move" panel is a small request rather than a large one, and served out of the
+completed search the registry already holds rather than by searching again. The
+`revision` named is the one the move was COMPUTED for (one behind the board by
+then), bounded to the last few revisions so it cannot be used to walk the result
+cache backwards through a game. Retention is `ENGINE_BOT_RESULT_TTL_MS`; past it
+the endpoint answers `reasoning_unavailable` and the panel says so rather than
+printing zeros.
+
+A spectator is refused exactly as they are on the move endpoint, and a
+human-vs-human room has no engine player to explain.
 
 > **Pre-existing property, unchanged by this work:** `get_live_game_snapshot`
 > already returns the full 100-tile inventory — both racks and bag order — to
@@ -142,13 +157,29 @@ why one OS process per request was chosen over a long-lived worker.
 
 ## 7. Strength tiers
 
-Bot tiers are unchanged from the browser (`easy` 200ms → `max` uncapped, i.e.
-the engine's own 120s midgame / 300s endgame ceilings).
+| Tier | How the search is bounded | Measured at an opening position |
+|---|---|---|
+| medium | 1s budget | ~3.4s |
+| hard | 4s budget | ~3.4s |
+| max | the engine's own ceilings (120s midgame / 300s endgame) | **108s, 122/160 samples** |
+| super | **nothing** | **143s, 160/160 samples** |
 
 > Measured: the simulation takes a **minimum of three opponent-rack samples**
-> before any deadline can stop it, so easy/medium/hard all land near **3.4s** at
-> an opening position. `max` measured **108s**. These are the browser's numbers
-> too; the migration did not change them.
+> before any deadline can stop it, so medium and hard both land near **3.4s** at
+> an opening position — they are not as fast as their budgets look.
+
+`super` is the only tier with no wall-clock ceiling anywhere: not the mid-game
+budget, not the end-game budget, not the 40s root-generation budget. It returns
+when the search SCHEDULE is complete, which is why its progress line reaches a
+true 100% instead of stopping wherever a deadline happened to fall — the numbers
+above are the same position, and `max` gave up 38 samples short of it. The work
+is finite (the sample schedule plus a node-bounded end-game proof), so it
+terminates on its own; the service's `timeoutMs` for the tier is a reaper for a
+wedged process, not a strength ceiling.
+
+`easy` (200ms, static solver) is retired. Live rooms created against it keep
+playing — the service resolves the stored value to `medium` when it reads them —
+and finished games archived under `aether_easy` keep their record.
 
 Analysis levels are player-chosen and independent of the room's bot, bounded by
 **sample count** rather than wall clock so a level is reproducible:
@@ -224,12 +255,30 @@ human-vs-human; the bot and the Analyze button simply do not appear.
 
 ## 9. What happened to the WASM path
 
-Kept, moved, and taken out of the module graph. `tools/engine-wasm/` holds the
-Emscripten artifact, the old Web Worker, and `parity.mjs`, which runs one
-position through both builds and compares. `make wasm` still works and
-`make deploy-ui` refreshes the artifact there.
+**It came back, for the `super` tier only.** This section used to say the
+opposite, and the reasoning behind that has been superseded rather than
+forgotten — see `../amath-engine/docs/client-side-super.md`.
 
-It lives outside `src/` so that "not shipped" is structural: Vite does not
-resolve `tools/`, so re-shipping the engine takes a deliberate act rather than
-an accidental import. `tests/no-wasm-in-production.test.ts` asserts this on
-every run.
+A `super` move is a search that runs to completion rather than to a deadline:
+a measured 180 CPU-seconds a move. Run centrally, that is **20 Super moves an
+hour per core** against the dozen a game needs — roughly one to two concurrent
+Super games per CPU, with everyone else queued behind a search that cannot be
+interrupted. Moving it to the device removes that ceiling entirely.
+
+So:
+
+- `src/bot/engine/amath_engine.mjs` — the shipped artifact (`make deploy-ui`).
+- `src/bot/engine/superWorker.ts` — the Web Worker that drives it.
+- `src/bot/superEngine.ts` — the only module that constructs that worker.
+- `tools/engine-wasm/parity.mjs` — the cross-check harness, still here, now
+  pointed at the shipped artifact rather than a second copy.
+
+Every other tier and every analysis level still goes to the backend service,
+and `super` falls back to it whenever the device cannot or may not run the
+search: the flag is off, the device measured too slow, the worker failed, or the
+game is pinned to a weights version this deployment no longer carries.
+
+The narrower invariant that replaced "not shipped" is asserted on every run by
+`tests/engine-in-browser.test.ts`: the engine is not in the first load, it is
+reached by dynamic import from one module, that module runs inside a worker, and
+the backend path still exists.

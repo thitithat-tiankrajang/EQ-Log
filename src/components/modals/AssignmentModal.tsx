@@ -1,6 +1,8 @@
 import { X } from "lucide-react";
+import { useId } from "react";
 import { getAssignmentOptions, type TileInstance } from "../../game";
 import { Tile } from "../board/Tile";
+import { useDialogBehavior } from "../ui/useDialogBehavior";
 
 export type AssignmentRequest =
   | {
@@ -32,18 +34,23 @@ export function AssignmentModal({
   onSelect: (value: string) => void;
 }) {
   const options = getAssignmentOptions(request.tile.token);
+  const titleId = useId();
+  const dialogRef = useDialogBehavior<HTMLElement>({ onClose: onCancel });
   return (
     <div className="modal-backdrop" role="presentation" onClick={onCancel}>
       <section
+        ref={dialogRef}
+        aria-labelledby={titleId}
         aria-modal="true"
         className="assignment-modal"
         role="dialog"
+        tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
       >
         <header className="modal-head">
           <div>
             <span className="eyebrow">Tile Assignment</span>
-            <h2>Choose the tile value</h2>
+            <h2 id={titleId}>Choose the tile value</h2>
           </div>
           <button className="icon-button" type="button" onClick={onCancel}>
             <X size={18} />

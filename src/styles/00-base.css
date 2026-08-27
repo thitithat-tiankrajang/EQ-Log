@@ -62,7 +62,7 @@ button:disabled {
 
 .eyebrow {
   margin: 0 0 6px;
-  color: #247b6f;
+  color: var(--accent);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0;
@@ -147,7 +147,7 @@ textarea {
 }
 
 .segmented button.active {
-  background: #247b6f;
+  background: var(--accent);
   color: white;
 }
 
@@ -171,7 +171,7 @@ textarea {
 
 .primary-action {
   width: 100%;
-  background: #247b6f;
+  background: var(--accent);
   color: #fff;
 }
 
@@ -228,12 +228,12 @@ textarea {
 }
 
 .timer-panel.active {
-  border-color: #247b6f;
-  box-shadow: inset 0 -3px 0 #247b6f;
+  border-color: var(--accent);
+  box-shadow: inset 0 -3px 0 var(--accent);
 }
 
 .timer-panel.negative {
-  color: #b6402f;
+  color: var(--danger);
 }
 
 .timer-panel strong {
@@ -252,13 +252,13 @@ textarea {
 }
 
 .clock-button.paused {
-  background: #247b6f;
+  background: var(--accent);
   color: white;
 }
 
 .danger-button {
   margin-left: auto;
-  background: #b6402f;
+  background: var(--danger);
   color: white;
 }
 
@@ -510,7 +510,7 @@ textarea {
 }
 
 .rack.active {
-  border-color: #247b6f;
+  border-color: var(--accent);
 }
 
 .rack-label {
@@ -539,7 +539,7 @@ textarea {
   font-weight: 800;
   letter-spacing: 0.04em;
   line-height: 1;
-  color: var(--muted, #6d6458);
+  color: var(--muted);
   font-variant-numeric: tabular-nums;
   user-select: none;
 }
@@ -558,11 +558,11 @@ textarea {
 }
 
 .rack-tile.selected .tile {
-  outline: 3px solid #247b6f;
+  outline: 3px solid var(--accent);
 }
 
 .rack-tile.outgoing .tile {
-  outline: 3px solid #b6402f;
+  outline: 3px solid var(--danger);
 }
 
 .action-buttons {
@@ -578,7 +578,7 @@ textarea {
 }
 
 .action-buttons button.active {
-  border-color: #247b6f;
+  border-color: var(--accent);
   background: #dff2ef;
 }
 
@@ -593,7 +593,7 @@ textarea {
 }
 
 .refill-lock strong {
-  color: #247b6f;
+  color: var(--accent);
   font-size: 13px;
 }
 
@@ -627,13 +627,14 @@ textarea {
   background: white;
 }
 
+/* A legal equation is a success signal, not the UI accent. */
 .valid-text {
-  color: #247b6f;
+  color: var(--success);
   font-weight: 900;
 }
 
 .invalid-text {
-  color: #b6402f;
+  color: var(--danger);
   font-weight: 900;
 }
 
@@ -716,7 +717,7 @@ textarea {
 }
 
 .log-row.selected {
-  border-color: #247b6f;
+  border-color: var(--accent);
   background: #edf8f5;
 }
 
@@ -750,7 +751,7 @@ textarea {
 }
 
 .turn-record-group.selected {
-  border-color: var(--accent, #247b6f);
+  border-color: var(--accent);
   background: var(--accent-soft, #edf8f5);
 }
 
@@ -789,7 +790,7 @@ textarea {
 }
 
 .turn-record-heading strong {
-  color: var(--accent, #247b6f);
+  color: var(--accent);
   font-variant-numeric: tabular-nums;
 }
 
@@ -814,7 +815,7 @@ button.turn-record-heading:hover {
   place-items: center;
   border: 1px solid var(--border, #d8d1c1);
   border-radius: 4px;
-  color: var(--muted, #6d6458);
+  color: var(--muted);
   font-size: 10px;
   font-weight: 900;
   line-height: 1;
@@ -840,7 +841,7 @@ button.turn-record-heading:hover {
 
 .turn-record-title em {
   flex: 0 0 auto;
-  color: var(--muted, #6d6458);
+  color: var(--muted);
   font-size: 10px;
   font-style: normal;
   font-variant-numeric: tabular-nums;
@@ -849,7 +850,7 @@ button.turn-record-heading:hover {
 .turn-record-desc {
   min-width: 0;
   overflow: hidden;
-  color: var(--muted, #6d6458);
+  color: var(--muted);
   font-size: 10px;
   font-weight: 700;
   line-height: 1.2;

@@ -1,6 +1,20 @@
 import type { EngineProgress } from "../../bot/engineApi";
 import type { EngineSessionStatus } from "../../engineSessions";
 
+/**
+ * An estimated wait, in the coarsest unit that still says something.
+ *
+ * Rounded hard on purpose. The estimate behind it is a linear extrapolation
+ * from a generation-throughput benchmark, so "ประมาณ 4 นาที" is already more
+ * precision than the model can support and "4 นาที 12 วินาที" would be a
+ * fabricated one.
+ */
+function formatWait(ms: number): string {
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 90) return `${Math.max(1, seconds)} วินาที`;
+  return `${Math.round(seconds / 60)} นาที`;
+}
+
 const PHASE_LABELS: Record<EngineProgress["phase"], string> = {
   movegen: "กำลังไล่ทุกตาที่เล่นได้",
   sim: "กำลังจำลองการตอบของคู่แข่ง",
@@ -29,11 +43,23 @@ const PHASE_LABELS: Record<EngineProgress["phase"], string> = {
 export function BotThinkingCard({
   state,
   botName,
+  slowDevice,
 }: {
   /** A projection of the server-owned session. This component renders it; it
    *  never owns it, and unmounting it stops nothing. */
   state: EngineSessionStatus;
   botName: string;
+  /**
+   * Set when this device is computing the move itself and its estimated
+   * full-Super wait misses the latency targets.
+   *
+   * This line is the honest half of a deliberate product trade. The bot could
+   * be made to answer inside the target on any hardware by giving a slower
+   * device a smaller search — and it is not, because that would quietly hand
+   * some players a weaker opponent than others. The wait is the price of every
+   * Champion facing the same bot, so the wait is explained rather than hidden.
+   */
+  slowDevice?: { estimatedP50Ms: number } | null;
 }) {
   if (state.kind === "queued") {
     return (
@@ -108,6 +134,20 @@ export function BotThinkingCard({
           <div className="bot-thinking-fill is-indeterminate" />
         )}
       </div>
+      {slowDevice ? (
+        // Not `aria-live`: the card around it already announces itself, and a
+        // second live region would read the same status twice.
+        //
+        // The order of the two clauses is deliberate. The strength guarantee
+        // comes FIRST, because a player who reads only the first half should
+        // come away knowing the bot is not weaker here — the wait is the thing
+        // being explained, not an apology for a degraded opponent.
+        <p className="bot-thinking-note">
+          Super คิดเต็มกำลังเท่ากันทุกเครื่อง — บนเครื่องนี้อาจใช้เวลาถึง{" "}
+          {formatWait(slowDevice.estimatedP50Ms)}ต่อตา
+          หากไม่อยากรอ สามารถเลือกบอทระดับอื่นที่คิดเร็วกว่าได้
+        </p>
+      ) : null}
     </div>
   );
 }

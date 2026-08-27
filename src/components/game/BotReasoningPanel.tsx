@@ -1,10 +1,32 @@
-import { useMemo } from "react";
-import type { BotCandidate, BotResponse } from "../../bot/types";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import type { BotResponse } from "../../bot/types";
+import {
+  EngineApiError,
+  fetchBotReasoning,
+  type BotReasoningCandidate,
+  type BotReasoningPage,
+} from "../../bot/engineApi";
+import { useDialogBehavior } from "../ui/useDialogBehavior";
 
 // A full, deliberately un-simplified look inside the engine's decision: the
 // move it played, every alternative it weighed, and the exact value terms that
 // separated them. Adapts to which solver produced the move (sim / greedy /
 // endgame) so the numbers are always labelled truthfully.
+//
+// ── where the numbers come from ──────────────────────────────────────────────
+//
+// Not from the move. The bot-move response carries the move ALONE, so this
+// panel used to render an empty shell: a value of 0.00 nobody computed, "0
+// alternatives considered" about a search that had weighed dozens, and no
+// table at all. The ranking is held server-side with the completed search and
+// read here on demand, ONE PAGE AT A TIME — the report is dozens of rows with a
+// full value decomposition each, and paging is what keeps opening this panel a
+// small request instead of a large one.
+//
+// Pages already fetched are kept for the life of the panel, so stepping back
+// through the ranking costs nothing and re-reads nothing.
+
+const PAGE_SIZE = 6;
 
 const SOLVER_LABEL: Record<BotResponse["solver"], string> = {
   sim: "จำลองตาต่อไป (Monte-Carlo 2 ply)",
@@ -18,7 +40,7 @@ function coordLabel(r: number, c: number): string {
 }
 
 /** A short human-readable label for one candidate move. */
-function moveLabel(cand: BotCandidate): string {
+function moveLabel(cand: BotReasoningCandidate): string {
   if (cand.type === "pass") return "ผ่าน (Pass)";
   if (cand.type === "exchange") {
     return `เปลี่ยนไทล์ ${cand.exchange.length} ตัว: ${cand.exchange.join(" ") || "—"}`;
@@ -37,7 +59,7 @@ function fmt(n: number, digits = 1): string {
 }
 
 /** Name the single value term that most separates the chosen move from the runner-up. */
-function dominantReason(chosen: BotCandidate, runner: BotCandidate): string {
+function dominantReason(chosen: BotReasoningCandidate, runner: BotReasoningCandidate): string {
   const contributions: Array<[number, string]> = [
     [chosen.scoreComp - runner.scoreComp, "ทำแต้มทันทีได้มากกว่า"],
     [chosen.leave - runner.leave, "ไทล์ที่เหลือในมือ (leave) ดีกว่า"],
@@ -49,37 +71,131 @@ function dominantReason(chosen: BotCandidate, runner: BotCandidate): string {
   return contributions[0][1];
 }
 
+/** Why the ranking is not on screen, in the player's terms. Every branch is a
+ *  real server answer; none of them is "something went wrong". */
+function explainFailure(error: unknown): string {
+  if (error instanceof EngineApiError) {
+    switch (error.code) {
+      case "reasoning_unavailable":
+        return "เซิร์ฟเวอร์ไม่ได้เก็บรายละเอียดการคิดของตานี้ไว้แล้ว (เก็บไว้ราว 30 นาทีต่อหนึ่งตา หรือเซิร์ฟเวอร์เพิ่งรีสตาร์ท)";
+      case "stale_revision":
+        return "ตานี้ผ่านไปหลายตาแล้ว — ดูรายละเอียดได้เฉพาะตาล่าสุดของบอท";
+      case "forbidden":
+      case "not_found":
+        return "บัญชีนี้ไม่มีสิทธิ์ดูรายละเอียดการคิดของห้องนี้";
+      case "turn_rule":
+        return "ห้องนี้ไม่มีผู้เล่นที่เป็นเอนจิน";
+      case "unauthenticated":
+        return "เซสชันหมดอายุ — เข้าสู่ระบบใหม่แล้วลองอีกครั้ง";
+      case "unconfigured":
+        return "ยังไม่ได้ตั้งค่าเซิร์ฟเวอร์เอนจินสำหรับเครื่องนี้";
+      case "offline":
+        return "ต่อกับเซิร์ฟเวอร์เอนจินไม่ได้";
+      default:
+        return error.message;
+    }
+  }
+  return "อ่านรายละเอียดการคิดไม่สำเร็จ";
+}
+
 export function BotReasoningPanel({
+  gameId,
   playerName,
   turnNumber,
   response,
   onClose,
 }: {
+  /** The LIVE ROOM's id — the value the engine API calls `gameId`. */
+  gameId: string;
   playerName: string;
   turnNumber: number;
+  /** The move as applied. Supplies what the move response really does carry
+   *  (score, solver, nodes, time) so the header is filled on the first frame,
+   *  before the first page lands. */
   response: BotResponse;
   onClose: () => void;
 }) {
-  const candidates = response.candidates ?? [];
-  const isEndgame = response.solver === "endgame";
-  const isGreedy = response.solver === "greedy";
-  const chosen = useMemo(
-    () => candidates.find((c) => c.chosen) ?? candidates[0],
-    [candidates],
-  );
-  const runnerUp = useMemo(
-    () => candidates.find((c) => c !== chosen),
-    [candidates, chosen],
-  );
+  const [offset, setOffset] = useState(0);
+  const [page, setPage] = useState<BotReasoningPage | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [failure, setFailure] = useState<string | null>(null);
+  /** Attempt counter: bumping it re-runs the fetch for the current offset,
+   *  which is what "ลองใหม่" means. */
+  const [attempt, setAttempt] = useState(0);
+  // Pages already read, keyed by offset. Paging backwards must not re-ask the
+  // server for something this panel is already holding.
+  const cache = useRef(new Map<number, BotReasoningPage>());
+  const revision = response.revision;
+
+  useEffect(() => {
+    const cached = cache.current.get(offset);
+    if (cached) {
+      setPage(cached);
+      setLoading(false);
+      setFailure(null);
+      return;
+    }
+    const controller = new AbortController();
+    setLoading(true);
+    setFailure(null);
+    fetchBotReasoning({ gameId, revision, offset, limit: PAGE_SIZE, signal: controller.signal })
+      .then((result) => {
+        if (controller.signal.aborted) return;
+        // Keyed by what the server actually served, not by what was asked for:
+        // it clamps, and the clamped window is the one that is cached.
+        cache.current.set(result.page.offset, result);
+        setPage(result);
+        setLoading(false);
+        // Adopt the served window so the pager's arithmetic is about the page
+        // on screen rather than the one that was asked for.
+        if (result.page.offset !== offset) setOffset(result.page.offset);
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setFailure(explainFailure(error));
+        setLoading(false);
+      });
+    return () => controller.abort();
+  }, [gameId, revision, offset, attempt]);
+
+  const titleId = useId();
+  const dialogRef = useDialogBehavior<HTMLDivElement>({ onClose });
+  const retry = useCallback(() => setAttempt((n) => n + 1), []);
+
+  // Every summary number prefers the report, because the report is the search's
+  // own account of itself. The move response fills in only what it genuinely
+  // carries; anything neither of them has is shown as "—" rather than as 0.
+  const solver = page?.solver ?? response.solver;
+  const isEndgame = solver === "endgame";
+  const isGreedy = solver === "greedy";
+  const expectedFinalDiff = page?.expectedFinalDiff ?? response.expectedFinalDiff;
+  const endgameSolved = page?.endgameSolved ?? response.endgameSolved;
+  const chosen = page?.chosen;
+  const runnerUp = page?.runnerUp;
+  const total = page?.page.total ?? 0;
+  const shownFrom = page && page.candidates.length > 0 ? page.page.offset + 1 : 0;
+  const shownTo = page ? page.page.offset + page.candidates.length : 0;
+  const hasPrev = offset > 0;
+  const hasNext = page ? shownTo < total : false;
 
   return (
-    <div className="bot-reason-overlay" role="dialog" aria-modal="true" onClick={onClose}>
-      <div className="bot-reason-panel" onClick={(e) => e.stopPropagation()}>
+    <div className="bot-reason-overlay" role="presentation" onClick={onClose}>
+      <div
+        ref={dialogRef}
+        className="bot-reason-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="bot-reason-head">
           <div>
-            <div className="bot-reason-title">🧠 ทำไม {playerName} เลือกตานี้</div>
+            <div className="bot-reason-title" id={titleId}>
+              🧠 ทำไม {playerName} เลือกตานี้
+            </div>
             <div className="bot-reason-sub">
-              ตาที่ {turnNumber} · {SOLVER_LABEL[response.solver]}
+              ตาที่ {turnNumber} · {SOLVER_LABEL[solver]}
             </div>
           </div>
           <button className="bot-reason-close" onClick={onClose} aria-label="ปิด">
@@ -91,18 +207,14 @@ export function BotReasoningPanel({
         {isEndgame && (
           <div
             className={`bot-reason-banner ${
-              (response.expectedFinalDiff ?? 0) > 0
-                ? "win"
-                : (response.expectedFinalDiff ?? 0) < 0
-                  ? "lose"
-                  : "draw"
+              (expectedFinalDiff ?? 0) > 0 ? "win" : (expectedFinalDiff ?? 0) < 0 ? "lose" : "draw"
             }`}
           >
-            {response.endgameSolved ? (
-              (response.expectedFinalDiff ?? 0) > 0 ? (
-                <>🏆 พิสูจน์แล้วว่า <b>ชนะแน่นอน 100%</b> — ผลต่างสุดท้าย <b>+{response.expectedFinalDiff}</b> แต้ม ไม่ว่าคู่ต่อสู้จะเล่นแบบไหน</>
-              ) : (response.expectedFinalDiff ?? 0) < 0 ? (
-                <>พิสูจน์แล้วว่าตกเป็นรอง (ผลต่างสุดท้าย {response.expectedFinalDiff}) — เลือกทางที่เสียน้อยที่สุด</>
+            {endgameSolved ? (
+              (expectedFinalDiff ?? 0) > 0 ? (
+                <>🏆 พิสูจน์แล้วว่า <b>ชนะแน่นอน 100%</b> — ผลต่างสุดท้าย <b>+{expectedFinalDiff}</b> แต้ม ไม่ว่าคู่ต่อสู้จะเล่นแบบไหน</>
+              ) : (expectedFinalDiff ?? 0) < 0 ? (
+                <>พิสูจน์แล้วว่าตกเป็นรอง (ผลต่างสุดท้าย {expectedFinalDiff}) — เลือกทางที่เสียน้อยที่สุด</>
               ) : (
                 <>พิสูจน์แล้วว่าผลลัพธ์ดีสุดคือ <b>เสมอ</b> (0)</>
               )
@@ -114,21 +226,38 @@ export function BotReasoningPanel({
 
         {/* Headline numbers about the decision itself. */}
         <div className="bot-reason-stats">
-          <Stat label="แต้มตานี้" value={String(response.score)} />
+          <Stat label="แต้มตานี้" value={String(page?.score ?? response.score)} />
           <Stat
             label={isEndgame ? "ผลต่างสุดท้าย" : "Value (คุ้มค่า)"}
-            value={isEndgame ? fmt(response.equity, 0) : fmt(response.equity, 2)}
+            value={page ? fmt(page.equity, isEndgame ? 0 : 2) : "—"}
           />
-          <Stat label="พิจารณาทั้งหมด" value={`${response.stats.candidates || response.stats.moves} ทาง`} />
+          <Stat
+            label="พิจารณาทั้งหมด"
+            value={page ? `${page.stats.candidates || page.stats.moves} ทาง` : "—"}
+          />
           {!isEndgame && !isGreedy && (
-            <Stat label="สุ่มคู่ต่อสู้" value={`${response.stats.samples} ครั้ง`} />
+            <Stat label="สุ่มคู่ต่อสู้" value={`${page?.stats.samples ?? response.stats.samples} ครั้ง`} />
           )}
-          <Stat label="Node ที่ค้น" value={response.stats.nodes.toLocaleString()} />
-          <Stat label="เวลาคิด" value={`${(response.stats.elapsedMs / 1000).toFixed(1)}s`} />
+          <Stat
+            label="Node ที่ค้น"
+            value={(page?.stats.nodes ?? response.stats.nodes).toLocaleString()}
+          />
+          <Stat
+            label="เวลาคิด"
+            value={`${((page?.stats.elapsedMs ?? response.stats.elapsedMs) / 1000).toFixed(1)}s`}
+          />
         </div>
 
         {/* Plain-language summary of the head-to-head. */}
-        {isGreedy ? (
+        {failure ? (
+          <p className="bot-reason-verdict is-unavailable" role="status">
+            {failure}
+          </p>
+        ) : !page ? (
+          <p className="bot-reason-verdict is-loading" role="status">
+            กำลังอ่านรายละเอียดการคิดของเอนจิน…
+          </p>
+        ) : isGreedy ? (
           <p className="bot-reason-verdict">
             โหมด <b>greedy</b>: ตอนนี้คู่ต่อสู้ไม่มีเบี้ยให้จำลองตาต่อไป เอนจินจึงจัดอันดับด้วยค่า{" "}
             <b>static equity</b> = แต้มที่ได้ + คุณค่าไทล์ที่เหลือ (leave) − การเปิดช่องให้ฝ่ายตรงข้าม
@@ -161,12 +290,20 @@ export function BotReasoningPanel({
           </p>
         ) : (
           <p className="bot-reason-verdict">
-            เส้นทางนี้ไม่ได้ไล่เทียบทางเลือกทีละทาง — ค่าที่ใช้ตัดสินคือ {fmt(response.equity, 2)} ข้างบน.
+            เอนจินไม่ได้รายงานทางเลือกไว้สำหรับตานี้.
           </p>
         )}
 
-        {candidates.length > 0 && (
-          <div className="bot-reason-tablewrap">
+        {failure && (
+          <div className="bot-reason-pager">
+            <button type="button" className="bot-reason-pagebtn" onClick={retry}>
+              ลองใหม่
+            </button>
+          </div>
+        )}
+
+        {page && page.candidates.length > 0 && (
+          <div className="bot-reason-tablewrap" aria-busy={loading || undefined}>
             <table className="bot-reason-table">
               <thead>
                 {isEndgame ? (
@@ -194,32 +331,32 @@ export function BotReasoningPanel({
                 )}
               </thead>
               <tbody>
-                {candidates.map((c, i) =>
-                  isEndgame ? (
-                    <tr key={i} className={c.chosen ? "chosen" : undefined}>
-                      <td>{i + 1}</td>
+                {page.candidates.map((c, i) => {
+                  // The rank is the row's place in the WHOLE ranking, not in
+                  // this page — otherwise page two would restart at 1.
+                  const rank = page.page.offset + i + 1;
+                  const gap = chosen ? c.value - chosen.value : 0;
+                  return isEndgame ? (
+                    <tr key={rank} className={c.chosen ? "chosen" : undefined}>
+                      <td>{rank}</td>
                       <td className="al">
                         {c.chosen && <span className="bot-reason-pick">เลือก</span>}
                         {moveLabel(c)}
                       </td>
                       <td>{fmt(c.scoreComp, 0)}</td>
                       <td className="strong">{fmt(c.value, 0)}</td>
-                      <td className={c.chosen ? "" : "neg"}>
-                        {chosen ? (c === chosen ? "—" : fmt(c.value - chosen.value, 0)) : ""}
-                      </td>
+                      <td className={c.chosen ? "" : "neg"}>{c.chosen ? "—" : fmt(gap, 0)}</td>
                       <td>{c.value > 0 ? "ชนะ" : c.value < 0 ? "แพ้" : "เสมอ"}</td>
                     </tr>
                   ) : (
-                    <tr key={i} className={c.chosen ? "chosen" : undefined}>
-                      <td>{i + 1}</td>
+                    <tr key={rank} className={c.chosen ? "chosen" : undefined}>
+                      <td>{rank}</td>
                       <td className="al">
                         {c.chosen && <span className="bot-reason-pick">เลือก</span>}
                         {moveLabel(c)}
                       </td>
                       <td className="strong">{fmt(c.value, 2)}</td>
-                      <td className={c.chosen ? "" : "neg"}>
-                        {chosen ? (c === chosen ? "—" : fmt(c.value - chosen.value, 2)) : ""}
-                      </td>
+                      <td className={c.chosen ? "" : "neg"}>{c.chosen ? "—" : fmt(gap, 2)}</td>
                       <td>{fmt(c.scoreComp, 0)}</td>
                       <td>{fmt(c.leave)}</td>
                       {!isGreedy && <td>{fmt(c.potential)}</td>}
@@ -227,10 +364,36 @@ export function BotReasoningPanel({
                       {!isGreedy && <td>{fmt(c.mean)}</td>}
                       {!isGreedy && <td className="dim">±{fmt(c.stddev)}</td>}
                     </tr>
-                  ),
-                )}
+                  );
+                })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* The pager. Present whenever there is a ranking to walk, so the page
+            position is readable even when everything fits on one page. */}
+        {page && total > 0 && (
+          <div className="bot-reason-pager">
+            <button
+              type="button"
+              className="bot-reason-pagebtn"
+              onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}
+              disabled={!hasPrev || loading}
+            >
+              ← ก่อนหน้า
+            </button>
+            <span className="bot-reason-pagepos" role="status" aria-live="polite">
+              {loading ? "กำลังโหลด…" : `อันดับ ${shownFrom}–${shownTo} จาก ${total}`}
+            </span>
+            <button
+              type="button"
+              className="bot-reason-pagebtn"
+              onClick={() => setOffset(offset + PAGE_SIZE)}
+              disabled={!hasNext || loading}
+            >
+              ถัดไป →
+            </button>
           </div>
         )}
 

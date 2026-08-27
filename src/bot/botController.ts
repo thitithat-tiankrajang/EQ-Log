@@ -41,10 +41,16 @@ export function warmUpBotEngine(): void {
 /** Whether a bot can play at all in this deployment. */
 export const isBotAvailable = isEngineApiConfigured;
 
-/** Reshape the service's answer into the response shape the app already
- *  applies. The evaluation fields are absent by design — the bot's reasoning
- *  concerns tiles the requester may not see — so they are reported as zero
- *  rather than invented. */
+/**
+ * Reshape the service's answer into the response shape the app already applies.
+ *
+ * The evaluation fields are OMITTED, not zeroed. They used to be written as
+ * `0`, and the "why this move" panel read them back as facts: it printed a
+ * value of `0.00` the engine never computed and "0 alternatives considered"
+ * about a search that had weighed dozens. Absent is the truthful encoding of
+ * "this response does not carry that" — the panel asks
+ * `fetchBotReasoning` for the real numbers, a page at a time.
+ */
 export function toBotResponse(result: BotMoveResult): BotResponse {
   return {
     type: result.move.type,
@@ -55,16 +61,17 @@ export function toBotResponse(result: BotMoveResult): BotResponse {
     placements: result.move.placements,
     exchange: result.move.exchange,
     score: result.move.score,
-    equity: 0,
     solver: result.solver,
     endgameSolved: result.endgameSolved,
     stats: {
-      moves: 0,
       nodes: result.stats.nodes,
       elapsedMs: result.stats.elapsedMs,
-      candidates: 0,
       samples: result.stats.samples,
     },
+    // Carried, not dropped: this is the only place the versions a device
+    // actually ran can reach the game record, and a pin written from anywhere
+    // else would be a claim about a turn rather than a fact from it.
+    ...(result.localEngine ? { localEngine: result.localEngine } : {}),
   };
 }
 
@@ -86,6 +93,30 @@ export function toBotResponse(result: BotMoveResult): BotResponse {
  * `stale_revision` waits for state to catch up rather than re-asking the same
  * question, because the question itself was wrong.
  */
+const BOT_RETRY_DELAYS_MS = [1_500, 4_000, 8_000] as const;
+/** Ceiling on a server-supplied wait, so a wrong or hostile number cannot park
+ *  the bot for an hour. Above this we fall back to the schedule and keep
+ *  asking. */
+const BOT_RETRY_HONOURED_MAX_MS = 60_000;
+
+/**
+ * How long to wait before asking again.
+ *
+ * When the server states a wait — `budget_exhausted` and `queue_full` both do —
+ * that number is the answer and the schedule below is a guess. Ignoring it is
+ * how a refusal that resolves itself in six seconds turned into a retry at 1.5s
+ * that failed again, and again, with an error on screen the whole time.
+ */
+export function botRetryDelay(error: unknown, tries: number): number {
+  const stated = error instanceof EngineApiError ? error.detail?.retryAfterMs : undefined;
+  if (typeof stated === "number" && stated > 0 && stated <= BOT_RETRY_HONOURED_MAX_MS) {
+    // A small margin: retrying on the exact millisecond the window rolls over
+    // races the server's own clock.
+    return stated + 250;
+  }
+  return BOT_RETRY_DELAYS_MS[Math.min(tries, BOT_RETRY_DELAYS_MS.length - 1)]!;
+}
+
 export function isRetryableBotFailure(error: unknown): boolean {
   if (!(error instanceof EngineApiError)) return true;
   // A desync is retried by re-deriving the position, not by re-sending — see
@@ -129,7 +160,8 @@ export function mapBotResponse(game: GameState, response: BotResponse): MappedBo
     const placements: PendingPlacement[] = [];
     for (const placement of response.placements) {
       const tile = rack.find(
-        (candidate) => !used.has(candidate.id) && candidate.token === (placement.kind as AmathToken),
+        (candidate) =>
+          !used.has(candidate.id) && candidate.token === (placement.kind as AmathToken),
       );
       if (!tile) return null;
       used.add(tile.id);

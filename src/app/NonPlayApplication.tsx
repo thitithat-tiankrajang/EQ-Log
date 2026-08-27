@@ -8,6 +8,7 @@ import { CreateRoomPage } from "../components/pages/pregame/CreateRoomPage";
 import { JoinRoomPage } from "../components/pages/pregame/JoinRoomPage";
 import { WaitingRoomPage } from "../components/pages/pregame/WaitingRoomPage";
 import { PrivateLibraryPage } from "../components/pages/PrivateLibraryPage";
+import { StudyPage } from "../components/pages/study/StudyPage";
 import { ProfilePage } from "../components/pages/ProfilePage";
 import { STORAGE_KEYS } from "../constants/storage";
 import {
@@ -668,6 +669,14 @@ export default function NonPlayApplication() {
     return (
       <>
         <ProfilePage />
+        {coffeeReturn}
+      </>
+    );
+  }
+  if (route.kind === "study") {
+    return (
+      <>
+        <StudyPage />
         {coffeeReturn}
       </>
     );

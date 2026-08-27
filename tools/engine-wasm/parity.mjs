@@ -31,7 +31,10 @@ const native = JSON.parse(
 );
 
 const require = createRequire(import.meta.url);
-const createModule = (await import("./amath_engine.mjs")).default;
+// The shipped artifact, not a second copy. Comparing against a stale duplicate
+// in this directory would be worse than not comparing at all: it would report
+// agreement between two builds, neither of which is the one players run.
+const createModule = (await import("../../src/bot/engine/amath_engine.mjs")).default;
 const module = await createModule();
 const text = JSON.stringify(request);
 const bytes = module.lengthBytesUTF8(text) + 1;

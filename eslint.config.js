@@ -14,14 +14,13 @@ export default tseslint.config(
       "playwright-report",
       "decode_game.mts",
       "export_turns.mts",
-      // Emscripten output. A generated artifact kept for engine regression
-      // comparison — see tools/engine-wasm/README.md. Not application code and
-      // not worth linting.
-      "tools/engine-wasm/amath_engine.mjs",
-      // The browser worker that used to drive that WASM build. Dead in
-      // production, kept beside the artifact it belongs to.
-      "tools/engine-wasm/engineWorker.ts",
-      "tools/engine-wasm/wasm.d.ts",
+      // Emscripten output. Generated, shipped, and 250 KB of machine-written
+      // JavaScript — see tools/engine-wasm/README.md for what it is and how it
+      // gets here. Linting it would report thousands of findings about code
+      // nobody edits.
+      "src/bot/engine/amath_engine.mjs",
+      // The cross-check harness. A development tool, not application code.
+      "tools/engine-wasm/parity.mjs",
       "src/App.tsx",
       "src/bot/**",
       "src/codec.ts",

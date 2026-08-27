@@ -1,7 +1,7 @@
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
 import type { RoomVisibility } from "../../roomScope";
-import { BottomNavigation } from "./BottomNavigation";
+import { PrimaryNavigation } from "./PrimaryNavigation";
 
 export function ApplicationShell({
   actions,
@@ -70,6 +70,8 @@ export function ApplicationShell({
         </div>
       </header>
 
+      <PrimaryNavigation />
+
       <main ref={mainRef} className="eq-main" id="main-content" tabIndex={-1}>
         <header className="eq-page-header">
           <div className="eq-page-title-row">
@@ -84,7 +86,6 @@ export function ApplicationShell({
         {secondaryNavigation}
         <div className="eq-page-content">{children}</div>
       </main>
-      <BottomNavigation />
     </div>
   );
 }

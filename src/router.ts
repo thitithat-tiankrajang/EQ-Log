@@ -10,6 +10,7 @@ export type Route =
   | { kind: "join"; visibility: RoomVisibility; code?: string }
   | { kind: "private"; folderId: string | null; trash?: boolean }
   | { kind: "profile" }
+  | { kind: "study" }
   | { kind: "admin"; section: AdminSection }
   | { kind: "room"; roomId: string }
   | { kind: "play"; roomId: string };
@@ -39,6 +40,7 @@ export function parseHash(hash: string): Route {
     };
   }
   if (segments[0] === "profile") return { kind: "profile" };
+  if (segments[0] === "study") return { kind: "study" };
   if (segments[0] === "create") {
     const params = new URLSearchParams(query);
     const mode = params.get("mode");
@@ -102,6 +104,7 @@ export function routeToHash(route: Route): string {
     return route.trash ? `${path}?view=trash` : path;
   }
   if (route.kind === "profile") return "#/profile";
+  if (route.kind === "study") return "#/study";
   if (route.kind === "admin") return `#/admin/${route.section}`;
   if (route.kind === "play") return `#/play/${encodeURIComponent(route.roomId)}`;
   return `#/room/${encodeURIComponent(route.roomId)}`;

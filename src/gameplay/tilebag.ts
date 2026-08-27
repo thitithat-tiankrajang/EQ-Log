@@ -77,9 +77,7 @@ export function getTilebagView({
       // Before the physical bag is empty, a player only knows the combined
       // unseen pool. Once it reaches zero, this naturally becomes the
       // opponent rack and reveals it at the correct time.
-      tiles: viewerSide
-        ? [...game.tilebag, ...getRack(game, otherSide(viewerSide))]
-        : game.tilebag,
+      tiles: viewerSide ? [...game.tilebag, ...getRack(game, otherSide(viewerSide))] : game.tilebag,
       remainingCount: game.tilebag.length,
     };
   }

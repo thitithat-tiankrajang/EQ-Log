@@ -52,19 +52,35 @@ export type BotResponse = {
   placements: Array<{ r: number; c: number; kind: string; token: string }>;
   exchange: string[];
   score: number;
-  equity: number;
+  /**
+   * Evaluation detail is OPTIONAL, and absent on the path the app actually
+   * uses today.
+   *
+   * The move endpoint answers with the move alone — the engine's own read of
+   * the position describes the bot's rack, and it is served separately by
+   * `fetchBotReasoning` rather than shipped with every turn. These fields are
+   * kept optional rather than filled with zeros because a zero here is a
+   * NUMBER, and the "why this move" panel would print it as one: a real
+   * `equity` of 0.00 and "0 candidates considered" are both claims the engine
+   * never made.
+   */
+  equity?: number;
   solver: "greedy" | "sim" | "endgame";
   endgameSolved: boolean;
   expectedFinalDiff?: number;
   stats: {
-    moves: number;
+    moves?: number;
     nodes: number;
     elapsedMs: number;
-    candidates: number;
+    candidates?: number;
     samples: number;
   };
-  // Ranked alternatives (top ~16 by value), present only on the "sim" path.
+  // Ranked alternatives by value. Never present on the move response; read a
+  // page at a time from the reasoning endpoint instead.
   candidates?: BotCandidate[];
+  /** Set when the DEVICE computed this move, naming the versions it used. The
+   *  application step writes these onto the game as its pin. */
+  localEngine?: { engineVersion: string; weightsVersion: string };
   error?: string;
 };
 

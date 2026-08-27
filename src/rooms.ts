@@ -114,14 +114,67 @@ export function listRooms(scope: RoomScope = { visibility: "public", regionId: n
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 }
 
+/**
+ * Reads see writes, even the ones still waiting to be written.
+ *
+ * `saveRoomState` defers the encode (see below), so localStorage can be a beat
+ * behind the truth. Anything reading a room back in the same session must get
+ * what was last saved, not what has last been flushed.
+ */
 export function readRoom(id: string): GameState | null {
+  const pending = pendingStates.get(id);
+  if (pending) return pending;
   const raw = localStorage.getItem(roomKey(id));
   return raw ? deserializeGame(raw) : null;
 }
 
-/** Persist only the room's GameState (compact codec; safe to call frequently). */
+// ── Deferred room writes ─────────────────────────────────────────────────────
+//
+// `saveRoomState` used to encode the entire match — history, and every TurnLog's
+// two board snapshots and two tilebags — and write it to localStorage, on the
+// calling tick. Its one caller runs on every change to the game, and the running
+// clock produces one of those A SECOND, so a long match paid a full
+// serialization per second on the main thread for a durability write nothing was
+// waiting on.
+//
+// The write still happens. It happens when the main thread is free, and once per
+// burst instead of once per change — and it is forced out before the page can go
+// away, which is the only moment at which deferring it could have cost anything.
+const pendingStates = new Map<string, GameState>();
+let flushScheduled = false;
+
+function scheduleFlush(): void {
+  if (flushScheduled) return;
+  flushScheduled = true;
+  const run = () => {
+    flushScheduled = false;
+    flushRoomWrites();
+  };
+  const idle = (
+    globalThis as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }
+  ).requestIdleCallback;
+  if (idle) idle(run, { timeout: 2_000 });
+  else setTimeout(run, 0);
+}
+
+/** Persist only the room's GameState (compact codec). Coalesced and deferred —
+ *  call it as often as the game changes. */
 export function saveRoomState(id: string, game: GameState): void {
-  localStorage.setItem(roomKey(id), serializeGame(game));
+  pendingStates.set(id, game);
+  scheduleFlush();
+}
+
+/** Write everything outstanding now. Called on teardown, and by any operation
+ *  whose caller is entitled to assume the room is on disk when it returns. */
+export function flushRoomWrites(): void {
+  for (const [id, game] of pendingStates) {
+    try {
+      localStorage.setItem(roomKey(id), serializeGame(game));
+    } catch {
+      // Quota or private browsing. The in-memory copy still serves this session.
+    }
+  }
+  pendingStates.clear();
 }
 
 /** Update the lobby summary for a room; returns the new index. */
@@ -139,8 +192,12 @@ export function touchRoomMeta(id: string, game: GameState): RoomMeta[] {
   return next;
 }
 
+/** A deliberate, complete write: state plus lobby summary, on disk when it
+ *  returns. Used for creation, import and other one-off operations — never on
+ *  the per-change path, which is `saveRoomState`. */
 export function writeRoom(id: string, game: GameState): RoomMeta[] {
   saveRoomState(id, game);
+  flushRoomWrites();
   return touchRoomMeta(id, game);
 }
 
@@ -158,6 +215,8 @@ export function createRoom(
 }
 
 export function deleteRoom(id: string): RoomMeta[] {
+  // Drop the pending write first: flushing it later would resurrect the room.
+  pendingStates.delete(id);
   localStorage.removeItem(roomKey(id));
   const index = rawIndex().filter((meta) => meta.id !== id);
   persistIndex(index);
@@ -208,4 +267,13 @@ export function getActiveRoomId(): string | null {
 export function setActiveRoomId(id: string | null): void {
   if (id) localStorage.setItem(STORAGE_KEYS.activeRoom, id);
   else localStorage.removeItem(STORAGE_KEYS.activeRoom);
+}
+
+// The tab may not get another turn to run script. Whatever is still queued is
+// written here or not at all.
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", flushRoomWrites);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushRoomWrites();
+  });
 }

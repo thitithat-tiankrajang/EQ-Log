@@ -27,6 +27,7 @@ export const ANALYSIS_LEVELS = ["quick", "normal", "deep", "max"] as const;
 export type AnalysisLevel = (typeof ANALYSIS_LEVELS)[number];
 
 export type EngineErrorCode =
+  | "reasoning_unavailable"
   | "unconfigured"
   | "unauthenticated"
   | "forbidden"
@@ -330,6 +331,16 @@ export type BotMoveResult = {
   solver: "greedy" | "sim" | "endgame";
   endgameSolved: boolean;
   stats: { elapsedMs: number; nodes: number; samples: number };
+  /**
+   * Present ONLY when this move was computed on the device.
+   *
+   * It is how the pin reaches the game record: the versions travel with the
+   * move that used them and are written in the same commit, so a game cannot
+   * end up claiming a pin for a turn that was actually played by the backend
+   * engine. Absent means the backend computed it, which is a fact worth being
+   * able to state rather than infer.
+   */
+  localEngine?: { engineVersion: string; weightsVersion: string };
 };
 
 export function requestBotMove(
@@ -376,6 +387,119 @@ export function attachBotMove(
     ...(options.signal ? { signal: options.signal } : {}),
     ...(options.traceKey ? { traceKey: options.traceKey } : {}),
   });
+}
+
+// ── why the bot played that ──────────────────────────────────────────────────
+
+/** One alternative the engine weighed, with the full value decomposition that
+ *  separated it from the move actually played. Mirrors `BotCandidate`. */
+export type BotReasoningCandidate = {
+  type: "place" | "exchange" | "pass";
+  placements: Array<{ r: number; c: number; kind: string; token: string }>;
+  exchange: string[];
+  score: number;
+  scoreComp: number;
+  leave: number;
+  potential: number;
+  oppReply: number;
+  mean: number;
+  stddev: number;
+  value: number;
+  chosen: boolean;
+  proven?: boolean;
+};
+
+/**
+ * One page of the engine's ranking for a bot move that has already been played.
+ *
+ * The summary fields (`equity`, `stats`, `solver`, …) describe the WHOLE search
+ * and are repeated on every page, as are `chosen` and `runnerUp` — so any page
+ * renders completely on its own without first fetching page one.
+ */
+export type BotReasoningPage = {
+  gameId: string;
+  revision: number;
+  side: "A" | "B";
+  difficulty: string;
+  solver: "greedy" | "sim" | "endgame";
+  endgameSolved: boolean;
+  expectedFinalDiff?: number;
+  score: number;
+  equity: number;
+  stats: {
+    moves: number;
+    nodes: number;
+    elapsedMs: number;
+    candidates: number;
+    samples: number;
+    genCalls?: number;
+  };
+  /** The window actually served. `offset`/`limit` are the server's clamped
+   *  values, not the ones asked for, so a client always knows what it got. */
+  page: { offset: number; limit: number; total: number };
+  candidates: BotReasoningCandidate[];
+  chosenIndex: number | null;
+  chosen?: BotReasoningCandidate;
+  runnerUp?: BotReasoningCandidate;
+};
+
+/**
+ * Read one page of the engine's reasoning for a bot move already on the board.
+ *
+ * Paged deliberately. The full ranking is dozens of rows with a value
+ * decomposition each; fetching all of it to show the first six would spend the
+ * bandwidth on every open, and shipping it with the MOVE would spend it on every
+ * turn whether or not anyone asks. So the move stays small and this is read on
+ * demand, one page at a time.
+ *
+ * `revision` is the revision the move was COMPUTED for — `BotResponse.revision`,
+ * one behind the board by the time the panel opens. The server holds completed
+ * searches for a bounded window, so `reasoning_unavailable` (an old move, or a
+ * restarted service) is an ordinary answer to show as a sentence, not a fault to
+ * retry.
+ */
+export async function fetchBotReasoning(options: {
+  gameId: string;
+  revision: number;
+  offset?: number;
+  limit?: number;
+  signal?: AbortSignal;
+}): Promise<BotReasoningPage> {
+  if (!BASE_URL) {
+    throw new EngineApiError("unconfigured", "The engine service is not configured.");
+  }
+  const token = await accessToken();
+  const query = new URLSearchParams({ revision: String(options.revision) });
+  if (options.offset != null) query.set("offset", String(options.offset));
+  if (options.limit != null) query.set("limit", String(options.limit));
+
+  let response: Response;
+  try {
+    response = await fetch(
+      `${BASE_URL}/v1/games/${encodeURIComponent(options.gameId)}/bot-move/reasoning?${query}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        ...(options.signal ? { signal: options.signal } : {}),
+      },
+    );
+  } catch {
+    if (options.signal?.aborted) throw new EngineApiError("cancelled", "The request was cancelled.");
+    throw new EngineApiError("offline", "Could not reach the engine service.");
+  }
+
+  if (!response.ok) {
+    let payload: { code?: string; error?: string } = {};
+    try {
+      payload = (await response.json()) as typeof payload;
+    } catch {
+      // keep the defaults
+    }
+    throw new EngineApiError(
+      (payload.code ?? "internal") as EngineErrorCode,
+      payload.error ?? "The engine request failed.",
+    );
+  }
+  return (await response.json()) as BotReasoningPage;
 }
 
 // ── analysis ─────────────────────────────────────────────────────────────────
@@ -464,6 +588,66 @@ export function attachAnalysis(
   return runSse<AnalysisResult>({
     method: "GET",
     path: `/v1/games/${encodeURIComponent(options.gameId)}/analysis${query}`,
+    ...(options.onQueued ? { onQueued: options.onQueued } : {}),
+    ...(options.onRunning ? { onRunning: options.onRunning } : {}),
+    ...(options.onProgress ? { onProgress: options.onProgress } : {}),
+    ...(options.signal ? { signal: options.signal } : {}),
+    ...(options.traceKey ? { traceKey: options.traceKey } : {}),
+  });
+}
+
+// ── study ────────────────────────────────────────────────────────────────────
+//
+// The one request in this module that carries a POSITION instead of a game id,
+// because there is no game: the player typed the whole thing. The server still
+// derives everything that is not theirs to state — how many tiles the opponent
+// holds, how many are left in the bag — from the physical set.
+
+export type StudyBoardCell = { r: number; c: number; kind: string; token: string };
+
+export type StudyPositionInput = {
+  scoreSelf: number;
+  scoreOpponent: number;
+  board: StudyBoardCell[];
+  rack: string[];
+};
+
+export type StudyAnalysisResult = {
+  /** The permanent record, or `null` when the search succeeded but the write
+   *  did not. The ranking is worth showing either way. */
+  recordId: string | null;
+  saveError: string | null;
+  level: string;
+  position: StudyPositionInput & { oppRackCount: number; bagCount: number };
+  /** Ranked best first, at most ten — the same ten written to the record. */
+  candidates: AnalysisCandidate[];
+  summary: string;
+  method: AnalysisResult["method"];
+};
+
+/**
+ * Ask the engine about a made-up position at a chosen bot strength.
+ *
+ * Unlike `requestAnalysis` this is not about a turn and cannot go stale, so
+ * there is no revision to send and no `attach` counterpart: the result is
+ * persisted server-side and read back from the study records, not re-attached.
+ */
+export function requestStudyAnalysis(
+  options: StudyPositionInput & {
+    level: string;
+    signal?: AbortSignal;
+    traceKey?: string;
+  } & EngineLifecycle,
+): Promise<StudyAnalysisResult> {
+  return postStream<StudyAnalysisResult>({
+    path: "/v1/study/analysis",
+    body: {
+      scoreSelf: options.scoreSelf,
+      scoreOpponent: options.scoreOpponent,
+      board: options.board,
+      rack: options.rack,
+      level: options.level,
+    },
     ...(options.onQueued ? { onQueued: options.onQueued } : {}),
     ...(options.onRunning ? { onRunning: options.onRunning } : {}),
     ...(options.onProgress ? { onProgress: options.onProgress } : {}),
@@ -562,4 +746,142 @@ export async function cancelAnalysis(options: {
   } catch {
     return false;
   }
+}
+
+// ── client-side Super: configuration and legality ────────────────────────────
+
+/** The Super configuration document, as `service/src/superConfig.ts` serves it. */
+export type BotConfigResponse = {
+  /** The rollout switch. Server-controlled on purpose: the moment the
+   *  client-side path misbehaves, turning it off must not require shipping
+   *  anything to a browser. */
+  clientSuperEnabled: boolean;
+  engineVersion: string;
+  weightsVersion: string;
+  weights: Record<string, unknown>;
+  calibration: {
+    benchmark: string;
+    reference: {
+      benchmark: string;
+      device: string;
+      nodesPerSec: number;
+      /** What the reference device waited for a FULL-schedule Super move. One
+       *  latency, not a table of them: every device runs the same schedule, so
+       *  there is only one number to scale. */
+      fullSuper: { p50Ms: number; p95Ms: number; positions: number };
+    };
+    /** Bands over estimated full-Super p50. A LABEL for the report and for the
+     *  UI. There is no `minimumTier` beside it and there must not be one: a
+     *  tier gate is a latency cutoff, and Super does not have one. */
+    tiers: Array<{
+      tier: "EXCELLENT" | "GOOD" | "SLOW" | "NOT_RECOMMENDED";
+      maxEstimatedMoveMs: number | null;
+    }>;
+    /** Estimated p50 above which the UI warns the player about the wait. Copy,
+     *  not a cutoff — crossing it changes what is said, never what is searched. */
+    warnAboveMs: number;
+    /** EXPERIMENTAL reduced-sample budgets. `enabled` is false unless an
+     *  operator deliberately turned it on, and the client must run the full
+     *  schedule whenever it is false — a cap is a STRENGTH change. The latency
+     *  targets live in here, inside the experiment, so the default path has none. */
+    adaptiveBudget: {
+      enabled: boolean;
+      budgets: Array<{ sampleCap: number | null; p50Ms: number; p95Ms: number }>;
+      targets: { p50Ms: number; p95Ms: number };
+    };
+  };
+};
+
+/**
+ * What the client-side engine should be configured with.
+ *
+ * `weightsVersion` asks for a SPECIFIC version rather than the current one, and
+ * is how a game in progress keeps playing under the weights it started with.
+ * A version this deployment no longer carries is refused rather than
+ * substituted — see the endpoint's own comment for why that refusal is the
+ * point.
+ */
+export async function fetchBotConfig(options: {
+  weightsVersion?: string;
+  signal?: AbortSignal;
+}): Promise<BotConfigResponse> {
+  if (!BASE_URL) {
+    throw new EngineApiError("unconfigured", "No engine service is configured.");
+  }
+  const token = await accessToken();
+  const query = options.weightsVersion
+    ? `?weightsVersion=${encodeURIComponent(options.weightsVersion)}`
+    : "";
+  const response = await fetch(`${BASE_URL}/v1/bot-config${query}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    ...(options.signal ? { signal: options.signal } : {}),
+  });
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => ({}))) as { code?: string; error?: string };
+    throw new EngineApiError(
+      (payload.code ?? "internal") as EngineErrorCode,
+      payload.error ?? "Could not read the bot configuration.",
+    );
+  }
+  return (await response.json()) as BotConfigResponse;
+}
+
+export type BotMoveValidation = {
+  revision: number;
+  gameId: string;
+  side: "A" | "B";
+  valid: boolean;
+  score: number;
+  reason?: string;
+};
+
+/**
+ * Ask the server whether a move the DEVICE computed is legal from the position
+ * the server is holding.
+ *
+ * The claim is legality and only legality. It is deliberately not "is this what
+ * the engine would have played" — proving that means running the Super search
+ * again on the server, which is exactly the CPU cost the client-side path
+ * exists to remove.
+ *
+ * `valid: false` is a SUCCESSFUL call. It reports an illegal move, which is a
+ * bug in the engine, a desynced rack, or a position that moved — not a failed
+ * request, and the caller must not treat it as one.
+ */
+export async function validateBotMove(options: {
+  gameId: string;
+  expectedRevision: number;
+  move: {
+    type: "place" | "exchange" | "pass";
+    placements: Array<{ r: number; c: number; kind: string; token: string }>;
+    exchange: string[];
+  };
+  signal?: AbortSignal;
+}): Promise<BotMoveValidation> {
+  if (!BASE_URL) {
+    throw new EngineApiError("unconfigured", "No engine service is configured.");
+  }
+  const token = await accessToken();
+  const response = await fetch(
+    `${BASE_URL}/v1/games/${encodeURIComponent(options.gameId)}/bot-move/validate`,
+    {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ expectedRevision: options.expectedRevision, move: options.move }),
+      ...(options.signal ? { signal: options.signal } : {}),
+    },
+  );
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => ({}))) as {
+      code?: string;
+      error?: string;
+      currentRevision?: number;
+    };
+    throw new EngineApiError(
+      (payload.code ?? "internal") as EngineErrorCode,
+      payload.error ?? "Could not validate the move.",
+      payload.currentRevision != null ? { currentRevision: payload.currentRevision } : {},
+    );
+  }
+  return (await response.json()) as BotMoveValidation;
 }

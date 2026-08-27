@@ -1,10 +1,12 @@
 import { Children, type MouseEventHandler, type ReactNode } from "react";
 import { CheckboxControl } from "../../ui/CheckboxControl";
+import { EmptyState } from "../../ui/EmptyState";
 
 export function GameTable({
   label,
   children,
   emptyMessage,
+  emptyAction,
   selectable = false,
   allSelected = false,
   someSelected = false,
@@ -17,6 +19,7 @@ export function GameTable({
   label: string;
   children: ReactNode;
   emptyMessage: string;
+  emptyAction?: ReactNode;
   selectable?: boolean;
   allSelected?: boolean;
   someSelected?: boolean;
@@ -27,6 +30,17 @@ export function GameTable({
   toolbar?: ReactNode;
 }) {
   const rowCount = Children.count(children);
+
+  // A header row over a single "nothing here" cell reads as a broken table to
+  // both eyes and screen readers, so an empty list drops the table entirely.
+  if (rowCount === 0) {
+    return (
+      <div className="eq-game-table-wrap">
+        {toolbar && <div className="eq-game-table-toolbar">{toolbar}</div>}
+        <EmptyState description={emptyMessage} action={emptyAction} compact />
+      </div>
+    );
+  }
 
   return (
     <div className="eq-game-table-wrap">
@@ -53,17 +67,7 @@ export function GameTable({
             </th>
           </tr>
         </thead>
-        <tbody>
-          {rowCount > 0 ? (
-            children
-          ) : (
-            <tr>
-              <td className="eq-game-table-empty" colSpan={selectable ? 4 : 3}>
-                {emptyMessage}
-              </td>
-            </tr>
-          )}
-        </tbody>
+        <tbody>{children}</tbody>
       </table>
     </div>
   );

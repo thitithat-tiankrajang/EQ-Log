@@ -588,6 +588,121 @@ fieldset.bot-config-section {
   }
 }
 
+/* ── What the last keystroke did ─────────────────────────────────────────────
+ *
+ * Fixed, so it costs no layout. `.board-zone` is a two-row grid whose board is
+ * sized from the viewport rather than from its row, so anything that takes
+ * height inside it is drawn over the board. */
+.key-notice {
+  position: fixed;
+  z-index: 140;
+  inset: auto auto max(96px, calc(env(safe-area-inset-bottom) + 92px)) 50%;
+  max-width: min(420px, calc(100vw - 32px));
+  padding: 8px 14px;
+  border: 1px solid color-mix(in srgb, #8b5cf6 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, #111827 92%, transparent);
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 650;
+  text-align: center;
+  translate: -50% 0;
+  pointer-events: none;
+}
+
+.key-notice.is-armed {
+  border-color: color-mix(in srgb, #7dd3fc 70%, transparent);
+  color: #7dd3fc;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .key-notice {
+    animation: key-notice-in 140ms ease-out;
+  }
+}
+
+@keyframes key-notice-in {
+  from {
+    opacity: 0;
+    translate: -50% 6px;
+  }
+}
+
+/* The Enter hint on Submit. Sits at the end of the button without pushing the
+ * label off-centre. */
+.primary-action kbd {
+  margin-left: auto;
+  padding: 1px 6px;
+  border: 1px solid color-mix(in srgb, currentColor 45%, transparent);
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  opacity: 0.75;
+}
+
+/* One line, once, for anyone who learned that 1–8 meant a rack slot. */
+.keys-changed-notice {
+  display: grid;
+  gap: 8px;
+  padding: 11px 13px;
+  border: 1px solid color-mix(in srgb, var(--eq-primary, #2563eb) 40%, transparent);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--eq-primary, #2563eb) 10%, transparent);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.keys-changed-notice p {
+  margin: 0;
+}
+
+.keys-changed-notice kbd {
+  padding: 1px 5px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.keys-changed-notice button {
+  justify-self: start;
+  padding: 4px 12px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+/* ── The turn's insight block, at the top of the control panel ───────────────
+ *
+ * These used to sit under the board, inside `.board-zone`. That zone is a
+ * two-row grid — board, then rack — so every one of them landed in an implicit
+ * third row and ate height the board's `--cell` formula does not account for:
+ * the board overflowed its own row and the rack was drawn across it. Here they
+ * appear and disappear without moving the board by a pixel. */
+.control-insights {
+  display: grid;
+  gap: 8px;
+  justify-items: stretch;
+}
+
+/* Full width in the panel, and without the margins these carried when they
+ * were free-floating siblings of the board. */
+.control-insights > .bot-why-btn,
+.control-insights .analysis-launcher,
+.control-insights .analysis-btn {
+  margin: 0;
+  width: 100%;
+  justify-content: center;
+}
+
+.control-insights .bot-notice {
+  margin: 0;
+}
+
 /* ── "Why did the AI play this?" reasoning panel ─────────────────────────── */
 .bot-why-btn {
   margin: 8px 12px 0;
@@ -741,7 +856,13 @@ fieldset.bot-config-section {
 .bot-reason-table th {
   position: sticky;
   top: 0;
-  background: var(--surface-2, #10131a);
+  /* Tracks the PANEL's surface, not the page's.
+     `--surface-2` is a page token and is only ever defined as a light value
+     (tokens.css `#f8f9fa`, 30-visual-system `#f1f4f0`) — so inside this dark
+     panel it resolved to near-white behind the panel's own light text, and the
+     column headers washed out to nothing. The dark fallback beside it was never
+     reached, because the variable is always set. */
+  background: color-mix(in srgb, currentColor 8%, var(--surface-1, #0e1117));
   font-weight: 700;
   opacity: 0.85;
 }
@@ -778,6 +899,49 @@ fieldset.bot-config-section {
   font-size: 11.5px;
   line-height: 1.6;
   opacity: 0.7;
+}
+
+/* The ranking is read a page at a time, so the panel needs a place to say
+   where in it you are and to step. Sized like the rest of the panel chrome —
+   this is navigation, not an action the player is being pushed towards. */
+.bot-reason-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.bot-reason-pagebtn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  color: inherit;
+  border: 1px solid color-mix(in srgb, #8b5cf6 38%, transparent);
+  background: color-mix(in srgb, #8b5cf6 12%, transparent);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.bot-reason-pagebtn:hover:not(:disabled) {
+  background: color-mix(in srgb, #8b5cf6 22%, transparent);
+  border-color: color-mix(in srgb, #8b5cf6 60%, transparent);
+}
+.bot-reason-pagebtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.bot-reason-pagepos {
+  font-size: 12px;
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The report could not be read, or has not arrived. Deliberately not styled as
+   an error: an expired report is an ordinary outcome of bounded retention. */
+.bot-reason-verdict.is-loading,
+.bot-reason-verdict.is-unavailable {
+  background: color-mix(in srgb, currentColor 6%, transparent);
+  border-color: color-mix(in srgb, currentColor 12%, transparent);
+  opacity: 0.85;
 }
 
 @media (prefers-color-scheme: light) {
@@ -1056,4 +1220,14 @@ fieldset.bot-config-section {
   .analysis-cancel {
     transition: none;
   }
+}
+
+/* The slow-device line. Deliberately quiet: it explains a wait, it does not
+   warn about a fault — the search is running normally and at full strength,
+   this device simply takes longer to finish the same work. */
+.bot-thinking-note {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  opacity: 0.72;
 }

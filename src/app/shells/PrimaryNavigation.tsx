@@ -1,7 +1,17 @@
 import { FolderLock, Globe2, MapPin, Plus, UserRound } from "lucide-react";
 import { useRoute } from "../../router";
 
-export function BottomNavigation() {
+/**
+ * The five application destinations. One element serves both layouts: a fixed
+ * bar above the thumb on phones, a static strip under the header on desktop.
+ * Rendering two navigations instead would put a duplicate set of links and a
+ * second landmark in the accessibility tree.
+ *
+ * It is deliberately a sibling of the header rather than a child: the header
+ * sets `backdrop-filter`, which would make it the containing block for the
+ * fixed mobile bar and pin the nav to the header instead of the viewport.
+ */
+export function PrimaryNavigation() {
   const route = useRoute();
   const active =
     route.kind === "home"
@@ -11,7 +21,7 @@ export function BottomNavigation() {
         : null;
 
   return (
-    <nav className="eq-bottom-nav" aria-label="Primary navigation">
+    <nav className="eq-primary-nav" aria-label="Primary navigation">
       <NavItem href="#/public" active={active === "public"} label="Public">
         <Globe2 aria-hidden size={21} />
       </NavItem>
@@ -19,7 +29,7 @@ export function BottomNavigation() {
         <MapPin aria-hidden size={21} />
       </NavItem>
       <a
-        className={`eq-bottom-nav-create${active === "create" ? " is-active" : ""}`}
+        className={`eq-primary-nav-create${active === "create" ? " is-active" : ""}`}
         href="#/create"
         aria-current={active === "create" ? "page" : undefined}
         aria-label="Create game"

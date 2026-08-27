@@ -1,5 +1,7 @@
 import { LayoutGrid, Play, Trophy, X } from "lucide-react";
+import { useId } from "react";
 import { getGameMode, otherSide, type EndGameDetail, type GameState } from "../../game";
+import { useDialogBehavior } from "../ui/useDialogBehavior";
 
 export function ResultModal({
   game,
@@ -29,18 +31,23 @@ export function ResultModal({
   const scoreMargin = Math.abs(A - B);
   const turnCount = Math.max(0, game.turnNumber - 1);
   const perfectGame = isSolo && endDetail?.reason === "perfect_game";
+  const titleId = useId();
+  const dialogRef = useDialogBehavior<HTMLElement>({ onClose });
   return (
     <div className="modal-backdrop" role="presentation" onClick={onClose}>
       <section
+        ref={dialogRef}
+        aria-labelledby={titleId}
         aria-modal="true"
         className="result-modal"
         role="dialog"
+        tabIndex={-1}
         onClick={(event) => event.stopPropagation()}
       >
         <header className="modal-head result-modal-head">
           <div>
             <span className="eyebrow">Final Result</span>
-            <h2>{game.name}</h2>
+            <h2 id={titleId}>{game.name}</h2>
           </div>
           <button className="result-close" type="button" aria-label="Close final result" onClick={onClose}>
             <X size={18} />

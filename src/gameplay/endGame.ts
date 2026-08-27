@@ -88,11 +88,7 @@ export function createAutomaticEndGameLog({
     }
   }
 
-  if (
-    isSolo &&
-    hasSoloGameStarted(logs) &&
-    hasSoloNoScoreStreak(logs)
-  ) {
+  if (isSolo && hasSoloGameStarted(logs) && hasSoloNoScoreStreak(logs)) {
     return createEndGameLog({
       boardAfter,
       detail: {
@@ -172,9 +168,11 @@ export function createSurrenderEndGameLog(game: GameState, surrenderedSide: Side
 }
 
 function hasSoloGameStarted(logs: TurnLog[]): boolean {
-  return logs
-    .filter((log) => log.action !== "end_game")
-    .reduce((total, log) => total + log.finalScore, 0) !== 0;
+  return (
+    logs
+      .filter((log) => log.action !== "end_game")
+      .reduce((total, log) => total + log.finalScore, 0) !== 0
+  );
 }
 
 function hasSoloNoScoreStreak(logs: TurnLog[]): boolean {

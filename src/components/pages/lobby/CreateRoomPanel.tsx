@@ -40,6 +40,7 @@ export function CreateRoomPanel({
   members,
   registeredPlayers,
   busy = false,
+  intent = "match",
   submitLabel,
   onChange,
   onSubmit,
@@ -48,6 +49,9 @@ export function CreateRoomPanel({
   members: Member[];
   registeredPlayers: RegisteredPlayer[];
   busy?: boolean;
+  /** Which opponent the previous step chose. Decides which seating options
+   *  remain open here, so the same question is never asked twice. */
+  intent?: "match" | "solo";
   submitLabel?: string;
   onChange: (next: NewGameSettings) => void;
   onSubmit: () => void;
@@ -266,44 +270,60 @@ export function CreateRoomPanel({
 
   return (
     <section className="create-form" aria-label="Room setup">
-      {/* 1 · Who is playing? */}
+      {/* 1 · Where the players sit. Which opponent (person / alone / Aether)
+             was already answered on the previous screen, so this only asks
+             what that choice leaves open. */}
       <div className="create-section">
         <h3 className="create-section-title">
-          <span>1</span>
-          {PLAY_MODE_TEXT.question}
+          <span aria-hidden="true">1</span>
+          {intent === "solo" ? PLAY_MODE_TEXT.soloQuestion : PLAY_MODE_TEXT.question}
         </h3>
         <ChoiceCardGroup<WhoPlays>
-          label={PLAY_MODE_TEXT.question}
+          label={intent === "solo" ? PLAY_MODE_TEXT.soloQuestion : PLAY_MODE_TEXT.question}
           value={whoPlays}
-          choices={[
-            {
-              value: "pass_play",
-              icon: <Users size={17} />,
-              label: PLAY_MODE_TEXT.passPlay,
-              description: PLAY_MODE_TEXT.passPlayDesc,
-            },
-            {
-              value: "solo",
-              icon: <User size={17} />,
-              label: PLAY_MODE_TEXT.solo,
-              description: PLAY_MODE_TEXT.soloDesc,
-            },
-            {
-              value: "online",
-              icon: <Globe size={17} />,
-              label: PLAY_MODE_TEXT.online,
-              description: PLAY_MODE_TEXT.onlineDesc,
-              disabled: !isSupabaseConfigured,
-              disabledReason: PLAY_MODE_TEXT.onlineNeedsSetup,
-            },
-          ]}
+          choices={
+            intent === "solo"
+              ? [
+                  {
+                    value: "solo",
+                    icon: <User size={17} />,
+                    label: PLAY_MODE_TEXT.soloOnThisDevice,
+                    description: PLAY_MODE_TEXT.soloOnThisDeviceDesc,
+                  },
+                  {
+                    value: "online",
+                    icon: <Globe size={17} />,
+                    label: PLAY_MODE_TEXT.soloHosted,
+                    description: PLAY_MODE_TEXT.soloHostedDesc,
+                    disabled: !isSupabaseConfigured,
+                    disabledReason: PLAY_MODE_TEXT.onlineNeedsSetup,
+                  },
+                ]
+              : [
+                  {
+                    value: "pass_play",
+                    icon: <Users size={17} />,
+                    label: PLAY_MODE_TEXT.passPlay,
+                    description: PLAY_MODE_TEXT.passPlayDesc,
+                  },
+                  {
+                    value: "online",
+                    icon: <Globe size={17} />,
+                    label: PLAY_MODE_TEXT.online,
+                    description: PLAY_MODE_TEXT.onlineDesc,
+                    disabled: !isSupabaseConfigured,
+                    disabledReason: PLAY_MODE_TEXT.onlineNeedsSetup,
+                  },
+                ]
+          }
           onChange={(who) => {
             if (who === "pass_play") setPlayMode("hotseat");
             else if (who === "solo") setPlayMode("solo");
-            else setPlayMode(lastOnlineRole);
+            else setPlayMode(intent === "solo" ? "hosted_solo" : lastOnlineRole);
           }}
         />
-        {whoPlays === "online" && (
+        {/* A solo room has one seat, so the two-player host roles do not apply. */}
+        {whoPlays === "online" && intent !== "solo" && (
           <div className="create-subquestion">
             <h4 className="create-subquestion-title">{PLAY_MODE_TEXT.roleQuestion}</h4>
             <ChoiceCardGroup<OnlineRole>
@@ -356,7 +376,7 @@ export function CreateRoomPanel({
       {/* 2 · Players */}
       <div className="create-section">
         <h3 className="create-section-title">
-          <span>2</span>
+          <span aria-hidden="true">2</span>
           {CREATE_TEXT.playersHeading}
         </h3>
         <SidePlayerCard
@@ -462,7 +482,7 @@ export function CreateRoomPanel({
       {/* 3 · Time per side */}
       <div className="create-section">
         <h3 className="create-section-title">
-          <span>3</span>
+          <span aria-hidden="true">3</span>
           {isHostedSolo ? "Solo player timer" : isSolo ? "Your timer" : TIMER_TEXT.label}
         </h3>
         {!perSideTimers || isSolo ? (
