@@ -68,6 +68,13 @@ export const PLAY_MODE_TEXT = {
   roleHostTwoDesc: "You referee; two registered players compete",
   roleHostOne: "I host one player",
   roleHostOneDesc: "A solo board you supervise",
+  // Solo already fixes the opponent, so the remaining question is where the
+  // single board lives rather than who is playing.
+  soloQuestion: "Where do you play?",
+  soloOnThisDevice: "On this device",
+  soloOnThisDeviceDesc: "Just you; the app draws tiles",
+  soloHosted: "Hosted online",
+  soloHostedDesc: "A solo board you supervise for a registered player",
 } as const;
 
 export const TILE_DRAW_TEXT = {

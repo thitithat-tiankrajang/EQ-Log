@@ -55,6 +55,19 @@
   min-height: 0;
 }
 
+/* Pinned rows, not auto-placement. `.board-zone` declares exactly two rows, and
+ * anything else dropped into it used to be auto-placed into an implicit third —
+ * which is how a button appearing under the board ended up with the rack drawn
+ * across the board. With these two pinned, a stray child lands BELOW the rack
+ * instead of displacing it. */
+.board-zone > .board-stage {
+  grid-row: 1;
+}
+
+.board-zone > .play-bar {
+  grid-row: 2;
+}
+
 .board-stage {
   display: grid;
   place-items: center;

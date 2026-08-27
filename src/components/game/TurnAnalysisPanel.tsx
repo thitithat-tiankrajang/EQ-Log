@@ -1,4 +1,6 @@
+import { useId } from "react";
 import type { AnalysisCandidate, AnalysisResult } from "../../bot/engineApi";
+import { useDialogBehavior } from "../ui/useDialogBehavior";
 
 // The player's own turn, analysed. Reuses the "why this move" panel's visual
 // language on purpose: the two answer the same question about different turns,
@@ -62,13 +64,25 @@ export function TurnAnalysisPanel({
 }) {
   const { recommendation, alternatives, method } = analysis;
   const isEndgame = method.solver === "endgame";
+  const titleId = useId();
+  const dialogRef = useDialogBehavior<HTMLDivElement>({ onClose });
 
   return (
-    <div className="bot-reason-overlay" role="dialog" aria-modal="true" onClick={onClose}>
-      <div className="bot-reason-panel" onClick={(event) => event.stopPropagation()}>
+    <div className="bot-reason-overlay" role="presentation" onClick={onClose}>
+      <div
+        ref={dialogRef}
+        className="bot-reason-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        onClick={(event) => event.stopPropagation()}
+      >
         <div className="bot-reason-head">
           <div>
-            <div className="bot-reason-title">🔎 วิเคราะห์ตาของ {playerName}</div>
+            <div className="bot-reason-title" id={titleId}>
+              🔎 วิเคราะห์ตาของ {playerName}
+            </div>
             <div className="bot-reason-sub">
               ตาที่ {analysis.turnNumber} · ระดับ {LEVEL_LABEL[analysis.level]} ·{" "}
               {SOLVER_LABEL[method.solver]}

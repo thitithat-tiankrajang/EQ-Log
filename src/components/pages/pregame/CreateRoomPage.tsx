@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bot, Globe2, LockKeyhole, MapPin, Save, Swords, UserRound } from "lucide-react";
+import { Bot, Globe2, LockKeyhole, MapPin, Save, Sparkles, Swords, UserRound } from "lucide-react";
 import { useAuth } from "../../../auth";
 import type { NewGameSettings } from "../../../game";
 import { DEFAULT_NEW_GAME_SETTINGS } from "../../../constants/roomDefaults";
@@ -9,6 +9,7 @@ import { useMembersCatalog } from "../lobby/useMembersCatalog";
 import { useRegisteredPlayersCatalog } from "../lobby/useRegisteredPlayersCatalog";
 import { BotRoomPanel } from "./BotRoomPanel";
 import { PreGameShell } from "./PreGameShell";
+import { navigate } from "../../../router";
 import type { RoomVisibility } from "../../../roomScope";
 import type { CreateRoomPolicy, JoinPolicy } from "../../../remoteRooms";
 
@@ -47,14 +48,28 @@ export function CreateRoomPage({
   const effectiveVisibility: RoomVisibility = destination === "region" ? "region" : "public";
   const { error, loading, members } = useMembersCatalog(userId);
   const playerDirectory = useRegisteredPlayersCatalog(Boolean(userId), effectiveVisibility);
-  const [settings, setSettings] = useState<NewGameSettings>(() => ({
-    ...DEFAULT_NEW_GAME_SETTINGS,
-  }));
+  const [settings, setSettings] = useState<NewGameSettings>(() =>
+    preset === "solo" ? soloSettings(DEFAULT_NEW_GAME_SETTINGS) : { ...DEFAULT_NEW_GAME_SETTINGS },
+  );
 
   function chooseDestination(next: Destination) {
     if (next === "region" && !regionAvailable) return;
     setDestination(next);
     setJoinPolicy(next === "private" ? "invite_only" : "open");
+  }
+
+  /**
+   * Seed the settings for the chosen opponent once, rather than re-forcing
+   * them on every render. The forced version produced the same room but left
+   * the tile-draw control unable to hold a change the user made.
+   */
+  function choosePlayChoice(next: PlayChoice) {
+    setPlayChoice(next);
+    if (next === "solo") setSettings(soloSettings);
+    else if (next === "match")
+      setSettings((current) =>
+        current.gameMode === "solo" ? { ...current, gameMode: "versus" } : current,
+      );
   }
 
   function policy(): CreateRoomPolicy {
@@ -141,19 +156,25 @@ export function CreateRoomPage({
             icon={<Swords />}
             title="Match"
             description="Pass & Play, direct online, or a hosted two-player match."
-            onClick={() => setPlayChoice("match")}
+            onClick={() => choosePlayChoice("match")}
           />
           <DestinationCard
             icon={<UserRound />}
             title="Solo Practice"
             description="Play alone and accumulate your lifetime practice score."
-            onClick={() => setPlayChoice("solo")}
+            onClick={() => choosePlayChoice("solo")}
           />
           <DestinationCard
             icon={<Bot />}
             title="Aether"
             description="Play Versus against the built-in AI at your chosen difficulty."
-            onClick={() => setPlayChoice("aether")}
+            onClick={() => choosePlayChoice("aether")}
+          />
+          <DestinationCard
+            icon={<Sparkles />}
+            title="Study"
+            description="ตั้งกระดานและเบี้ยในมือเอง แล้วให้บอทวิเคราะห์ว่าจะเล่นตาไหน"
+            onClick={() => navigate({ kind: "study" })}
           />
         </div>
       </PreGameShell>
@@ -250,31 +271,19 @@ export function CreateRoomPage({
             }}
           />
         ) : loading ? (
-          <div className="pregame-card pregame-loading">Loading player directory...</div>
+          <div className="pregame-card pregame-loading">Loading player directory…</div>
         ) : (
           <CreateRoomPanel
-            settings={
-              playChoice === "solo"
-                ? { ...settings, gameMode: "solo", tileDrawMode: "play", startingSide: "A" }
-                : settings
-            }
+            settings={settings}
+            intent={playChoice === "solo" ? "solo" : "match"}
+            submitLabel={playChoice === "solo" ? "Create solo room" : undefined}
             members={members}
             registeredPlayers={playerDirectory.players}
             busy={submitting}
-            onChange={(next) =>
-              setSettings(playChoice === "solo" ? { ...next, gameMode: "solo" } : next)
-            }
+            onChange={setSettings}
             onSubmit={() => {
               if (!canCreate || submitting) return;
-              const base =
-                playChoice === "solo"
-                  ? {
-                      ...settings,
-                      gameMode: "solo" as const,
-                      tileDrawMode: "play" as const,
-                      startingSide: "A" as const,
-                    }
-                  : settings;
+              const base = settings;
               const playerA =
                 base.playerA.trim() ||
                 resolveMemberLabel(base.playerAMemberId, members) ||
@@ -320,6 +329,11 @@ function DestinationCard({
       {note && <small>{note}</small>}
     </button>
   );
+}
+
+/** The configuration a Solo Practice room starts from. */
+function soloSettings(current: NewGameSettings): NewGameSettings {
+  return { ...current, gameMode: "solo", tileDrawMode: "play", startingSide: "A" };
 }
 
 function destinationLabel(destination: Destination, regionName: string | null): string {

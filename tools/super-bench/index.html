@@ -1,0 +1,28 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>Super device benchmark</title>
+<style>
+  body { font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; margin: 24px; max-width: 760px; }
+  button { font: inherit; padding: 6px 14px; margin-right: 8px; }
+  pre { background: #f4f4f5; padding: 12px; border-radius: 6px; white-space: pre-wrap; }
+  #beat { font-size: 22px; }
+</style>
+<h1>Super device benchmark</h1>
+<p>
+  Measures what a full-strength Super move actually costs in <em>this</em> browser.
+  Every device runs the identical 160-sample schedule, so the only thing this
+  can report is the wait.
+</p>
+<p>
+  <button id="init">1. initialise WASM</button>
+  <button id="cal">2. calibrate</button>
+  <button id="full">3. FULL Super move</button>
+  <button id="cancel">cancel</button>
+</p>
+<!-- The UI-responsiveness check. This counter is driven by requestAnimationFrame
+     on the UI thread. If the search were running there it would freeze; while it
+     runs in the worker it must keep ticking smoothly throughout a multi-minute
+     search. Watching it IS the test. -->
+<p>UI thread: <span id="beat">·</span> <span id="fps"></span></p>
+<pre id="out">ready</pre>
+<script type="module" src="./bench.ts"></script>

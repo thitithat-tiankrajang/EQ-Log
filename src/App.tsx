@@ -14,7 +14,15 @@ import {
   Undo2,
 } from "lucide-react";
 import "./play-styles.css";
-import { CSSProperties, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  CSSProperties,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { ActionPanel } from "./components/actions/ActionPanel";
 import { Board, type BoardScoreAnchor } from "./components/board/Board";
 import { GlobalActivity, LoadingScreen } from "./components/feedback/LoadingActivity";
@@ -121,12 +129,19 @@ import { advanceRunningClock } from "./gameplay/timer";
 import { clearTileAssignment } from "./gameplay/tiles";
 import {
   isDesyncBotFailure,
+  botRetryDelay,
   isRetryableBotFailure,
   mapBotResponse,
   toBotResponse,
   warmUpBotEngine,
 } from "./bot/botController";
 import { EngineApiError, isEngineApiConfigured, type BotMoveResult } from "./bot/engineApi";
+import { clientSuperReadiness, type ClientSuperReadiness } from "./bot/clientSuper";
+import {
+  cancel as cancelSuperEngine,
+  initialize as initializeSuperEngine,
+} from "./bot/superEngine";
+import { installConsoleHandle as installTelemetryHandle } from "./bot/superTelemetry";
 import type { BotResponse } from "./bot/types";
 import * as engineDebug from "./engineDebug";
 import * as engineSessions from "./engineSessions";
@@ -134,6 +149,12 @@ import { botRecordFromGame, recordBotGame } from "./botStats";
 import { BotThinkingCard } from "./components/game/BotThinkingCard";
 import { BotReasoningPanel } from "./components/game/BotReasoningPanel";
 import { TurnAnalysisLauncher } from "./components/game/TurnAnalysisLauncher";
+import { resolveStudyKey } from "./gameplay/tileKeys";
+import {
+  resolveDrawnTile,
+  resolveRackTile,
+  tileRequestFromStroke,
+} from "./gameplay/rackResolution";
 import { makeRoomScope, type RoomScope, type RoomVisibility } from "./roomScope";
 
 type ActionMode = "none" | ActionType;
@@ -146,7 +167,7 @@ type ActionMode = "none" | ActionType;
  * searches on a one-CPU server — without letting the bot sit forever on a
  * service that is genuinely down.
  */
-const BOT_RETRY_DELAYS_MS = [1_500, 4_000, 8_000] as const;
+
 
 /**
  * What to tell the player about an engine problem, in one line.
@@ -364,6 +385,11 @@ function App() {
   );
   const [roomsLoading, setRoomsLoading] = useState(remoteEnabled);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [blankArmed, setBlankArmed] = useState(false);
+  /** One line about what the last keystroke did, when it did something the
+   *  player would not otherwise see — spending a blank, or finding nothing in
+   *  hand that could play the face they asked for. Clears itself. */
+  const [keyNotice, setKeyNotice] = useState<string | null>(null);
   const [foregroundLoading, setForegroundLoading] = useState<string | null>(null);
   const [backgroundSyncCount, setBackgroundSyncCount] = useState(0);
   const [joinError, setJoinError] = useState<string | null>(null);
@@ -456,8 +482,26 @@ function App() {
   // Fast-path refs for rapid keyboard placement. Updated synchronously inside
   // handlers so back-to-back keystrokes always read fresh state instead of
   // stale closures. Re-synced on every render via the assignments below.
+  const keyNoticeTimerRef = useRef<number | null>(null);
+  /** Show one line and let it fade. Declared as a callback rather than inline so
+   *  the key handler, which runs from a window listener, is not rebuilt for it. */
+  const showKeyNotice = useCallback((message: string) => {
+    setKeyNotice(message);
+    if (keyNoticeTimerRef.current !== null) window.clearTimeout(keyNoticeTimerRef.current);
+    keyNoticeTimerRef.current = window.setTimeout(() => setKeyNotice(null), 2_500);
+  }, []);
+
   const cursorRef = useRef(placementCursor);
   const pendingsRef = useRef(pendingPlacements);
+  /** Whether `B` is waiting for the face a blank will stand in for. A ref as
+   *  well as state, because the key handler reads it in the same tick it is
+   *  set. */
+  const blankArmedRef = useRef(false);
+  /** Whether Enter would actually submit — the same condition `confirmPlace`
+   *  checks. Kept so a stray Enter is not swallowed on a turn that has nothing
+   *  to submit: preventing the default there would eat the keystroke of
+   *  whatever button happens to hold focus. */
+  const submitReadyRef = useRef(false);
   const gameRef = useRef<GameState | null>(game);
   const actionModeRef = useRef(actionMode);
   const rackLayoutRef = useRef(rackLayout);
@@ -466,6 +510,47 @@ function App() {
   gameRef.current = game;
   actionModeRef.current = actionMode;
   rackLayoutRef.current = rackLayout;
+
+  // ── Stable handlers for the memoized board and rack ───────────────────────
+  //
+  // `Board` and `Rack` skip re-rendering when the picture has not changed (see
+  // `sameBoardPicture` / `sameRack`), and a handler recreated on every render
+  // would make that comparison fail every time — the board is 225 buttons, so
+  // that is the difference between reconciling the grid on every clock tick and
+  // reconciling it when a square actually changes.
+  //
+  // The identity is fixed for the life of the component; the BEHAVIOUR is not.
+  // Each render points the ref at that render's closure, so the callback always
+  // runs against current state — the same render-phase ref assignment this
+  // component already uses for `gameRef`, `cursorRef` and the rest above.
+  //
+  // The handlers are function declarations further down the body, so they are
+  // hoisted and can be captured here; they are only ever CALLED from an event,
+  // by which time every value they close over exists.
+  const boardCellClickRef = useRef<(row: number, col: number) => void>(() => {});
+  const pendingAssignmentEditRef = useRef<(tileId: string) => boolean | void>(() => {});
+  const rackTileClickRef = useRef<(tile: TileInstance, side: Side) => void>(() => {});
+  const emptyRackSlotClickRef = useRef<(index: number, side: Side) => void>(() => {});
+  boardCellClickRef.current = handleBoardCellClick;
+  pendingAssignmentEditRef.current = openPendingAssignmentEditor;
+  rackTileClickRef.current = handleRackTileClick;
+  emptyRackSlotClickRef.current = handleEmptyRackSlotClick;
+  const onBoardCellClick = useCallback(
+    (row: number, col: number) => boardCellClickRef.current(row, col),
+    [],
+  );
+  const onPendingAssignmentEdit = useCallback((tileId: string) => {
+    pendingAssignmentEditRef.current(tileId);
+  }, []);
+  const onRackTileClick = useCallback(
+    (tile: TileInstance, side: Side) => rackTileClickRef.current(tile, side),
+    [],
+  );
+  const onEmptyRackSlotClick = useCallback(
+    (index: number, side: Side) => emptyRackSlotClickRef.current(index, side),
+    [],
+  );
+
   const readOnlyRef = useRef(false);
   const activeRoomIdRef = useRef<string | null>(activeRoomId);
   const pendingSessionEventRef = useRef<RoomSessionEvent | null>(null);
@@ -1117,14 +1202,27 @@ function App() {
   ]);
 
   // Persist the active room's full state locally on every change (incl. timer ticks).
+  // Keyed on the POSITION, not on the game object.
+  //
+  // The running clock produces a new game object every second, and this effect
+  // used to fire on every one of them — validating the whole 100-tile inventory
+  // and encoding the entire match to localStorage, once a second, forever.
+  //
+  // None of that is needed to survive a reload. The visible clock is DERIVED on
+  // load from `currentTurnStartedAt` (see `advanceRunningClock`), so persisting
+  // a tick tells the next load nothing the previous write did not already say:
+  // anchor + elapsed gives the same number either way. What has to be written is
+  // a change to the position, and that is exactly what `remoteStateKey` tracks.
   useEffect(() => {
     if (remoteEnabled) return;
-    if (!game || !activeRoomId) return;
-    if (hasDuplicateTileIds(game)) return;
-    if (game.status === "playing" && (actionMode !== "none" || pendingPlacements.length > 0))
+    const current = gameRef.current;
+    if (!current || !activeRoomId) return;
+    if (hasDuplicateTileIds(current)) return;
+    if (current.status === "playing" && (actionMode !== "none" || pendingPlacements.length > 0))
       return;
-    roomStore.saveRoomState(activeRoomId, game);
-  }, [game, activeRoomId, remoteEnabled, actionMode, pendingPlacements.length]);
+    roomStore.saveRoomState(activeRoomId, current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [remoteStateKey, activeRoomId, remoteEnabled, actionMode, pendingPlacements.length]);
 
   // Supabase state sync: excludes timer-only ticks, but includes submitted turns,
   // undo/redo, score edits, pause/resume, end/resume, and room metadata changes.
@@ -1472,21 +1570,104 @@ function App() {
         return;
       }
 
-      const digit = parseInt(event.key, 10);
-      if (!Number.isFinite(digit) || digit < 1 || digit > RACK_SIZE) return;
+      // ── the key table ──────────────────────────────────────────────────────
+      //
+      // `1`–`8` used to name a RACK SLOT. They now name the tile itself, and so
+      // does every other key: the same table Study uses, resolved against the
+      // rack. See gameplay/tileKeys.ts for the table and gameplay/rackResolution
+      // for which tile in hand answers a given face.
+      const keyAction = resolveStudyKey(event, blankArmedRef.current);
+      if (!keyAction) return;
+
+      if (keyAction.kind === "armBlank") {
+        consumed();
+        blankArmedRef.current = true;
+        setBlankArmed(true);
+        return;
+      }
+      if (keyAction.kind === "cancel") {
+        consumed();
+        if (blankArmedRef.current) {
+          blankArmedRef.current = false;
+          setBlankArmed(false);
+        } else {
+          cursorRef.current = null;
+          setPlacementCursor(null);
+        }
+        return;
+      }
+      if (keyAction.kind === "toggleDirection") {
+        consumed();
+        setPlacementCursor((current) => {
+          if (!current) return current;
+          const cycle = ["right", "down", "left", "up"] as const;
+          const next = keyAction.cycleAll
+            ? cycle[(cycle.indexOf(current.dir) + 1) % cycle.length]!
+            : current.dir === "right"
+              ? ("down" as const)
+              : ("right" as const);
+          const moved = { ...current, dir: next };
+          cursorRef.current = moved;
+          return moved;
+        });
+        return;
+      }
+      if (keyAction.kind === "move") {
+        consumed();
+        setPlacementCursor((current) => {
+          if (!current) return current;
+          const step: Record<"right" | "down" | "left" | "up", readonly [number, number]> = {
+            right: [0, 1],
+            down: [1, 0],
+            left: [0, -1],
+            up: [-1, 0],
+          };
+          const [dr, dc] = step[keyAction.dir];
+          const row = current.row + dr;
+          const col = current.col + dc;
+          if (row < 0 || col < 0 || row >= BOARD_SIZE || col >= BOARD_SIZE) return current;
+          // Moving does not re-aim: nudging the cursor into place leaves the
+          // typing direction alone.
+          const moved = { row, col, dir: current.dir };
+          cursorRef.current = moved;
+          return moved;
+        });
+        return;
+      }
+      if (keyAction.kind === "confirmStep") {
+        // Enter submits, and only when the same validation the Submit button
+        // uses already passes. It is the most repeated action in a game; the
+        // gate is what keeps a stray Enter from spending a turn.
+        if (!submitReadyRef.current) return;
+        consumed();
+        confirmPlace();
+        return;
+      }
+      if (keyAction.kind !== "tile" && keyAction.kind !== "bareBlank") return;
+
+      // A blank in hand has no face; a blank ON THE BOARD is playing as
+      // something. `B B` is meaningful in Study and meaningless here.
+      const request =
+        keyAction.kind === "bareBlank" ? null : tileRequestFromStroke(keyAction.stroke);
+      const clearArmed = () => {
+        if (!blankArmedRef.current) return;
+        blankArmedRef.current = false;
+        setBlankArmed(false);
+      };
+      if (!request) {
+        consumed();
+        clearArmed();
+        return;
+      }
 
       // Replay path: keep using the simple click handler — replayDraft state
       // is locked to whatever the cursor moment was, so race isn't an issue.
       if (isReplayBefore) {
-        if (selectedPendingTileId) {
-          consumed();
-          returnReplayPendingToRackSlot(digit - 1);
-          return;
-        }
-        const tile = replayDraft!.rack[digit - 1];
-        if (!tile) return;
+        const found = resolveRackTile(replayDraft!.rack, request);
+        if (!found) return;
         consumed();
-        handleRackTileClick(tile, game.activeSide);
+        clearArmed();
+        handleRackTileClick(found.tile, game.activeSide);
         return;
       }
 
@@ -1495,18 +1676,54 @@ function App() {
       if (!currentGame) return;
       const currentCursor = cursorRef.current;
       const currentPendings = pendingsRef.current;
-      const rack = getRack(currentGame, currentGame.activeSide);
-      const rackSlot = digit - 1;
-      const tile = rackSlotsFrom(currentGame, currentGame.activeSide, rackLayoutRef.current)[
-        rackSlot
-      ];
-
-      if (selectedPendingTileId) {
+      // Manual refill: the tile the player is naming is in the BAG, not in hand.
+      // Same key, same resolver, different pile — an exception here is exactly
+      // what would make `5` mean two things and get mis-keyed.
+      if (
+        currentGame.phase === "refill" &&
+        getTileDrawMode(currentGame) === "manual" &&
+        actionModeRef.current === "none"
+      ) {
+        // No prediction here — see `resolveDrawnTile`. A draw records which
+        // tile came out of the bag; substituting one would record a fiction.
+        const drawn = resolveDrawnTile(currentGame.tilebag, request);
         consumed();
-        handleEmptyRackSlotClick(digit - 1, currentGame.activeSide);
+        clearArmed();
+        if (!drawn) {
+          showKeyNotice(`ไม่มีเบี้ย ${request.face} เหลือในถุง`);
+          return;
+        }
+        refillFromBag(drawn);
         return;
       }
-      if (!tile) return;
+
+      const rack = getRack(currentGame, currentGame.activeSide);
+      const slots = rackSlotsFrom(currentGame, currentGame.activeSide, rackLayoutRef.current);
+      const found = resolveRackTile(slots, request);
+      if (!found) {
+        consumed();
+        clearArmed();
+        // Saying nothing here reads as a broken keyboard.
+        showKeyNotice(`ไม่มีเบี้ยที่เล่นเป็น ${request.face} ได้ในมือ`);
+        return;
+      }
+      const tile = found.tile;
+      const rackSlot = slots.findIndex((slot) => slot?.id === tile.id);
+      // The face is already known from the keystroke, so the assignment dialog
+      // that a CLICK still opens never appears on this path — which is most of
+      // what makes typing faster than clicking.
+      const assignedToken = found.assignedToken ?? tile.assignedToken;
+      clearArmed();
+      if (found.via !== "exact") {
+        // Spending a blank without noticing is the one way the prediction can
+        // cost a player something, so it is never silent.
+        showKeyNotice(
+          found.via === "blank"
+            ? `ใช้ Blank แทน ${request.face}`
+            : `ใช้เบี้ยสองหน้าเป็น ${request.face}`,
+        );
+      }
+
       if (
         currentGame.phase === "refill" &&
         refillBaselineMatchesTurn(refillBaselineRef.current, currentGame) &&
@@ -1527,7 +1744,7 @@ function App() {
           handleRackTileClick(tile, currentGame.activeSide);
           return;
         }
-        if (tileNeedsAssignment(tile.token) && !tile.assignedToken) {
+        if (tileNeedsAssignment(tile.token) && !assignedToken) {
           consumed();
           if (actionModeRef.current === "none") {
             beginPlaceActionFromGame(currentGame, false);
@@ -1557,7 +1774,7 @@ function App() {
           tile,
           row: currentCursor.row,
           col: currentCursor.col,
-          assignedToken: tile.assignedToken,
+          assignedToken,
           cursorDir: currentCursor.dir,
           rackSlot,
         };
@@ -1688,6 +1905,8 @@ function App() {
     }
     return validateMove(game.board, pendingPlacements);
   }, [actionMode, game, pendingPlacements, replayCursor, replayDraft]);
+  submitReadyRef.current =
+    !readOnly && Boolean(game) && actionMode === "place_equation" && validation.isValid;
 
   // Derived replay state from the cursor.
   const replayPhase: "before" | "after" =
@@ -1855,6 +2074,54 @@ function App() {
   useEffect(() => {
     if (game?.botSide) warmUpBotEngine();
   }, [game?.gameId, game?.botSide]);
+
+  // ── Is this room's Super bot allowed to think on this device? ──────────────
+  //
+  // Decided once per room rather than per turn, and BEFORE the first turn, so
+  // that the ~250 KB engine chunk downloads and the WASM module instantiates
+  // while the player is still looking at the board. The alternative — deciding
+  // on the first bot turn — spends the download and the instantiation inside
+  // the move the player is already waiting for.
+  //
+  // `null` means "not decided yet", which is not the same as "no": a turn that
+  // arrives before readiness settles takes the backend path, which is correct
+  // and merely slower.
+  const [clientSuper, setClientSuper] = useState<ClientSuperReadiness | null>(null);
+  useEffect(() => {
+    setClientSuper(null);
+    if (!game?.botSide || game.botDifficulty !== "super" || !isEngineApiConfigured) return;
+    let alive = true;
+    // Read through the ref rather than from the render's `game`, so this effect
+    // does not have to depend on the pin. It must not: the pin is WRITTEN by
+    // the first local move, so depending on it would tear the engine down and
+    // re-resolve readiness immediately after every game's first Super turn —
+    // for a value this very config supplied.
+    const current = gameRef.current;
+    const pin = {
+      ...(current?.superEngineVersion ? { engineVersion: current.superEngineVersion } : {}),
+      ...(current?.superWeightsVersion ? { weightsVersion: current.superWeightsVersion } : {}),
+    };
+    void clientSuperReadiness(pin).then((readiness) => {
+      if (!alive) return;
+      setClientSuper(readiness);
+      // Instantiate now rather than on the first turn. Costs nothing when the
+      // module is already warm, and removes a one-off from the first move.
+      if (readiness.available) {
+        initializeSuperEngine();
+        // The beta's data-collection path. See the function's own comment for
+        // why this is a console handle and not a screen.
+        installTelemetryHandle();
+      }
+    });
+    return () => {
+      alive = false;
+      // Leaving a Super room stops whatever the device was computing for it.
+      // Nothing else can: the search is a synchronous call inside a worker and
+      // only terminating the worker ends it.
+      cancelSuperEngine();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game?.gameId, game?.botSide, game?.botDifficulty]);
   // Ask the server what is already running for this position, as soon as the
   // position is one the server agrees exists.
   //
@@ -1975,6 +2242,26 @@ function App() {
           roomId,
           revision,
           freshlyAdmitted: tries === 0 && selfAdmittedRevisionRef.current === revision,
+          // The device computes this turn when the room is a Super room and
+          // this device measured fast enough. The position is read HERE, once,
+          // from the same ref the revision check above used — so the engine is
+          // asked about exactly the position this attempt is for, and a later
+          // render cannot change the question mid-search.
+          ...(clientSuper?.available && current.botDifficulty === "super"
+            ? {
+                local: {
+                  game: current,
+                  pin: {
+                    ...(current.superEngineVersion
+                      ? { engineVersion: current.superEngineVersion }
+                      : {}),
+                    ...(current.superWeightsVersion
+                      ? { weightsVersion: current.superWeightsVersion }
+                      : {}),
+                  },
+                },
+              }
+            : {}),
         })
         .then((session) => {
           if (!alive) return;
@@ -2007,10 +2294,7 @@ function App() {
           // holds; it never gives up, because giving up meant giving the turn
           // away.
           setBotNotice(botNoticeFor(error));
-          retryTimer = setTimeout(
-            () => attempt(tries + 1),
-            BOT_RETRY_DELAYS_MS[Math.min(tries, BOT_RETRY_DELAYS_MS.length - 1)],
-          );
+          retryTimer = setTimeout(() => attempt(tries + 1), botRetryDelay(error, tries));
         });
     };
 
@@ -2024,7 +2308,7 @@ function App() {
       // tree, which is the only reason returning shows the real percentage.
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [botShouldMove, activeRoomId, game?.revision]);
+  }, [botShouldMove, activeRoomId, game?.revision, clientSuper?.available]);
 
   // Set the selection from a log id (called by TurnRecordList / LogPanel).
   // Selecting a log opens the "action applied" view of that log.
@@ -4146,6 +4430,16 @@ function App() {
     rackAfter: TileInstance[],
     tilebagAfter: TileInstance[],
     floatingTiles?: TileInstance[],
+    /**
+     * Extra game fields to write in the SAME commit as this action.
+     *
+     * Exists for the client-side engine's version pin, and the "same commit"
+     * is the whole requirement: the pin has to reach the server attached to
+     * the move that used those versions. Written separately it would be a
+     * second round trip that can fail on its own, leaving a game whose record
+     * says one thing and whose moves say another.
+     */
+    extra?: Partial<GameState>,
   ) {
     if (!game || readOnly) return;
     pendingSessionEventRef.current = "submit_action";
@@ -4170,6 +4464,7 @@ function App() {
     const movedGame: GameState = setRack(
       {
         ...game,
+        ...extra,
         board: boardAfter,
         tilebag: tilebagAfter,
         pendingExchangeReturn: aggregatePendingExchangeReturns(nextPendingBySide),
@@ -4328,6 +4623,17 @@ function App() {
       timerBefore: { A: g.timers.A, B: g.timers.B },
     };
     const mapped = mapBotResponse(g, response);
+    // Written on the FIRST device-computed move of the game and never changed
+    // after: `configForGame` reads this pin back and refuses to substitute a
+    // different version for it. A move the backend computed carries no
+    // `localEngine`, contributes no pin, and leaves an already-pinned game
+    // exactly as it was.
+    const pin: Partial<GameState> | undefined = response.localEngine
+      ? {
+          superEngineVersion: g.superEngineVersion ?? response.localEngine.engineVersion,
+          superWeightsVersion: g.superWeightsVersion ?? response.localEngine.weightsVersion,
+        }
+      : undefined;
     // Tie the reasoning to the log this move produces, so the "why" panel shows
     // it only while that bot move is the latest one on the board.
     const recordReasoning = (logId: string) => {
@@ -4361,7 +4667,7 @@ function App() {
           detail,
           calculatedScore: validation.score,
         });
-        commitLog(log, boardAfter, rackAfter, g.tilebag);
+        commitLog(log, boardAfter, rackAfter, g.tilebag, undefined, pin);
         recordReasoning(log.id);
         return;
       }
@@ -4396,7 +4702,7 @@ function App() {
         detail,
         calculatedScore: 0,
       });
-      commitLog(log, g.board, rackAfter, g.tilebag, returnedTiles);
+      commitLog(log, g.board, rackAfter, g.tilebag, returnedTiles, pin);
       recordReasoning(log.id);
       return;
     }
@@ -4423,7 +4729,7 @@ function App() {
       detail,
       calculatedScore: 0,
     });
-    commitLog(log, g.board, rackAfter, g.tilebag);
+    commitLog(log, g.board, rackAfter, g.tilebag, undefined, pin);
     recordReasoning(log.id);
   }
 
@@ -5006,6 +5312,7 @@ function App() {
           {hasGameplayHost && (
             <>
               <button
+                aria-label="Undo"
                 className="icon-button"
                 disabled={!canControlActiveGame || undoStackRef.current.length === 0}
                 title="Undo"
@@ -5013,9 +5320,10 @@ function App() {
                 onClick={undo}
               >
                 <Undo2 size={18} />
-                Undo
+                <span className="top-action-label">Undo</span>
               </button>
               <button
+                aria-label="Redo"
                 className="icon-button"
                 disabled={!canControlActiveGame || redoStackRef.current.length === 0}
                 title="Redo"
@@ -5023,28 +5331,30 @@ function App() {
                 onClick={redo}
               >
                 <Redo2 size={18} />
-                Redo
+                <span className="top-action-label">Redo</span>
               </button>
             </>
           )}
           {gameFinished && (
-            <button className="icon-button" type="button" onClick={exportGame}>
+            <button aria-label="Export" className="icon-button" type="button" onClick={exportGame}>
               <Download size={18} />
-              Export
+              <span className="top-action-label">Export</span>
             </button>
           )}
           {game.status === "playing" ? (
             <button
+              aria-label="Break"
               className="icon-button top-save-exit top-coffee-break"
               title="Leave this board open and browse other games."
               type="button"
               onClick={() => void takeCoffeeBreak()}
             >
               <Coffee size={18} />
-              Break
+              <span className="top-action-label">Break</span>
             </button>
           ) : (
             <button
+              aria-label={gameFinished ? "Exit" : "Exit & Save"}
               className="icon-button top-save-exit"
               type="button"
               title={
@@ -5053,12 +5363,18 @@ function App() {
               onClick={saveAndExit}
             >
               <LogOut size={18} />
-              {gameFinished ? "Exit" : "Exit & Save"}
+              <span className="top-action-label">{gameFinished ? "Exit" : "Exit & Save"}</span>
             </button>
           )}
-          <button className="icon-button" type="button" onClick={() => setLogModalOpen(true)}>
+          <button
+            aria-label="Turn log"
+            className="icon-button"
+            title="Turn log"
+            type="button"
+            onClick={() => setLogModalOpen(true)}
+          >
             <List size={18} />
-            Log
+            <span className="top-action-label">Log</span>
           </button>
           {!gameFinished && game.status === "playing" && canStopLifecycle && (
             <button
@@ -5102,44 +5418,58 @@ function App() {
               ) : (
                 <Square size={18} />
               )}
-              {stopRequestedByMe
-                ? "Requested"
-                : stopRequestBlocked
-                  ? `${stopBlockSeconds}s`
-                  : isDirectEmailRoom
-                    ? "Request"
-                    : "Stop"}
+              <span className="top-action-label">
+                {stopRequestedByMe
+                  ? "Requested"
+                  : stopRequestBlocked
+                    ? `${stopBlockSeconds}s`
+                    : isDirectEmailRoom
+                      ? "Request"
+                      : "Stop"}
+              </span>
             </button>
           )}
           {!gameFinished && game.status === "draft" && canResumeLifecycle && (
             <button
+              aria-label="Resume"
               className="resume-button top-stop-time paused"
               type="button"
               title="Resume this stopped game."
               onClick={resumeGame}
             >
               <Play size={18} />
-              Resume
+              <span className="top-action-label">Resume</span>
             </button>
           )}
           {!gameFinished && game.status === "playing" && canEndLifecycle && (
-            <button className="danger-button top-end-game" type="button" onClick={endGame}>
+            <button
+              aria-label={
+                !hasGameplayHost && getGameMode(game) !== "solo" ? "Surrender" : "End Game"
+              }
+              className="danger-button top-end-game"
+              type="button"
+              onClick={endGame}
+            >
               <Flag size={18} />
-              {!hasGameplayHost && getGameMode(game) !== "solo" ? "Surrender" : "End Game"}
+              <span className="top-action-label">
+                {!hasGameplayHost && getGameMode(game) !== "solo" ? "Surrender" : "End Game"}
+              </span>
             </button>
           )}
           {gameFinished && (
             <>
               <button
+                aria-label="Result"
                 className="icon-button"
                 type="button"
                 title="Open the final result summary."
                 onClick={() => setShowResult(true)}
               >
                 <Trophy size={18} />
-                Result
+                <span className="top-action-label">Result</span>
               </button>
               <button
+                aria-label="Replay"
                 className="resume-button top-end-game"
                 type="button"
                 disabled={game.logs.length === 0}
@@ -5151,7 +5481,7 @@ function App() {
                 onClick={startReplay}
               >
                 <Play size={18} />
-                Replay
+                <span className="top-action-label">Replay</span>
               </button>
             </>
           )}
@@ -5242,53 +5572,10 @@ function App() {
               scoringKeys={scoringKeys}
               selectedPendingTileId={selectedPendingTileId}
               selectedRackTileId={selectedRackTileId}
-              onCellClick={handleBoardCellClick}
-              onPendingAssignmentEdit={openPendingAssignmentEditor}
+              onCellClick={onBoardCellClick}
+              onPendingAssignmentEdit={onPendingAssignmentEdit}
             />
           </div>
-
-          {botStatus && game.botSide && !reviewing && (
-            <BotThinkingCard state={botStatus} botName={game.players[game.botSide] || "Aether"} />
-          )}
-
-          {/* Why the bot has not moved. Shown while a retry is pending and
-              after a failure that ended in a pass, so the board never simply
-              sits there with no explanation. */}
-          {botNotice && game.botSide && !reviewing && (
-            <div className="bot-notice" role="status" aria-live="polite">
-              {botNotice}
-            </div>
-          )}
-
-          {!botStatus &&
-            !reviewing &&
-            game.botSide &&
-            botReasoning &&
-            game.logs[game.logs.length - 1]?.id === botReasoning.logId && (
-              <button type="button" className="bot-why-btn" onClick={() => setReasoningOpen(true)}>
-                🧠 ทำไม {botReasoning.playerName} เลือกตานี้?
-              </button>
-            )}
-
-          {/* Analyse this turn. Shown wherever a human is on move and the
-              viewer is the one who controls that turn — pass-and-play, hosted,
-              direct, solo, and the human side of an Aether match alike.
-              `canActActiveSide` is the same flag the action controls use, so
-              the button cannot appear on a turn the player could not take.
-
-              This is a convenience gate. The backend enforces the same rule and
-              refuses regardless of what is rendered here, which is why hiding
-              the button is not relied on for anything. */}
-          {analysisAvailable && activeRoomId && (
-            <TurnAnalysisLauncher
-              roomId={activeRoomId}
-              revision={game.revision ?? 0}
-              reconnectEpoch={subscriptionEpoch}
-              playerName={game.players[game.activeSide] || game.activeSide}
-              disabled={!canAnalyzeTurn}
-              disabledReason={analysisDisabledReason}
-            />
-          )}
 
           <div className="play-bar">
             <div className="play-caption">
@@ -5356,11 +5643,21 @@ function App() {
               rack={rackConfigs[0].rack}
               selectedRackTileId={selectedRackTileId}
               side={rackConfigs[0].side}
-              onEmptySlotClick={handleEmptyRackSlotClick}
-              onTileClick={handleRackTileClick}
+              onEmptySlotClick={onEmptyRackSlotClick}
+              onTileClick={onRackTileClick}
             />
           </div>
         </section>
+
+        {/* A toast, not a row. `position: fixed` keeps it out of the layout
+            entirely — `.board-zone` is a two-row grid whose board is sized from
+            the viewport, so anything that takes height in there is drawn over
+            the board rather than beside it. */}
+        {(blankArmed || keyNotice) && (
+          <div className={`key-notice${blankArmed ? " is-armed" : ""}`} role="status">
+            {blankArmed ? "Blank พร้อมแล้ว — กดปุ่มของหน้าที่จะให้มันแทน · Esc ยกเลิก" : keyNotice}
+          </div>
+        )}
 
         <aside className="right-rail" ref={rightRailRef}>
           <PlayRail
@@ -5374,6 +5671,70 @@ function App() {
           <RailDivider railRef={rightRailRef} />
 
           <ActionPanel
+            // Rendered by the control panel rather than under the board: see
+            // `insights` in ActionPanel for why the board zone cannot hold them.
+            insights={
+              <>
+                <KeyboardChangeNotice />
+                {botStatus && game.botSide && !reviewing && (
+                  <BotThinkingCard
+                    state={botStatus}
+                    botName={game.players[game.botSide] || "Aether"}
+                    // Shown only when this device is the one searching AND it
+                    // measured slow enough that the wait is worth explaining. A
+                    // backend turn is not this device's wait to account for,
+                    // and a quick machine has nothing to warn about.
+                    slowDevice={
+                      clientSuper?.available && clientSuper.calibration?.warnAboutWait
+                        ? { estimatedP50Ms: clientSuper.calibration.estimatedMoveMs.p50 }
+                        : null
+                    }
+                  />
+                )}
+
+                {/* Why the bot has not moved. Shown while a retry is pending and
+                    after a failure that ended in a pass, so the board never simply
+                    sits there with no explanation. */}
+                {botNotice && game.botSide && !reviewing && (
+                  <div className="bot-notice" role="status" aria-live="polite">
+                    {botNotice}
+                  </div>
+                )}
+
+                {!botStatus &&
+                  !reviewing &&
+                  game.botSide &&
+                  botReasoning &&
+                  // The report is read back from the engine service by room id, so a
+                  // button with no room behind it could only open an empty panel.
+                  activeRoomId &&
+                  game.logs[game.logs.length - 1]?.id === botReasoning.logId && (
+                    <button type="button" className="bot-why-btn" onClick={() => setReasoningOpen(true)}>
+                      🧠 ทำไม {botReasoning.playerName} เลือกตานี้?
+                    </button>
+                  )}
+
+                {/* Analyse this turn. Shown wherever a human is on move and the
+                    viewer is the one who controls that turn — pass-and-play, hosted,
+                    direct, solo, and the human side of an Aether match alike.
+                    `canActActiveSide` is the same flag the action controls use, so
+                    the button cannot appear on a turn the player could not take.
+
+                    This is a convenience gate. The backend enforces the same rule and
+                    refuses regardless of what is rendered here, which is why hiding
+                    the button is not relied on for anything. */}
+                {analysisAvailable && activeRoomId && (
+                  <TurnAnalysisLauncher
+                    roomId={activeRoomId}
+                    revision={game.revision ?? 0}
+                    reconnectEpoch={subscriptionEpoch}
+                    playerName={game.players[game.activeSide] || game.activeSide}
+                    disabled={!canAnalyzeTurn}
+                    disabledReason={analysisDisabledReason}
+                  />
+                )}
+              </>
+            }
             activeRack={activeRack}
             actionMode={actionMode}
             canChooseAction={canChooseAction}
@@ -5427,8 +5788,9 @@ function App() {
         />
       )}
 
-      {reasoningOpen && botReasoning && (
+      {reasoningOpen && botReasoning && activeRoomId && (
         <BotReasoningPanel
+          gameId={activeRoomId}
           playerName={botReasoning.playerName}
           turnNumber={botReasoning.turnNumber}
           response={botReasoning.response}
@@ -5765,3 +6127,48 @@ function isEmptyLiveSession(session: LiveRoomSession): boolean {
 }
 
 export default App;
+
+/**
+ * Said once, to anyone who learned the old keys.
+ *
+ * `1`–`8` named a rack SLOT for as long as this app has had a keyboard. They
+ * now name the tile, which is more direct but breaks the one thing a fast
+ * player does not think about. A line they can dismiss costs a sentence; saying
+ * nothing costs them a turn placed with the wrong tile.
+ */
+const KEYBOARD_CHANGE_KEY = "eq-lab:keys-name-tiles-notice";
+
+function KeyboardChangeNotice() {
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      return window.localStorage.getItem(KEYBOARD_CHANGE_KEY) === "seen";
+    } catch {
+      // Private windows and blocked site data throw. A missing preference just
+      // means the notice shows again; it must never break the play screen.
+      return false;
+    }
+  });
+  if (dismissed) return null;
+  return (
+    <div className="keys-changed-notice" role="status">
+      <p>
+        คีย์บอร์ดเปลี่ยนแล้ว: <kbd>1</kbd>–<kbd>8</kbd> ไม่ใช่ "ช่องที่ N" อีกต่อไป แต่คือ{" "}
+        <b>เบี้ยเลขนั้น</b> · เครื่องหมายใช้ <kbd>P</kbd> <kbd>M</kbd> <kbd>X</kbd> <kbd>D</kbd> ·{" "}
+        <kbd>Space</kbd> สลับทิศ · <kbd>Enter</kbd> ส่งตา
+      </p>
+      <button
+        type="button"
+        onClick={() => {
+          setDismissed(true);
+          try {
+            window.localStorage.setItem(KEYBOARD_CHANGE_KEY, "seen");
+          } catch {
+            // Dismissed for this session either way.
+          }
+        }}
+      >
+        เข้าใจแล้ว
+      </button>
+    </div>
+  );
+}

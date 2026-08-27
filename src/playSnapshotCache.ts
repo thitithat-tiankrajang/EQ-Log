@@ -59,10 +59,53 @@ function restore(roomId: string): GameState | undefined {
   }
 }
 
+/** Rooms whose sessionStorage mirror is behind the in-memory snapshot. */
+const pendingMirror = new Set<string>();
+let mirrorScheduled = false;
+
+/**
+ * Write the sessionStorage mirror when the main thread has nothing better to do.
+ *
+ * `remember` is called from the realtime handler and from the reconcile poll, so
+ * on a live game it runs every few seconds — and `serializeGame` encodes the
+ * WHOLE match, history included, straight onto the main thread, next to a
+ * synchronous `setItem`. None of that is needed at that moment: the mirror only
+ * matters if the page is discarded and rebuilt, and the in-memory snapshot
+ * (already set, synchronously, above) is what a remount in THIS session reads.
+ *
+ * Coalesced per room, so a burst of payloads writes once, and only the newest
+ * snapshot is ever written.
+ */
+function scheduleMirror(): void {
+  if (mirrorScheduled) return;
+  mirrorScheduled = true;
+  const flush = () => {
+    mirrorScheduled = false;
+    for (const roomId of pendingMirror) {
+      const game = snapshots.get(roomId);
+      if (!game) continue;
+      try {
+        window.sessionStorage.setItem(storageKey(roomId), serializeGame(game));
+      } catch {
+        // Rendering can still use the in-memory seed; persistence is best effort.
+      }
+    }
+    pendingMirror.clear();
+  };
+  const idle = (window as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number })
+    .requestIdleCallback;
+  if (idle) idle(flush, { timeout: 2_000 });
+  else window.setTimeout(flush, 0);
+}
+
 /**
  * Remember the latest authoritative snapshot for a room. A stale write — an
  * older revision of the same game arriving late — is ignored, so the cache can
  * only ever move forward. A different game in the same room replaces wholesale.
+ *
+ * The in-memory seed is updated synchronously because a remount may read it on
+ * the very next tick. The sessionStorage mirror is deferred — see
+ * `scheduleMirror`.
  */
 export function remember(roomId: string, game: GameState): void {
   const existing = snapshots.get(roomId) ?? restore(roomId);
@@ -70,11 +113,30 @@ export function remember(roomId: string, game: GameState): void {
     return;
   }
   snapshots.set(roomId, game);
-  try {
-    window.sessionStorage.setItem(storageKey(roomId), serializeGame(game));
-  } catch {
-    // Rendering can still use the in-memory seed; persistence is best effort.
+  pendingMirror.add(roomId);
+  scheduleMirror();
+}
+
+/**
+ * Write the mirror NOW, because the page may not get another chance.
+ *
+ * Deferring the write is only safe if it still happens before the page is
+ * discarded — and a phone discarding a backgrounded tab is precisely the case
+ * this cache was built for. `pagehide` and the hidden transition are the last
+ * points at which a page is reliably allowed to run script, so the mirror is
+ * forced there rather than left to an idle callback that may never be called.
+ */
+export function flushMirror(): void {
+  for (const roomId of pendingMirror) {
+    const game = snapshots.get(roomId);
+    if (!game) continue;
+    try {
+      window.sessionStorage.setItem(storageKey(roomId), serializeGame(game));
+    } catch {
+      // Best effort.
+    }
   }
+  pendingMirror.clear();
 }
 
 /** The last known snapshot for a room, if any. The caller renders it at once and
@@ -86,9 +148,19 @@ export function get(roomId: string): GameState | undefined {
 /** Drop a room's snapshot — it was deleted or left, and must not seed a return. */
 export function forget(roomId: string): void {
   snapshots.delete(roomId);
+  pendingMirror.delete(roomId);
   try {
     window.sessionStorage.removeItem(storageKey(roomId));
   } catch {
     // Storage itself is unavailable.
   }
+}
+
+// Registered once, at import. The Play route is the only importer, and it is the
+// only place a snapshot is produced.
+if (typeof window !== "undefined") {
+  window.addEventListener("pagehide", flushMirror);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushMirror();
+  });
 }

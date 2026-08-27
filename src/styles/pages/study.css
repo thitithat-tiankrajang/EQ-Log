@@ -1,0 +1,647 @@
+/* Study: composing a position and reading the engine's ranked answer.
+ *
+ * Shares the application shell's tokens rather than introducing a palette, so a
+ * study screen reads as the same product as the lobby. The board itself is the
+ * play view's component and keeps the play view's styling — a board that looked
+ * different here would suggest it behaved differently. */
+
+.study-trail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+}
+
+.study-trail li {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px 6px 7px;
+  border: 1px solid var(--eq-line);
+  border-radius: 999px;
+  color: var(--eq-text-faint);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.study-trail li span {
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--eq-surface-subtle);
+  font-size: 11px;
+}
+
+.study-trail li.is-done {
+  border-color: color-mix(in srgb, var(--eq-primary) 45%, transparent);
+  color: var(--eq-primary);
+}
+
+.study-trail li.is-done span {
+  background: var(--eq-primary-soft);
+  color: var(--eq-primary);
+}
+
+.study-trail li[aria-current="step"] {
+  background: var(--eq-primary-soft);
+}
+
+.study-step {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.study-heading {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 750;
+}
+
+.study-hint {
+  margin: 0;
+  color: var(--eq-text-muted);
+  font-size: 13px;
+}
+
+.study-empty {
+  margin: 0;
+  color: var(--eq-text-faint);
+  font-size: 13px;
+}
+
+.study-scores {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.study-score {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.study-score input {
+  width: 120px;
+  padding: 9px 11px;
+  border: 1px solid var(--eq-line-strong);
+  border-radius: var(--eq-radius-sm);
+  background: var(--eq-surface);
+  color: var(--eq-text);
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Study sizes its own board. The Play screen's `--cell` is computed against a
+ * side rail this page does not have (it subtracts `clamp(480px, 48vw, 700px)`),
+ * so that layout is deliberately not imported — see board-styles.css — and the
+ * cell is scaled to the viewport here instead. `overflow-x` stays as the last
+ * resort for anything narrower than the clamp's floor. */
+.study-board {
+  --cell: clamp(18px, calc((100vw - 96px) / 15), 36px);
+
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+}
+
+.study-board.is-readonly {
+  pointer-events: none;
+}
+
+/* ── tile palette ───────────────────────────────────────────────────────── */
+
+.study-palette {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--eq-line);
+  border-radius: var(--eq-radius-md);
+  background: var(--eq-surface-subtle);
+}
+
+.study-palette-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(46px, 1fr));
+  gap: 7px;
+}
+
+/* The button is a frame around a real <Tile>; the tile brings its own face, so
+ * nothing here restates the tile's colours. */
+.study-palette-tile {
+  display: grid;
+  gap: 3px;
+  padding: 5px 3px 3px;
+  border: 1px solid transparent;
+  border-radius: var(--eq-radius-sm);
+  background: none;
+  cursor: pointer;
+  place-items: center;
+}
+
+.study-palette-tile .tile {
+  width: 34px;
+  height: 38px;
+  pointer-events: none;
+}
+
+/* Direct child only: the <Tile> inside carries its own <small> for the tile's
+ * point value, and restyling that would change how a tile looks everywhere the
+ * palette appears. This one is the remaining-count caption underneath.
+ *
+ * The count is the whole reason this grid exists: the physical set is finite,
+ * and a position that over-spends a token is one the engine refuses. */
+.study-palette-tile > small {
+  color: var(--eq-text-faint);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.study-palette-tile:hover:not(:disabled) {
+  background: var(--eq-surface);
+}
+
+.study-palette-tile.is-active {
+  border-color: var(--eq-primary);
+  background: var(--eq-primary-soft);
+}
+
+.study-palette-tile:disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
+}
+
+/* An unassigned blank shows no glyph at all — see Tile.tsx. The face still has
+ * to occupy its space so the tile does not collapse into a thin strip. */
+.tile.tile-bare-blank b {
+  display: block;
+  min-width: 1ch;
+  min-height: 1em;
+}
+
+.study-faces {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  color: var(--eq-text-muted);
+}
+
+.study-faces button {
+  padding: 5px 11px;
+  border: 1px solid var(--eq-line-strong);
+  border-radius: 999px;
+  background: var(--eq-surface);
+  color: var(--eq-text);
+  cursor: pointer;
+  font-weight: 650;
+}
+
+.study-faces button.is-active {
+  border-color: var(--eq-primary);
+  background: var(--eq-primary-soft);
+  color: var(--eq-primary);
+}
+
+/* ── rack ───────────────────────────────────────────────────────────────── */
+
+.study-cursor-hint {
+  color: var(--eq-primary);
+  font-weight: 650;
+}
+
+/* ── keyboard legend ────────────────────────────────────────────────────── */
+
+.study-keys {
+  padding: 10px 14px;
+  border: 1px solid var(--eq-line);
+  border-radius: var(--eq-radius-md);
+  background: var(--eq-surface-subtle);
+  font-size: 13px;
+}
+
+.study-keys summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+
+/* The blank prefix is modal, so it is never invisible: arming it says so, and
+ * says what the next keystroke will be taken as. */
+.study-armed {
+  padding: 9px 12px;
+  border: 1px solid color-mix(in srgb, var(--eq-primary) 55%, transparent);
+  border-radius: var(--eq-radius-sm);
+  background: var(--eq-primary-soft);
+  color: var(--eq-primary);
+  font-weight: 650;
+}
+
+.study-keys h3 {
+  margin: 14px 0 6px;
+  color: var(--eq-text-faint);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.study-keys dl {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 6px 18px;
+  margin: 0;
+}
+
+.study-keys dl > div {
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.study-keys dd {
+  margin: 0;
+  color: var(--eq-text-muted);
+}
+
+.study-keys p {
+  margin: 12px 0 0;
+  color: var(--eq-text-muted);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.study-keys kbd {
+  padding: 2px 6px;
+  border: 1px solid var(--eq-line-strong);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--eq-surface);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.study-rack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 56px;
+  padding: 10px;
+  border: 1px dashed var(--eq-line-strong);
+  border-radius: var(--eq-radius-md);
+}
+
+.study-rack-tile {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+/* ── warnings ───────────────────────────────────────────────────────────── */
+
+.study-issues {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, var(--eq-warning) 45%, transparent);
+  border-radius: var(--eq-radius-md);
+  background: var(--eq-warning-soft);
+  font-size: 13px;
+}
+
+.study-issues p {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin: 0;
+  font-weight: 650;
+}
+
+.study-issues ul {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--eq-text-muted);
+}
+
+.study-issues code {
+  font-weight: 700;
+}
+
+/* ── actions & levels ───────────────────────────────────────────────────── */
+
+.study-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.study-levels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+}
+
+.study-level {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid var(--eq-line-strong);
+  border-radius: var(--eq-radius-md);
+  background: var(--eq-surface);
+  color: var(--eq-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.study-level:hover:not(:disabled) {
+  border-color: var(--eq-primary);
+  box-shadow: var(--eq-shadow-sm);
+}
+
+/* The strength used last time, so re-running the same puzzle at a different
+ * level starts from where the player already was. */
+.study-level.is-active {
+  border-color: var(--eq-primary);
+  background: var(--eq-primary-soft);
+}
+
+.study-level:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.study-level-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+}
+
+.study-level-desc {
+  color: var(--eq-text-muted);
+  font-size: 12.5px;
+}
+
+/* ── running ────────────────────────────────────────────────────────────── */
+
+.study-running {
+  justify-items: center;
+  padding: 26px 16px;
+  border: 1px solid var(--eq-line);
+  border-radius: var(--eq-radius-lg);
+  background: var(--eq-surface-subtle);
+  text-align: center;
+}
+
+.study-running p {
+  margin: 0;
+}
+
+.study-spinner {
+  animation: study-spin 1.1s linear infinite;
+  color: var(--eq-primary);
+}
+
+@keyframes study-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .study-spinner {
+    animation: none;
+  }
+}
+
+.study-progress {
+  width: min(420px, 100%);
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--eq-line);
+}
+
+.study-progress i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--eq-primary);
+  transition: width 220ms ease;
+}
+
+/* ── results ────────────────────────────────────────────────────────────── */
+
+.study-summary-grid,
+.study-method {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.study-summary-grid > div,
+.study-method > div {
+  padding: 10px 12px;
+  border: 1px solid var(--eq-line);
+  border-radius: var(--eq-radius-sm);
+  background: var(--eq-surface-subtle);
+}
+
+.study-summary-grid dt,
+.study-method dt {
+  color: var(--eq-text-faint);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.study-summary-grid dd,
+.study-method dd {
+  margin: 3px 0 0;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.study-ranking {
+  display: grid;
+  gap: 14px;
+}
+
+.study-summary {
+  margin: 0;
+  font-size: 14px;
+  color: var(--eq-text-soft);
+}
+
+.study-candidates {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.study-candidates > li {
+  display: grid;
+  gap: 7px;
+  padding: 13px 15px;
+  border: 1px solid var(--eq-line);
+  border-radius: var(--eq-radius-md);
+  background: var(--eq-surface);
+}
+
+.study-candidates > li.is-best {
+  border-color: color-mix(in srgb, var(--eq-success) 55%, transparent);
+  background: var(--eq-success-soft);
+}
+
+.study-candidates header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 9px;
+}
+
+.study-rank {
+  color: var(--eq-text-faint);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+}
+
+.study-badge {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--eq-success);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.study-numbers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  color: var(--eq-text-muted);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.study-gap {
+  color: var(--eq-danger);
+}
+
+.study-proven {
+  color: var(--eq-success);
+  font-weight: 700;
+}
+
+.study-note {
+  margin: 0;
+  color: var(--eq-text-soft);
+  font-size: 13px;
+}
+
+.study-factors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.study-factors li {
+  display: flex;
+  gap: 5px;
+  align-items: baseline;
+}
+
+.study-factors span {
+  color: var(--eq-text-faint);
+}
+
+.study-factors em {
+  color: var(--eq-text-muted);
+  font-style: normal;
+}
+
+/* ── history ────────────────────────────────────────────────────────────── */
+
+.study-history {
+  display: grid;
+  gap: 10px;
+  padding-top: 22px;
+  border-top: 1px solid var(--eq-line);
+}
+
+.study-history h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 750;
+}
+
+.study-history-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.study-history-list li {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.study-history-list li > button:first-child {
+  display: grid;
+  flex: 1;
+  gap: 3px;
+  padding: 11px 13px;
+  border: 1px solid var(--eq-line);
+  border-radius: var(--eq-radius-md);
+  background: var(--eq-surface);
+  color: var(--eq-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.study-history-list li > button:first-child:hover {
+  border-color: var(--eq-primary);
+}
+
+.study-history-list span,
+.study-history-list time {
+  color: var(--eq-text-faint);
+  font-size: 12px;
+}
+
+.study-delete {
+  display: grid;
+  padding: 0 12px;
+  place-items: center;
+  border: 1px solid var(--eq-line);
+  border-radius: var(--eq-radius-md);
+  background: var(--eq-surface);
+  color: var(--eq-danger);
+  cursor: pointer;
+}
+
+.study-delete:hover {
+  background: var(--eq-danger-soft);
+}

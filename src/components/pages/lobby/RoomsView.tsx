@@ -1,4 +1,6 @@
+import { Swords } from "lucide-react";
 import type { RoomMeta } from "../../../rooms";
+import { EmptyState } from "../../ui/EmptyState";
 import { RoomCard } from "./RoomCard";
 import { GameTable } from "./GameTable";
 
@@ -35,6 +37,20 @@ export function RoomsView({
             <span key={item} />
           ))}
         </div>
+      ) : openSeats.length === 0 && matched.length === 0 ? (
+        /* Nothing live at all: one clear invitation beats two empty tables. */
+        <EmptyState
+          icon={<Swords size={26} />}
+          title="No live games yet"
+          description="Start a match against a person or the Aether bot, or join a game someone shared with you."
+          /* "Join with code" already sits in the section header directly
+             above, so the empty state offers the one action it does not. */
+          action={
+            <a className="eq-button eq-button-primary" href="#/create">
+              Create a game
+            </a>
+          }
+        />
       ) : (
         <div className="eq-live-tables">
           <LiveTable

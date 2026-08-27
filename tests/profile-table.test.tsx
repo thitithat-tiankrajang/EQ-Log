@@ -75,7 +75,9 @@ describe("Profile tables", () => {
       "1,200 total score",
     );
     expect(within(modes).getByRole("row", { name: /Aether/ })).toHaveTextContent(
-      "easy 4 · medium 0 · hard 0 · max 0",
+      // `easy` is retired, so it is listed only because this player has games
+      // there; a player who never used it sees the four current tiers alone.
+      "easy 4 · medium 0 · hard 0 · max 0 · super 0",
     );
     expect(container.querySelector(".eq-profile-metric, .eq-mode-stat-card")).toBeNull();
   });

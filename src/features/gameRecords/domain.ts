@@ -24,10 +24,15 @@ export type ModeKey =
   | "online_versus"
   | "hosted_versus"
   | "solo_practice"
+  // `aether_easy` is retired and cannot be created any more. It stays in the
+  // union because finished games recorded under it are still in the archive,
+  // and a type that cannot describe stored history makes every read of that
+  // history a lie.
   | "aether_easy"
   | "aether_medium"
   | "aether_hard"
-  | "aether_max";
+  | "aether_max"
+  | "aether_super";
 
 export type ProfileModeKey = Exclude<ModeKey, `aether_${string}`> | "aether";
 

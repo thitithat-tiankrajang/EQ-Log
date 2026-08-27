@@ -4,7 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
+    "dev": "vite --host 127.0.0.1 --strictPort",
     "build": "tsc -b && vite build",
     "format": "prettier --write package.json index.html public/sw.js eslint.config.js playwright.config.ts vitest.config.ts 'src/app/**/*.{ts,tsx}' 'src/features/**/*.{ts,tsx}' src/admin.tsx src/auth.tsx src/main.tsx src/profiles.ts src/remoteRooms.ts src/roomScope.ts src/rooms.ts src/router.ts 'src/components/botstats/**/*.{ts,tsx}' 'src/components/feedback/**/*.{ts,tsx}' 'src/components/pages/**/*.{ts,tsx}' 'src/components/ui/**/*.{ts,tsx}' src/styles.css src/play-styles.css src/styles/application.css 'tests/**/*.{ts,tsx}'",
     "format:check": "prettier --check package.json index.html public/sw.js eslint.config.js playwright.config.ts vitest.config.ts 'src/app/**/*.{ts,tsx}' 'src/features/**/*.{ts,tsx}' src/admin.tsx src/auth.tsx src/main.tsx src/profiles.ts src/remoteRooms.ts src/roomScope.ts src/rooms.ts src/router.ts 'src/components/botstats/**/*.{ts,tsx}' 'src/components/feedback/**/*.{ts,tsx}' 'src/components/pages/**/*.{ts,tsx}' 'src/components/ui/**/*.{ts,tsx}' src/styles.css src/play-styles.css src/styles/application.css 'tests/**/*.{ts,tsx}'",
@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:perf": "playwright test --config=playwright.perf.config.ts",
     "test:a11y": "playwright test --grep @a11y",
     "typecheck": "tsc -b",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build",

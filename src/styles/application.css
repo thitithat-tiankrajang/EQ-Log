@@ -15,6 +15,8 @@ body:not([data-route="play"]) {
   --eq-primary: #3157c8;
   --eq-primary-hover: #2446aa;
   --eq-primary-soft: #e9efff;
+  /* tokens.css only loads on the Play route, so the shell declares its own. */
+  --focus-ring: #7394f5;
   --eq-success: #167a55;
   --eq-success-soft: #e5f6ef;
   --eq-warning: #9a6500;
@@ -55,10 +57,10 @@ body[data-route="play"] {
   --eq-text-faint: var(--muted, #5f6368);
   --eq-line: var(--border-soft, #e4e7eb);
   --eq-line-strong: var(--border, #dadce0);
-  --eq-primary: var(--accent, #4285f4);
-  --eq-primary-soft: var(--accent-soft, #e8f0fe);
-  --eq-danger: var(--danger, #ea4335);
-  --eq-danger-soft: var(--danger-soft, #fce8e6);
+  --eq-primary: var(--accent, #3157c8);
+  --eq-primary-soft: var(--accent-soft, #e9efff);
+  --eq-danger: var(--danger, #b42335);
+  --eq-danger-soft: var(--danger-soft, #ffeaed);
   --eq-radius-sm: 6px;
   --eq-radius-md: 8px;
   --eq-shadow-md: 0 12px 30px rgba(60, 64, 67, 0.18);
@@ -83,7 +85,7 @@ body:not([data-route="play"]) a {
 }
 
 body:not([data-route="play"]) :focus-visible {
-  outline: 3px solid #7394f5;
+  outline: 3px solid var(--focus-ring, #7394f5);
   outline-offset: 3px;
 }
 
@@ -569,7 +571,7 @@ body[data-route="play"] .eq-coffee-return {
 
 /* Five-destination application navigation. The elevated center control is the
    only entry point for creating a game. */
-.eq-bottom-nav {
+.eq-primary-nav {
   position: fixed;
   z-index: 120;
   inset: auto auto max(14px, env(safe-area-inset-bottom)) 50%;
@@ -587,7 +589,7 @@ body[data-route="play"] .eq-coffee-return {
   backdrop-filter: blur(20px);
 }
 
-.eq-bottom-nav > a:not(.eq-bottom-nav-create) {
+.eq-primary-nav > a:not(.eq-primary-nav-create) {
   display: grid;
   min-width: 0;
   min-height: 52px;
@@ -601,12 +603,12 @@ body[data-route="play"] .eq-coffee-return {
   text-decoration: none;
 }
 
-.eq-bottom-nav > a.is-active:not(.eq-bottom-nav-create) {
+.eq-primary-nav > a.is-active:not(.eq-primary-nav-create) {
   background: var(--eq-primary-soft);
   color: var(--eq-primary);
 }
 
-.eq-bottom-nav-create {
+.eq-primary-nav-create {
   position: relative;
   display: grid;
   justify-items: center;
@@ -617,7 +619,7 @@ body[data-route="play"] .eq-coffee-return {
   text-decoration: none;
 }
 
-.eq-bottom-nav-create > span {
+.eq-primary-nav-create > span {
   position: absolute;
   inset-block-start: -28px;
   display: grid;
@@ -631,14 +633,14 @@ body[data-route="play"] .eq-coffee-return {
   box-shadow: 0 10px 24px rgba(49, 87, 200, 0.3);
 }
 
-.eq-bottom-nav-create small {
+.eq-primary-nav-create small {
   align-self: end;
   margin-block-end: 4px;
   color: inherit;
   font-size: 10px;
 }
 
-.eq-bottom-nav-create.is-active > span {
+.eq-primary-nav-create.is-active > span {
   background: var(--eq-primary-hover);
 }
 
@@ -871,7 +873,7 @@ body[data-route="play"] .eq-coffee-return {
 }
 
 .ui-checkbox-control:focus-visible .ui-checkbox-box {
-  outline: 3px solid #7394f5;
+  outline: 3px solid var(--focus-ring, #7394f5);
   outline-offset: 2px;
 }
 
@@ -1268,6 +1270,44 @@ body[data-route="play"] .eq-coffee-return {
   justify-content: center;
   justify-items: start;
   text-align: start;
+}
+
+/* Sits inside a section that already has a heading, so it stays quiet. */
+.eq-state-compact {
+  min-height: 108px;
+  padding: 20px;
+}
+
+.eq-state-mark {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--eq-primary) 18%, transparent);
+  border-radius: 50%;
+  background: var(--eq-surface);
+  color: var(--eq-primary);
+}
+
+.eq-state-title {
+  margin: 2px 0 0;
+  color: var(--eq-text);
+  font-size: 17px;
+}
+
+.eq-state-copy {
+  margin: 0;
+  max-width: 46ch;
+  color: var(--eq-text-soft);
+  text-wrap: pretty;
+}
+
+.eq-state-action {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-block-start: 6px;
 }
 
 .eq-state p {
@@ -2126,10 +2166,16 @@ body[data-route="play"] .eq-coffee-return {
   cursor: pointer;
 }
 
-.ui-select-option:hover,
+.ui-select-option:hover {
+  background: var(--eq-surface-subtle);
+}
+
+/* Keyboard focus needs more than the hover tint, which is nearly the same
+   value as the menu surface. */
 .ui-select-option:focus-visible {
   background: var(--eq-surface-subtle);
-  outline: none;
+  outline: 3px solid var(--focus-ring, #7394f5);
+  outline-offset: -3px;
 }
 
 .ui-select-option[aria-selected="true"] {
@@ -2174,6 +2220,13 @@ body[data-route="play"] .pending-select-wrap .ui-select-button {
   outline: 0;
   background: transparent;
   color: var(--eq-text);
+}
+
+/* The input drops its own outline, so the wrapper carries the focus ring. */
+.eq-search-field:focus-within {
+  border-color: var(--eq-primary);
+  outline: 3px solid var(--focus-ring, #7394f5);
+  outline-offset: 1px;
 }
 
 .eq-inline-form {
@@ -2997,7 +3050,7 @@ body[data-route="play"] .pending-select-wrap .ui-select-button {
     padding-block: 22px calc(116px + env(safe-area-inset-bottom));
   }
 
-  .eq-bottom-nav {
+  .eq-primary-nav {
     inset-block-end: 0;
     width: 100%;
     min-height: 66px;
@@ -3006,7 +3059,7 @@ body[data-route="play"] .pending-select-wrap .ui-select-button {
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
   }
 
-  .eq-bottom-nav-create > span {
+  .eq-primary-nav-create > span {
     inset-block-start: -26px;
     border-color: var(--eq-bg);
   }
@@ -3294,6 +3347,29 @@ body[data-route="play"] .pending-select-wrap .ui-select-button {
     text-transform: uppercase;
   }
 
+  /* The overview carries one figure per row, so a "VALUE" prefix restates the
+     obvious and eats a third of the line. The mode table keeps its prefixes —
+     Activity / Performance / Details are not self-evident once stacked. */
+  .eq-profile-overview-table tbody td {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+
+  .eq-profile-overview-table tbody td::before {
+    display: none;
+  }
+
+  .eq-profile-overview-table .eq-profile-table-value {
+    font-size: 23px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.15;
+  }
+
+  .eq-profile-overview-table .eq-profile-table-detail {
+    font-size: 12px;
+  }
+
   .eq-profile-table-label {
     min-width: 0;
   }
@@ -3439,5 +3515,101 @@ body[data-route="play"] .pending-select-wrap .ui-select-button {
     transition-duration: 0.01ms;
     animation-duration: 0.01ms;
     animation-iteration-count: 1;
+  }
+}
+
+/* ── Desktop navigation ──────────────────────────────────────────────────
+   Above 900px the thumb bar stops making sense: the same five destinations
+   become a static strip directly under the header, so the pointer reaches
+   them where it already is and the viewport bottom is returned to content. */
+@media (min-width: 901px) {
+  .eq-primary-nav {
+    position: static;
+    z-index: auto;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    width: 100%;
+    min-height: 0;
+    translate: none;
+    border-width: 0 0 1px;
+    border-radius: 0;
+    background: var(--eq-surface);
+    padding: 6px max(20px, calc((100vw - var(--eq-content)) / 2));
+    box-shadow: none;
+    backdrop-filter: none;
+  }
+
+  .eq-primary-nav > a:not(.eq-primary-nav-create) {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 8px;
+    min-height: 40px;
+    border-radius: var(--eq-radius-sm);
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .eq-primary-nav > a:not(.eq-primary-nav-create):hover {
+    background: var(--eq-surface-subtle);
+    color: var(--eq-text);
+  }
+
+  .eq-primary-nav > a.is-active:not(.eq-primary-nav-create):hover {
+    background: var(--eq-primary-soft);
+    color: var(--eq-primary);
+  }
+
+  /* Create keeps the centre slot it holds on mobile, so the one saturated
+     control stays in the same place across breakpoints. */
+  .eq-primary-nav-create {
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 7px;
+    align-self: center;
+    min-height: 40px;
+    margin-inline: 6px;
+    border-radius: var(--eq-radius-sm);
+    background: var(--eq-primary);
+    padding: 6px 14px;
+    color: #fff;
+  }
+
+  .eq-primary-nav-create:hover {
+    background: var(--eq-primary-hover);
+  }
+
+  .eq-primary-nav-create > span {
+    position: static;
+    width: auto;
+    height: auto;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    color: inherit;
+  }
+
+  .eq-primary-nav-create > span svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .eq-primary-nav-create small {
+    align-self: center;
+    margin-block-end: 0;
+    font-size: 13px;
+  }
+
+  .eq-primary-nav-create.is-active > span {
+    background: none;
+  }
+
+  /* No floating bar to clear any more. */
+  .eq-main {
+    padding-block-end: 56px;
   }
 }

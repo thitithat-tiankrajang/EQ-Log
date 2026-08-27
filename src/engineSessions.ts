@@ -44,6 +44,16 @@ import {
   type EngineProgress,
   type EngineQueueState,
 } from "./bot/engineApi";
+import {
+  ClientSuperIllegalMove,
+  ClientSuperUnavailable,
+  ClientSuperValidationUnreachable,
+  runClientSuper,
+  shouldFallBackToBackend,
+  type SuperPin,
+} from "./bot/clientSuper";
+import * as superTelemetry from "./bot/superTelemetry";
+import type { GameState } from "./game";
 import * as engineDebug from "./engineDebug";
 import * as engineTrace from "./engineTrace";
 
@@ -377,6 +387,14 @@ function settleFailed(key: string, failure: unknown): EngineSession {
  * the registry deduplicates by key, so a racing second caller still joins the
  * one search rather than starting another.
  */
+export type LocalSuperContext = {
+  /** The position to search, as this tab holds it. Read once, at the moment the
+   *  turn starts, so a later render cannot change what the engine was asked. */
+  game: GameState;
+  /** The engine and weights versions this GAME is pinned to. */
+  pin: SuperPin;
+};
+
 export function observeBot(options: {
   roomId: string;
   revision: number;
@@ -385,6 +403,17 @@ export function observeBot(options: {
   freshlyAdmitted: boolean;
   /** Last percentage this tab saw, so the bar does not blink while attaching. */
   hint?: EngineProgress | null;
+  /**
+   * Present when this room may compute the move on the DEVICE.
+   *
+   * The choice of engine lives here rather than in the caller because a session
+   * is "the bot's search for this position", and where that search runs is an
+   * implementation detail of it. Putting the branch here also puts the FALLBACK
+   * here: a local failure continues into the backend path inside the same
+   * session, so the UI sees one search that took a while, not one that failed
+   * and a second that started.
+   */
+  local?: LocalSuperContext;
 }): Promise<EngineSession> {
   const key = botKey(options.roomId, options.revision);
   // A freshly admitted position is brand new, so no hint can describe it.
@@ -403,6 +432,67 @@ export function observeBot(options: {
     (controller) =>
       (async (): Promise<EngineSession> => {
         const lifecycle = { ...lifecycleFor(key), signal: controller.signal };
+
+        if (options.local) {
+          const local = options.local;
+          try {
+            // No `queued` state: there is no queue. The device starts searching
+            // the moment it is asked, which is the entire point.
+            engineTrace.mark(key, "engine_start");
+            update(key, { status: { kind: "running", progress: get(key)?.progress ?? null } });
+            const decision = await runClientSuper({
+              game: local.game,
+              roomId: options.roomId,
+              revision: options.revision,
+              pin: local.pin,
+              onProgress: (progress) => {
+                if (!get(key)?.progress) engineTrace.mark(key, "first_progress");
+                update(key, { status: { kind: "running", progress }, progress });
+              },
+              signal: controller.signal,
+            });
+            superTelemetry.record({
+              engineVersion: decision.telemetry.engineVersion,
+              weightsVersion: decision.telemetry.weightsVersion,
+              weightsApplied: decision.telemetry.weightsApplied,
+              tier: decision.telemetry.tier,
+              sampleCap: decision.telemetry.sampleCap,
+              adaptiveBudgetApplied: decision.telemetry.adaptiveBudgetApplied,
+              wallMs: decision.telemetry.wallMs,
+              engineMs: decision.telemetry.engineMs,
+              validationMs: decision.telemetry.validationMs,
+              nodes: decision.telemetry.nodes,
+              samples: decision.telemetry.samples,
+              boardTiles: local.game.board.reduce(
+                (total, row) => total + row.filter(Boolean).length,
+                0,
+              ),
+            });
+            update(key, { status: { kind: "completed" }, result: decision.result });
+            engineTrace.end(key, "result");
+            return get(key)!;
+          } catch (failure) {
+            // A cancellation is not a failure to route around: the position is
+            // gone and nobody wants this answer from any engine.
+            if (controller.signal.aborted) return settleFailed(key, failure);
+            if (!shouldFallBackToBackend(failure)) return settleFailed(key, failure);
+            engineDebug.note("client_super_fallback", {
+              key,
+              reason:
+                failure instanceof ClientSuperUnavailable
+                  ? failure.reason
+                  : failure instanceof ClientSuperIllegalMove
+                    ? "illegal_move"
+                    : failure instanceof ClientSuperValidationUnreachable
+                      ? "validation_unreachable"
+                      : "engine_failure",
+            });
+            // Fall through to the backend engine. It was deliberately left in
+            // place for exactly this, and a Champion whose device could not
+            // finish should get a slower move rather than none.
+          }
+        }
+
         try {
           if (!options.freshlyAdmitted) {
             const attached = await attachBotMove({
