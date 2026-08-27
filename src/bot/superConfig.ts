@@ -22,14 +22,12 @@
 // `pinnedVersions()` below and `superEngineVersion`/`superWeightsVersion` on
 // `GameState`. A cache is per-tab and per-device; a game is neither.
 import { fetchBotConfig, type BotConfigResponse } from "./engineApi";
-import { supabase } from "../supabaseClient";
 
 export type SuperConfig = BotConfigResponse;
 
-// v2: entries now carry the user they were fetched FOR. A v1 entry has no
-// `userId`, so it is treated as a miss rather than as belonging to whoever is
-// signed in now — see `readStorage`.
-const CACHE_KEY = "eq-lab:super-config:v2";
+// v3, because v2 entries carry a `userId` field this no longer reads. Bumping
+// drops them rather than leaving a shape nobody interprets sitting in storage.
+const CACHE_KEY = "eq-lab:super-config:v3";
 /**
  * How long a cached config is used without asking again.
  *
@@ -44,35 +42,16 @@ const CACHE_KEY = "eq-lab:super-config:v2";
 const CACHE_TTL_MS = 10 * 60 * 1000;
 
 /**
- * A cached config, and WHO it was fetched for.
+ * A cached config.
  *
- * The user id is here because `clientSuperEnabled` is now a per-caller answer:
- * the backend serves `true` to a Champion and `false` to everybody else. A
- * cache holding one user's answer in `localStorage` is a cache that can hand it
- * to the next person who signs in on the same browser — a shared laptop, a
- * demo machine, an account switch — and for the ten minutes of the TTL that
- * general user would be running Super locally on the strength of a Champion's
- * rollout flag.
- *
- * Keeping the id and comparing it turns that into an ordinary cache miss.
+ * Not keyed by user, and it does not need to be: `/v1/bot-config` returns the
+ * same document to every authenticated caller. An earlier revision keyed it by
+ * user because `clientSuperEnabled` was then a per-Champion answer, and a shared
+ * browser could hand one person's rollout flag to the next. That allowlist is
+ * gone — signing in IS the condition — so the response no longer varies and
+ * neither does the cache.
  */
-type CacheEntry = { fetchedAt: number; userId: string | null; config: SuperConfig };
-
-/** Who is signed in, or `null` when nobody is (or Supabase is not configured).
- *  Read per fetch rather than held, because signing out has to be visible here
- *  immediately. */
-async function currentUserId(): Promise<string | null> {
-  if (!supabase) return null;
-  try {
-    const { data } = await supabase.auth.getSession();
-    return data.session?.user?.id ?? null;
-  } catch {
-    // An unreadable session is not a reason to fail a bot turn. It IS a reason
-    // not to reuse somebody else's cached answer, and returning `null` here
-    // makes every stored entry mismatch, which is the safe direction.
-    return null;
-  }
-}
+type CacheEntry = { fetchedAt: number; config: SuperConfig };
 
 let memory: CacheEntry | null = null;
 let inFlight: Promise<SuperConfig> | null = null;
@@ -99,20 +78,9 @@ function writeStorage(entry: CacheEntry): void {
   }
 }
 
-/**
- * Usable: not expired, AND fetched for the person who is asking now.
- *
- * A plain boolean rather than a type predicate on purpose. `entry is CacheEntry`
- * would tell the compiler that a `false` answer means "not a CacheEntry" — but
- * the interesting `false` here is a perfectly well-formed entry belonging to
- * somebody else, which the caller then has to look at in order to evict.
- */
-function fresh(entry: CacheEntry | null, userId: string | null): boolean {
-  if (!entry) return false;
-  if (Date.now() - entry.fetchedAt >= CACHE_TTL_MS) return false;
-  // A v1 entry has `undefined` here and can belong to anyone, so it never
-  // matches — which is the intended upgrade path, not an oversight.
-  return entry.userId === userId;
+/** Usable: present and not expired. */
+function fresh(entry: CacheEntry | null): entry is CacheEntry {
+  return Boolean(entry) && Date.now() - entry!.fetchedAt < CACHE_TTL_MS;
 }
 
 /**
@@ -123,25 +91,13 @@ function fresh(entry: CacheEntry | null, userId: string | null): boolean {
  * the right answer only at the moment a game is about to start.
  */
 export async function currentConfig(): Promise<SuperConfig> {
-  const userId = await currentUserId();
   memory ??= readStorage();
-  if (memory && fresh(memory, userId)) return memory.config;
-  // A cached answer belonging to somebody else is not merely unusable, it is
-  // the thing that must not survive an account switch. Drop it outright rather
-  // than leaving it to expire on its own clock.
-  if (memory && memory.userId !== userId) {
-    memory = null;
-    try {
-      localStorage.removeItem(CACHE_KEY);
-    } catch {
-      // Storage is a convenience here, never a requirement.
-    }
-  }
+  if (fresh(memory)) return memory.config;
   // One fetch, however many callers. Opening a room can ask three times in the
   // same tick (the flag check, the calibration gate, the first turn).
   inFlight ??= fetchBotConfig({})
     .then((config) => {
-      const entry = { fetchedAt: Date.now(), userId, config };
+      const entry = { fetchedAt: Date.now(), config };
       memory = entry;
       writeStorage(entry);
       return config;

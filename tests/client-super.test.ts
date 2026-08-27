@@ -26,19 +26,6 @@ vi.mock("../src/bot/engineApi", async () => {
 });
 const { fetchBotConfig } = await import("../src/bot/engineApi");
 
-// A stand-in for the signed-in session, so a test can switch accounts.
-let sessionUserId: string | null = null;
-vi.mock("../src/supabaseClient", () => ({
-  isSupabaseConfigured: true,
-  supabase: {
-    auth: {
-      getSession: async () => ({
-        data: { session: sessionUserId ? { user: { id: sessionUserId } } : null },
-      }),
-    },
-  },
-}));
-
 const REFERENCE_CONFIG: BotConfigResponse = {
   clientSuperEnabled: true,
   engineVersion: "super-v8",
@@ -208,40 +195,26 @@ describe("device calibration", () => {
 describe("version pinning", () => {
   beforeEach(() => {
     invalidateConfigCache();
-    sessionUserId = null;
     vi.mocked(fetchBotConfig).mockReset();
     vi.mocked(fetchBotConfig).mockResolvedValue(REFERENCE_CONFIG);
   });
 
-  // ── the rollout flag is now a PER-USER answer ────────────────────────────
+  // ── the rollout flag is the SAME for every signed-in player ──────────────
   //
-  // `clientSuperEnabled` is `true` for a Champion and `false` for everybody
-  // else, and this cache lives in `localStorage`. Both facts together are the
-  // hazard these two tests exist for: a shared laptop, a demo machine or an
-  // ordinary account switch would otherwise let a general user inherit a
-  // Champion's rollout flag for the ten minutes of the TTL, and spend them
-  // running Super locally.
+  // Which is what lets this cache be shared across accounts in one browser, and
+  // is worth a test because it was briefly not true. An earlier revision made
+  // `clientSuperEnabled` a per-Champion answer, and since the cache lives in
+  // `localStorage` a shared laptop could hand one person's rollout flag to the
+  // next. Removing the allowlist removed the hazard; this pins the property the
+  // removal depends on.
 
-  it("does not serve one user's rollout flag to the next user", async () => {
-    sessionUserId = "champion-1";
-    vi.mocked(fetchBotConfig).mockResolvedValue({ ...REFERENCE_CONFIG, clientSuperEnabled: true });
-    expect((await currentConfig()).clientSuperEnabled).toBe(true);
-
-    // Same browser, same storage, different person.
-    sessionUserId = "general-user-2";
-    vi.mocked(fetchBotConfig).mockResolvedValue({ ...REFERENCE_CONFIG, clientSuperEnabled: false });
-    expect((await currentConfig()).clientSuperEnabled).toBe(false);
-    // Re-fetched rather than read from the Champion's entry.
-    expect(vi.mocked(fetchBotConfig)).toHaveBeenCalledTimes(2);
-  });
-
-  it("still caches within one signed-in user", async () => {
-    // The fix must not cost the thing the cache is for: a bot turn never pays
-    // a config round trip.
-    sessionUserId = "champion-1";
+  it("caches one document for the whole browser, not one per account", async () => {
     await currentConfig();
     await currentConfig();
+    // No session lookup, no per-user key, one round trip. If the config ever
+    // becomes per-caller again, the cache has to be keyed again with it.
     expect(vi.mocked(fetchBotConfig)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(fetchBotConfig)).toHaveBeenCalledWith({});
   });
 
   it("fetches once and serves the rest from cache", async () => {
