@@ -22,6 +22,7 @@ import {
   cancel,
   getStatus,
   initialize,
+  lastThreadPlan,
   resetForTests,
   think,
 } from "../src/bot/superEngine";
@@ -234,9 +235,30 @@ describe("the local engine's worker", () => {
   it("reaches ready on its own after initialize()", () => {
     initialize();
     expect(getStatus().kind).toBe("starting");
-    built[0]!.emit({ type: "ready", initMs: 12 });
+    built[0]!.emit({ type: "ready", initMs: 12, threads: 4, threadReason: "4 cores reported" });
     // Without a standing listener for this message, a warmed-up engine would
     // report "starting" until the first search finished.
     expect(getStatus().kind).toBe("ready");
+  });
+
+  it("remembers how many threads the engine came up with, and forgets on teardown", () => {
+    // Worth keeping rather than dropping: "Super took four minutes" and "Super
+    // took four minutes on one thread because the page is not cross-origin
+    // isolated" are the same complaint with and without its cause.
+    initialize();
+    built[0]!.emit({
+      type: "ready",
+      initMs: 12,
+      threads: 1,
+      threadReason: "page is not cross-origin isolated",
+    });
+    expect(lastThreadPlan()).toEqual({
+      threads: 1,
+      reason: "page is not cross-origin isolated",
+    });
+    // A torn-down worker's plan is stale: the next one re-reads the device and
+    // may land somewhere else.
+    cancel();
+    expect(lastThreadPlan()).toBeNull();
   });
 });

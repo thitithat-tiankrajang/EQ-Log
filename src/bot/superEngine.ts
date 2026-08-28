@@ -97,6 +97,11 @@ let status: SuperEngineStatus = { kind: "idle" };
  *  and because a number that grows across a session would mean the worker is
  *  being torn down more often than the design expects. */
 let lastInitMs: number | null = null;
+/** How many threads the loaded engine came up with, and why.
+ *  Worth surfacing rather than dropping: "Super took four minutes" and "Super
+ *  took four minutes on one thread because the page is not cross-origin
+ *  isolated" are the same complaint with and without its cause. */
+let lastThreads: { threads: number; reason: string } | null = null;
 /** Resolvers for whatever single request is outstanding. Held here rather than
  *  in a closure so `cancel()` can settle it — a terminated worker will never
  *  answer, and a promise nobody settles is a bot that appears to think forever. */
@@ -128,6 +133,12 @@ export function lastInitialisationMs(): number | null {
   return lastInitMs;
 }
 
+/** Threads the loaded engine is using, or `null` if it has not come up in this
+ *  tab. One thread is the floor every browser can run, not a failure. */
+export function lastThreadPlan(): { threads: number; reason: string } | null {
+  return lastThreads;
+}
+
 function setStatus(next: SuperEngineStatus): void {
   status = next;
   changed();
@@ -146,6 +157,7 @@ function ensureWorker(): Worker {
   worker.addEventListener("message", (event: MessageEvent<SuperWorkerOutbound>) => {
     if (event.data.type !== "ready") return;
     lastInitMs = event.data.initMs;
+    lastThreads = { threads: event.data.threads, reason: event.data.threadReason };
     if (status.kind === "starting" || status.kind === "idle") setStatus({ kind: "ready" });
   });
   worker.onerror = (event) => {
@@ -166,6 +178,9 @@ function ensureWorker(): Worker {
 function stopWorker(): void {
   worker?.terminate();
   worker = null;
+  // The next worker re-reads the device and may land somewhere else — a tab
+  // that was backgrounded, or a phone that has since freed memory.
+  lastThreads = null;
 }
 
 function send(message: SuperWorkerInbound): void {
@@ -180,10 +195,12 @@ function send(message: SuperWorkerInbound): void {
  * download while the player is still reading the board, rather than on the
  * first turn.
  */
-export function initialize(): void {
+export function initialize(options?: { threads?: number }): void {
   if (!isSuperEngineSupported()) return;
   if (status.kind === "idle") setStatus({ kind: "starting" });
-  send({ type: "initialize" });
+  // `threads` is a diagnostic seam for the benchmark page and a manual escape
+  // hatch; a game never passes it and gets the device's own plan.
+  send({ type: "initialize", ...(options?.threads ? { threads: options.threads } : {}) });
 }
 
 /**

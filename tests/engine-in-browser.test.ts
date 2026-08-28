@@ -142,6 +142,31 @@ describe("the application module graph", () => {
     expect(worker).not.toMatch(/^import .*amath_engine/m);
   });
 
+  it("keeps the single-threaded module reachable as the floor", () => {
+    // The threaded module is the faster one and the OPTIONAL one: it cannot
+    // instantiate at all on a page that is not cross-origin isolated. If this
+    // import ever disappears, every un-isolated browser loses Super to the
+    // backend fallback rather than running it slowly, which is a much worse
+    // trade than the one being made here.
+    const worker = readFileSync(join(root, "src/bot/engine/superWorker.ts"), "utf8");
+    expect(worker).toMatch(/await import\(["']\.\/amath_engine_mt\.mjs["']\)/);
+    expect(worker).toContain("plan.threaded");
+    expect(existsSync(join(root, "src/bot/engine/amath_engine.mjs"))).toBe(true);
+    expect(existsSync(join(root, "src/bot/engine/amath_engine_mt.mjs"))).toBe(true);
+  });
+
+  it("sizes the pthread pool from the same number it sends the engine", () => {
+    // The pool and the request's `threads` must be one number. Asking the engine
+    // for more threads than the pool holds makes pthread_create reach for a
+    // Worker that only the host worker's event loop could spawn — and that loop
+    // is blocked inside the synchronous engine call for the whole search.
+    const worker = readFileSync(join(root, "src/bot/engine/superWorker.ts"), "utf8");
+    expect(worker).toContain("__amathThreads");
+    // Both uses read the same plan object rather than recomputing.
+    expect(worker).toMatch(/__amathThreads.*=.*plan\.threads/);
+    expect(worker).toMatch(/threads: plan\.threads/);
+  });
+
   it("constructs the engine worker in exactly one place", () => {
     const offenders = sourceFiles.filter((path) =>
       /new\s+Worker\s*\(/.test(readFileSync(path, "utf8")),
@@ -204,7 +229,13 @@ describe("the engine still builds both ways", () => {
     if (!existsSync(makefile)) return;
     const source = readFileSync(makefile, "utf8");
     expect(source).toMatch(/^wasm:/m);
+    expect(source).toMatch(/^wasm-mt:/m);
     expect(source).toContain("src/bot/engine/amath_engine.mjs");
+    expect(source).toContain("src/bot/engine/amath_engine_mt.mjs");
+    // The pool is sized at RUNTIME, not baked in: every pooled worker costs
+    // ~12 MB the moment the module comes up, so a build-time 8 would charge a
+    // two-core phone for six workers it will never schedule.
+    expect(source).toContain("PTHREAD_POOL_SIZE='globalThis.__amathThreads||1'");
   });
 
   it("keeps the native CLI, benchmarks and golden corpus generator", () => {
