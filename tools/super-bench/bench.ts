@@ -56,7 +56,6 @@ let fps = 0;
   requestAnimationFrame(tick);
 })();
 
-
 // ── measuring memory for real ────────────────────────────────────────────────
 //
 // `performance.memory` is the wrong tool twice over: it reports only the calling
@@ -124,7 +123,9 @@ function logMemory(sample: MemorySample | null): void {
     log("  (memory measurement unavailable — page is not cross-origin isolated)");
     return;
   }
-  log(`  ${sample.label.padEnd(30)} ${sample.mb.toFixed(1).padStart(7)} MB   ${sample.workers} worker realms`);
+  log(
+    `  ${sample.label.padEnd(30)} ${sample.mb.toFixed(1).padStart(7)} MB   ${sample.workers} worker realms`,
+  );
 }
 
 const settle = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -220,9 +221,7 @@ document.getElementById("full")!.addEventListener("click", async () => {
     );
     // The assertion that this was Super and not something cheaper wearing the
     // name. 160 is the compiled schedule; anything less means a cap got in.
-    log(
-      `samples: ${stats.samples}${stats.samples === 160 ? "  ✓ full schedule" : "  ✗ REDUCED"}`,
-    );
+    log(`samples: ${stats.samples}${stats.samples === 160 ? "  ✓ full schedule" : "  ✗ REDUCED"}`);
     log(`nodes: ${stats.nodes.toLocaleString()}`);
     log(`move: ${outcome.response.type} score=${outcome.response.score}`);
     log(`worst UI frame rate during the search: ${worstFps.toFixed(0)} fps`);
@@ -375,6 +374,7 @@ type BenchState = {
   elapsedMs: number | null;
   settled: string | null;
   resolutions: number;
+  seed: number | null;
 };
 
 const state: BenchState = {
@@ -387,6 +387,7 @@ const state: BenchState = {
   elapsedMs: null,
   settled: null,
   resolutions: 0,
+  seed: null,
 };
 
 let running: Promise<unknown> | null = null;
@@ -413,11 +414,15 @@ let running: Promise<unknown> | null = null;
   /** Start a Full Super and return immediately, so the caller can measure while
    *  it runs. Every resolution is counted: a cancelled search that still
    *  delivered a result would show up as an extra one. */
-  start() {
+  /** `seed` varies the search without varying the schedule — still all 160
+   *  samples. Two tabs given different seeds must return different answers;
+   *  if they ever agree, they are sharing something they should not. */
+  start(seed?: number) {
     state.phase = "searching";
     state.settled = null;
+    state.seed = seed ?? POSITION.seed;
     const started = performance.now();
-    running = think({ request: POSITION })
+    running = think({ request: seed ? { ...POSITION, seed } : POSITION })
       .then((outcome) => {
         state.resolutions += 1;
         state.settled = "resolved";
@@ -429,9 +434,8 @@ let running: Promise<unknown> | null = null;
       })
       .catch((error: unknown) => {
         state.settled = error instanceof Error ? error.message : String(error);
-        state.phase = error instanceof SuperEngineError && error.code === "cancelled"
-          ? "cancelled"
-          : "failed";
+        state.phase =
+          error instanceof SuperEngineError && error.code === "cancelled" ? "cancelled" : "failed";
         state.elapsedMs = Math.round(performance.now() - started);
       });
     return { ...state };
@@ -503,7 +507,11 @@ type PhaseMark = { at: number; phase: string; threads: number | null; note?: str
       await settle(8000);
 
       const cancelled = await bench.cancelNow();
-      mark("cancelled", loaded?.threads ?? null, `${cancelled.settled} in ${cancelled.cancelSettleMs}ms`);
+      mark(
+        "cancelled",
+        loaded?.threads ?? null,
+        `${cancelled.settled} in ${cancelled.cancelSettleMs}ms`,
+      );
       await settle(4000);
       mark("settled-after-cancel", loaded?.threads ?? null);
       await settle(2000);
@@ -533,9 +541,12 @@ type PhaseMark = { at: number; phase: string; threads: number | null; note?: str
     const finished = await (
       window as unknown as { __superBench: { waitForResult(): Promise<BenchState> } }
     ).__superBench.waitForResult();
-    mark("final-search-done", plan?.threads ?? null,
+    mark(
+      "final-search-done",
+      plan?.threads ?? null,
       `samples=${finished.samples} equity=${finished.equity} nodes=${finished.nodes} ` +
-        `ms=${finished.elapsedMs} resolutions=${finished.resolutions}`);
+        `ms=${finished.elapsedMs} resolutions=${finished.resolutions}`,
+    );
     await settle(4000);
     mark("after-final", plan?.threads ?? null);
     return marks;
