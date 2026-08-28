@@ -125,3 +125,28 @@ export function degradeThreadPlan(plan: SuperThreadPlan): SuperThreadPlan | null
   if (halved <= 1) return SINGLE("threaded engine would not start");
   return { threads: halved, threaded: true, reason: `retrying with ${halved} threads` };
 }
+
+/**
+ * Force a thread count, for measurement and for a manual escape hatch.
+ *
+ * The device gates are still absolute: this cannot conjure threads on a page
+ * that is not cross-origin isolated, because there the threaded module does not
+ * load at all. What it can do is ask for FEWER threads than the planner would
+ * take, or pin a specific count so a benchmark can compare 1, 4 and 8 on one
+ * machine.
+ *
+ * It changes latency and nothing else. There is no thread count at which the
+ * engine runs a different search — that is the property `test_parallel_sim.cpp`
+ * exists to hold — so this is safe to expose in a way `sampleCap` would never
+ * be.
+ */
+export function forceSuperThreads(threads: number, env: ThreadEnvironment): SuperThreadPlan {
+  if (!Number.isFinite(threads) || threads <= 1) return SINGLE("forced to a single thread");
+  if (!env.crossOriginIsolated) return SINGLE("page is not cross-origin isolated");
+  if (!env.sharedArrayBuffer) return SINGLE("SharedArrayBuffer unavailable");
+  return {
+    threads: Math.min(Math.floor(threads), MAX_SUPER_THREADS),
+    threaded: true,
+    reason: `forced to ${Math.min(Math.floor(threads), MAX_SUPER_THREADS)} threads`,
+  };
+}

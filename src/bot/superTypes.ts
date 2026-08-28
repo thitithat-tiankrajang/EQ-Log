@@ -107,7 +107,12 @@ export type CalibrationResult = {
 };
 
 export type SuperWorkerInbound =
-  | { type: "initialize" }
+  | {
+      type: "initialize";
+      /** Diagnostic seam: pin the thread count instead of reading the device.
+       *  Latency only — see `forceSuperThreads`. Omitted by the game. */
+      threads?: number;
+    }
   | { type: "calibrate"; id: number }
   | { type: "think"; id: number; request: SuperEngineRequest };
 

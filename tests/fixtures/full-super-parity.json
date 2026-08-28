@@ -1,0 +1,229 @@
+{
+  "note": "Midgame position from amath-engine bench_super.jsonl #2. Full Super: unlimited, no sampleCap.",
+  "request": {
+    "bagCount": 52,
+    "board": [
+      {
+        "c": 7,
+        "kind": "2",
+        "r": 0,
+        "token": "2"
+      },
+      {
+        "c": 14,
+        "kind": "3",
+        "r": 0,
+        "token": "3"
+      },
+      {
+        "c": 7,
+        "kind": "x",
+        "r": 1,
+        "token": "\u00d7"
+      },
+      {
+        "c": 14,
+        "kind": "5",
+        "r": 1,
+        "token": "5"
+      },
+      {
+        "c": 7,
+        "kind": "3",
+        "r": 2,
+        "token": "3"
+      },
+      {
+        "c": 14,
+        "kind": "-",
+        "r": 2,
+        "token": "-"
+      },
+      {
+        "c": 7,
+        "kind": "6",
+        "r": 3,
+        "token": "6"
+      },
+      {
+        "c": 11,
+        "kind": "3",
+        "r": 3,
+        "token": "3"
+      },
+      {
+        "c": 14,
+        "kind": "13",
+        "r": 3,
+        "token": "13"
+      },
+      {
+        "c": 7,
+        "kind": "+/-",
+        "r": 4,
+        "token": "+"
+      },
+      {
+        "c": 11,
+        "kind": "x//",
+        "r": 4,
+        "token": "\u00d7"
+      },
+      {
+        "c": 14,
+        "kind": "?",
+        "r": 4,
+        "token": "+"
+      },
+      {
+        "c": 7,
+        "kind": "3",
+        "r": 5,
+        "token": "3"
+      },
+      {
+        "c": 11,
+        "kind": "16",
+        "r": 5,
+        "token": "16"
+      },
+      {
+        "c": 14,
+        "kind": "7",
+        "r": 5,
+        "token": "7"
+      },
+      {
+        "c": 7,
+        "kind": "=",
+        "r": 6,
+        "token": "="
+      },
+      {
+        "c": 11,
+        "kind": "?",
+        "r": 6,
+        "token": "+"
+      },
+      {
+        "c": 14,
+        "kind": "=",
+        "r": 6,
+        "token": "="
+      },
+      {
+        "c": 7,
+        "kind": "7",
+        "r": 7,
+        "token": "7"
+      },
+      {
+        "c": 8,
+        "kind": "0",
+        "r": 7,
+        "token": "0"
+      },
+      {
+        "c": 9,
+        "kind": "=",
+        "r": 7,
+        "token": "="
+      },
+      {
+        "c": 10,
+        "kind": "1",
+        "r": 7,
+        "token": "1"
+      },
+      {
+        "c": 11,
+        "kind": "4",
+        "r": 7,
+        "token": "4"
+      },
+      {
+        "c": 12,
+        "kind": "0",
+        "r": 7,
+        "token": "0"
+      },
+      {
+        "c": 13,
+        "kind": "x//",
+        "r": 7,
+        "token": "\u00f7"
+      },
+      {
+        "c": 14,
+        "kind": "2",
+        "r": 7,
+        "token": "2"
+      },
+      {
+        "c": 7,
+        "kind": "5",
+        "r": 8,
+        "token": "5"
+      },
+      {
+        "c": 11,
+        "kind": "8",
+        "r": 8,
+        "token": "8"
+      },
+      {
+        "c": 14,
+        "kind": "9",
+        "r": 8,
+        "token": "9"
+      },
+      {
+        "c": 11,
+        "kind": "=",
+        "r": 9,
+        "token": "="
+      },
+      {
+        "c": 11,
+        "kind": "9",
+        "r": 10,
+        "token": "9"
+      },
+      {
+        "c": 11,
+        "kind": "6",
+        "r": 11,
+        "token": "6"
+      }
+    ],
+    "difficulty": "super",
+    "exchangeAllowed": true,
+    "myScore": 197,
+    "noScoreStreak": 0,
+    "oppRackCount": 8,
+    "oppScore": 185,
+    "rack": [
+      "3",
+      "4",
+      "10",
+      "14",
+      "/",
+      "/",
+      "x//",
+      "="
+    ],
+    "seed": 20260832,
+    "solver": "sim",
+    "topN": 24,
+    "unlimited": true
+  },
+  "nativeReference": {
+    "engine": "amath_cli, clang -O2, amath-engine@parallel-sample-loop (and identical on the unpatched engine)",
+    "type": "place",
+    "score": 21,
+    "equity": 2.26314,
+    "samples": 160,
+    "nodes": 853222467,
+    "genCallsSingleThread": 11624
+  }
+}

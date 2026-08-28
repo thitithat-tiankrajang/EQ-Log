@@ -195,10 +195,12 @@ function send(message: SuperWorkerInbound): void {
  * download while the player is still reading the board, rather than on the
  * first turn.
  */
-export function initialize(): void {
+export function initialize(options?: { threads?: number }): void {
   if (!isSuperEngineSupported()) return;
   if (status.kind === "idle") setStatus({ kind: "starting" });
-  send({ type: "initialize" });
+  // `threads` is a diagnostic seam for the benchmark page and a manual escape
+  // hatch; a game never passes it and gets the device's own plan.
+  send({ type: "initialize", ...(options?.threads ? { threads: options.threads } : {}) });
 }
 
 /**

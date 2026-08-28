@@ -50,6 +50,7 @@
 // or not the terminate landed first.
 import {
   degradeThreadPlan,
+  forceSuperThreads,
   planSuperThreads,
   readThreadEnvironment,
   type SuperThreadPlan,
@@ -111,7 +112,7 @@ async function instantiate(plan: SuperThreadPlan): Promise<EngineModule> {
   return (await createModule()) as EngineModule;
 }
 
-function loadEngine(): Promise<LoadedEngine> {
+function loadEngine(forcedThreads?: number): Promise<LoadedEngine> {
   enginePromise ??= (async () => {
     const started = performance.now();
     installProgressHook();
@@ -120,7 +121,9 @@ function loadEngine(): Promise<LoadedEngine> {
     // says so by throwing here — the pool's memory is committed at
     // instantiation, so this is where "eight threads is too much for this
     // phone" actually surfaces — and every step down runs the identical search.
-    let plan: SuperThreadPlan | null = planSuperThreads(readThreadEnvironment());
+    const env = readThreadEnvironment();
+    let plan: SuperThreadPlan | null =
+      forcedThreads === undefined ? planSuperThreads(env) : forceSuperThreads(forcedThreads, env);
     let lastError: unknown;
     while (plan) {
       try {
@@ -163,7 +166,7 @@ self.onmessage = async (event: MessageEvent<SuperWorkerInbound>) => {
   const message = event.data;
   try {
     if (message.type === "initialize") {
-      await loadEngine();
+      await loadEngine(message.threads);
       return;
     }
     if (message.type === "calibrate") {
