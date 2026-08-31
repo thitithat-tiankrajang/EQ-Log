@@ -106,7 +106,7 @@ export function TilebagSheet({
           </div>
         </div>
         <div className="bag-sheet-body">
-          <Tilebag disabled={done} tilebag={tilebag} onPick={onPick} />
+          <Tilebag disabled={done} listKind="bag" tilebag={tilebag} onPick={onPick} />
         </div>
         <button className="bag-sheet-done" type="button" onClick={sheet.requestClose}>
           <Check size={20} />

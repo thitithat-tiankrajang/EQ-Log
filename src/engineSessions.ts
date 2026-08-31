@@ -53,7 +53,9 @@ import {
   type SuperPin,
 } from "./bot/clientSuper";
 import * as superTelemetry from "./bot/superTelemetry";
-import type { GameState } from "./game";
+import { LocalAnalysisUnavailable, runLocalAnalysis } from "./bot/localAnalysis";
+import { initialize as initializeSuperEngine } from "./bot/superEngine";
+import type { GameState, Side } from "./game";
 import * as engineDebug from "./engineDebug";
 import * as engineTrace from "./engineTrace";
 
@@ -82,6 +84,15 @@ export type EngineSession = {
   revision: number;
   /** Analysis only. The one part of a job's identity the game row cannot supply. */
   level?: AnalysisLevel;
+  /**
+   * This work is running in THIS TAB's worker, not on the service.
+   *
+   * Two things read it. Cancelling has to put the engine back — stopping a local
+   * search means terminating the worker, and the bot will want it back within
+   * seconds. And nothing should ask the service to cancel a job it never
+   * started.
+   */
+  local?: boolean;
   status: EngineSessionStatus;
   /** The last progress the server reported, kept across status changes so a
    *  reconnect never has to fall back to nothing. */
@@ -526,10 +537,36 @@ export function observeBot(options: {
 
 // ── analysis ─────────────────────────────────────────────────────────────────
 
+/**
+ * What the device needs in order to analyse the turn itself.
+ *
+ * Present only for the level that runs locally, and only when the shell has a
+ * position to hand over. Absent means "ask the service", which is what every
+ * other level does and what this one falls back to.
+ */
+export type LocalAnalysisContext = {
+  /** The position as this tab holds it, read once by the caller. */
+  game: GameState;
+  /** The side on move — the human's. The caller has already refused the bot's. */
+  side: Side;
+  turnNumber: number;
+  pin: { engineVersion?: string; weightsVersion?: string };
+};
+
 export function startAnalysis(options: {
   roomId: string;
   revision: number;
   level: AnalysisLevel;
+  /**
+   * Run this one on the device instead of the service.
+   *
+   * The same shape of choice `observeBot` makes for a Super turn, and for the
+   * same reason: the backend runs one single-threaded process per request, and
+   * the browser can put every core on the identical schedule. A local failure
+   * continues into the service inside this same session, so the player sees one
+   * analysis either way.
+   */
+  local?: LocalAnalysisContext;
 }): Promise<EngineSession> {
   const key = analysisKey(options.roomId, options.revision, options.level);
   const entry = begin(
@@ -544,6 +581,49 @@ export function startAnalysis(options: {
     },
     (controller) =>
       (async (): Promise<EngineSession> => {
+        if (options.local) {
+          const local = options.local;
+          try {
+            // No queue and no `queued` state: the device starts the moment it
+            // is asked, which is the entire point of moving this level here.
+            engineTrace.mark(key, "engine_start");
+            update(key, {
+              local: true,
+              status: { kind: "running", progress: get(key)?.progress ?? null },
+            });
+            const result = await runLocalAnalysis({
+              game: local.game,
+              side: local.side,
+              roomId: options.roomId,
+              revision: options.revision,
+              turnNumber: local.turnNumber,
+              pin: local.pin,
+              onProgress: (progress) => {
+                if (!get(key)?.progress) engineTrace.mark(key, "first_progress");
+                update(key, { status: { kind: "running", progress }, progress });
+              },
+              signal: controller.signal,
+            });
+            update(key, { status: { kind: "completed" }, result });
+            engineTrace.end(key, "result");
+            return get(key)!;
+          } catch (failure) {
+            // Cancelling is not a failure to route around: the player asked for
+            // this to stop, and starting it again on the server is the opposite
+            // of what they asked for.
+            if (controller.signal.aborted) return settleFailed(key, failure);
+            engineDebug.note("local_analysis_fallback", {
+              key,
+              reason:
+                failure instanceof LocalAnalysisUnavailable ? failure.reason : "engine_failure",
+            });
+            // Fall through to the service. A device that cannot finish should
+            // get a slower analysis, not none — and from here on this session is
+            // the service's, so cancelling it must reach the service.
+            update(key, { local: false });
+          }
+        }
+
         try {
           const result = await requestAnalysis({
             gameId: options.roomId,
@@ -748,8 +828,17 @@ export function drop(key: string): void {
 export function cancel(key: string): void {
   const entry = live.get(key);
   if (!entry) return;
-  const { kind, roomId, revision, level } = entry.session;
+  const { kind, roomId, revision, level, local } = entry.session;
   drop(key);
+  if (local) {
+    // Stopping a local search means TERMINATING the worker: nothing else can
+    // interrupt a synchronous call inside WASM. Put it back straight away, in
+    // the background, rather than at the head of the bot's next turn — which is
+    // exactly where the player would otherwise pay for the module download and
+    // its instantiation, having just asked to get on with the game.
+    initializeSuperEngine();
+    return;
+  }
   if (kind === "analysis" && level) {
     void cancelAnalysis({ gameId: roomId, expectedRevision: revision, level });
   }

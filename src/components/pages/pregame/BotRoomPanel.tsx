@@ -60,7 +60,6 @@ export function BotRoomPanel({
   const [nameEdited, setNameEdited] = useState(false);
   const [nameTouched, setNameTouched] = useState(false);
   const [startingSide, setStartingSide] = useState<Side>("A");
-  const [manualTiles, setManualTiles] = useState(false);
   const [difficulty, setDifficulty] = useState<BotDifficulty>("max");
   const trimmedPlayerName = playerName.trim();
   const selectedDifficulty = useMemo(
@@ -89,9 +88,15 @@ export function BotRoomPanel({
           startingSide,
           botSide: "B",
           botDifficulty: difficulty,
-          // manual = the player hand-picks every drawn tile for both sides
-          // (same refill flow as recorded matches); play = auto draw.
-          tileDrawMode: manualTiles ? "manual" : "play",
+          // Always auto-draw, and no longer a choice.
+          //
+          // Hand-picking the draws meant the HUMAN drew tiles for the bot's
+          // rack, which was fine while they could also play the bot's move and
+          // is a dead end now that they cannot: the turn would sit in `refill`
+          // waiting for a player who is not allowed to act. Rooms created before
+          // this still work — the refill carve-out on the bot's turn exists for
+          // exactly them — but no new one can be made.
+          tileDrawMode: "play",
           untimed: true,
         });
       }}
@@ -200,7 +205,7 @@ export function BotRoomPanel({
           <span>3</span>
           <div>
             <h3 id="bot-rules-heading">Game setup</h3>
-            <p>Choose who opens and how tiles enter the racks.</p>
+            <p>Choose who opens. Aether rooms always draw tiles automatically.</p>
           </div>
         </header>
         <div className="bot-rule-group">
@@ -221,35 +226,6 @@ export function BotRoomPanel({
                 </span>
               </button>
             ))}
-          </div>
-        </div>
-        <div className="bot-rule-group">
-          <strong>Tile drawing</strong>
-          <div className="bot-start-row" role="radiogroup" aria-label="Tile drawing">
-            <button
-              type="button"
-              role="radio"
-              aria-checked={!manualTiles}
-              className={`bot-difficulty-option${!manualTiles ? " selected" : ""}`}
-              onClick={() => setManualTiles(false)}
-            >
-              <span className="bot-difficulty-label">Auto draw</span>
-              <span className="bot-difficulty-desc">
-                The app draws random tiles for both sides.
-              </span>
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={manualTiles}
-              className={`bot-difficulty-option${manualTiles ? " selected" : ""}`}
-              onClick={() => setManualTiles(true)}
-            >
-              <span className="bot-difficulty-label">I pick the tiles</span>
-              <span className="bot-difficulty-desc">
-                Choose every drawn tile for your rack and Aether's.
-              </span>
-            </button>
           </div>
         </div>
       </section>

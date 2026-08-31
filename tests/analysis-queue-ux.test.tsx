@@ -10,6 +10,7 @@
 //     "while the search ran" to "while the search waited AND ran".
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { requestAnalysis, attachAnalysis, listJobs } = vi.hoisted(() => ({
@@ -29,11 +30,28 @@ vi.mock("../src/bot/engineApi", async (importOriginal) => {
 import * as analysisCache from "../src/analysisSessionCache";
 import * as engineSessions from "../src/engineSessions";
 import { EngineApiError, type AnalysisResult } from "../src/bot/engineApi";
-import { TurnAnalysisLauncher } from "../src/components/game/TurnAnalysisLauncher";
+import { TurnAnalysisBar, TurnAnalysisLauncher } from "../src/components/game/TurnAnalysisLauncher";
 
 /** The LIVE ROOM's id — what `room_live.room_id` holds and what every server
  *  RPC calls `target_game_id`. Deliberately unlike a `GameState.gameId`. */
 const ROOM_ID = "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa";
+
+/**
+ * The launcher and the running bar, composed the way Play composes them.
+ *
+ * They are two components now: the launcher sits with the other per-turn
+ * insights, and the running bar is drawn in the ACTION slot, in place of
+ * Exchange and Pass. Both read the same row out of `engineSessions`, so this
+ * wrapper is the whole of what the shell does to put them together.
+ */
+function AnalysisSurface(props: ComponentProps<typeof TurnAnalysisLauncher>) {
+  return (
+    <>
+      <TurnAnalysisLauncher {...props} />
+      <TurnAnalysisBar roomId={props.roomId} revision={props.revision} />
+    </>
+  );
+}
 
 afterEach(cleanup);
 beforeEach(() => {
@@ -88,12 +106,7 @@ function analysisAt(revision: number): AnalysisResult {
 /** Render the launcher and press Analyse → quick. */
 async function startAnalysis(revision = 7) {
   const view = render(
-    <TurnAnalysisLauncher
-      roomId={ROOM_ID}
-      revision={revision}
-      playerName="Player"
-      disabled={false}
-    />,
+    <AnalysisSurface roomId={ROOM_ID} revision={revision} playerName="Player" disabled={false} />,
   );
   const user = userEvent.setup();
   await user.click(screen.getByRole("button", { name: /วิเคราะห์ตานี้/ }));
@@ -323,7 +336,7 @@ describe("a result that is no longer about this position", () => {
     await waitFor(() => expect(screen.getByText("A summary.")).toBeInTheDocument());
 
     rerender(
-      <TurnAnalysisLauncher roomId={ROOM_ID} revision={8} playerName="Player" disabled={false} />,
+      <AnalysisSurface roomId={ROOM_ID} revision={8} playerName="Player" disabled={false} />,
     );
     await waitFor(() => expect(screen.queryByText("A summary.")).not.toBeInTheDocument());
   });
@@ -345,7 +358,7 @@ describe("a result that is no longer about this position", () => {
 
     const signal = requestAnalysis.mock.calls[0]?.[0]?.signal as AbortSignal;
     rerender(
-      <TurnAnalysisLauncher roomId={ROOM_ID} revision={8} playerName="Player" disabled={false} />,
+      <AnalysisSurface roomId={ROOM_ID} revision={8} playerName="Player" disabled={false} />,
     );
 
     // The old turn's queue notice is off screen at once, and nothing is blamed

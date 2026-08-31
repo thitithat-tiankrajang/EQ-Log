@@ -16,6 +16,7 @@ import {
 import "./play-styles.css";
 import {
   CSSProperties,
+  ReactNode,
   useCallback,
   useEffect,
   useMemo,
@@ -130,6 +131,7 @@ import { clearTileAssignment } from "./gameplay/tiles";
 import {
   isDesyncBotFailure,
   botRetryDelay,
+  BOT_ESCAPE_AFTER_FAILURES,
   isRetryableBotFailure,
   mapBotResponse,
   toBotResponse,
@@ -137,6 +139,7 @@ import {
 } from "./bot/botController";
 import { EngineApiError, isEngineApiConfigured, type BotMoveResult } from "./bot/engineApi";
 import { clientSuperReadiness, type ClientSuperReadiness } from "./bot/clientSuper";
+import { planSuperThreads, readThreadEnvironment } from "./bot/superThreads";
 import {
   cancel as cancelSuperEngine,
   initialize as initializeSuperEngine,
@@ -145,10 +148,12 @@ import { installConsoleHandle as installTelemetryHandle } from "./bot/superTelem
 import type { BotResponse } from "./bot/types";
 import * as engineDebug from "./engineDebug";
 import * as engineSessions from "./engineSessions";
+import type { LocalAnalysisContext } from "./engineSessions";
 import { botRecordFromGame, recordBotGame } from "./botStats";
+import { BotStuckNotice } from "./components/game/BotStuckNotice";
 import { BotThinkingCard } from "./components/game/BotThinkingCard";
 import { BotReasoningPanel } from "./components/game/BotReasoningPanel";
-import { TurnAnalysisLauncher } from "./components/game/TurnAnalysisLauncher";
+import { TurnAnalysisBar, TurnAnalysisLauncher } from "./components/game/TurnAnalysisLauncher";
 import { resolveStudyKey } from "./gameplay/tileKeys";
 import {
   resolveDrawnTile,
@@ -2018,9 +2023,42 @@ function App() {
     botSession && botSession.status.kind !== "completed" && botSession.status.kind !== "failed"
       ? botSession.status
       : null;
+  // Read here rather than inside the launcher because the RUNNING bar is drawn
+  // in the action slot now, and the shell is what owns that slot. Both this and
+  // the launcher read the same store row, so there is nothing to keep in sync.
+  const analysisSession =
+    activeRoomId && game ? engineSessions.analysisFor(activeRoomId, game.revision ?? 0) : undefined;
+  const analysisRunning = Boolean(
+    analysisSession &&
+    analysisSession.status.kind !== "completed" &&
+    analysisSession.status.kind !== "failed",
+  );
   /** A line explaining an engine problem the player can otherwise only observe
    *  as the bot not moving. Cleared as soon as the bot moves. */
   const [botNotice, setBotNotice] = useState<string | null>(null);
+  /**
+   * Consecutive engine failures on the CURRENT bot turn.
+   *
+   * The retry loop below never gives up — a pass is irreversible and no amount
+   * of server trouble is evidence that passing is right — and until now the way
+   * out of a wedged bot turn was that the room owner could simply play the move
+   * themselves. That is gone: the human no longer acts on the bot's turn. So the
+   * escape hatch has to be explicit, and this is what opens it.
+   *
+   * A desync does NOT count. It resolves itself the moment sync delivers the
+   * real revision, so counting it would put an emergency button in front of a
+   * player whose connection merely hiccuped.
+   */
+  const [botFailures, setBotFailures] = useState(0);
+  /**
+   * The revision on which the player took the bot's turn over by hand.
+   *
+   * Set only by pressing the escape button, and it STOPS the retry loop rather
+   * than racing it: a bot search that finally succeeded while the player was
+   * halfway through choosing an exchange would be two moves for one turn, which
+   * is the one thing every revision guard in this file exists to prevent.
+   */
+  const [botManualRevision, setBotManualRevision] = useState<number | null>(null);
   // Reasoning behind the bot's most recent move, kept so the player can open a
   // full "why this move" breakdown (chosen move + every alternative weighed).
   const [botReasoning, setBotReasoning] = useState<{
@@ -2064,6 +2102,9 @@ function App() {
     roomFactsResolved &&
     canControlActiveGame &&
     !readOnly &&
+    // Handed to the player after three failures; asking again behind their back
+    // is how the same turn gets played twice.
+    botManualRevision !== (game.revision ?? 0) &&
     // The whole correctness fix. A local move is not a move the server has
     // accepted: until the commit is acknowledged, `game.revision` still names
     // the position BEFORE the human played, and asking the engine about it gets
@@ -2279,12 +2320,14 @@ function App() {
           engineSessions.drop(session.key);
 
           if (isDesyncBotFailure(error)) {
+            // Not counted. See `botFailures`: this one fixes itself.
             // The server and this client disagree about the position. Asking
             // again with the same numbers cannot help; wait for sync to deliver
             // the real revision, which re-runs this effect.
             setBotNotice("กระดานบนเซิร์ฟเวอร์เปลี่ยนไปแล้ว — กำลังรอข้อมูลล่าสุด");
             return;
           }
+          setBotFailures((count) => count + 1);
           if (!isRetryableBotFailure(error)) return;
 
           // NOTHING here ends the turn. A pass is a scoring, irreversible move,
@@ -2298,6 +2341,7 @@ function App() {
         });
     };
 
+    setBotFailures(0);
     attempt(0);
 
     return () => {
@@ -3392,8 +3436,25 @@ function App() {
       ? boardWithPending(game.board, pendingPlacements, game.turnNumber, game.activeSide)
       : game.board);
 
+  /**
+   * The bot's turn is the bot's.
+   *
+   * The room owner used to be able to place, exchange or pass ON THE BOT'S
+   * BEHALF — the capability model grants `canAct` to the owner and never asked
+   * whose turn it was. That is now closed at the UI layer, deliberately rather
+   * than in `getRoomActorCapabilities`: `canAct` also feeds `canInteract` and
+   * therefore `readOnly`, and a `readOnly` bot turn would disable the very
+   * commit path the bot uses to play its own move.
+   *
+   * `botManualRevision` is the one way through, and only after the engine has
+   * failed three times on this turn.
+   */
+  const botTurn = Boolean(game.botSide && game.activeSide === game.botSide && !reviewing);
+  const botTurnLocked = botTurn && botManualRevision !== (game.revision ?? 0);
+
   const canChooseAction =
     canActActiveSide &&
+    !botTurnLocked &&
     game.status === "playing" &&
     !reviewing &&
     actionMode === "none" &&
@@ -3401,8 +3462,109 @@ function App() {
   const exchangeRule = getExchangeRule(game);
   const canStartExchange = canChooseAction && exchangeRule.allowed;
   const refillBaseline = refillBaselineRef.current;
+  /**
+   * The top analysis level, run here rather than on the service.
+   *
+   * Offered only when the device could run a Super search — it is the same
+   * engine, so the answer is the same answer — and only on a turn a human is
+   * actually taking. The position is read INSIDE the callback, at the moment the
+   * player presses the level, so the search is about the board they are looking
+   * at rather than the one that happened to be current a render earlier.
+   */
+  const localAnalysisReady = Boolean(clientSuper?.available && canAnalyzeTurn);
+  const localAnalysisHint =
+    localAnalysisReady && clientSuper?.calibration
+      ? {
+          estimatedMs: clientSuper.calibration.estimatedMoveMs.p50,
+          threads: planSuperThreads(readThreadEnvironment()).threads,
+        }
+      : null;
+  // A plain function, not a `useCallback`: everything from here down runs after
+  // the shell's early returns, so this region must not call hooks.
+  const makeLocalAnalysis = (): LocalAnalysisContext | null => {
+    const current = gameRef.current;
+    if (!current || !localAnalysisReady) return null;
+    // Never the bot's rack. `canAnalyzeTurn` already refuses the bot's turn;
+    // this is the second reading of the same rule, at the point the position is
+    // actually handed over.
+    if (current.botSide && current.activeSide === current.botSide) return null;
+    return {
+      game: current,
+      side: current.activeSide,
+      turnNumber: current.turnNumber,
+      pin: {
+        ...(current.superEngineVersion ? { engineVersion: current.superEngineVersion } : {}),
+        ...(current.superWeightsVersion ? { weightsVersion: current.superWeightsVersion } : {}),
+      },
+    };
+  };
+
+  const botName = game.botSide ? game.players[game.botSide] || "Aether" : "Aether";
+  /** Hand the turn back: the loop restarts, and any half-built draft the player
+   *  had started on the bot's behalf is dropped so two moves cannot collide. */
+  const returnTurnToBot = () => {
+    if (actionMode !== "none") cancelAction();
+    setBotManualRevision(null);
+    setBotFailures(0);
+  };
+  /**
+   * What occupies the action slot instead of Exchange and Pass.
+   *
+   * One decision, rendered twice — the desktop panel and the mobile dock ask for
+   * the same thing in their own shape. The order is the order of urgency: a
+   * wedged turn needs its way out before anything else, the bot's own turn
+   * outranks an analysis (they cannot both be live), and an ordinary turn gets
+   * the buttons back by returning nothing.
+   */
+  const engineActivityFor = (variant: "panel" | "mobile"): ReactNode => {
+    // A rack that still needs tiles outranks everything: nothing is thinking
+    // yet, and in a legacy manual-draw bot room the human drawing for the bot is
+    // the only thing that can move the turn on. That carve-out is the reason the
+    // draw itself is not blocked with the rest of the bot turn.
+    if (refillNeeded) return undefined;
+    if (botTurnLocked && botFailures >= BOT_ESCAPE_AFTER_FAILURES) {
+      return (
+        <BotStuckNotice
+          botName={botName}
+          variant={variant}
+          onTakeOver={() => setBotManualRevision(game.revision ?? 0)}
+          onRetry={returnTurnToBot}
+        />
+      );
+    }
+    if (botTurnLocked) {
+      return (
+        <BotThinkingCard
+          // No session yet means the request has not gone out, or a retry is
+          // pending. Both are "working on it" and neither has a percentage.
+          state={botStatus ?? { kind: "requesting" }}
+          botName={botName}
+          variant={variant}
+          slowDevice={
+            clientSuper?.available && clientSuper.calibration?.warnAboutWait
+              ? { estimatedP50Ms: clientSuper.calibration.estimatedMoveMs.p50 }
+              : null
+          }
+        />
+      );
+    }
+    if (analysisRunning && activeRoomId) {
+      return (
+        <TurnAnalysisBar
+          roomId={activeRoomId}
+          revision={game.revision ?? 0}
+          variant={variant}
+        />
+      );
+    }
+    return undefined;
+  };
+
   const canEditRefill =
     canRefillActiveRack &&
+    // Editing a refill is fixing a draw that already happened, not a way to
+    // unstick a wedged bot turn — so unlike the draw itself it stays closed.
+    !botTurnLocked &&
     game.phase === "choose_action" &&
     actionMode === "none" &&
     !reviewing &&
@@ -4025,6 +4187,8 @@ function App() {
       return;
     }
     if (readOnly) return;
+    // Covers the keyboard too: every key that touches a tile lands here.
+    if (botTurnLocked) return;
     if (game.status !== "playing") return;
     if (side !== game.activeSide) return;
     // Placement cursor active: place the tile at the cursor and advance —
@@ -4201,6 +4365,7 @@ function App() {
       return;
     }
     if (readOnly) return;
+    if (botTurnLocked) return;
     const occupied =
       Boolean(game.board[row][col]) ||
       pendingPlacements.some((p) => p.row === row && p.col === col);
@@ -4507,7 +4672,23 @@ function App() {
     setAssignmentRequest(null);
   }
 
+  /**
+   * Stop an analysis of the position the player is about to leave.
+   *
+   * Playing a move IS the answer to "what should I play here", so a search that
+   * is still working on it has nothing left to tell anybody — and on the top
+   * level it is holding this tab's only engine worker, which the bot needs back
+   * within the second. Cancelling here is what lets the player keep placing
+   * tiles while an analysis runs (the board is never locked) without the two
+   * competing for the same core.
+   */
+  function cancelAnalysisForThisTurn(): void {
+    if (!activeRoomId || !analysisSession) return;
+    engineSessions.cancel(analysisSession.key);
+  }
+
   function confirmPlace() {
+    cancelAnalysisForThisTurn();
     if (readOnly || !game || actionMode !== "place_equation" || !validation.isValid) return;
     const effectiveActionStart = actionStart ?? {
       startedAt: game.currentTurnStartedAt,
@@ -4543,6 +4724,7 @@ function App() {
   }
 
   function confirmExchange() {
+    cancelAnalysisForThisTurn();
     if (readOnly || !game || !actionStart || actionMode !== "exchange") return;
     if (!exchangeRule.allowed) return;
     if (exchangeDraft.outgoingIds.length === 0) return;
@@ -4570,6 +4752,7 @@ function App() {
   }
 
   function confirmPass() {
+    cancelAnalysisForThisTurn();
     if (readOnly || !game || !actionStart || actionMode !== "pass") return;
     const rackAfter = deepClone(getRack(game, game.activeSide));
     const detail: PassDetail = {};
@@ -5244,6 +5427,7 @@ function App() {
       active:
         canPlayActiveRoom &&
         !reviewing &&
+        !botTurnLocked &&
         game.status === "playing" &&
         game.activeSide === rackSide,
       exchangeOutgoingIds: rackSide === game.activeSide ? exchangeDraft.outgoingIds : [],
@@ -5496,6 +5680,8 @@ function App() {
             timersOverride={replayOverrides?.timers}
           />
           <MobileTilebagPanel
+            kind={tilebagView.kind}
+            listKind={tilebagView.listKind}
             rackSlots={displayRack}
             remainingCount={tilebagView.remainingCount}
             tiles={tilebagView.tiles}
@@ -5603,6 +5789,7 @@ function App() {
               )}
             </div>
             <MobileActionBar
+              engineActivity={engineActivityFor("mobile")}
               actionMode={actionMode}
               canChooseAction={canChooseAction}
               canEditRefill={canEditRefill}
@@ -5664,6 +5851,10 @@ function App() {
             game={game}
             tilebag={displayedOrPickableTilebag}
             tilebagCount={tilebagView.remainingCount}
+            tilebagKind={tilebagView.kind}
+            // The rail swaps the pooled list for the real bag while a manual
+            // draw is open, so the list's own label has to swap with it.
+            tilebagListKind={canPickFromTilebag ? "bag" : tilebagView.listKind}
             tilebagDisabled={!canPickFromTilebag}
             onPickTile={refillFromBag}
           />
@@ -5671,25 +5862,33 @@ function App() {
           <RailDivider railRef={rightRailRef} />
 
           <ActionPanel
+            // A spectator's panel is the live view, not the actions, so there is
+            // no slot to take over — the bar falls back into `insights` for them
+            // below. Watching a bot think is the one thing a spectator came for.
+            engineActivity={showViewPanel ? undefined : engineActivityFor("panel")}
+            detailOverride={
+              botTurnLocked ? `${botName} thinking` : botTurn ? `Manual · ${botName}` : undefined
+            }
             // Rendered by the control panel rather than under the board: see
             // `insights` in ActionPanel for why the board zone cannot hold them.
             insights={
               <>
                 <KeyboardChangeNotice />
-                {botStatus && game.botSide && !reviewing && (
-                  <BotThinkingCard
-                    state={botStatus}
-                    botName={game.players[game.botSide] || "Aether"}
-                    // Shown only when this device is the one searching AND it
-                    // measured slow enough that the wait is worth explaining. A
-                    // backend turn is not this device's wait to account for,
-                    // and a quick machine has nothing to warn about.
-                    slowDevice={
-                      clientSuper?.available && clientSuper.calibration?.warnAboutWait
-                        ? { estimatedP50Ms: clientSuper.calibration.estimatedMoveMs.p50 }
-                        : null
-                    }
-                  />
+                {/* The thinking bar is normally NOT here. It is drawn in the
+                    action slot, in place of Exchange and Pass — see
+                    `engineActivityFor`. Here it floated over the board on
+                    desktop and rendered nowhere at all on mobile.
+                    The exception is a panel showing the live view or a replay
+                    instead of the actions: there is no action slot to take over
+                    then, and a spectator should still see the bot thinking. */}
+                {showViewPanel && engineActivityFor("panel")}
+
+                {/* The turn was handed to the player after three failures. This
+                    is the only way to give it back. */}
+                {botTurn && !botTurnLocked && !reviewing && (
+                  <button type="button" className="bot-why-btn" onClick={returnTurnToBot}>
+                    ให้ {botName} ลองอีกครั้ง
+                  </button>
                 )}
 
                 {/* Why the bot has not moved. Shown while a retry is pending and
@@ -5731,6 +5930,8 @@ function App() {
                     playerName={game.players[game.activeSide] || game.activeSide}
                     disabled={!canAnalyzeTurn}
                     disabledReason={analysisDisabledReason}
+                    makeLocal={makeLocalAnalysis}
+                    localHint={localAnalysisHint}
                   />
                 )}
               </>

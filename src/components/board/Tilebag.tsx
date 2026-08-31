@@ -8,6 +8,8 @@ import {
   type TileInstance,
   type TokenType,
 } from "../../game";
+import type { TilebagListKind } from "../../gameplay/tilebag";
+import { TILEBAG_LIST_TEXT } from "../../uiText";
 
 type TileStack = {
   token: AmathToken;
@@ -43,10 +45,12 @@ function bucketFor(type: TokenType): CompositionGroup {
 
 function TilebagStats({
   tilebag,
+  listKind,
   selected,
   onSelect,
 }: {
   tilebag: TileInstance[];
+  listKind: TilebagListKind;
   selected: CompositionFilter;
   onSelect: (filter: CompositionFilter) => void;
 }) {
@@ -63,7 +67,10 @@ function TilebagStats({
   }, [tilebag]);
 
   return (
-    <div className="tilebag-stats" aria-label="Tilebag composition & filter">
+    <div
+      className="tilebag-stats"
+      aria-label={listKind === "unseen" ? TILEBAG_LIST_TEXT.ariaLabel : "Tilebag composition & filter"}
+    >
       {COMPOSITION_GROUPS.map((group) => {
         const count = counts[group];
         const pct = total > 0 ? Math.round((count / total) * 100) : 0;
@@ -92,11 +99,19 @@ function TilebagStats({
 export function Tilebag({
   tilebag,
   disabled,
+  /**
+   * What this list holds. The stacks below are the unseen pool — bag plus the
+   * opponent's rack — everywhere except the manual draw, where they are the real
+   * bag and every tile in them is pickable. The caption says which, because the
+   * count above the list does not always agree with it.
+   */
+  listKind,
   readOnly = false,
   onPick,
 }: {
   tilebag: TileInstance[];
   disabled: boolean;
+  listKind: TilebagListKind;
   readOnly?: boolean;
   onPick: (tile: TileInstance) => void;
 }) {
@@ -134,10 +149,14 @@ export function Tilebag({
   return (
     <>
       <TilebagStats
+        listKind={listKind}
         onSelect={setSelectedFilter}
         selected={selectedFilter}
         tilebag={tilebag}
       />
+      {listKind === "unseen" && (
+        <p className="tilebag-list-caption">{TILEBAG_LIST_TEXT.caption}</p>
+      )}
       <div
         aria-label={`${ariaLabel} · ${visibleTileCount} tiles`}
         className="tilebag-groups tilebag-stacks"

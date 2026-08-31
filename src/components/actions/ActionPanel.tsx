@@ -43,6 +43,24 @@ type ActionPanelProps = {
    * without moving the board at all.
    */
   insights?: ReactNode;
+  /**
+   * Engine work in progress, drawn IN PLACE OF the action picker.
+   *
+   * Not in `insights`, and the difference matters. `insights` sits above the
+   * panel heading and stacks; this replaces the Exchange/Pass row itself, which
+   * is what "the bot is thinking" and "your analysis is running" both mean for
+   * the player: those two buttons are not available right now, and here is why.
+   * Drawing the bar beside a pair of dead buttons would take more room and say
+   * less.
+   *
+   * Only consulted while `actionMode` is `none` — a draft in progress owns this
+   * slot, and a player mid-placement is not waiting on anything.
+   */
+  engineActivity?: ReactNode;
+  /** Replaces the heading's right-hand detail while `engineActivity` is up, so
+   *  the panel says whose turn it is rather than "Choose Action" on a turn
+   *  nobody can choose an action on. */
+  detailOverride?: string;
   activeRack: TileInstance[];
   actionMode: ActionMode;
   canChooseAction: boolean;
@@ -76,6 +94,8 @@ type ActionPanelProps = {
 
 export function ActionPanel({
   insights,
+  engineActivity,
+  detailOverride,
   activeRack,
   actionMode,
   canChooseAction,
@@ -111,17 +131,21 @@ export function ActionPanel({
       {insights && <div className="control-insights">{insights}</div>}
       <PanelHeading
         title={showViewPanel ? (reviewing ? "Replay" : "Live View") : "Actions"}
-        detail={getPanelDetail({
-          actionMode,
-          canEditRefill,
-          game,
-          readOnly,
-          refillNeeded,
-          replayIndex,
-          replayPhase,
-          replayTotalSteps,
-          reviewing,
-        })}
+        detail={
+          detailOverride && !showViewPanel && actionMode === "none"
+            ? detailOverride
+            : getPanelDetail({
+                actionMode,
+                canEditRefill,
+                game,
+                readOnly,
+                refillNeeded,
+                replayIndex,
+                replayPhase,
+                replayTotalSteps,
+                reviewing,
+              })
+        }
       />
       {showViewPanel ? (
         <ReplayDock
@@ -136,17 +160,19 @@ export function ActionPanel({
           onExit={onReplayExit}
         />
       ) : actionMode === "none" ? (
-        <ActionPicker
-          activeRackCount={activeRack.length}
-          canChooseAction={canChooseAction}
-          canEditRefill={canEditRefill}
-          canExchange={canExchange}
-          exchangeDisabledReason={exchangeDisabledReason}
-          refillNeeded={refillNeeded}
-          tileDrawMode={getTileDrawMode(game)}
-          onEditRefill={onEditRefill}
-          onStartAction={onStartAction}
-        />
+        (engineActivity ?? (
+          <ActionPicker
+            activeRackCount={activeRack.length}
+            canChooseAction={canChooseAction}
+            canEditRefill={canEditRefill}
+            canExchange={canExchange}
+            exchangeDisabledReason={exchangeDisabledReason}
+            refillNeeded={refillNeeded}
+            tileDrawMode={getTileDrawMode(game)}
+            onEditRefill={onEditRefill}
+            onStartAction={onStartAction}
+          />
+        ))
       ) : (
         <ActionDetails
           activeRack={activeRack}

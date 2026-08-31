@@ -1,4 +1,5 @@
 import type { ActionType, Phase, SlotType } from "./game";
+import type { TilebagCountKind } from "./gameplay/tilebag";
 
 export const TILE_GROUP_LABELS = {
   lightNumber: "Single Digits",
@@ -21,6 +22,32 @@ export const PHASE_LABELS: Record<Phase, string> = {
   choose_action: "Choose Action",
   perform_action: "Action Draft",
 };
+
+/**
+ * The heading over the tile count, chosen by what that count IS.
+ *
+ * Keyed off `TilebagView.kind` rather than off the game state, so every surface
+ * that renders the same number renders the same word about it. The count and
+ * the tile list below it measure different things (see `TILEBAG_LIST_TEXT`), and
+ * this names only the count.
+ */
+export const TILEBAG_COUNT_LABELS: Record<TilebagCountKind, string> = {
+  bag: "Tilebag",
+  unseen: "Unseen tiles",
+  "opponent-rack": "Opponent rack",
+};
+
+/**
+ * The list of tiles under the count is the unseen pool — bag plus the
+ * opponent's rack — in every branch that has an opponent, and it cannot be
+ * narrowed to the bag alone without handing the viewer the opponent's rack by
+ * subtraction. So it gets its own permanent caption instead of borrowing the
+ * count's heading.
+ */
+export const TILEBAG_LIST_TEXT = {
+  caption: "All unseen tiles · bag + opponent",
+  ariaLabel: "Unseen tiles composition & filter",
+} as const;
 
 export const SLOT_LABELS: Record<SlotType, string> = {
   px1: "",

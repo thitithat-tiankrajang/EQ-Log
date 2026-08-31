@@ -3,6 +3,7 @@ import type { BotResponse } from "../../bot/types";
 import {
   EngineApiError,
   fetchBotReasoning,
+  pageOfBotReasoning,
   type BotReasoningCandidate,
   type BotReasoningPage,
 } from "../../bot/engineApi";
@@ -18,13 +19,26 @@ import { useDialogBehavior } from "../ui/useDialogBehavior";
 // Not from the move. The bot-move response carries the move ALONE, so this
 // panel used to render an empty shell: a value of 0.00 nobody computed, "0
 // alternatives considered" about a search that had weighed dozens, and no
-// table at all. The ranking is held server-side with the completed search and
-// read here on demand, ONE PAGE AT A TIME — the report is dozens of rows with a
-// full value decomposition each, and paging is what keeps opening this panel a
-// small request instead of a large one.
+// table at all. The ranking is held with the completed search and read here on
+// demand, ONE PAGE AT A TIME — the report is dozens of rows with a full value
+// decomposition each, and paging is what keeps opening this panel a small
+// request instead of a large one.
 //
 // Pages already fetched are kept for the life of the panel, so stepping back
 // through the ranking costs nothing and re-reads nothing.
+//
+// ── two sources, one shape ───────────────────────────────────────────────────
+//
+// A Super move is searched on the player's own device, so the server never ran
+// that search and answers `reasoning_unavailable` for every one of them. That
+// was this panel's most visible failure in production: never a table, always the
+// retention sentence, for a report the device was holding the whole time.
+//
+// So the ranking comes from whichever side computed the move — `localReasoning`
+// on the response when it was this device, the reasoning endpoint when it was
+// the backend. `pageOfBotReasoning` serves the local one with the server's own
+// clamping, so everything below this line renders one shape and cannot tell the
+// two apart.
 
 const PAGE_SIZE = 6;
 
@@ -126,6 +140,8 @@ export function BotReasoningPanel({
   // server for something this panel is already holding.
   const cache = useRef(new Map<number, BotReasoningPage>());
   const revision = response.revision;
+  // Held by the device that searched. Its presence is what decides the source.
+  const localReport = response.localReasoning;
 
   useEffect(() => {
     const cached = cache.current.get(offset);
@@ -133,6 +149,17 @@ export function BotReasoningPanel({
       setPage(cached);
       setLoading(false);
       setFailure(null);
+      return;
+    }
+    if (localReport) {
+      // No request, no failure branch, no retention window: this report cannot
+      // have expired, because nothing but this tab was ever holding it.
+      const served = pageOfBotReasoning(localReport, { offset, limit: PAGE_SIZE });
+      cache.current.set(served.page.offset, served);
+      setPage(served);
+      setLoading(false);
+      setFailure(null);
+      if (served.page.offset !== offset) setOffset(served.page.offset);
       return;
     }
     const controller = new AbortController();
@@ -156,7 +183,7 @@ export function BotReasoningPanel({
         setLoading(false);
       });
     return () => controller.abort();
-  }, [gameId, revision, offset, attempt]);
+  }, [gameId, revision, offset, attempt, localReport]);
 
   const titleId = useId();
   const dialogRef = useDialogBehavior<HTMLDivElement>({ onClose });

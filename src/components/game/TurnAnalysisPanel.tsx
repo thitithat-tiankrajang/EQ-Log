@@ -1,5 +1,5 @@
 import { useId } from "react";
-import type { AnalysisCandidate, AnalysisResult } from "../../bot/engineApi";
+import { ANALYSIS_LEVEL_SAMPLES, type AnalysisCandidate, type AnalysisResult } from "../../bot/engineApi";
 import { useDialogBehavior } from "../ui/useDialogBehavior";
 
 // The player's own turn, analysed. Reuses the "why this move" panel's visual
@@ -20,8 +20,28 @@ const LEVEL_LABEL: Record<AnalysisResult["level"], string> = {
   quick: "เร็ว",
   normal: "ปกติ",
   deep: "ลึก",
-  max: "สูงสุด",
+  max: "สูงสุด (Super)",
 };
+
+/**
+ * Where these numbers came from, in one line.
+ *
+ * Worth saying because the same level can now run in two places under two
+ * different ceilings: on the device it runs its schedule to the end, and on the
+ * service a 330-second timeout can stop it partway. The sample count is written
+ * as a fraction of the level's full schedule so a truncated run reads as a
+ * truncated run rather than as a shorter level.
+ */
+function provenanceLine(analysis: AnalysisResult): string {
+  const { method, level } = analysis;
+  const samples = `${method.samples}/${ANALYSIS_LEVEL_SAMPLES[level]} samples`;
+  if (analysis.localEngine) {
+    return `คิดบนเครื่องนี้ · ${analysis.localEngine.threads} threads · ${samples}`;
+  }
+  return method.complete
+    ? `คิดบนเซิร์ฟเวอร์ · ${samples}`
+    : `คิดบนเซิร์ฟเวอร์ · ${samples} · ถูกตัดจบด้วยเวลา`;
+}
 
 /** Board coordinate as A-Math notation: column A–O, row 1–15 (center = H8). */
 function coordLabel(r: number, c: number): string {
@@ -87,6 +107,7 @@ export function TurnAnalysisPanel({
               ตาที่ {analysis.turnNumber} · ระดับ {LEVEL_LABEL[analysis.level]} ·{" "}
               {SOLVER_LABEL[method.solver]}
             </div>
+            <div className="bot-reason-sub analysis-provenance">{provenanceLine(analysis)}</div>
           </div>
           <button className="bot-reason-close" onClick={onClose} aria-label="ปิด">
             ✕

@@ -214,7 +214,11 @@ describe("leaving for another tab mid-analysis", () => {
       report({ phase: "sim", percent: 42, elapsedMs: 2_000, etaMs: 3_000, detail: "samples=2/4" });
       await Promise.resolve();
     });
-    await waitFor(() => expect(screen.getByText(/42%/)).toBeInTheDocument());
+    // Two matches, not one: the running bar is drawn in the action slot, and the
+    // shell renders that slot for both layouts (CSS hides the one that does not
+    // apply). Every other control in that slot — Exchange, Pass — is doubled the
+    // same way.
+    await waitFor(() => expect(screen.getAllByText(/42%/)).not.toHaveLength(0));
 
     // Away to another tab, and straight back.
     await switchTabAndReturn();
@@ -222,7 +226,7 @@ describe("leaving for another tab mid-analysis", () => {
     // The search never stopped, so the bar must still be here — and showing the
     // number it had reached, not a fresh 0%.
     expect(engineSessions.analysisFor(ROOM_ID, 5)).toBeDefined();
-    expect(screen.getByText(/42%/)).toBeInTheDocument();
+    expect(screen.getAllByText(/42%/)).not.toHaveLength(0);
     expect(screen.queryByRole("button", { name: /วิเคราะห์ตานี้/ })).not.toBeInTheDocument();
     // And no second search was started for a position already being searched.
     expect(requestAnalysis).toHaveBeenCalledTimes(1);
@@ -232,7 +236,7 @@ describe("leaving for another tab mid-analysis", () => {
       report({ phase: "sim", percent: 77, elapsedMs: 4_000, etaMs: 1_000, detail: "samples=3/4" });
       await Promise.resolve();
     });
-    await waitFor(() => expect(screen.getByText(/77%/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getAllByText(/77%/)).not.toHaveLength(0));
     view.unmount();
   });
 });

@@ -18,9 +18,45 @@ import {
 } from "../game";
 import { clearTileAssignment } from "./tiles";
 
+/**
+ * What `remainingCount` is actually counting.
+ *
+ * The number is not always the bag, and that is the whole reason this field
+ * exists. Near the end of a game the honest count of "tiles you cannot see"
+ * stops being derivable from the board alone and becomes the bag plus the
+ * opponent's rack — at which point a heading that still says "Tilebag" is
+ * telling the player something false about a number they are using to plan.
+ *
+ * The label follows THIS, never the game state directly, so every surface that
+ * shows the count says the same word about it.
+ */
+export type TilebagCountKind =
+  /** Tiles still in the physical bag. */
+  | "bag"
+  /** Bag + the opponent's rack: everything the viewer cannot see. */
+  | "unseen"
+  /** The bag is empty, so the unseen pool IS the opponent's rack. */
+  | "opponent-rack";
+
+/** What the `tiles` LIST holds, which is not always what the count counts. */
+export type TilebagListKind =
+  /** Exactly the tiles in the physical bag — safe to pick from. */
+  | "bag"
+  /** Bag + the opponent's rack. */
+  | "unseen";
+
 export type TilebagView = {
+  /**
+   * In any branch with a live opponent this is the unseen pool (bag + opponent
+   * rack), deliberately wider than `remainingCount`: a list narrowed to the real
+   * bag would reveal the opponent's rack by subtraction. `listKind` says which
+   * of the two it is, so the list can be labelled for what it holds instead of
+   * borrowing the count's heading.
+   */
   tiles: TileInstance[];
+  listKind: TilebagListKind;
   remainingCount: number;
+  kind: TilebagCountKind;
 };
 
 export type ExchangeRule = {
@@ -78,7 +114,9 @@ export function getTilebagView({
       // unseen pool. Once it reaches zero, this naturally becomes the
       // opponent rack and reveals it at the correct time.
       tiles: viewerSide ? [...game.tilebag, ...getRack(game, otherSide(viewerSide))] : game.tilebag,
+      listKind: viewerSide ? "unseen" : "bag",
       remainingCount: game.tilebag.length,
+      kind: "bag",
     };
   }
 
@@ -87,18 +125,22 @@ export function getTilebagView({
     const activeReturnedCount = getPendingExchangeReturnBySide(game)[game.activeSide].length;
     return {
       tiles: game.tilebag,
+      listKind: "bag",
       remainingCount: getRefillRemainingCount(
         game.tilebag.length,
         activeRackCount,
         activeReturnedCount,
       ),
+      kind: "bag",
     };
   }
 
   if (getGameMode(game) === "solo") {
     return {
       tiles: game.tilebag,
+      listKind: "bag",
       remainingCount: game.tilebag.length,
+      kind: "bag",
     };
   }
 
@@ -135,7 +177,9 @@ function getReplayTilebagView(game: GameState, selectedLog: TurnLog): TilebagVie
   if (getGameMode(game) === "solo") {
     return {
       tiles: selectedLog.tilebagBefore,
+      listKind: "bag",
       remainingCount: selectedLog.tilebagBefore.length,
+      kind: "bag",
     };
   }
   const logIndex = game.logs.findIndex((log) => log.id === selectedLog.id);
@@ -163,14 +207,20 @@ function getActionTilebagView({
     (total, row) => total + row.filter((cell) => cell !== null).length,
     0,
   );
-  const remainingCount =
-    tilebag.length < opponentEmptySlotCount
-      ? tilebag.length + opponentRack.length
-      : Math.max(ACTION_HIDDEN_TILE_BASE_COUNT - boardTileCount, 0);
+  // Two different quantities under one number, which is why the branch also
+  // decides the label. While the bag can still fill the opponent back up, both
+  // racks are effectively full and `84 − board` IS the bag. Once it cannot, the
+  // only honest count left is the whole unseen pool.
+  const pooled = tilebag.length < opponentEmptySlotCount;
+  const remainingCount = pooled
+    ? tilebag.length + opponentRack.length
+    : Math.max(ACTION_HIDDEN_TILE_BASE_COUNT - boardTileCount, 0);
 
   return {
     tiles: [...tilebag, ...opponentRack],
+    listKind: "unseen",
     remainingCount,
+    kind: pooled ? (tilebag.length === 0 ? "opponent-rack" : "unseen") : "bag",
   };
 }
 

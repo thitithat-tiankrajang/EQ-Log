@@ -1,6 +1,7 @@
 // Protocol types shared between the app, the bot worker, and the C++ engine
 // (see amath-engine/src/engine.hpp for the authoritative description).
 import type { BotDifficulty } from "../game";
+import type { BotReasoningReport } from "./engineApi";
 
 export type BotRequest = {
   board: Array<{ r: number; c: number; kind: string; token: string }>;
@@ -81,6 +82,16 @@ export type BotResponse = {
   /** Set when the DEVICE computed this move, naming the versions it used. The
    *  application step writes these onto the game as its pin. */
   localEngine?: { engineVersion: string; weightsVersion: string };
+  /**
+   * The whole ranking, carried in memory, when the DEVICE computed this move.
+   *
+   * The comment above `candidates` describes the BACKEND path, where the report
+   * is read back from the reasoning endpoint. A device-computed move has no
+   * server-side search to read back, so the "why this move" panel is served from
+   * here instead. Absent on every backend move, which is how the panel knows
+   * which of the two sources to use.
+   */
+  localReasoning?: BotReasoningReport;
   error?: string;
 };
 

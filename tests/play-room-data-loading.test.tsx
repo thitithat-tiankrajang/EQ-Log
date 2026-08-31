@@ -427,7 +427,9 @@ describe("play route data loading", () => {
 
     // The remembered percentage is still there — not deleted, not replaced by a
     // fresh "requesting", not 0%.
-    await waitFor(() => expect(view.getByText(/50%/)).toBeInTheDocument());
+    // `getAllBy`: the bar is drawn in the action slot, and the shell renders
+    // that slot once per layout (CSS hides the one that does not apply).
+    await waitFor(() => expect(view.getAllByText(/50%/)).not.toHaveLength(0));
     expect(
       JSON.parse(window.sessionStorage.getItem(`eq-lab:engine-session:v1:${ROOM_ID}`) ?? "[]"),
     ).toHaveLength(1);

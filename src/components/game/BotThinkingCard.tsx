@@ -1,5 +1,6 @@
 import type { EngineProgress } from "../../bot/engineApi";
 import type { EngineSessionStatus } from "../../engineSessions";
+import { EngineActivityBar } from "./EngineActivityBar";
 
 /**
  * An estimated wait, in the coarsest unit that still says something.
@@ -44,6 +45,7 @@ export function BotThinkingCard({
   state,
   botName,
   slowDevice,
+  variant = "panel",
 }: {
   /** A projection of the server-owned session. This component renders it; it
    *  never owns it, and unmounting it stops nothing. */
@@ -60,30 +62,25 @@ export function BotThinkingCard({
    * Champion facing the same bot, so the wait is explained rather than hidden.
    */
   slowDevice?: { estimatedP50Ms: number } | null;
+  /** Where it is being drawn. The mobile row has no space for the phase line
+   *  or the slow-device sentence; it keeps the percentage, which is the part
+   *  that answers "is it stuck?". */
+  variant?: "panel" | "mobile";
 }) {
   if (state.kind === "queued") {
     return (
-      <div
-        className="bot-thinking-card engine-activity-dock is-queued"
-        role="status"
-        aria-live="polite"
-        data-phase="queued"
-      >
-        <div className="bot-thinking-head">
-          <span className="bot-thinking-name">
-            <span className="bot-thinking-dot" aria-hidden="true" />
-            {botName} กำลังรอคิว
-          </span>
-          <span className="bot-thinking-phase">
-            {state.position !== null && state.position > 1
-              ? `รออีก ${state.position - 1} งานก่อนหน้า`
-              : "รอเครื่องว่าง"}
-          </span>
-        </div>
-        <div className="bot-thinking-track">
-          <div className="bot-thinking-fill is-indeterminate" />
-        </div>
-      </div>
+      <EngineActivityBar
+        kind="bot"
+        variant={variant}
+        tone="queued"
+        label={`${botName} กำลังรอคิว`}
+        meter={
+          state.position !== null && state.position > 1
+            ? `รออีก ${state.position - 1} งานก่อนหน้า`
+            : "รอเครื่องว่าง"
+        }
+        percent={null}
+      />
     );
   }
 
@@ -97,57 +94,48 @@ export function BotThinkingCard({
     : null;
 
   return (
-    <div
-      className={`bot-thinking-card engine-activity-dock${reconnecting ? " is-reconnecting" : ""}`}
-      role="status"
-      aria-live="polite"
-      data-phase={state.kind}
-    >
-      <div className="bot-thinking-head">
-        <span className="bot-thinking-name">
-          <span className="bot-thinking-dot" aria-hidden="true" />
-          {reconnecting ? `${botName} กำลังกลับไปคิดต่อ` : `${botName} กำลังคิด`}
-        </span>
-        <span className="bot-thinking-phase">
-          {reconnecting
-            ? "กำลังเชื่อมต่องานเดิม"
-            : progress
-              ? (PHASE_LABELS[progress.phase] ?? progress.phase)
-              : "กำลังเริ่มคำนวณ"}
-        </span>
-        {progress ? (
-          <span className="bot-thinking-eta">
-            <strong>{percent}%</strong>
-            {timing ? ` · ${timing}` : null}
-          </span>
-        ) : null}
-      </div>
-      <div className="bot-thinking-track">
-        {progress ? (
-          <div
-            className="bot-thinking-fill"
-            style={{ width: `${Math.max(0, Math.min(100, progress.percent))}%` }}
-          />
-        ) : (
-          // Indeterminate on purpose: the engine has not reported a percentage
-          // yet, and drawing 0% would be a number nobody produced.
-          <div className="bot-thinking-fill is-indeterminate" />
-        )}
-      </div>
-      {slowDevice ? (
-        // Not `aria-live`: the card around it already announces itself, and a
-        // second live region would read the same status twice.
-        //
-        // The order of the two clauses is deliberate. The strength guarantee
-        // comes FIRST, because a player who reads only the first half should
-        // come away knowing the bot is not weaker here — the wait is the thing
-        // being explained, not an apology for a degraded opponent.
-        <p className="bot-thinking-note">
-          Super คิดเต็มกำลังเท่ากันทุกเครื่อง — บนเครื่องนี้อาจใช้เวลาถึง{" "}
-          {formatWait(slowDevice.estimatedP50Ms)}ต่อตา
-          หากไม่อยากรอ สามารถเลือกบอทระดับอื่นที่คิดเร็วกว่าได้
-        </p>
-      ) : null}
-    </div>
+    <EngineActivityBar
+      kind="bot"
+      variant={variant}
+      tone={reconnecting ? "reconnecting" : "running"}
+      label={reconnecting ? `${botName} กำลังกลับไปคิดต่อ` : `${botName} กำลังคิด`}
+      phase={
+        reconnecting
+          ? "กำลังเชื่อมต่องานเดิม"
+          : progress
+            ? (PHASE_LABELS[progress.phase] ?? progress.phase)
+            : "กำลังเริ่มคำนวณ"
+      }
+      {...(progress
+        ? {
+            meter: (
+              <>
+                <strong>{percent}%</strong>
+                {timing ? ` · ${timing}` : null}
+              </>
+            ),
+          }
+        : {})}
+      percent={progress ? progress.percent : null}
+      {...(slowDevice && variant === "panel"
+        ? {
+            note: (
+              // Not `aria-live`: the card around it already announces itself, and
+              // a second live region would read the same status twice.
+              //
+              // The order of the two clauses is deliberate. The strength
+              // guarantee comes FIRST, because a player who reads only the first
+              // half should come away knowing the bot is not weaker here — the
+              // wait is the thing being explained, not an apology for a degraded
+              // opponent.
+              <p className="bot-thinking-note">
+                Super คิดเต็มกำลังเท่ากันทุกเครื่อง — บนเครื่องนี้อาจใช้เวลาถึง{" "}
+                {formatWait(slowDevice.estimatedP50Ms)}ต่อตา
+                หากไม่อยากรอ สามารถเลือกบอทระดับอื่นที่คิดเร็วกว่าได้
+              </p>
+            ),
+          }
+        : {})}
+    />
   );
 }

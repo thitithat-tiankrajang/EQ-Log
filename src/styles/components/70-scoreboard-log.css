@@ -1332,6 +1332,17 @@ button.turn-record-summary:hover {
   line-height: 1 !important;
 }
 
+/* The list below the count is the unseen pool (bag + opponent rack), which is
+   NOT what the heading above it counts. It says so rather than borrowing the
+   heading's word. */
+.tilebag-list-caption {
+  margin: -4px 0 8px;
+  color: var(--muted, #5a675f);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
 /* ---- Tilebag composition strip ---- */
 .tilebag-stats {
   display: grid;

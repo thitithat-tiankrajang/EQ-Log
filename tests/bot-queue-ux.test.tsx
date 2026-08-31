@@ -76,7 +76,7 @@ describe("the bot is running", () => {
 
     expect(screen.getByText(/Aether กำลังกลับไปคิดต่อ/)).toBeInTheDocument();
     expect(screen.getByText(/50%/)).toBeInTheDocument();
-    expect(container.querySelector(".bot-thinking-card")).toHaveClass("engine-activity-dock");
+    expect(container.querySelector(".bot-thinking-card")).toHaveClass("engine-activity");
     expect((container.querySelector(".bot-thinking-fill") as HTMLElement).style.width).toBe("50%");
   });
 

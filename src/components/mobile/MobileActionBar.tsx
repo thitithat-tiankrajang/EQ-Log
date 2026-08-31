@@ -9,6 +9,7 @@ import {
   Undo2,
   X,
 } from "lucide-react";
+import type { ReactNode } from "react";
 import type {
   ActionType,
   GameStatus,
@@ -20,6 +21,15 @@ import { RACK_SIZE } from "../../constants/gameRules";
 type ActionMode = "none" | ActionType;
 
 type MobileActionBarProps = {
+  /**
+   * Engine work in progress, drawn as the whole row in place of Exchange and
+   * Pass — the mobile half of the same decision `ActionPanel.engineActivity`
+   * makes. This dock is the ONLY control surface the mobile layout renders
+   * (`.right-rail` is `display: none`), so without this the player saw no
+   * percentage, no estimate and no cancel button, and reasonably concluded the
+   * engine had stopped working.
+   */
+  engineActivity?: ReactNode;
   actionMode: ActionMode;
   canChooseAction: boolean;
   canExchange: boolean;
@@ -56,6 +66,7 @@ type MobileActionBarProps = {
 // directly above the rack. Hidden on desktop via CSS (see 99-mobile-play.css).
 // One row, three zones max, every target ≥ 48px tall.
 export function MobileActionBar({
+  engineActivity,
   actionMode,
   canChooseAction,
   canExchange,
@@ -143,6 +154,14 @@ export function MobileActionBar({
       </div>
     );
   }
+
+  // Above "Watching live" and above the action buttons, below replay and the
+  // finished/draft states. A spectator has no controls to take over, and telling
+  // them the engine is working is more useful than telling them they are
+  // watching — which the board already says. A manual draw for the bot's rack
+  // still gets through: `engineActivity` is empty during a refill, which is the
+  // carve-out that keeps a legacy manual bot room unstickable.
+  if (engineActivity && actionMode === "none") return <>{engineActivity}</>;
 
   if (canEditRefill) {
     return (

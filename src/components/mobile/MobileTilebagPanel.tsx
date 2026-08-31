@@ -2,19 +2,26 @@ import { Package } from "lucide-react";
 import { useState } from "react";
 import { RACK_SIZE } from "../../constants/gameRules";
 import type { TileInstance } from "../../game";
+import type { TilebagCountKind, TilebagListKind } from "../../gameplay/tilebag";
+import { TILEBAG_COUNT_LABELS } from "../../uiText";
 import { Tile } from "../board/Tile";
 import { Tilebag } from "../board/Tilebag";
 import { useDraggableBottomSheet } from "./useDraggableBottomSheet";
 
 export function MobileTilebagPanel({
+  kind,
+  listKind,
   rackSlots,
   remainingCount,
   tiles,
 }: {
+  kind: TilebagCountKind;
+  listKind: TilebagListKind;
   rackSlots: (TileInstance | null)[];
   remainingCount: number;
   tiles: TileInstance[];
 }) {
+  const countLabel = TILEBAG_COUNT_LABELS[kind];
   const [open, setOpen] = useState(false);
   const sheet = useDraggableBottomSheet({
     active: open,
@@ -28,13 +35,13 @@ export function MobileTilebagPanel({
   return (
     <>
       <button
-        aria-label={`Open tilebag, ${remainingCount} tiles left`}
+        aria-label={`Open tilebag, ${remainingCount} in ${countLabel.toLowerCase()}`}
         className="mobile-tilebag-trigger"
         type="button"
         onClick={() => setOpen(true)}
       >
         <Package size={18} />
-        <span>Tilebag</span>
+        <span>{countLabel}</span>
         <strong>{remainingCount} tiles</strong>
       </button>
 
@@ -61,8 +68,14 @@ export function MobileTilebagPanel({
               <div aria-hidden="true" className="bag-sheet-grabber" />
               <header className="bag-sheet-head">
                 <div className="bag-sheet-title">
-                  <strong>Tilebag</strong>
-                  <span>{remainingCount} tiles left in the bag</span>
+                  <strong>{countLabel}</strong>
+                  <span>
+                    {kind === "bag"
+                      ? `${remainingCount} tiles left in the bag`
+                      : kind === "opponent-rack"
+                        ? `${remainingCount} tiles in the opponent's rack`
+                        : `${remainingCount} tiles you cannot see`}
+                  </span>
                 </div>
               </header>
             </div>
@@ -90,6 +103,7 @@ export function MobileTilebagPanel({
             <div className="bag-sheet-body mobile-tilebag-sheet-body">
               <Tilebag
                 disabled={false}
+                listKind={listKind}
                 readOnly
                 tilebag={tiles}
                 onPick={() => undefined}

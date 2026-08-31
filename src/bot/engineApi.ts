@@ -26,6 +26,19 @@ import { supabase } from "../supabaseClient";
 export const ANALYSIS_LEVELS = ["quick", "normal", "deep", "max"] as const;
 export type AnalysisLevel = (typeof ANALYSIS_LEVELS)[number];
 
+/**
+ * Opponent-rack samples each level asks for. Mirrors `ANALYSIS_LEVEL_CONFIG` in
+ * the service, and it is the DENOMINATOR the result badge reports against — a
+ * bare "142 samples" reads as though the level were 142 samples long, when it is
+ * a 160-sample level a timeout cut short.
+ */
+export const ANALYSIS_LEVEL_SAMPLES: Record<AnalysisLevel, number> = {
+  quick: 4,
+  normal: 12,
+  deep: 40,
+  max: 160,
+};
+
 export type EngineErrorCode =
   | "reasoning_unavailable"
   | "unconfigured"
@@ -341,6 +354,13 @@ export type BotMoveResult = {
    * able to state rather than infer.
    */
   localEngine?: { engineVersion: string; weightsVersion: string };
+  /**
+   * Present ONLY when this move was computed on the device, and never sent by
+   * the server — the backend keeps its report server-side and serves it from
+   * `GET /bot-move/reasoning` instead. A device-computed move has no such
+   * endpoint behind it, so its report travels with it.
+   */
+  localReasoning?: BotReasoningReport;
 };
 
 export function requestBotMove(
@@ -444,6 +464,66 @@ export type BotReasoningPage = {
 };
 
 /**
+ * The WHOLE ranking for one move, held on the device that computed it.
+ *
+ * A Super move is searched in the browser, so the server never ran that search
+ * and has nothing to serve the "why this move" panel — it answers
+ * `reasoning_unavailable` for every device-computed turn, which is exactly what
+ * it should say and exactly not what a player wants to read. The search already
+ * produces the same ranking the server would have held (`CLIENT_SUPER_TOP_N`
+ * matches the service's `BOT_REPORT_TOP_N`), so it is kept rather than dropped,
+ * and the panel pages it locally through `pageOfBotReasoning`.
+ *
+ * In memory only, for the life of the tab. The server's own copy is bounded and
+ * in-memory too; this is the same promise kept on the other side of the wire.
+ */
+export type BotReasoningReport = Omit<
+  BotReasoningPage,
+  "page" | "candidates" | "chosenIndex" | "chosen" | "runnerUp"
+> & {
+  /** Ranked by value, chosen move first among equals: the engine's own order. */
+  candidates: BotReasoningCandidate[];
+};
+
+/** Page size defaults, mirroring `REASONING_PAGE_*` in the service so a local
+ *  page and a served page are the same size for the same request. */
+const REASONING_PAGE_DEFAULT = 6;
+const REASONING_PAGE_MAX = 24;
+
+function clampPageNumber(value: number | undefined, fallback: number, min: number, max: number) {
+  if (value == null || !Number.isFinite(value)) return fallback;
+  return Math.min(max, Math.max(min, Math.floor(value)));
+}
+
+/**
+ * Serve one page out of a locally held report.
+ *
+ * A faithful copy of what `GET /bot-move/reasoning` does with the same numbers,
+ * clamping included, so the panel cannot tell a local page from a served one —
+ * and so a paging bug cannot exist on one path and not the other.
+ */
+export function pageOfBotReasoning(
+  report: BotReasoningReport,
+  options: { offset?: number; limit?: number } = {},
+): BotReasoningPage {
+  const ranked = report.candidates;
+  const offset = clampPageNumber(options.offset, 0, 0, Math.max(0, ranked.length));
+  const limit = clampPageNumber(options.limit, REASONING_PAGE_DEFAULT, 1, REASONING_PAGE_MAX);
+  const chosenIndex = ranked.findIndex((candidate) => candidate.chosen);
+
+  return {
+    ...report,
+    page: { offset, limit, total: ranked.length },
+    candidates: ranked.slice(offset, offset + limit),
+    chosenIndex: chosenIndex >= 0 ? chosenIndex : null,
+    ...(chosenIndex >= 0 ? { chosen: ranked[chosenIndex]! } : {}),
+    ...(ranked.length > 1
+      ? { runnerUp: ranked[chosenIndex === 0 || chosenIndex < 0 ? 1 : 0]! }
+      : {}),
+  };
+}
+
+/**
  * Read one page of the engine's reasoning for a bot move already on the board.
  *
  * Paged deliberately. The full ranking is dozens of rows with a value
@@ -534,6 +614,13 @@ export type AnalysisResult = {
   recommendation: AnalysisCandidate;
   alternatives: AnalysisCandidate[];
   summary: string;
+  /**
+   * Present ONLY when the search ran on this device, and never sent by the
+   * server. It is what lets the result say where its numbers came from: the two
+   * paths run the same schedule but not under the same ceiling — the service
+   * kills the top level at 330s, and a local run has no clock at all.
+   */
+  localEngine?: { engineVersion: string; weightsVersion: string; threads: number };
   method: {
     solver: "greedy" | "sim" | "endgame";
     samples: number;

@@ -9,6 +9,9 @@ import {
 import * as analysisCache from "../../analysisSessionCache";
 import * as engineDebug from "../../engineDebug";
 import * as engineSessions from "../../engineSessions";
+import type { LocalAnalysisContext } from "../../engineSessions";
+import { LOCAL_ANALYSIS_LEVEL } from "../../bot/localAnalysis";
+import { EngineActivityBar } from "./EngineActivityBar";
 import { TurnAnalysisPanel } from "./TurnAnalysisPanel";
 
 // The Analyze control and everything that can go wrong behind it.
@@ -41,15 +44,27 @@ const LEVEL_LABEL: Record<AnalysisLevel, string> = {
   quick: "เร็ว",
   normal: "ปกติ",
   deep: "ลึก",
-  max: "สูงสุด",
+  max: "สูงสุด (Super)",
 };
 
 const LEVEL_HINT: Record<AnalysisLevel, string> = {
   quick: "~5 วินาที",
   normal: "~15 วินาที",
   deep: "~45 วินาที",
-  max: "หลายนาที",
+  // Replaced by a measured estimate when the device runs this level itself —
+  // see `localHint`. This is the backend's wait, which is what a device that
+  // cannot run it locally will actually get.
+  max: "หลายนาที · บนเซิร์ฟเวอร์",
 };
+
+/** The coarsest unit that still says something. The estimate is a linear
+ *  extrapolation from a throughput benchmark; anything finer would be a
+ *  precision the model cannot support. */
+function formatWait(ms: number): string {
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 90) return `~${Math.max(1, seconds)} วินาที`;
+  return `~${Math.round(seconds / 60)} นาที`;
+}
 
 /** Failures the player can do something about, phrased as what happened rather
  *  than as an error code. Nothing here quotes the server: no status codes, no
@@ -99,6 +114,8 @@ export function TurnAnalysisLauncher({
   disabled,
   disabledReason,
   reconnectEpoch = 0,
+  makeLocal,
+  localHint,
 }: {
   /** The LIVE ROOM's id (`room_live.room_id`, this app's `activeRoomId`) — not
    *  `GameState.gameId`, which is a client-generated UUID the server has never
@@ -113,6 +130,18 @@ export function TurnAnalysisLauncher({
   /** Increments whenever the browser wakes from the background. The revision
    * may be unchanged, but the old SSE connection may no longer exist. */
   reconnectEpoch?: number;
+  /**
+   * Everything the device needs to run the top level itself, read at the moment
+   * the player presses it rather than at render.
+   *
+   * Read late on purpose: it carries the POSITION, and a position captured a
+   * render early is a position the search would be about by accident. `null`
+   * means this device cannot run it, and the level goes to the service.
+   */
+  makeLocal?: () => LocalAnalysisContext | null;
+  /** What the top level will cost on THIS machine — the measured estimate and
+   *  the number of threads it will use. Absent when the level is not local. */
+  localHint?: { estimatedMs: number; threads: number } | null;
 }) {
   const [open, setOpen] = useState(false);
   const [level, setLevel] = useState<AnalysisLevel>("quick");
@@ -196,16 +225,19 @@ export function TurnAnalysisLauncher({
       setLevel(chosen);
       setOpen(false);
       setResult(null);
+      const local = chosen === LOCAL_ANALYSIS_LEVEL ? (makeLocal?.() ?? null) : null;
       // Fire and forget: the store owns the request from here, so navigating
-      // away mid-search costs nothing.
-      void engineSessions.startAnalysis({ roomId, revision, level: chosen });
+      // away mid-search costs nothing — except a LOCAL search, which lives in
+      // this tab's worker and is the one thing the copy below warns about.
+      void engineSessions.startAnalysis({
+        roomId,
+        revision,
+        level: chosen,
+        ...(local ? { local } : {}),
+      });
     },
-    [roomId, revision],
+    [roomId, revision, makeLocal],
   );
-
-  const cancel = useCallback(() => {
-    if (session) engineSessions.cancel(session.key);
-  }, [session]);
 
   // A result is only ever rendered for the revision it was computed at. Two
   // checks say the same thing on purpose: one when it arrives, one when it is
@@ -216,65 +248,11 @@ export function TurnAnalysisLauncher({
   const failure =
     status?.kind === "failed" ? messageFor(new EngineApiError(status.code, status.message)) : null;
 
-  if (inFlight) {
-    // Waiting for a CPU is not analysing, and saying so is the whole point of
-    // this branch: a queued request drawn as a stalled progress bar looks
-    // broken, and looking broken is how a working server loses a user.
-    const queued = status.kind === "queued" ? status : null;
-    const reconnecting = status.kind === "reconnecting";
-    const progress = session?.progress ?? null;
-    const percent = progress ? Math.round(Math.max(0, Math.min(100, progress.percent))) : null;
-    const eta = progress && progress.etaMs > 500 ? Math.ceil(progress.etaMs / 1000) : null;
-    const runningLevel = session?.level ?? level;
-    return (
-      <div
-        className={`analysis-running engine-activity-dock${queued ? " is-queued" : ""}${reconnecting ? " is-reconnecting" : ""}`}
-        role="status"
-        aria-live="polite"
-        data-phase={status.kind}
-      >
-        <div className="analysis-running-head">
-          <span className="analysis-running-label">
-            <span className="bot-thinking-dot" aria-hidden="true" />
-            {queued
-              ? `กำลังรอคิววิเคราะห์ (${LEVEL_LABEL[runningLevel]})`
-              : reconnecting
-                ? "กำลังเชื่อมต่องานวิเคราะห์เดิม"
-                : `กำลังวิเคราะห์ (${LEVEL_LABEL[runningLevel]})`}
-          </span>
-          <span className="analysis-running-eta">
-            {queued
-              ? // Only shown when the server gave a place in line it stands
-                // behind. Never a fabricated position, and never a time — a
-                // bot turn may legitimately overtake this.
-                queued.position !== null && queued.position > 1
-                ? `คิวที่ ${queued.position}`
-                : "รอเครื่องว่าง"
-              : progress
-                ? `${percent}% · ${eta !== null ? `~${eta}s` : `${(progress.elapsedMs / 1000).toFixed(1)}s`}`
-                : reconnecting
-                  ? "เรียกสถานะล่าสุด…"
-                  : "เริ่มต้น…"}
-          </span>
-          <button type="button" className="analysis-cancel" onClick={cancel}>
-            ยกเลิก
-          </button>
-        </div>
-        <div className="bot-thinking-track">
-          {progress ? (
-            <div
-              className="bot-thinking-fill"
-              style={{ width: `${Math.max(0, Math.min(100, progress.percent))}%` }}
-            />
-          ) : (
-            // Indeterminate: nothing has produced a percentage yet, so nothing
-            // here claims one.
-            <div className="bot-thinking-fill is-indeterminate" />
-          )}
-        </div>
-      </div>
-    );
-  }
+  // The running bar is NOT drawn here. It lives in the action slot, where it
+  // replaces Exchange and Pass — see `TurnAnalysisBar` below. While a search is
+  // in flight this component renders nothing at all, so there is no second
+  // Analyze button next to the bar for a player to press again.
+  if (inFlight) return null;
 
   return (
     <>
@@ -306,10 +284,23 @@ export function TurnAnalysisLauncher({
               onClick={() => analyze(option)}
             >
               <span className="analysis-level-name">{LEVEL_LABEL[option]}</span>
-              <span className="analysis-level-hint">{LEVEL_HINT[option]}</span>
+              <span className="analysis-level-hint">
+                {option === LOCAL_ANALYSIS_LEVEL && localHint
+                  ? `${formatWait(localHint.estimatedMs)} · ${localHint.threads} threads`
+                  : LEVEL_HINT[option]}
+              </span>
             </button>
           ))}
         </div>
+      )}
+
+      {open && !disabled && localHint && (
+        // The honest cost of moving this level onto the device. A server-side
+        // search is rediscoverable from any tab; this one lives in this tab's
+        // worker and dies with it.
+        <p className="analysis-local-note">
+          งานนี้คิดบนเครื่องนี้ — ปิดหรือรีเฟรชหน้านี้แล้วต้องเริ่มใหม่
+        </p>
       )}
 
       {failure && (
@@ -326,5 +317,83 @@ export function TurnAnalysisLauncher({
         />
       )}
     </>
+  );
+}
+
+/**
+ * The running search, drawn in the ACTION slot in place of Exchange and Pass.
+ *
+ * Split out of the launcher deliberately. The launcher belongs with the other
+ * per-turn insights; the bar belongs where the player's attention and their
+ * next tap already are, and on mobile that is the only slot the layout renders
+ * at all. Both read the same session out of `engineSessions`, which lives
+ * outside React, so splitting them costs no shared state and cannot desync:
+ * there is one search and one store row behind both.
+ *
+ * Cancelling is the only way back to Exchange and Pass while this is up. That
+ * is the point of putting it here rather than beside them.
+ */
+export function TurnAnalysisBar({
+  roomId,
+  revision,
+  variant = "panel",
+}: {
+  roomId: string;
+  revision: number;
+  variant?: "panel" | "mobile";
+}) {
+  useSyncExternalStore(
+    engineSessions.subscribe,
+    engineSessions.getVersion,
+    engineSessions.getVersion,
+  );
+  const session = engineSessions.analysisFor(roomId, revision);
+  const status = session?.status;
+  const cancel = useCallback(() => {
+    if (session) engineSessions.cancel(session.key);
+  }, [session]);
+
+  if (!status || status.kind === "completed" || status.kind === "failed") return null;
+
+  // Waiting for a CPU is not analysing, and saying so is the whole point of
+  // this branch: a queued request drawn as a stalled progress bar looks broken,
+  // and looking broken is how a working server loses a user.
+  const queued = status.kind === "queued" ? status : null;
+  const reconnecting = status.kind === "reconnecting";
+  const progress = session?.progress ?? null;
+  const percent = progress ? Math.round(Math.max(0, Math.min(100, progress.percent))) : null;
+  const eta = progress && progress.etaMs > 500 ? Math.ceil(progress.etaMs / 1000) : null;
+  const level = session?.level ?? "quick";
+
+  return (
+    <EngineActivityBar
+      kind="analysis"
+      variant={variant}
+      tone={queued ? "queued" : reconnecting ? "reconnecting" : "running"}
+      label={
+        queued
+          ? `กำลังรอคิววิเคราะห์ (${LEVEL_LABEL[level]})`
+          : reconnecting
+            ? "กำลังเชื่อมต่องานวิเคราะห์เดิม"
+            : `กำลังวิเคราะห์ (${LEVEL_LABEL[level]})`
+      }
+      meter={
+        queued
+          ? // Only shown when the server gave a place in line it stands behind.
+            // Never a fabricated position, and never a time — a bot turn may
+            // legitimately overtake this.
+            queued.position !== null && queued.position > 1
+            ? `คิวที่ ${queued.position}`
+            : "รอเครื่องว่าง"
+          : progress
+            ? `${percent}% · ${eta !== null ? `~${eta}s` : `${(progress.elapsedMs / 1000).toFixed(1)}s`}`
+            : reconnecting
+              ? "เรียกสถานะล่าสุด…"
+              : "เริ่มต้น…"
+      }
+      percent={progress ? progress.percent : null}
+      cancelLabel="ยกเลิก"
+      onCancel={cancel}
+    />
   );
 }

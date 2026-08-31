@@ -300,6 +300,41 @@ export async function runClientSuper(options: {
       engineVersion: config.engineVersion,
       weightsVersion: config.weightsVersion,
     },
+    // The ranking this search already produced, kept rather than dropped.
+    //
+    // It used to be discarded here, which is why the "why this move" panel was
+    // empty for EVERY Super turn: it asks the backend, and the backend never ran
+    // this search. The engine was asked for `CLIENT_SUPER_TOP_N` alternatives
+    // for exactly this purpose, so throwing them away paid the cost of the wider
+    // report and kept none of the benefit.
+    ...(response.candidates && response.candidates.length > 0
+      ? {
+          localReasoning: {
+            gameId: options.roomId,
+            revision: options.revision,
+            side: botSide,
+            difficulty: "super",
+            solver: response.solver,
+            endgameSolved: response.endgameSolved,
+            ...(response.expectedFinalDiff != null
+              ? { expectedFinalDiff: response.expectedFinalDiff }
+              : {}),
+            score: response.score,
+            equity: response.equity,
+            stats: {
+              moves: response.stats.moves,
+              nodes: response.stats.nodes,
+              elapsedMs: Math.round(response.stats.elapsedMs),
+              candidates: response.stats.candidates,
+              samples: response.stats.samples,
+              ...(response.stats.genCalls != null
+                ? { genCalls: response.stats.genCalls }
+                : {}),
+            },
+            candidates: response.candidates,
+          },
+        }
+      : {}),
   };
 
   return {

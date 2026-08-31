@@ -115,11 +115,33 @@ export type SuperRequestOptions = {
   topN: number;
 };
 
-export function buildSuperRequest(
+/**
+ * One position for ONE side, with the other side present only as a count.
+ *
+ * Shared by the bot's own turn and by turn analysis, and shared deliberately:
+ * they are the same position described to the same engine, and the only thing
+ * that differs is whose rack is being reasoned from. Two adapters would be two
+ * chances to disagree about the board, the bag or the exchange rule.
+ *
+ * **The one invariant worth stating out loud:** `rack` is the analysed side's
+ * and nothing else ever leaves this function carrying a tile. The opponent is an
+ * integer. For the bot that is bookkeeping — a bot room's client holds both
+ * racks anyway, and always did. For ANALYSIS it is the whole guarantee: the
+ * client also holds the opponent's rack, and a request built carelessly would
+ * quietly hand the player an engine that can see their opponent's tiles.
+ * `tests/analysis-request.test.ts` holds this line.
+ */
+function buildRequestForSide(
   game: GameState,
-  options: SuperRequestOptions,
+  side: Side,
+  options: {
+    roomId: string;
+    revision: number;
+    sampleCap?: number | null;
+    weights: Record<string, unknown> | undefined;
+    topN: number;
+  },
 ): SuperEngineRequest {
-  const botSide: Side = game.botSide ?? "B";
   const board: SuperEngineRequest["board"] = [];
   for (let row = 0; row < game.board.length; row += 1) {
     const cells = game.board[row]!;
@@ -136,11 +158,11 @@ export function buildSuperRequest(
 
   return {
     board,
-    rack: getRack(game, botSide).map((tile) => tile.token as string),
+    rack: getRack(game, side).map((tile) => tile.token as string),
     bagCount: game.tilebag.length + pendingReturns,
-    oppRackCount: getRack(game, otherSide(botSide)).length,
-    myScore: game.scores[botSide],
-    oppScore: game.scores[otherSide(botSide)],
+    oppRackCount: getRack(game, otherSide(side)).length,
+    myScore: game.scores[side],
+    oppScore: game.scores[otherSide(side)],
     noScoreStreak: trailingNoScoreStreak(game),
     exchangeAllowed: getExchangeRule(game).allowed,
     difficulty: "super",
@@ -157,4 +179,41 @@ export function buildSuperRequest(
       ? { weights: options.weights }
       : {}),
   };
+}
+
+export function buildSuperRequest(
+  game: GameState,
+  options: SuperRequestOptions,
+): SuperEngineRequest {
+  return buildRequestForSide(game, game.botSide ?? "B", options);
+}
+
+/**
+ * The same position, analysed from the PLAYER'S side.
+ *
+ * No `sampleCap`, ever, and that is the difference between this and the bot's
+ * request rather than an omission. The adaptive budget exists to keep GAMEPLAY
+ * latency tolerable on a slow device; an analysis is work the player asked for,
+ * waits for knowingly and can cancel. Capping it would make "สูงสุด" mean a
+ * different number of samples on different machines — a level that cannot be
+ * compared with itself, which is exactly why analysis levels are bounded by
+ * samples and not by a clock in the first place.
+ */
+export function buildAnalysisRequest(
+  game: GameState,
+  options: {
+    /** The side being analysed — the human on move, never the bot. */
+    side: Side;
+    roomId: string;
+    revision: number;
+    weights: Record<string, unknown> | undefined;
+    topN: number;
+  },
+): SuperEngineRequest {
+  return buildRequestForSide(game, options.side, {
+    roomId: options.roomId,
+    revision: options.revision,
+    weights: options.weights,
+    topN: options.topN,
+  });
 }

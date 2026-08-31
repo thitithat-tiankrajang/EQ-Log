@@ -72,6 +72,10 @@ export function toBotResponse(result: BotMoveResult): BotResponse {
     // actually ran can reach the game record, and a pin written from anywhere
     // else would be a claim about a turn rather than a fact from it.
     ...(result.localEngine ? { localEngine: result.localEngine } : {}),
+    // Same reason as the pin: this is the only copy that exists for a
+    // device-computed move, and dropping it here is what made the "why this
+    // move" panel say the server had forgotten a search it never ran.
+    ...(result.localReasoning ? { localReasoning: result.localReasoning } : {}),
   };
 }
 
@@ -94,6 +98,20 @@ export function toBotResponse(result: BotMoveResult): BotResponse {
  * question, because the question itself was wrong.
  */
 const BOT_RETRY_DELAYS_MS = [1_500, 4_000, 8_000] as const;
+
+/**
+ * Consecutive failures on one turn before the player is offered the turn.
+ *
+ * The retry loop above still never stops on its own. What changes at this count
+ * is only that a way out APPEARS: the human used to have one implicitly (they
+ * could always play the bot's move) and no longer does, so a wedged engine would
+ * otherwise mean a room nobody can advance.
+ *
+ * Three, matching `BOT_RETRY_DELAYS_MS`: by then the schedule has been walked
+ * end to end and about thirteen seconds have passed, which is long enough that
+ * the trouble is not a blip and short enough that nobody has given up yet.
+ */
+export const BOT_ESCAPE_AFTER_FAILURES = 3;
 /** Ceiling on a server-supplied wait, so a wrong or hostile number cannot park
  *  the bot for an hour. Above this we fall back to the schedule and keep
  *  asking. */

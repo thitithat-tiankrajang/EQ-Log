@@ -486,6 +486,63 @@
     min-height: 50px;
   }
 
+  /* Engine activity takes the whole row. The progress is a hairline across the
+     foot rather than a third zone: the row has no width to spare and a bar does
+     not need any. */
+  .mobile-action-bar.is-engine-activity {
+    position: relative;
+    /* The dock centres its rows and lets them size to content, which suits a
+       row of buttons and not this: a status that occupies a third of the dock
+       reads as a chip, and the progress hairline under it would span a third of
+       the width it is measuring. */
+    justify-self: stretch;
+    width: 100%;
+    padding-bottom: 5px;
+  }
+
+  .mobile-action-bar.is-engine-activity .mab-status {
+    background: rgba(59, 130, 246, 0.1);
+  }
+
+  .mobile-action-bar.is-engine-activity.is-analysis .mab-status {
+    background: rgba(139, 92, 246, 0.12);
+  }
+
+  .mobile-action-bar.is-engine-activity.is-queued .mab-status {
+    background: rgba(100, 116, 139, 0.12);
+  }
+
+  .mobile-action-bar.is-engine-activity .mab-btn {
+    flex: 0 0 auto;
+    min-width: 96px;
+  }
+
+  .mab-progress {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 4px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(23, 33, 43, 0.1);
+  }
+
+  .mab-progress-fill {
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    transition: width 0.25s ease;
+    min-width: 4%;
+  }
+
+  /* Nothing has reported a percentage yet, so none is drawn. */
+  .mab-progress-fill.is-indeterminate {
+    width: 32%;
+    transition: none;
+    animation: bot-thinking-slide 1.4s ease-in-out infinite;
+  }
+
   .mab-btn {
     display: inline-flex;
     flex: 1 1 0;

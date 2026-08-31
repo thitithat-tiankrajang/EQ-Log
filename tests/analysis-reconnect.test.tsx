@@ -9,6 +9,7 @@
 // Both are driven off the session cache, which outlives the component the way it
 // must in the app; each test clears it so one cannot leak into the next.
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import type { ComponentProps } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { attachAnalysis, listJobs, requestAnalysis } = vi.hoisted(() => ({
@@ -26,9 +27,26 @@ import * as analysisCache from "../src/analysisSessionCache";
 import * as engineSessions from "../src/engineSessions";
 import { EngineApiError } from "../src/bot/engineApi";
 import type { AnalysisLevel, AnalysisResult, SseOutcome } from "../src/bot/engineApi";
-import { TurnAnalysisLauncher } from "../src/components/game/TurnAnalysisLauncher";
+import { TurnAnalysisBar, TurnAnalysisLauncher } from "../src/components/game/TurnAnalysisLauncher";
 
 const ROOM_ID = "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa";
+
+/**
+ * The launcher and the running bar, composed the way Play composes them.
+ *
+ * They are two components now: the launcher sits with the other per-turn
+ * insights, and the running bar is drawn in the ACTION slot, in place of
+ * Exchange and Pass. Both read the same row out of `engineSessions`, so this
+ * wrapper is the whole of what the shell does to put them together.
+ */
+function AnalysisSurface(props: ComponentProps<typeof TurnAnalysisLauncher>) {
+  return (
+    <>
+      <TurnAnalysisLauncher {...props} />
+      <TurnAnalysisBar roomId={props.roomId} revision={props.revision} />
+    </>
+  );
+}
 
 function analysisAt(revision: number): AnalysisResult {
   return {
@@ -102,18 +120,14 @@ function runningJob(level: AnalysisLevel = "quick", percent?: number) {
 describe("returning to a finished analysis", () => {
   it("offers a remembered result for this revision without pressing Analyze", () => {
     analysisCache.rememberResult(ROOM_ID, analysisAt(7));
-    render(
-      <TurnAnalysisLauncher roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />,
-    );
+    render(<AnalysisSurface roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />);
     // The "see latest result" affordance appears from the seed alone.
     expect(screen.getByRole("button", { name: /ดูผลล่าสุด/ })).toBeInTheDocument();
   });
 
   it("ignores a remembered result from a revision the game has left", () => {
     analysisCache.rememberResult(ROOM_ID, analysisAt(7));
-    render(
-      <TurnAnalysisLauncher roomId={ROOM_ID} revision={8} playerName="Player" disabled={false} />,
-    );
+    render(<AnalysisSurface roomId={ROOM_ID} revision={8} playerName="Player" disabled={false} />);
     expect(screen.queryByRole("button", { name: /ดูผลล่าสุด/ })).not.toBeInTheDocument();
   });
 });
@@ -129,7 +143,7 @@ describe("returning to a running analysis", () => {
     attachAnalysis.mockImplementation(() => new Promise(() => undefined));
 
     const view = render(
-      <TurnAnalysisLauncher roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />,
+      <AnalysisSurface roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />,
     );
 
     await waitFor(() => expect(attachAnalysis).toHaveBeenCalledTimes(1));
@@ -180,7 +194,7 @@ describe("returning to a running analysis", () => {
     attachAnalysis.mockImplementation(() => new Promise(() => undefined));
 
     const view = render(
-      <TurnAnalysisLauncher roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />,
+      <AnalysisSurface roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />,
     );
 
     await waitFor(() => expect(attachAnalysis).toHaveBeenCalledTimes(1));
@@ -227,9 +241,7 @@ describe("returning to a running analysis", () => {
     );
     attachAnalysis.mockResolvedValue({ kind: "idle" } satisfies SseOutcome<AnalysisResult>);
 
-    render(
-      <TurnAnalysisLauncher roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />,
-    );
+    render(<AnalysisSurface roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />);
 
     await waitFor(() =>
       expect(screen.getByRole("button", { name: /วิเคราะห์ตานี้/ })).toBeInTheDocument(),
@@ -260,7 +272,7 @@ describe("returning to a running analysis", () => {
     );
 
     const view = render(
-      <TurnAnalysisLauncher roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />,
+      <AnalysisSurface roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />,
     );
     await waitFor(() => expect(attachAnalysis).toHaveBeenCalledTimes(1));
     report({ phase: "sim", percent: 20, elapsedMs: 1_000, etaMs: 4_000, detail: "samples=1/4" });
@@ -271,9 +283,7 @@ describe("returning to a running analysis", () => {
     report({ phase: "sim", percent: 71, elapsedMs: 4_000, etaMs: 1_000, detail: "samples=3/4" });
 
     // Come back.
-    render(
-      <TurnAnalysisLauncher roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />,
-    );
+    render(<AnalysisSurface roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />);
     // The percentage that was reached while away, on the first frame. Not 0%,
     // not "reconnecting", and no second attach.
     expect(screen.getByText(/71%/)).toBeInTheDocument();
@@ -291,7 +301,7 @@ describe("returning to a running analysis", () => {
     );
 
     const view = render(
-      <TurnAnalysisLauncher roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />,
+      <AnalysisSurface roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />,
     );
     await waitFor(() => expect(attachAnalysis).toHaveBeenCalledTimes(1));
 
@@ -299,9 +309,7 @@ describe("returning to a running analysis", () => {
     finish({ kind: "result", result: analysisAt(7) });
     await Promise.resolve();
 
-    render(
-      <TurnAnalysisLauncher roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />,
-    );
+    render(<AnalysisSurface roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />);
     await waitFor(() => expect(screen.getByText("A summary.")).toBeInTheDocument());
   });
 
@@ -314,9 +322,7 @@ describe("returning to a running analysis", () => {
       },
     );
 
-    render(
-      <TurnAnalysisLauncher roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />,
-    );
+    render(<AnalysisSurface roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />);
 
     // It reconnected rather than starting a new search.
     await waitFor(() => expect(attachAnalysis).toHaveBeenCalledTimes(1));
@@ -357,19 +363,19 @@ describe("returning to a running analysis", () => {
     report({ phase: "sim", percent: 42, elapsedMs: 1_000, etaMs: 1_000, detail: "samples=2/4" });
 
     const view = render(
-      <TurnAnalysisLauncher roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />,
+      <AnalysisSurface roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />,
     );
     await waitFor(() => expect(screen.getByText(/42%/)).toBeInTheDocument());
 
     // Leave, and come back onto a seed that lags by one.
     view.unmount();
     const back = render(
-      <TurnAnalysisLauncher roomId={ROOM_ID} revision={6} playerName="Player" disabled={false} />,
+      <AnalysisSurface roomId={ROOM_ID} revision={6} playerName="Player" disabled={false} />,
     );
     await Promise.resolve();
     // Reconcile corrects the revision.
     back.rerender(
-      <TurnAnalysisLauncher roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />,
+      <AnalysisSurface roomId={ROOM_ID} revision={7} playerName="Player" disabled={false} />,
     );
 
     expect(engineSessions.analysisFor(ROOM_ID, 7)).toBeDefined();
@@ -400,7 +406,7 @@ describe("returning to a running analysis", () => {
     );
     void engineSessions.startAnalysis({ roomId: ROOM_ID, revision: 7, level: "quick" });
     const view = render(
-      <TurnAnalysisLauncher
+      <AnalysisSurface
         roomId={ROOM_ID}
         revision={7}
         playerName="Player"
@@ -419,7 +425,7 @@ describe("returning to a running analysis", () => {
     listJobs.mockResolvedValue(runningJob("quick", 60));
     attachAnalysis.mockImplementation(() => new Promise(() => undefined));
     view.rerender(
-      <TurnAnalysisLauncher
+      <AnalysisSurface
         roomId={ROOM_ID}
         revision={7}
         playerName="Player"
@@ -442,7 +448,7 @@ describe("returning to a running analysis", () => {
     );
     void engineSessions.startAnalysis({ roomId: ROOM_ID, revision: 7, level: "quick" });
     const view = render(
-      <TurnAnalysisLauncher
+      <AnalysisSurface
         roomId={ROOM_ID}
         revision={7}
         playerName="Player"
@@ -454,7 +460,7 @@ describe("returning to a running analysis", () => {
 
     listJobs.mockResolvedValue(runningJob("quick", 60));
     view.rerender(
-      <TurnAnalysisLauncher
+      <AnalysisSurface
         roomId={ROOM_ID}
         revision={7}
         playerName="Player"
@@ -471,9 +477,7 @@ describe("returning to a running analysis", () => {
     // Discovery is revision-scoped on the server, so a job for revision 7 is
     // simply not among the answers for revision 9.
     listJobs.mockResolvedValue([]);
-    render(
-      <TurnAnalysisLauncher roomId={ROOM_ID} revision={9} playerName="Player" disabled={false} />,
-    );
+    render(<AnalysisSurface roomId={ROOM_ID} revision={9} playerName="Player" disabled={false} />);
     await waitFor(() => expect(listJobs).toHaveBeenCalled());
     expect(listJobs.mock.calls[0][0]).toMatchObject({ revision: 9 });
     expect(attachAnalysis).not.toHaveBeenCalled();
