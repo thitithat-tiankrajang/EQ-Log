@@ -1,0 +1,2 @@
+[functions.ranked]
+entrypoint = './functions/ranked/index.js'

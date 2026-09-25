@@ -44,7 +44,7 @@ create table if not exists public.study_positions (
   bag_count      int not null check (bag_count >= 0),
 
   -- What was asked, and what came back.
-  level          text not null check (level in ('medium', 'hard', 'max', 'super')),
+  level          text not null check (level in ('medium', 'hard', 'max', 'super', 'stage5b64')),
   summary        text not null default '',
   -- { solver, samples, legalMoves, candidatesEvaluated, nodes, elapsedMs, proven, complete }
   method         jsonb not null default '{}'::jsonb,
