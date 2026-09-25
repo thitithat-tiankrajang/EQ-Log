@@ -1,0 +1,1049 @@
+/* ============================================================================
+   Branching: the quick half in the turn log, and the Turn Log Map.
+
+   Play's own vocabulary throughout — flat surfaces, thin borders, side A red and
+   side B blue, the one accent — so the fork badge and the map read as part of the
+   board rather than a tool bolted onto it. Loaded last in Play's layer, and scoped
+   to classes that exist only for branching, so nothing here restyles the board.
+   ============================================================================ */
+
+/* ── Turn log heading: the map, one tap away ─────────────────────────────── */
+.panel-heading.has-actions {
+  gap: 8px;
+}
+
+.panel-heading.has-actions > span {
+  margin-left: auto;
+}
+
+.log-map-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  border: 1px solid var(--border, #dadce0);
+  border-radius: 6px;
+  background: var(--surface-solid, #fff);
+  color: var(--text, #3c4043);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.log-map-button:hover {
+  border-color: var(--accent, #3157c8);
+  color: var(--accent, #3157c8);
+}
+
+.log-map-button:focus-visible {
+  outline: 2px solid var(--focus-ring, #7394f5);
+  outline-offset: 1px;
+}
+
+.log-map-button.has-lines {
+  border-color: color-mix(in srgb, var(--accent, #3157c8) 45%, var(--border, #dadce0));
+  color: var(--accent, #3157c8);
+}
+
+.log-map-count {
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: var(--accent, #3157c8);
+  color: #fff;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+}
+
+.log-map-loading {
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--accent-soft, #e9efff);
+  border-top-color: var(--accent, #3157c8);
+  border-radius: 50%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .log-map-loading {
+    animation: tl-spin 0.8s linear infinite;
+  }
+}
+
+@keyframes tl-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ── A row where another move was tried ──────────────────────────────────── */
+.turn-record-row {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+
+.turn-record-row > .turn-record-summary {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.trs-fork {
+  flex: 0 0 auto;
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+  margin-right: 6px;
+  padding: 0 7px;
+  border: 1px solid color-mix(in srgb, var(--accent, #3157c8) 35%, var(--border, #dadce0));
+  border-radius: 999px;
+  background: var(--accent-soft, #e9efff);
+  color: var(--accent-strong, #2446aa);
+  font-size: 11px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.trs-fork:hover {
+  border-color: var(--accent, #3157c8);
+}
+
+.trs-fork[aria-expanded="true"] {
+  border-color: var(--accent, #3157c8);
+  background: var(--accent, #3157c8);
+  color: #fff;
+}
+
+.trs-fork:focus-visible,
+.fork-option:focus-visible,
+.trc-toggle:focus-visible {
+  outline: 2px solid var(--focus-ring, #7394f5);
+  outline-offset: 1px;
+}
+
+/* The alternatives at one point, opened in place under the row. */
+.fork-options {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding: 4px 8px 8px;
+  border-top: 1px dashed var(--border, #dadce0);
+  list-style: none;
+}
+
+.fork-option {
+  all: unset;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border, #dadce0);
+  border-radius: 6px;
+  background: var(--surface-solid, #fff);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.fork-option:hover:not(:disabled) {
+  border-color: var(--accent, #3157c8);
+  background: var(--accent-soft, #e9efff);
+}
+
+.fork-option.is-current {
+  border-style: dashed;
+  background: var(--surface-2, #f8f9fa);
+  cursor: default;
+}
+
+.fo-side {
+  font-weight: 900;
+}
+
+.fork-option.side-a .fo-side {
+  color: var(--side-a, #dc2626);
+}
+
+.fork-option.side-b .fo-side {
+  color: var(--side-b, #2563eb);
+}
+
+.fo-move {
+  overflow: hidden;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fo-score {
+  color: var(--accent, #3157c8);
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.fo-meta {
+  color: var(--muted, #5f6368);
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Lines that continue past the last row — right after going back, the old line. */
+.turn-record-continuations {
+  display: grid;
+  gap: 4px;
+}
+
+.trc-toggle {
+  all: unset;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border: 1px dashed color-mix(in srgb, var(--accent, #3157c8) 45%, var(--border, #dadce0));
+  border-radius: 8px;
+  color: var(--accent-strong, #2446aa);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.trc-toggle:hover,
+.trc-toggle[aria-expanded="true"] {
+  background: var(--accent-soft, #e9efff);
+}
+
+.turn-record-continuations .fork-options {
+  padding: 0;
+  border-top: 0;
+}
+
+/* ── Looking at a line that is not being played ──────────────────────────── */
+.log-line-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border: 1px solid color-mix(in srgb, var(--gold, #fbbc05) 60%, var(--border, #dadce0));
+  border-radius: 7px;
+  background: var(--gold-soft, #fff7d6);
+  color: var(--text, #3c4043);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.log-line-banner > span {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.log-line-banner button {
+  all: unset;
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border: 1px solid var(--border, #dadce0);
+  border-radius: 6px;
+  background: var(--surface-solid, #fff);
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.log-line-banner button:hover {
+  border-color: var(--accent, #3157c8);
+  color: var(--accent, #3157c8);
+}
+
+.log-rail .log-panel.is-viewing-line {
+  border-color: color-mix(in srgb, var(--gold, #fbbc05) 55%, var(--border, #dadce0));
+}
+
+/* ── The navigator: whole turns, and back to live ────────────────────────── */
+.turn-nav {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--border, #dadce0);
+  border-radius: 8px;
+  background: var(--surface-2, #f8f9fa);
+}
+
+.turn-nav button {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 26px;
+  border-radius: 6px;
+  color: var(--text, #3c4043);
+  cursor: pointer;
+}
+
+.turn-nav button:hover:not(:disabled) {
+  background: var(--surface-solid, #fff);
+  color: var(--accent, #3157c8);
+}
+
+.turn-nav button:focus-visible {
+  outline: 2px solid var(--focus-ring, #7394f5);
+}
+
+.turn-nav button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.turn-nav-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--muted, #5f6368);
+  font-size: 11.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.turn-nav .turn-nav-live {
+  gap: 5px;
+  width: auto;
+  padding: 0 9px;
+  border: 1px solid color-mix(in srgb, var(--success, #167a55) 40%, var(--border, #dadce0));
+  color: var(--success, #167a55);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.turn-nav .turn-nav-live::before {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  content: "";
+}
+
+/* ── Continue from here ──────────────────────────────────────────────────── */
+.log-review-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.log-phase {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--border, #dadce0);
+  border-radius: 7px;
+}
+
+.log-phase button {
+  all: unset;
+  padding: 5px 9px;
+  color: var(--muted, #5f6368);
+  font-size: 11.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.log-phase button + button {
+  border-left: 1px solid var(--border, #dadce0);
+}
+
+.log-phase button[aria-pressed="true"] {
+  background: var(--text, #3c4043);
+  color: #fff;
+}
+
+.log-phase button:focus-visible {
+  outline: 2px solid var(--focus-ring, #7394f5);
+  outline-offset: -2px;
+}
+
+.log-continue {
+  all: unset;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 6px 11px;
+  border-radius: 7px;
+  background: var(--accent, #3157c8);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.log-continue:hover:not(:disabled) {
+  background: var(--accent-strong, #2446aa);
+}
+
+.log-continue:focus-visible {
+  outline: 2px solid var(--focus-ring, #7394f5);
+  outline-offset: 2px;
+}
+
+.log-continue:disabled {
+  border: 1px solid var(--border, #dadce0);
+  background: var(--surface-2, #f8f9fa);
+  color: var(--muted, #5f6368);
+  cursor: not-allowed;
+}
+
+.log-continue-note {
+  margin: 0;
+  color: var(--muted, #5f6368);
+  font-size: 11px;
+}
+
+.modal-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── The right panel, waiting for its analysis tools ─────────────────────── */
+.analysis-panel.is-empty {
+  display: grid;
+  place-items: center;
+  min-height: 120px;
+  padding: 16px;
+  border: 1px dashed var(--border, #dadce0);
+  border-radius: 10px;
+}
+
+.analysis-empty {
+  margin: 0;
+  color: var(--muted, #5f6368);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* ============================================================================
+   The Turn Log Map
+   ============================================================================ */
+.map-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(15, 23, 31, 0.46);
+}
+
+.turn-log-map {
+  /* A column, not a grid of fixed rows: the error and warning rows come and go, and the graph
+     must take whatever height they leave. */
+  display: flex;
+  flex-direction: column;
+  width: min(1180px, calc(100vw - 36px));
+  height: min(760px, calc(100dvh - 36px));
+  overflow: hidden;
+  border: 1px solid var(--border, #dadce0);
+  border-radius: 12px;
+  background: var(--surface-solid, #fff);
+  box-shadow: 0 22px 70px rgba(15, 23, 31, 0.28);
+}
+
+.turn-log-map:focus {
+  outline: none;
+}
+
+.tlm-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--divider, rgba(60, 64, 67, 0.1));
+  color: var(--accent, #3157c8);
+}
+
+.tlm-title {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.tlm-title h2 {
+  margin: 0;
+  color: var(--text, #3c4043);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.tlm-title span {
+  color: var(--muted, #5f6368);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.tlm-status {
+  margin-left: auto;
+  color: var(--muted, #5f6368);
+  font-size: 11px;
+}
+
+.tlm-close {
+  margin-left: auto;
+}
+
+.tlm-status + .tlm-close {
+  margin-left: 8px;
+}
+
+.tlm-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--danger-soft, #ffeaed);
+  color: var(--danger, #b42335);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tlm-error button {
+  padding: 3px 10px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  background: #fff;
+  color: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.tlm-warning {
+  margin: 0;
+  padding: 6px 14px;
+  background: var(--gold-soft, #fff7d6);
+  color: #7a5200;
+  font-size: 11.5px;
+}
+
+.tlm-body {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  min-height: 0;
+}
+
+.tlm-graph {
+  position: relative;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background:
+    radial-gradient(circle, rgba(60, 64, 67, 0.12) 1px, transparent 1.3px) 0 0 / 23px 21px,
+    var(--surface-2, #f8f9fa);
+}
+
+.tlm-svg {
+  display: block;
+  font-family: var(--font-sans);
+}
+
+.tlm-ruler text {
+  fill: var(--muted, #5f6368);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.tlm-ruler line {
+  stroke: var(--border, #dadce0);
+  stroke-width: 1;
+}
+
+.tlm-edge {
+  fill: none;
+  stroke: #b8bfc9;
+  stroke-width: 1.6;
+}
+
+.tlm-edge.is-live {
+  stroke: var(--text, #3c4043);
+  stroke-width: 2.6;
+}
+
+.tlm-node {
+  cursor: pointer;
+  outline: none;
+}
+
+.tlm-halo {
+  fill: transparent;
+  stroke: transparent;
+  stroke-width: 2.5;
+}
+
+.tlm-node:hover .tlm-halo {
+  fill: rgba(49, 87, 200, 0.1);
+}
+
+.tlm-node.is-selected .tlm-halo {
+  fill: rgba(49, 87, 200, 0.14);
+  stroke: var(--accent, #3157c8);
+}
+
+.tlm-node:focus-visible .tlm-halo {
+  stroke: var(--focus-ring, #7394f5);
+  stroke-dasharray: 3 2;
+}
+
+.tlm-mark {
+  stroke: #fff;
+  stroke-width: 1.5;
+}
+
+.tlm-node.side-a .tlm-mark {
+  fill: var(--side-a, #dc2626);
+}
+
+.tlm-node.side-b .tlm-mark {
+  fill: var(--side-b, #2563eb);
+}
+
+/* A pass is an empty turn, drawn as one. */
+.tlm-node.is-pass .tlm-mark {
+  fill: #fff;
+  stroke-width: 2.4;
+}
+
+.tlm-node.is-pass.side-a .tlm-mark {
+  stroke: var(--side-a, #dc2626);
+}
+
+.tlm-node.is-pass.side-b .tlm-mark {
+  stroke: var(--side-b, #2563eb);
+}
+
+.tlm-node.is-parked .tlm-mark {
+  opacity: 0.62;
+}
+
+.tlm-node.is-bingo .tlm-mark {
+  stroke: var(--gold, #fbbc05);
+  stroke-width: 3;
+}
+
+.tlm-turn {
+  fill: #fff;
+  font-size: 9.5px;
+  font-weight: 900;
+  pointer-events: none;
+}
+
+.tlm-node.is-pass .tlm-turn {
+  fill: var(--text, #3c4043);
+}
+
+.tlm-score {
+  fill: var(--muted, #5f6368);
+  font-size: 9px;
+  font-weight: 800;
+  pointer-events: none;
+}
+
+.tlm-now {
+  fill: var(--success, #167a55);
+  font-size: 9px;
+  font-weight: 900;
+  pointer-events: none;
+}
+
+.tlm-live-ring {
+  fill: none;
+  stroke: var(--success, #167a55);
+  stroke-width: 2;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tlm-live-ring {
+    animation: tlm-pulse 1.8s ease-in-out infinite;
+  }
+}
+
+@keyframes tlm-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.tlm-viewed {
+  fill: none;
+  stroke: var(--accent, #3157c8);
+  stroke-width: 2;
+  stroke-dasharray: 4 3;
+}
+
+.tlm-start {
+  fill: var(--surface-solid, #fff);
+  stroke: var(--text, #3c4043);
+  stroke-width: 2;
+}
+
+.tlm-start-label {
+  fill: var(--text, #3c4043);
+  font-size: 10px;
+  pointer-events: none;
+}
+
+/* ── The selected turn, beside the graph ─────────────────────────────────── */
+.tlm-inspector {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  overflow: auto;
+  padding: 14px;
+  border-left: 1px solid var(--divider, rgba(60, 64, 67, 0.1));
+  background: var(--surface-solid, #fff);
+}
+
+.tlm-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.tlm-card-head strong {
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.tlm-player {
+  font-weight: 800;
+}
+
+.tlm-card-head.side-a .tlm-player {
+  color: var(--side-a, #dc2626);
+}
+
+.tlm-card-head.side-b .tlm-player {
+  color: var(--side-b, #2563eb);
+}
+
+.tlm-line-tag {
+  margin-left: auto;
+  padding: 2px 7px;
+  border: 1px solid var(--border, #dadce0);
+  border-radius: 999px;
+  background: var(--surface-2, #f8f9fa);
+  color: var(--muted, #5f6368);
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.tlm-line-tag.is-live {
+  border-color: color-mix(in srgb, var(--success, #167a55) 35%, var(--border, #dadce0));
+  background: var(--success-soft, #e5f6ef);
+  color: var(--success, #167a55);
+}
+
+.tlm-move {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.tlm-move span {
+  overflow-wrap: anywhere;
+}
+
+.tlm-move b {
+  color: var(--accent, #3157c8);
+  font-variant-numeric: tabular-nums;
+}
+
+.tlm-totals,
+.tlm-fork-note,
+.tlm-blocked {
+  margin: 0;
+  font-size: 12px;
+}
+
+.tlm-totals {
+  color: var(--muted, #5f6368);
+  font-weight: 600;
+}
+
+.tlm-totals b {
+  color: var(--text, #3c4043);
+}
+
+.tlm-fork-note {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--accent-strong, #2446aa);
+  font-weight: 700;
+}
+
+.tlm-blocked {
+  color: var(--muted, #5f6368);
+}
+
+.mini-board {
+  display: grid;
+  grid-template-columns: repeat(15, minmax(0, 1fr));
+  gap: 1px;
+  width: 100%;
+  padding: 3px;
+  border: 1px solid var(--board-frame-border, #3c4043);
+  border-radius: 6px;
+  background: var(--board-frame-bg, #dfe6ef);
+}
+
+.mini-cell {
+  display: grid;
+  place-items: center;
+  min-width: 0;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 1.5px;
+  background: var(--board-slot-px1-bg, #fff);
+  font-size: 8.5px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.mini-cell.slot-px2 {
+  background: var(--board-slot-px2-bg, #f4cf9b);
+}
+
+.mini-cell.slot-px3,
+.mini-cell.slot-px3star {
+  background: var(--board-slot-px3-bg, #b9d9ee);
+}
+
+.mini-cell.slot-ex2 {
+  background: var(--board-slot-ex2-bg, #f3df8f);
+}
+
+.mini-cell.slot-ex3 {
+  background: var(--board-slot-ex3-bg, #efb0a2);
+}
+
+.mini-cell.has-tile {
+  background: var(--tile-face, #111827);
+  color: var(--tile-text, #f8fafc);
+}
+
+/* The turn's own tiles: what happened here, without reading the log. */
+.mini-cell.is-new {
+  box-shadow: inset 0 0 0 2px var(--gold, #fbbc05);
+}
+
+.tlm-actions {
+  display: grid;
+  gap: 6px;
+}
+
+.tlm-action {
+  all: unset;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--border, #dadce0);
+  border-radius: 8px;
+  background: var(--surface-solid, #fff);
+  color: var(--text, #3c4043);
+  font-size: 13px;
+  font-weight: 800;
+  text-align: center;
+  cursor: pointer;
+}
+
+.tlm-action:hover:not(:disabled) {
+  border-color: var(--accent, #3157c8);
+  color: var(--accent, #3157c8);
+}
+
+.tlm-action:focus-visible {
+  outline: 2px solid var(--focus-ring, #7394f5);
+  outline-offset: 1px;
+}
+
+.tlm-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.tlm-action.is-primary {
+  border-color: var(--accent, #3157c8);
+  background: var(--accent, #3157c8);
+  color: #fff;
+}
+
+.tlm-action.is-primary:hover:not(:disabled) {
+  background: var(--accent-strong, #2446aa);
+  color: #fff;
+}
+
+.tlm-action.is-danger {
+  border-color: var(--danger, #b42335);
+  background: var(--danger, #b42335);
+  color: #fff;
+}
+
+.tlm-action.is-quiet {
+  border-style: dashed;
+  color: var(--danger, #b42335);
+  font-weight: 700;
+}
+
+.tlm-confirm {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 8px;
+  border-radius: 8px;
+  background: var(--danger-soft, #ffeaed);
+}
+
+.tlm-confirm span {
+  grid-column: 1 / -1;
+  color: var(--danger, #b42335);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tlm-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--divider, rgba(60, 64, 67, 0.1));
+  color: var(--muted, #5f6368);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.tlm-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.lg-dot,
+.lg-shape,
+.lg-ring {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+}
+
+.lg-dot {
+  border-radius: 50%;
+}
+
+.lg-dot.side-a {
+  background: var(--side-a, #dc2626);
+}
+
+.lg-dot.side-b {
+  background: var(--side-b, #2563eb);
+}
+
+.lg-shape {
+  background: var(--muted, #5f6368);
+}
+
+.lg-shape.is-exchange {
+  border-radius: 2px;
+}
+
+.lg-shape.is-pass {
+  box-sizing: border-box;
+  border: 2px solid var(--muted, #5f6368);
+  border-radius: 50%;
+  background: #fff;
+}
+
+.lg-line {
+  display: inline-block;
+  width: 18px;
+  border-top: 1.6px solid #b8bfc9;
+}
+
+.lg-line.is-live {
+  border-top: 2.6px solid var(--text, #3c4043);
+}
+
+.lg-ring {
+  box-sizing: border-box;
+  border: 2px solid var(--success, #167a55);
+  border-radius: 50%;
+}
+
+.lg-ring.is-viewed {
+  border: 2px dashed var(--accent, #3157c8);
+}
+
+/* Phones: the whole screen, graph over the selected turn. */
+@media (max-width: 759px) {
+  .map-backdrop {
+    align-items: stretch;
+    padding: 0;
+  }
+
+  .turn-log-map {
+    width: 100vw;
+    height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .tlm-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto;
+  }
+
+  .tlm-inspector {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 132px);
+    max-height: 48dvh;
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+    border-top: 1px solid var(--divider, rgba(60, 64, 67, 0.1));
+    border-left: 0;
+  }
+
+  .tlm-inspector > :not(.mini-board) {
+    grid-column: 1;
+  }
+
+  .tlm-inspector > .mini-board {
+    grid-column: 2;
+    grid-row: 1 / span 4;
+    align-self: start;
+  }
+
+  .tlm-inspector > .tlm-actions,
+  .tlm-inspector > .tlm-blocked {
+    grid-column: 1 / -1;
+  }
+
+  .tlm-legend {
+    display: none;
+  }
+}
