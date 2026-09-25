@@ -1,0 +1,2590 @@
+{
+ "_about": "Real output of tools/study-puzzles (Stage 5B self-play, 2026-09-25): the targeted HOOK proof set, as the dev API serves it. Only answer.engine.candidates is cut to the top 5 to keep this small; the two attempts are the admin previews played on /play.",
+ "set": {
+  "id": "set-20260925-133523-ea3e0b",
+  "version": 2,
+  "label": "พิสูจน์ HOOK",
+  "status": "complete",
+  "createdAt": "2026-09-25T13:35:23.285Z",
+  "finishedAt": "2026-09-25T13:35:41.246Z",
+  "count": 1,
+  "requested": 1,
+  "mode": null,
+  "scoreRange": [
+   33,
+   33
+  ],
+  "moveTypes": [
+   "HOOK"
+  ],
+  "manifest": {
+   "schema": "eqlab-study-puzzle-set-v2",
+   "id": "set-20260925-133523-ea3e0b",
+   "label": "พิสูจน์ HOOK",
+   "status": "complete",
+   "createdAt": "2026-09-25T13:35:23.285Z",
+   "updatedAt": "2026-09-25T13:35:41.246Z",
+   "finishedAt": "2026-09-25T13:35:41.246Z",
+   "target": 1,
+   "config": {
+    "target": 1,
+    "label": "พิสูจน์ HOOK",
+    "seed": 2048866995,
+    "maxPerGame": 1,
+    "parallelGames": 2,
+    "position": {
+     "boardTiles": {
+      "min": 12,
+      "max": 65
+     }
+    },
+    "bestPlay": {
+     "score": {
+      "min": null,
+      "max": null
+     },
+     "tiles": {
+      "min": null,
+      "max": null
+     },
+     "equations": {
+      "min": null,
+      "max": null
+     },
+     "moveTypes": [
+      "HOOK"
+     ],
+     "composition": {
+      "digit": {
+       "min": null,
+       "max": null
+      },
+      "heavy": {
+       "min": null,
+       "max": null
+      },
+      "operator": {
+       "min": null,
+       "max": null
+      },
+      "choice": {
+       "min": null,
+       "max": null
+      },
+      "equals": {
+       "min": null,
+       "max": null
+      },
+      "blank": {
+       "min": null,
+       "max": null
+      }
+     },
+     "content": "any",
+     "excludeTrivialZero": true
+    },
+    "answer": {
+     "maxNear": 4
+    },
+    "rack": {
+     "minDifficulty": null
+    }
+   },
+   "engine": {
+    "analysis": "stage5b64",
+    "runtimeSha256": "50ef6cd7d01caa435e054fbe16977c3c28695979ffc8c86089913f373039df27",
+    "validatorSha256": "8a8c8206d51fb1e6d099f46add997b115f2ec7a89925ded74f5ca5554875c608",
+    "rulesVendor": {
+     "builtAt": "2026-09-24T16:46:20.154Z",
+     "authurRules": {
+      "source": "/Users/thitithat_tiankrajang/Desktop/amath-bot-lab",
+      "head": "72fb0d0a05abb7f006e22f7d5d441287d2ca2260",
+      "dirtyFiles": 40,
+      "sha256": "53acf795798ba8b66194218b63281732db74642d66c9a64f6412ca65fba8e691"
+     },
+     "eqlabRules": {
+      "source": "/Users/thitithat_tiankrajang/Desktop/EQ-Lab",
+      "head": "55352e205082b7f0fc6e30c5a54b891c864555ba",
+      "dirtyFiles": 2,
+      "sha256": "e8a4183d31423138f8d5d7d717f65b07be3eddb175ef0bd19edc2bc18d547e12"
+     }
+    },
+    "generatorSha256": "e964f8387ca89801c54b85320e7dc5661659737a813bee581c8ad795b2c40051"
+   },
+   "counters": {
+    "gamesStarted": 4,
+    "gamesFinished": 3,
+    "gamesAbandoned": 0,
+    "positionsInspected": 63,
+    "positionsAnalyzed": 63,
+    "positionsEligible": 35,
+    "candidatesEvaluated": 35,
+    "matched": 1,
+    "rejectedPositions": 62,
+    "rejections": {
+     "position.opening": 4,
+     "position.boardTiles": 24,
+     "bestPlay.moveType": 33,
+     "bestPlay.trivialZero": 9,
+     "answer.maxNear": 8,
+     "bestPlay.notPlacement": 6
+    },
+    "matchingPositions": 1
+   },
+   "error": null,
+   "puzzles": [
+    {
+     "id": "pz-7392892028f3",
+     "file": "puzzles/pz-7392892028f3.json",
+     "game": 2,
+     "turn": 5,
+     "score": 33,
+     "tilesPlaced": 5,
+     "moveTypes": [
+      "HOOK"
+     ],
+     "primaryType": "HOOK",
+     "hooks": [
+      "HEAD"
+     ],
+     "equations": 2,
+     "pattern": "N = N O N"
+    }
+   ],
+   "durationMs": 17910
+  }
+ },
+ "admin": {
+  "puzzle": {
+   "schema": "eqlab-study-puzzle-v2",
+   "id": "pz-7392892028f3",
+   "setId": "set-20260925-133523-ea3e0b",
+   "index": 0,
+   "hashes": {
+    "position": "7392892028f3a3bb249e1dfba0a32479529b2f26acf5382b1fea2bd7a8897c0a",
+    "puzzle": "92c093632ca9b36c30cd197b75df537fffb814b3425170793f2cee2f2a2318d2"
+   },
+   "canonical": {
+    "source": {
+     "game": 2,
+     "seed": 963448749,
+     "policy": {
+      "engine": "stage5b64",
+      "request": "study-endpoint-equivalent",
+      "topN": 50
+     },
+     "log": {
+      "format": "study-source-log-v1",
+      "stateHash": "survival-state-hash-v1",
+      "publicHash": "survival-public-hash-v1",
+      "sourceRules": "eqlab-compat: every draw from the front of the bag; an exchanged pile rejoins the bag after the draw and the bag is reshuffled",
+      "sourceSeed": 963448749,
+      "initial": {
+       "rules": "eqlab-compat",
+       "racks": {
+        "A": [
+         "2",
+         "6",
+         "2",
+         "=",
+         "?",
+         "=",
+         "1",
+         "6"
+        ],
+        "B": [
+         "x",
+         "3",
+         "11",
+         "18",
+         "1",
+         "13",
+         "?",
+         "="
+        ]
+       },
+       "bag": [
+        "?",
+        "-",
+        "16",
+        "8",
+        "10",
+        "9",
+        "=",
+        "14",
+        "9",
+        "5",
+        "+/-",
+        "3",
+        "-",
+        "+/-",
+        "=",
+        "0",
+        "12",
+        "4",
+        "+",
+        "4",
+        "=",
+        "6",
+        "9",
+        "=",
+        "0",
+        "?",
+        "1",
+        "7",
+        "=",
+        "10",
+        "4",
+        "+",
+        "2",
+        "x//",
+        "19",
+        "-",
+        "5",
+        "5",
+        "0",
+        "7",
+        "3",
+        "/",
+        "3",
+        "6",
+        "x",
+        "15",
+        "=",
+        "3",
+        "5",
+        "+",
+        "9",
+        "2",
+        "1",
+        "x",
+        "/",
+        "x//",
+        "8",
+        "=",
+        "x",
+        "=",
+        "4",
+        "1",
+        "20",
+        "1",
+        "0",
+        "+",
+        "7",
+        "4",
+        "2",
+        "+/-",
+        "0",
+        "x//",
+        "12",
+        "x//",
+        "/",
+        "+/-",
+        "7",
+        "8",
+        "8",
+        "+/-",
+        "17",
+        "/",
+        "-",
+        "2"
+       ],
+       "scores": {
+        "A": 0,
+        "B": 0
+       },
+       "sideToMove": "A",
+       "turnNumber": 1,
+       "noScoreTail": [],
+       "hasPlacement": false,
+       "stateHash": "b26b9268fdf9732a810c92adec601f0dc2e9c6ce96bb029b48d4bb5fdd7a6230",
+       "publicHash": "c0699afa488ea964d951cd6db7606db34860132ec465281c8d94e608d7817d81"
+      },
+      "turns": [
+       {
+        "turn": 1,
+        "side": "A",
+        "type": "place",
+        "action": {
+         "type": "place",
+         "placements": [
+          {
+           "cell": 112,
+           "kind": "6",
+           "face": "6",
+           "tileId": "6#2"
+          },
+          {
+           "cell": 113,
+           "kind": "=",
+           "face": "=",
+           "tileId": "=#2"
+          },
+          {
+           "cell": 114,
+           "kind": "6",
+           "face": "6",
+           "tileId": "6#1"
+          },
+          {
+           "cell": 115,
+           "kind": "=",
+           "face": "=",
+           "tileId": "=#4"
+          },
+          {
+           "cell": 116,
+           "kind": "1",
+           "face": "1",
+           "tileId": "1#1"
+          },
+          {
+           "cell": 117,
+           "kind": "2",
+           "face": "2",
+           "tileId": "2#0"
+          },
+          {
+           "cell": 118,
+           "kind": "?",
+           "face": "÷",
+           "tileId": "?#2"
+          },
+          {
+           "cell": 119,
+           "kind": "2",
+           "face": "2",
+           "tileId": "2#5"
+          }
+         ]
+        },
+        "decision": {
+         "policy": "stage5b64",
+         "seed": 469101590,
+         "value": 101.24453044530017
+        },
+        "rackBefore": [
+         "1",
+         "2",
+         "2",
+         "6",
+         "6",
+         "=",
+         "=",
+         "?"
+        ],
+        "scoreGained": 82,
+        "scoresBefore": {
+         "A": 0,
+         "B": 0
+        },
+        "scoresAfter": {
+         "A": 82,
+         "B": 0
+        },
+        "drawn": [
+         "?",
+         "-",
+         "16",
+         "8",
+         "10",
+         "9",
+         "=",
+         "14"
+        ],
+        "bagCountBefore": 84,
+        "bagCountAfter": 76,
+        "noScoreTailAfter": [],
+        "stateHashAfter": "7bbafd4c7c05cab5cf42da38f3969716cb83ab7fe75c5b34d7477f1d723468d9",
+        "publicHashAfter": "67fba20fe2dfd1f2db858c7bc24dd73a9ce64c2107bd18ccbd54ef239003c8aa"
+       },
+       {
+        "turn": 2,
+        "side": "B",
+        "type": "place",
+        "action": {
+         "type": "place",
+         "placements": [
+          {
+           "cell": 134,
+           "kind": "1",
+           "face": "1",
+           "tileId": "1#3"
+          },
+          {
+           "cell": 149,
+           "kind": "=",
+           "face": "=",
+           "tileId": "=#0"
+          },
+          {
+           "cell": 164,
+           "kind": "3",
+           "face": "3",
+           "tileId": "3#2"
+          },
+          {
+           "cell": 179,
+           "kind": "x",
+           "face": "×",
+           "tileId": "x#1"
+          },
+          {
+           "cell": 194,
+           "kind": "13",
+           "face": "13",
+           "tileId": "13#0"
+          },
+          {
+           "cell": 209,
+           "kind": "?",
+           "face": "-",
+           "tileId": "?#0"
+          },
+          {
+           "cell": 224,
+           "kind": "18",
+           "face": "18",
+           "tileId": "18#0"
+          }
+         ]
+        },
+        "decision": {
+         "policy": "stage5b64",
+         "seed": 617524102,
+         "value": 72.53935100201967
+        },
+        "rackBefore": [
+         "1",
+         "3",
+         "11",
+         "13",
+         "18",
+         "x",
+         "=",
+         "?"
+        ],
+        "scoreGained": 54,
+        "scoresBefore": {
+         "A": 82,
+         "B": 0
+        },
+        "scoresAfter": {
+         "A": 82,
+         "B": 54
+        },
+        "drawn": [
+         "9",
+         "5",
+         "+/-",
+         "3",
+         "-",
+         "+/-",
+         "="
+        ],
+        "bagCountBefore": 76,
+        "bagCountAfter": 69,
+        "noScoreTailAfter": [],
+        "stateHashAfter": "f149e9cb845756c8c9adf4e5c38c874a8c02546847f3fdb0ae0e382d567166e0",
+        "publicHashAfter": "670529f275aa6afc939974047a41320d320c380e3657393bf2fe2d86a2913e01"
+       },
+       {
+        "turn": 3,
+        "side": "A",
+        "type": "place",
+        "action": {
+         "type": "place",
+         "placements": [
+          {
+           "cell": 7,
+           "kind": "8",
+           "face": "8",
+           "tileId": "8#3"
+          },
+          {
+           "cell": 22,
+           "kind": "?",
+           "face": "×",
+           "tileId": "?#3"
+          },
+          {
+           "cell": 37,
+           "kind": "14",
+           "face": "14",
+           "tileId": "14#0"
+          },
+          {
+           "cell": 52,
+           "kind": "-",
+           "face": "-",
+           "tileId": "-#3"
+          },
+          {
+           "cell": 67,
+           "kind": "16",
+           "face": "16",
+           "tileId": "16#0"
+          },
+          {
+           "cell": 82,
+           "kind": "=",
+           "face": "=",
+           "tileId": "=#5"
+          },
+          {
+           "cell": 97,
+           "kind": "9",
+           "face": "9",
+           "tileId": "9#2"
+          }
+         ]
+        },
+        "decision": {
+         "policy": "stage5b64",
+         "seed": 1766575270,
+         "value": 73.47573114604376
+        },
+        "rackBefore": [
+         "8",
+         "9",
+         "10",
+         "14",
+         "16",
+         "-",
+         "=",
+         "?"
+        ],
+        "scoreGained": 57,
+        "scoresBefore": {
+         "A": 82,
+         "B": 54
+        },
+        "scoresAfter": {
+         "A": 139,
+         "B": 54
+        },
+        "drawn": [
+         "0",
+         "12",
+         "4",
+         "+",
+         "4",
+         "=",
+         "6"
+        ],
+        "bagCountBefore": 69,
+        "bagCountAfter": 62,
+        "noScoreTailAfter": [],
+        "stateHashAfter": "0df8baa389b66e40a2ca9b0772f6ef7edc4e308bcefd1e09a7817cbe41d50b5f",
+        "publicHashAfter": "6319894ae260bd022b8eec6b1bd7349ba6070d5de16af023b184abc0b2d0777f"
+       },
+       {
+        "turn": 4,
+        "side": "B",
+        "type": "place",
+        "action": {
+         "type": "place",
+         "placements": [
+          {
+           "cell": 48,
+           "kind": "-",
+           "face": "-",
+           "tileId": "-#0"
+          },
+          {
+           "cell": 49,
+           "kind": "3",
+           "face": "3",
+           "tileId": "3#0"
+          },
+          {
+           "cell": 50,
+           "kind": "+/-",
+           "face": "+",
+           "tileId": "+/-#1"
+          },
+          {
+           "cell": 51,
+           "kind": "9",
+           "face": "9",
+           "tileId": "9#0"
+          },
+          {
+           "cell": 53,
+           "kind": "11",
+           "face": "11",
+           "tileId": "11#0"
+          },
+          {
+           "cell": 54,
+           "kind": "=",
+           "face": "=",
+           "tileId": "=#10"
+          },
+          {
+           "cell": 55,
+           "kind": "+/-",
+           "face": "-",
+           "tileId": "+/-#3"
+          },
+          {
+           "cell": 56,
+           "kind": "5",
+           "face": "5",
+           "tileId": "5#3"
+          }
+         ]
+        },
+        "decision": {
+         "policy": "stage5b64",
+         "seed": 1055001750,
+         "value": 124.27422962793543
+        },
+        "rackBefore": [
+         "3",
+         "5",
+         "9",
+         "11",
+         "-",
+         "+/-",
+         "+/-",
+         "="
+        ],
+        "scoreGained": 104,
+        "scoresBefore": {
+         "A": 139,
+         "B": 54
+        },
+        "scoresAfter": {
+         "A": 139,
+         "B": 158
+        },
+        "drawn": [
+         "9",
+         "=",
+         "0",
+         "?",
+         "1",
+         "7",
+         "=",
+         "10"
+        ],
+        "bagCountBefore": 62,
+        "bagCountAfter": 54,
+        "noScoreTailAfter": [],
+        "stateHashAfter": "7e81b5ddc4390271feb4abed958872fe877c80eb8b244d2dfb5cf1f572325631",
+        "publicHashAfter": "41ea9c0b90c6e7dfe8c0fb4a89d04a9e7ba85fd4741efa917b85a7d67fe0622a"
+       }
+      ],
+      "puzzle": {
+       "turn": 5,
+       "sideToMove": "A",
+       "stateHash": "7e81b5ddc4390271feb4abed958872fe877c80eb8b244d2dfb5cf1f572325631",
+       "publicHash": "41ea9c0b90c6e7dfe8c0fb4a89d04a9e7ba85fd4741efa917b85a7d67fe0622a"
+      }
+     }
+    },
+    "position": {
+     "sideToMove": "A",
+     "turnNumber": 5,
+     "board": [
+      {
+       "r": 0,
+       "c": 7,
+       "kind": "8",
+       "face": "8",
+       "side": "A",
+       "turn": 3
+      },
+      {
+       "r": 1,
+       "c": 7,
+       "kind": "?",
+       "face": "×",
+       "side": "A",
+       "turn": 3
+      },
+      {
+       "r": 2,
+       "c": 7,
+       "kind": "14",
+       "face": "14",
+       "side": "A",
+       "turn": 3
+      },
+      {
+       "r": 3,
+       "c": 3,
+       "kind": "-",
+       "face": "-",
+       "side": "B",
+       "turn": 4
+      },
+      {
+       "r": 3,
+       "c": 4,
+       "kind": "3",
+       "face": "3",
+       "side": "B",
+       "turn": 4
+      },
+      {
+       "r": 3,
+       "c": 5,
+       "kind": "+/-",
+       "face": "+",
+       "side": "B",
+       "turn": 4
+      },
+      {
+       "r": 3,
+       "c": 6,
+       "kind": "9",
+       "face": "9",
+       "side": "B",
+       "turn": 4
+      },
+      {
+       "r": 3,
+       "c": 7,
+       "kind": "-",
+       "face": "-",
+       "side": "A",
+       "turn": 3
+      },
+      {
+       "r": 3,
+       "c": 8,
+       "kind": "11",
+       "face": "11",
+       "side": "B",
+       "turn": 4
+      },
+      {
+       "r": 3,
+       "c": 9,
+       "kind": "=",
+       "face": "=",
+       "side": "B",
+       "turn": 4
+      },
+      {
+       "r": 3,
+       "c": 10,
+       "kind": "+/-",
+       "face": "-",
+       "side": "B",
+       "turn": 4
+      },
+      {
+       "r": 3,
+       "c": 11,
+       "kind": "5",
+       "face": "5",
+       "side": "B",
+       "turn": 4
+      },
+      {
+       "r": 4,
+       "c": 7,
+       "kind": "16",
+       "face": "16",
+       "side": "A",
+       "turn": 3
+      },
+      {
+       "r": 5,
+       "c": 7,
+       "kind": "=",
+       "face": "=",
+       "side": "A",
+       "turn": 3
+      },
+      {
+       "r": 6,
+       "c": 7,
+       "kind": "9",
+       "face": "9",
+       "side": "A",
+       "turn": 3
+      },
+      {
+       "r": 7,
+       "c": 7,
+       "kind": "6",
+       "face": "6",
+       "side": "A",
+       "turn": 1
+      },
+      {
+       "r": 7,
+       "c": 8,
+       "kind": "=",
+       "face": "=",
+       "side": "A",
+       "turn": 1
+      },
+      {
+       "r": 7,
+       "c": 9,
+       "kind": "6",
+       "face": "6",
+       "side": "A",
+       "turn": 1
+      },
+      {
+       "r": 7,
+       "c": 10,
+       "kind": "=",
+       "face": "=",
+       "side": "A",
+       "turn": 1
+      },
+      {
+       "r": 7,
+       "c": 11,
+       "kind": "1",
+       "face": "1",
+       "side": "A",
+       "turn": 1
+      },
+      {
+       "r": 7,
+       "c": 12,
+       "kind": "2",
+       "face": "2",
+       "side": "A",
+       "turn": 1
+      },
+      {
+       "r": 7,
+       "c": 13,
+       "kind": "?",
+       "face": "÷",
+       "side": "A",
+       "turn": 1
+      },
+      {
+       "r": 7,
+       "c": 14,
+       "kind": "2",
+       "face": "2",
+       "side": "A",
+       "turn": 1
+      },
+      {
+       "r": 8,
+       "c": 14,
+       "kind": "1",
+       "face": "1",
+       "side": "B",
+       "turn": 2
+      },
+      {
+       "r": 9,
+       "c": 14,
+       "kind": "=",
+       "face": "=",
+       "side": "B",
+       "turn": 2
+      },
+      {
+       "r": 10,
+       "c": 14,
+       "kind": "3",
+       "face": "3",
+       "side": "B",
+       "turn": 2
+      },
+      {
+       "r": 11,
+       "c": 14,
+       "kind": "x",
+       "face": "×",
+       "side": "B",
+       "turn": 2
+      },
+      {
+       "r": 12,
+       "c": 14,
+       "kind": "13",
+       "face": "13",
+       "side": "B",
+       "turn": 2
+      },
+      {
+       "r": 13,
+       "c": 14,
+       "kind": "?",
+       "face": "-",
+       "side": "B",
+       "turn": 2
+      },
+      {
+       "r": 14,
+       "c": 14,
+       "kind": "18",
+       "face": "18",
+       "side": "B",
+       "turn": 2
+      }
+     ],
+     "rack": [
+      "0",
+      "4",
+      "4",
+      "6",
+      "10",
+      "12",
+      "+",
+      "="
+     ],
+     "scores": {
+      "self": 139,
+      "opponent": 158
+     },
+     "bagCount": 54,
+     "oppRackCount": 8,
+     "noScoreStreak": 0,
+     "unseen": {
+      "0": 4,
+      "1": 4,
+      "2": 4,
+      "3": 3,
+      "4": 3,
+      "5": 3,
+      "6": 1,
+      "7": 4,
+      "8": 3,
+      "9": 2,
+      "10": 1,
+      "12": 1,
+      "15": 1,
+      "17": 1,
+      "19": 1,
+      "20": 1,
+      "+": 3,
+      "-": 2,
+      "x": 3,
+      "/": 4,
+      "+/-": 3,
+      "x//": 4,
+      "=": 5,
+      "?": 1
+     },
+     "hidden": {
+      "opponentRack": [
+       "0",
+       "1",
+       "7",
+       "9",
+       "10",
+       "=",
+       "=",
+       "?"
+      ],
+      "bag": [
+       "4",
+       "+",
+       "2",
+       "x//",
+       "19",
+       "-",
+       "5",
+       "5",
+       "0",
+       "7",
+       "3",
+       "/",
+       "3",
+       "6",
+       "x",
+       "15",
+       "=",
+       "3",
+       "5",
+       "+",
+       "9",
+       "2",
+       "1",
+       "x",
+       "/",
+       "x//",
+       "8",
+       "=",
+       "x",
+       "=",
+       "4",
+       "1",
+       "20",
+       "1",
+       "0",
+       "+",
+       "7",
+       "4",
+       "2",
+       "+/-",
+       "0",
+       "x//",
+       "12",
+       "x//",
+       "/",
+       "+/-",
+       "7",
+       "8",
+       "8",
+       "+/-",
+       "17",
+       "/",
+       "-",
+       "2"
+      ]
+     }
+    },
+    "studyRequest": {
+     "board": [
+      {
+       "r": 0,
+       "c": 7,
+       "kind": "8",
+       "token": "8"
+      },
+      {
+       "r": 1,
+       "c": 7,
+       "kind": "?",
+       "token": "×"
+      },
+      {
+       "r": 2,
+       "c": 7,
+       "kind": "14",
+       "token": "14"
+      },
+      {
+       "r": 3,
+       "c": 3,
+       "kind": "-",
+       "token": "-"
+      },
+      {
+       "r": 3,
+       "c": 4,
+       "kind": "3",
+       "token": "3"
+      },
+      {
+       "r": 3,
+       "c": 5,
+       "kind": "+/-",
+       "token": "+"
+      },
+      {
+       "r": 3,
+       "c": 6,
+       "kind": "9",
+       "token": "9"
+      },
+      {
+       "r": 3,
+       "c": 7,
+       "kind": "-",
+       "token": "-"
+      },
+      {
+       "r": 3,
+       "c": 8,
+       "kind": "11",
+       "token": "11"
+      },
+      {
+       "r": 3,
+       "c": 9,
+       "kind": "=",
+       "token": "="
+      },
+      {
+       "r": 3,
+       "c": 10,
+       "kind": "+/-",
+       "token": "-"
+      },
+      {
+       "r": 3,
+       "c": 11,
+       "kind": "5",
+       "token": "5"
+      },
+      {
+       "r": 4,
+       "c": 7,
+       "kind": "16",
+       "token": "16"
+      },
+      {
+       "r": 5,
+       "c": 7,
+       "kind": "=",
+       "token": "="
+      },
+      {
+       "r": 6,
+       "c": 7,
+       "kind": "9",
+       "token": "9"
+      },
+      {
+       "r": 7,
+       "c": 7,
+       "kind": "6",
+       "token": "6"
+      },
+      {
+       "r": 7,
+       "c": 8,
+       "kind": "=",
+       "token": "="
+      },
+      {
+       "r": 7,
+       "c": 9,
+       "kind": "6",
+       "token": "6"
+      },
+      {
+       "r": 7,
+       "c": 10,
+       "kind": "=",
+       "token": "="
+      },
+      {
+       "r": 7,
+       "c": 11,
+       "kind": "1",
+       "token": "1"
+      },
+      {
+       "r": 7,
+       "c": 12,
+       "kind": "2",
+       "token": "2"
+      },
+      {
+       "r": 7,
+       "c": 13,
+       "kind": "?",
+       "token": "÷"
+      },
+      {
+       "r": 7,
+       "c": 14,
+       "kind": "2",
+       "token": "2"
+      },
+      {
+       "r": 8,
+       "c": 14,
+       "kind": "1",
+       "token": "1"
+      },
+      {
+       "r": 9,
+       "c": 14,
+       "kind": "=",
+       "token": "="
+      },
+      {
+       "r": 10,
+       "c": 14,
+       "kind": "3",
+       "token": "3"
+      },
+      {
+       "r": 11,
+       "c": 14,
+       "kind": "x",
+       "token": "x"
+      },
+      {
+       "r": 12,
+       "c": 14,
+       "kind": "13",
+       "token": "13"
+      },
+      {
+       "r": 13,
+       "c": 14,
+       "kind": "?",
+       "token": "-"
+      },
+      {
+       "r": 14,
+       "c": 14,
+       "kind": "18",
+       "token": "18"
+      }
+     ],
+     "rack": [
+      "0",
+      "4",
+      "4",
+      "6",
+      "10",
+      "12",
+      "+",
+      "="
+     ],
+     "scoreSelf": 139,
+     "scoreOpponent": 158,
+     "level": "stage5b64"
+    }
+   },
+   "answer": {
+    "engine": {
+     "solver": "stage5b",
+     "request": {
+      "board": [
+       {
+        "r": 0,
+        "c": 7,
+        "kind": "8",
+        "token": "8"
+       },
+       {
+        "r": 1,
+        "c": 7,
+        "kind": "?",
+        "token": "×"
+       },
+       {
+        "r": 2,
+        "c": 7,
+        "kind": "14",
+        "token": "14"
+       },
+       {
+        "r": 3,
+        "c": 3,
+        "kind": "-",
+        "token": "-"
+       },
+       {
+        "r": 3,
+        "c": 4,
+        "kind": "3",
+        "token": "3"
+       },
+       {
+        "r": 3,
+        "c": 5,
+        "kind": "+/-",
+        "token": "+"
+       },
+       {
+        "r": 3,
+        "c": 6,
+        "kind": "9",
+        "token": "9"
+       },
+       {
+        "r": 3,
+        "c": 7,
+        "kind": "-",
+        "token": "-"
+       },
+       {
+        "r": 3,
+        "c": 8,
+        "kind": "11",
+        "token": "11"
+       },
+       {
+        "r": 3,
+        "c": 9,
+        "kind": "=",
+        "token": "="
+       },
+       {
+        "r": 3,
+        "c": 10,
+        "kind": "+/-",
+        "token": "-"
+       },
+       {
+        "r": 3,
+        "c": 11,
+        "kind": "5",
+        "token": "5"
+       },
+       {
+        "r": 4,
+        "c": 7,
+        "kind": "16",
+        "token": "16"
+       },
+       {
+        "r": 5,
+        "c": 7,
+        "kind": "=",
+        "token": "="
+       },
+       {
+        "r": 6,
+        "c": 7,
+        "kind": "9",
+        "token": "9"
+       },
+       {
+        "r": 7,
+        "c": 7,
+        "kind": "6",
+        "token": "6"
+       },
+       {
+        "r": 7,
+        "c": 8,
+        "kind": "=",
+        "token": "="
+       },
+       {
+        "r": 7,
+        "c": 9,
+        "kind": "6",
+        "token": "6"
+       },
+       {
+        "r": 7,
+        "c": 10,
+        "kind": "=",
+        "token": "="
+       },
+       {
+        "r": 7,
+        "c": 11,
+        "kind": "1",
+        "token": "1"
+       },
+       {
+        "r": 7,
+        "c": 12,
+        "kind": "2",
+        "token": "2"
+       },
+       {
+        "r": 7,
+        "c": 13,
+        "kind": "?",
+        "token": "÷"
+       },
+       {
+        "r": 7,
+        "c": 14,
+        "kind": "2",
+        "token": "2"
+       },
+       {
+        "r": 8,
+        "c": 14,
+        "kind": "1",
+        "token": "1"
+       },
+       {
+        "r": 9,
+        "c": 14,
+        "kind": "=",
+        "token": "="
+       },
+       {
+        "r": 10,
+        "c": 14,
+        "kind": "3",
+        "token": "3"
+       },
+       {
+        "r": 11,
+        "c": 14,
+        "kind": "x",
+        "token": "x"
+       },
+       {
+        "r": 12,
+        "c": 14,
+        "kind": "13",
+        "token": "13"
+       },
+       {
+        "r": 13,
+        "c": 14,
+        "kind": "?",
+        "token": "-"
+       },
+       {
+        "r": 14,
+        "c": 14,
+        "kind": "18",
+        "token": "18"
+       }
+      ],
+      "rack": [
+       "0",
+       "4",
+       "4",
+       "6",
+       "10",
+       "12",
+       "+",
+       "="
+      ],
+      "bagCount": 54,
+      "oppRackCount": 8,
+      "myScore": 139,
+      "oppScore": 158,
+      "noScoreStreak": 0,
+      "exchangeAllowed": true,
+      "seed": 750555324,
+      "topN": 50
+     },
+     "legalMoves": 473,
+     "elapsedMs": 437.83741699999996,
+     "candidates": [
+      {
+       "rank": 1,
+       "type": "place",
+       "placements": [
+        {
+         "r": 1,
+         "c": 2,
+         "kind": "4",
+         "face": "4"
+        },
+        {
+         "r": 2,
+         "c": 2,
+         "kind": "=",
+         "face": "="
+        },
+        {
+         "r": 3,
+         "c": 2,
+         "kind": "0",
+         "face": "0"
+        },
+        {
+         "r": 4,
+         "c": 2,
+         "kind": "+",
+         "face": "+"
+        },
+        {
+         "r": 5,
+         "c": 2,
+         "kind": "4",
+         "face": "4"
+        }
+       ],
+       "exchange": [],
+       "score": 33,
+       "value": 41.188614811062145,
+       "deep": true,
+       "components": [
+        {
+         "name": "immediate-score",
+         "points": 33
+        },
+        {
+         "name": "area-potential",
+         "points": 5.392
+        },
+        {
+         "name": "unseen-potential",
+         "points": 3.504844
+        },
+        {
+         "name": "leave",
+         "points": -6.324999999999999
+        },
+        {
+         "name": "future-access",
+         "points": 4.139200000000001
+        },
+        {
+         "name": "exposure",
+         "points": 0
+        },
+        {
+         "name": "nn-value",
+         "points": 1.4775708110621444
+        }
+       ]
+      },
+      {
+       "rank": 2,
+       "type": "place",
+       "placements": [
+        {
+         "r": 1,
+         "c": 2,
+         "kind": "4",
+         "face": "4"
+        },
+        {
+         "r": 2,
+         "c": 2,
+         "kind": "+",
+         "face": "+"
+        },
+        {
+         "r": 3,
+         "c": 2,
+         "kind": "0",
+         "face": "0"
+        },
+        {
+         "r": 4,
+         "c": 2,
+         "kind": "=",
+         "face": "="
+        },
+        {
+         "r": 5,
+         "c": 2,
+         "kind": "4",
+         "face": "4"
+        }
+       ],
+       "exchange": [],
+       "score": 33,
+       "value": 41.128662906719896,
+       "deep": true,
+       "components": [
+        {
+         "name": "immediate-score",
+         "points": 33
+        },
+        {
+         "name": "area-potential",
+         "points": 5.392
+        },
+        {
+         "name": "unseen-potential",
+         "points": 3.504844
+        },
+        {
+         "name": "leave",
+         "points": -6.324999999999999
+        },
+        {
+         "name": "future-access",
+         "points": 4.139200000000001
+        },
+        {
+         "name": "exposure",
+         "points": 0
+        },
+        {
+         "name": "nn-value",
+         "points": 1.417618906719894
+        }
+       ]
+      },
+      {
+       "rank": 3,
+       "type": "place",
+       "placements": [
+        {
+         "r": 2,
+         "c": 10,
+         "kind": "10",
+         "face": "10"
+        },
+        {
+         "r": 4,
+         "c": 10,
+         "kind": "12",
+         "face": "12"
+        },
+        {
+         "r": 5,
+         "c": 10,
+         "kind": "+",
+         "face": "+"
+        },
+        {
+         "r": 6,
+         "c": 10,
+         "kind": "6",
+         "face": "6"
+        },
+        {
+         "r": 8,
+         "c": 10,
+         "kind": "4",
+         "face": "4"
+        },
+        {
+         "r": 9,
+         "c": 10,
+         "kind": "=",
+         "face": "="
+        },
+        {
+         "r": 10,
+         "c": 10,
+         "kind": "4",
+         "face": "4"
+        }
+       ],
+       "exchange": [],
+       "score": 27,
+       "value": 39.39928202755725,
+       "deep": true,
+       "components": [
+        {
+         "name": "immediate-score",
+         "points": 27
+        },
+        {
+         "name": "area-potential",
+         "points": 5.3824
+        },
+        {
+         "name": "unseen-potential",
+         "points": 3.275684
+        },
+        {
+         "name": "leave",
+         "points": -1.275
+        },
+        {
+         "name": "future-access",
+         "points": 3.659
+        },
+        {
+         "name": "exposure",
+         "points": 0
+        },
+        {
+         "name": "nn-value",
+         "points": 1.3571980275572493
+        }
+       ]
+      },
+      {
+       "rank": 4,
+       "type": "place",
+       "placements": [
+        {
+         "r": 2,
+         "c": 10,
+         "kind": "6",
+         "face": "6"
+        },
+        {
+         "r": 4,
+         "c": 10,
+         "kind": "12",
+         "face": "12"
+        },
+        {
+         "r": 5,
+         "c": 10,
+         "kind": "+",
+         "face": "+"
+        },
+        {
+         "r": 6,
+         "c": 10,
+         "kind": "10",
+         "face": "10"
+        },
+        {
+         "r": 8,
+         "c": 10,
+         "kind": "4",
+         "face": "4"
+        },
+        {
+         "r": 9,
+         "c": 10,
+         "kind": "=",
+         "face": "="
+        },
+        {
+         "r": 10,
+         "c": 10,
+         "kind": "4",
+         "face": "4"
+        }
+       ],
+       "exchange": [],
+       "score": 27,
+       "value": 38.81902652617761,
+       "deep": true,
+       "components": [
+        {
+         "name": "immediate-score",
+         "points": 27
+        },
+        {
+         "name": "area-potential",
+         "points": 5.3824
+        },
+        {
+         "name": "unseen-potential",
+         "points": 3.275684
+        },
+        {
+         "name": "leave",
+         "points": -1.275
+        },
+        {
+         "name": "future-access",
+         "points": 3.659
+        },
+        {
+         "name": "exposure",
+         "points": 0
+        },
+        {
+         "name": "nn-value",
+         "points": 0.7769425261776131
+        }
+       ]
+      },
+      {
+       "rank": 5,
+       "type": "place",
+       "placements": [
+        {
+         "r": 0,
+         "c": 10,
+         "kind": "4",
+         "face": "4"
+        },
+        {
+         "r": 1,
+         "c": 10,
+         "kind": "=",
+         "face": "="
+        },
+        {
+         "r": 2,
+         "c": 10,
+         "kind": "10",
+         "face": "10"
+        },
+        {
+         "r": 4,
+         "c": 10,
+         "kind": "12",
+         "face": "12"
+        },
+        {
+         "r": 5,
+         "c": 10,
+         "kind": "+",
+         "face": "+"
+        },
+        {
+         "r": 6,
+         "c": 10,
+         "kind": "6",
+         "face": "6"
+        },
+        {
+         "r": 8,
+         "c": 10,
+         "kind": "4",
+         "face": "4"
+        }
+       ],
+       "exchange": [],
+       "score": 23,
+       "value": 35.20411432362117,
+       "deep": true,
+       "components": [
+        {
+         "name": "immediate-score",
+         "points": 23
+        },
+        {
+         "name": "area-potential",
+         "points": 5.4176
+        },
+        {
+         "name": "unseen-potential",
+         "points": 3.343116
+        },
+        {
+         "name": "leave",
+         "points": -1.275
+        },
+        {
+         "name": "future-access",
+         "points": 3.6466000000000003
+        },
+        {
+         "name": "exposure",
+         "points": 0
+        },
+        {
+         "name": "nn-value",
+         "points": 1.0717983236211648
+        }
+       ]
+      }
+     ]
+    },
+    "best": {
+     "placements": [
+      {
+       "r": 1,
+       "c": 2,
+       "kind": "4",
+       "face": "4"
+      },
+      {
+       "r": 2,
+       "c": 2,
+       "kind": "=",
+       "face": "="
+      },
+      {
+       "r": 3,
+       "c": 2,
+       "kind": "0",
+       "face": "0"
+      },
+      {
+       "r": 4,
+       "c": 2,
+       "kind": "+",
+       "face": "+"
+      },
+      {
+       "r": 5,
+       "c": 2,
+       "kind": "4",
+       "face": "4"
+      }
+     ],
+     "score": 33,
+     "value": 41.188614811062145,
+     "components": [
+      {
+       "name": "immediate-score",
+       "points": 33
+      },
+      {
+       "name": "area-potential",
+       "points": 5.392
+      },
+      {
+       "name": "unseen-potential",
+       "points": 3.504844
+      },
+      {
+       "name": "leave",
+       "points": -6.324999999999999
+      },
+      {
+       "name": "future-access",
+       "points": 4.139200000000001
+      },
+      {
+       "name": "exposure",
+       "points": 0
+      },
+      {
+       "name": "nn-value",
+       "points": 1.4775708110621444
+      }
+     ]
+    },
+    "nearBest": [
+     {
+      "rank": 1,
+      "type": "place",
+      "score": 33,
+      "value": 41.188614811062145,
+      "placements": [
+       {
+        "r": 1,
+        "c": 2,
+        "kind": "4",
+        "face": "4"
+       },
+       {
+        "r": 2,
+        "c": 2,
+        "kind": "=",
+        "face": "="
+       },
+       {
+        "r": 3,
+        "c": 2,
+        "kind": "0",
+        "face": "0"
+       },
+       {
+        "r": 4,
+        "c": 2,
+        "kind": "+",
+        "face": "+"
+       },
+       {
+        "r": 5,
+        "c": 2,
+        "kind": "4",
+        "face": "4"
+       }
+      ],
+      "exchange": []
+     },
+     {
+      "rank": 2,
+      "type": "place",
+      "score": 33,
+      "value": 41.128662906719896,
+      "placements": [
+       {
+        "r": 1,
+        "c": 2,
+        "kind": "4",
+        "face": "4"
+       },
+       {
+        "r": 2,
+        "c": 2,
+        "kind": "+",
+        "face": "+"
+       },
+       {
+        "r": 3,
+        "c": 2,
+        "kind": "0",
+        "face": "0"
+       },
+       {
+        "r": 4,
+        "c": 2,
+        "kind": "=",
+        "face": "="
+       },
+       {
+        "r": 5,
+        "c": 2,
+        "kind": "4",
+        "face": "4"
+       }
+      ],
+      "exchange": []
+     }
+    ],
+    "equations": [
+     {
+      "direction": "vertical",
+      "tiles": [
+       {
+        "r": 1,
+        "c": 2,
+        "kind": "4",
+        "face": "4",
+        "new": true
+       },
+       {
+        "r": 2,
+        "c": 2,
+        "kind": "=",
+        "face": "=",
+        "new": true
+       },
+       {
+        "r": 3,
+        "c": 2,
+        "kind": "0",
+        "face": "0",
+        "new": true
+       },
+       {
+        "r": 4,
+        "c": 2,
+        "kind": "+",
+        "face": "+",
+        "new": true
+       },
+       {
+        "r": 5,
+        "c": 2,
+        "kind": "4",
+        "face": "4",
+        "new": true
+       }
+      ],
+      "text": "4 = 0 + 4",
+      "pattern": "N = N O N",
+      "score": 16,
+      "multiplier": 2,
+      "role": "main"
+     },
+     {
+      "direction": "horizontal",
+      "tiles": [
+       {
+        "r": 3,
+        "c": 2,
+        "kind": "0",
+        "face": "0",
+        "new": true
+       },
+       {
+        "r": 3,
+        "c": 3,
+        "kind": "-",
+        "face": "-",
+        "new": false
+       },
+       {
+        "r": 3,
+        "c": 4,
+        "kind": "3",
+        "face": "3",
+        "new": false
+       },
+       {
+        "r": 3,
+        "c": 5,
+        "kind": "+/-",
+        "face": "+",
+        "new": false
+       },
+       {
+        "r": 3,
+        "c": 6,
+        "kind": "9",
+        "face": "9",
+        "new": false
+       },
+       {
+        "r": 3,
+        "c": 7,
+        "kind": "-",
+        "face": "-",
+        "new": false
+       },
+       {
+        "r": 3,
+        "c": 8,
+        "kind": "11",
+        "face": "11",
+        "new": false
+       },
+       {
+        "r": 3,
+        "c": 9,
+        "kind": "=",
+        "face": "=",
+        "new": false
+       },
+       {
+        "r": 3,
+        "c": 10,
+        "kind": "+/-",
+        "face": "-",
+        "new": false
+       },
+       {
+        "r": 3,
+        "c": 11,
+        "kind": "5",
+        "face": "5",
+        "new": false
+       }
+      ],
+      "text": "0 - 3 + 9 - 11 = - 5",
+      "pattern": "N O N O N O H = O N",
+      "score": 17,
+      "multiplier": 1,
+      "role": "hook",
+      "hookSubtype": "HEAD"
+     }
+    ],
+    "bingoBonus": 0,
+    "moveTypes": [
+     "HOOK"
+    ],
+    "primaryType": "HOOK",
+    "moveFacts": {
+     "equationCount": 2,
+     "main": {
+      "direction": "vertical",
+      "tiles": 5,
+      "placed": 5,
+      "reusedSegments": []
+     },
+     "hooks": [
+      {
+       "subtype": "HEAD",
+       "direction": "horizontal",
+       "before": 0,
+       "after": 9
+      }
+     ]
+    },
+    "composition": {
+     "digit": 3,
+     "heavy": 0,
+     "operator": 1,
+     "choice": 0,
+     "equals": 1,
+     "blank": 0,
+     "total": 5
+    },
+    "patterns": {
+     "main": "N = N O N",
+     "hooks": [
+      "N O N O N O H = O N"
+     ]
+    },
+    "content": {
+     "arithmetic": true,
+     "fraction": false,
+     "fractionSum": false,
+     "large": false,
+     "trivialZero": false
+    },
+    "checks": {
+     "stage5b": 33,
+     "eqlab": 33,
+     "amathCli": 33
+    }
+   },
+   "features": {
+    "version": "study-difficulty-features-v1",
+    "legalMoves": 473,
+    "candidatesReturned": 50,
+    "bestScore": 33,
+    "bestValue": 41.188614811062145,
+    "secondScore": 33,
+    "secondValue": 41.128662906719896,
+    "thirdValue": 39.39928202755725,
+    "valueGapToSecond": 0.05995190434224895,
+    "valueGapToThird": 1.7893327835048964,
+    "scoreGapToSecond": 0,
+    "nearBestCount": 2,
+    "highestCandidateScore": 33,
+    "bestIsHighestScoring": true,
+    "highestScoringRank": 1,
+    "tilesPlaced": 5,
+    "equationCount": 2,
+    "moveTypes": [
+     "HOOK"
+    ],
+    "hookSubtypes": [
+     "HEAD"
+    ],
+    "composition": {
+     "digit": 3,
+     "heavy": 0,
+     "operator": 1,
+     "choice": 0,
+     "equals": 1,
+     "blank": 0,
+     "total": 5
+    },
+    "mainPatternTokens": 5,
+    "longestNumberTiles": 1,
+    "usesBlank": false,
+    "usesChoice": false,
+    "bingo": false,
+    "boardTiles": 30,
+    "bagCount": 54,
+    "turnNumber": 5,
+    "scoreDiff": -19,
+    "rackIndex": 2,
+    "candidateValues": [
+     41.188614811062145,
+     41.128662906719896,
+     39.39928202755725,
+     38.81902652617761,
+     35.20411432362117,
+     34.96762764274352,
+     34.570890896090134,
+     34.54907386246802,
+     34.49441440516915,
+     34.254565861616626
+    ],
+    "candidateScores": [
+     33,
+     33,
+     27,
+     27,
+     23,
+     23,
+     23,
+     26,
+     23,
+     23
+    ]
+   }
+  },
+  "attempts": [
+   {
+    "schema": "study-puzzle-attempt-v1",
+    "id": "att-20260925134151-375a06",
+    "setId": "set-20260925-133523-ea3e0b",
+    "puzzleId": "pz-7392892028f3",
+    "positionHash": "7392892028f3a3bb249e1dfba0a32479529b2f26acf5382b1fea2bd7a8897c0a",
+    "puzzleHash": "92c093632ca9b36c30cd197b75df537fffb814b3425170793f2cee2f2a2318d2",
+    "by": {
+     "kind": "admin-preview"
+    },
+    "submittedAt": "2026-09-25T13:41:51.648Z",
+    "move": {
+     "placements": [
+      {
+       "r": 1,
+       "c": 2,
+       "kind": "4",
+       "face": "4"
+      },
+      {
+       "r": 2,
+       "c": 2,
+       "kind": "=",
+       "face": "="
+      },
+      {
+       "r": 3,
+       "c": 2,
+       "kind": "0",
+       "face": "0"
+      },
+      {
+       "r": 4,
+       "c": 2,
+       "kind": "+",
+       "face": "+"
+      },
+      {
+       "r": 5,
+       "c": 2,
+       "kind": "4",
+       "face": "4"
+      }
+     ]
+    },
+    "validation": {
+     "valid": true,
+     "score": 33,
+     "equations": [
+      {
+       "text": "4 = 0 + 4",
+       "score": 16
+      },
+      {
+       "text": "0 - 3 + 9 - 11 = - 5",
+       "score": 17
+      }
+     ],
+     "errors": []
+    },
+    "grade": {
+     "comparable": true,
+     "sameAsBest": true,
+     "withinNearBest": true,
+     "engineRank": 1,
+     "scoreRatio": 1
+    }
+   },
+   {
+    "schema": "study-puzzle-attempt-v1",
+    "id": "att-20260925133945-cffa28",
+    "setId": "set-20260925-133523-ea3e0b",
+    "puzzleId": "pz-7392892028f3",
+    "positionHash": "7392892028f3a3bb249e1dfba0a32479529b2f26acf5382b1fea2bd7a8897c0a",
+    "puzzleHash": "92c093632ca9b36c30cd197b75df537fffb814b3425170793f2cee2f2a2318d2",
+    "by": {
+     "kind": "admin-preview"
+    },
+    "submittedAt": "2026-09-25T13:39:45.041Z",
+    "move": {
+     "placements": [
+      {
+       "r": 3,
+       "c": 2,
+       "kind": "4",
+       "face": "4"
+      },
+      {
+       "r": 3,
+       "c": 12,
+       "kind": "+",
+       "face": "+"
+      },
+      {
+       "r": 3,
+       "c": 13,
+       "kind": "4",
+       "face": "4"
+      }
+     ]
+    },
+    "validation": {
+     "valid": true,
+     "score": 22,
+     "equations": [
+      {
+       "text": "4 - 3 + 9 - 11 = - 5 + 4",
+       "score": 22
+      }
+     ],
+     "errors": []
+    },
+    "grade": {
+     "comparable": true,
+     "sameAsBest": false,
+     "withinNearBest": false,
+     "engineRank": 26,
+     "scoreRatio": 0.6666666666666666
+    }
+   }
+  ]
+ },
+ "player": {
+  "format": "study-puzzle-player-v1",
+  "setId": "set-20260925-133523-ea3e0b",
+  "puzzleId": "pz-7392892028f3",
+  "positionHash": "7392892028f3a3bb249e1dfba0a32479529b2f26acf5382b1fea2bd7a8897c0a",
+  "position": {
+   "board": [
+    {
+     "r": 0,
+     "c": 7,
+     "kind": "8",
+     "face": "8"
+    },
+    {
+     "r": 1,
+     "c": 7,
+     "kind": "?",
+     "face": "×"
+    },
+    {
+     "r": 2,
+     "c": 7,
+     "kind": "14",
+     "face": "14"
+    },
+    {
+     "r": 3,
+     "c": 3,
+     "kind": "-",
+     "face": "-"
+    },
+    {
+     "r": 3,
+     "c": 4,
+     "kind": "3",
+     "face": "3"
+    },
+    {
+     "r": 3,
+     "c": 5,
+     "kind": "+/-",
+     "face": "+"
+    },
+    {
+     "r": 3,
+     "c": 6,
+     "kind": "9",
+     "face": "9"
+    },
+    {
+     "r": 3,
+     "c": 7,
+     "kind": "-",
+     "face": "-"
+    },
+    {
+     "r": 3,
+     "c": 8,
+     "kind": "11",
+     "face": "11"
+    },
+    {
+     "r": 3,
+     "c": 9,
+     "kind": "=",
+     "face": "="
+    },
+    {
+     "r": 3,
+     "c": 10,
+     "kind": "+/-",
+     "face": "-"
+    },
+    {
+     "r": 3,
+     "c": 11,
+     "kind": "5",
+     "face": "5"
+    },
+    {
+     "r": 4,
+     "c": 7,
+     "kind": "16",
+     "face": "16"
+    },
+    {
+     "r": 5,
+     "c": 7,
+     "kind": "=",
+     "face": "="
+    },
+    {
+     "r": 6,
+     "c": 7,
+     "kind": "9",
+     "face": "9"
+    },
+    {
+     "r": 7,
+     "c": 7,
+     "kind": "6",
+     "face": "6"
+    },
+    {
+     "r": 7,
+     "c": 8,
+     "kind": "=",
+     "face": "="
+    },
+    {
+     "r": 7,
+     "c": 9,
+     "kind": "6",
+     "face": "6"
+    },
+    {
+     "r": 7,
+     "c": 10,
+     "kind": "=",
+     "face": "="
+    },
+    {
+     "r": 7,
+     "c": 11,
+     "kind": "1",
+     "face": "1"
+    },
+    {
+     "r": 7,
+     "c": 12,
+     "kind": "2",
+     "face": "2"
+    },
+    {
+     "r": 7,
+     "c": 13,
+     "kind": "?",
+     "face": "÷"
+    },
+    {
+     "r": 7,
+     "c": 14,
+     "kind": "2",
+     "face": "2"
+    },
+    {
+     "r": 8,
+     "c": 14,
+     "kind": "1",
+     "face": "1"
+    },
+    {
+     "r": 9,
+     "c": 14,
+     "kind": "=",
+     "face": "="
+    },
+    {
+     "r": 10,
+     "c": 14,
+     "kind": "3",
+     "face": "3"
+    },
+    {
+     "r": 11,
+     "c": 14,
+     "kind": "x",
+     "face": "×"
+    },
+    {
+     "r": 12,
+     "c": 14,
+     "kind": "13",
+     "face": "13"
+    },
+    {
+     "r": 13,
+     "c": 14,
+     "kind": "?",
+     "face": "-"
+    },
+    {
+     "r": 14,
+     "c": 14,
+     "kind": "18",
+     "face": "18"
+    }
+   ],
+   "rack": [
+    "0",
+    "4",
+    "4",
+    "6",
+    "10",
+    "12",
+    "+",
+    "="
+   ],
+   "scores": {
+    "self": 139,
+    "opponent": 158
+   },
+   "turnNumber": 5,
+   "bagCount": 54,
+   "oppRackCount": 8,
+   "unseen": {
+    "0": 4,
+    "1": 4,
+    "2": 4,
+    "3": 3,
+    "4": 3,
+    "5": 3,
+    "6": 1,
+    "7": 4,
+    "8": 3,
+    "9": 2,
+    "10": 1,
+    "12": 1,
+    "15": 1,
+    "17": 1,
+    "19": 1,
+    "20": 1,
+    "+": 3,
+    "-": 2,
+    "x": 3,
+    "/": 4,
+    "+/-": 3,
+    "x//": 4,
+    "=": 5,
+    "?": 1
+   }
+  },
+  "rules": {
+   "move": "place"
+  }
+ }
+}

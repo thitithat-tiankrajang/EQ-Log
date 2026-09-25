@@ -1,0 +1,5583 @@
+{
+  "schema": "eqlab-study-puzzle-v2",
+  "id": "pz-a866b3ccd366",
+  "setId": "spec-proof-1790359334273",
+  "index": 0,
+  "hashes": {
+    "position": "a866b3ccd366c9c61b041714a4f95db6b5afb5dcd7610f1cd26b3474c86e2134",
+    "puzzle": "d080719391d6c5d7fb18b847d37bcffec0acd233c3fb3d849663f36035079744"
+  },
+  "canonical": {
+    "provenance": {
+      "origin": "CONFIG_GUIDED_RACK",
+      "version": "study-rack-allocation-v1",
+      "sourceTurn": 3,
+      "sourcePositionHash": "f06087631d418c5f41890094e561eba06669dc1db6a3843b264419f772ef4110",
+      "sourceStateHash": "813197539197fd534570a715b85b2d4d04c5f71b9132f016f6b19e638e13a0f5",
+      "originalRack": [
+        "1",
+        "2",
+        "2",
+        "4",
+        "6",
+        "13",
+        "-",
+        "="
+      ],
+      "constructedRack": [
+        "0",
+        "2",
+        "4",
+        "6",
+        "-",
+        "x",
+        "x//",
+        "="
+      ],
+      "remainingUnseen": {
+        "0": 4,
+        "1": 3,
+        "2": 3,
+        "3": 4,
+        "4": 3,
+        "5": 3,
+        "6": 3,
+        "7": 3,
+        "8": 4,
+        "9": 4,
+        "10": 2,
+        "11": 1,
+        "12": 2,
+        "13": 1,
+        "15": 1,
+        "16": 1,
+        "17": 1,
+        "18": 1,
+        "19": 1,
+        "20": 1,
+        "+": 4,
+        "-": 2,
+        "x": 2,
+        "/": 4,
+        "+/-": 5,
+        "x//": 3,
+        "=": 8,
+        "?": 4
+      },
+      "candidateIndex": 0,
+      "candidateSeed": 183543255,
+      "family": "arithmetic",
+      "strategyVersion": "study-guided-racks-v1",
+      "puzzlePositionHash": "a866b3ccd366c9c61b041714a4f95db6b5afb5dcd7610f1cd26b3474c86e2134"
+    },
+    "source": {
+      "game": 0,
+      "seed": 1618828576,
+      "policy": {
+        "engine": "stage5b64",
+        "request": "study-endpoint-equivalent",
+        "topN": 50
+      },
+      "log": {
+        "format": "study-source-log-v1",
+        "stateHash": "survival-state-hash-v1",
+        "publicHash": "survival-public-hash-v1",
+        "sourceRules": "eqlab-compat: every draw from the front of the bag; an exchanged pile rejoins the bag after the draw and the bag is reshuffled",
+        "sourceSeed": 1618828576,
+        "initial": {
+          "rules": "eqlab-compat",
+          "racks": {
+            "A": [
+              "14",
+              "2",
+              "2",
+              "x",
+              "=",
+              "4",
+              "3",
+              "6"
+            ],
+            "B": [
+              "1",
+              "5",
+              "-",
+              "=",
+              "1",
+              "1",
+              "2",
+              "7"
+            ]
+          },
+          "bag": [
+            "=",
+            "2",
+            "1",
+            "13",
+            "4",
+            "-",
+            "=",
+            "x//",
+            "/",
+            "0",
+            "x//",
+            "+",
+            "+",
+            "12",
+            "/",
+            "6",
+            "4",
+            "0",
+            "-",
+            "x//",
+            "19",
+            "1",
+            "10",
+            "3",
+            "11",
+            "=",
+            "5",
+            "=",
+            "x",
+            "16",
+            "x",
+            "7",
+            "20",
+            "+/-",
+            "2",
+            "+/-",
+            "x",
+            "5",
+            "x//",
+            "=",
+            "8",
+            "6",
+            "18",
+            "=",
+            "3",
+            "10",
+            "=",
+            "+/-",
+            "=",
+            "15",
+            "0",
+            "0",
+            "-",
+            "4",
+            "=",
+            "4",
+            "?",
+            "9",
+            "9",
+            "17",
+            "8",
+            "9",
+            "12",
+            "+",
+            "7",
+            "1",
+            "+/-",
+            "/",
+            "?",
+            "3",
+            "7",
+            "+/-",
+            "8",
+            "2",
+            "9",
+            "8",
+            "+",
+            "?",
+            "3",
+            "?",
+            "6",
+            "0",
+            "/",
+            "5"
+          ],
+          "scores": {
+            "A": 0,
+            "B": 0
+          },
+          "sideToMove": "A",
+          "turnNumber": 1,
+          "noScoreTail": [],
+          "hasPlacement": false,
+          "stateHash": "dbce0597f82d16e948cd9fa93183c90ea512f27062b72ebe766d07e31f6f74e9",
+          "publicHash": "c0699afa488ea964d951cd6db7606db34860132ec465281c8d94e608d7817d81"
+        },
+        "turns": [
+          {
+            "turn": 1,
+            "side": "A",
+            "type": "place",
+            "action": {
+              "type": "place",
+              "placements": [
+                {
+                  "cell": 112,
+                  "kind": "14",
+                  "face": "14",
+                  "tileId": "14#0"
+                },
+                {
+                  "cell": 113,
+                  "kind": "x",
+                  "face": "×",
+                  "tileId": "x#0"
+                },
+                {
+                  "cell": 114,
+                  "kind": "3",
+                  "face": "3",
+                  "tileId": "3#4"
+                },
+                {
+                  "cell": 115,
+                  "kind": "=",
+                  "face": "=",
+                  "tileId": "=#1"
+                },
+                {
+                  "cell": 116,
+                  "kind": "4",
+                  "face": "4",
+                  "tileId": "4#0"
+                },
+                {
+                  "cell": 117,
+                  "kind": "2",
+                  "face": "2",
+                  "tileId": "2#5"
+                }
+              ]
+            },
+            "decision": {
+              "policy": "stage5b64",
+              "seed": 51596927,
+              "value": 30.47623677583497
+            },
+            "rackBefore": [
+              "2",
+              "2",
+              "3",
+              "4",
+              "6",
+              "14",
+              "x",
+              "="
+            ],
+            "scoreGained": 21,
+            "scoresBefore": {
+              "A": 0,
+              "B": 0
+            },
+            "scoresAfter": {
+              "A": 21,
+              "B": 0
+            },
+            "drawn": [
+              "=",
+              "2",
+              "1",
+              "13",
+              "4",
+              "-"
+            ],
+            "bagCountBefore": 84,
+            "bagCountAfter": 78,
+            "noScoreTailAfter": [],
+            "stateHashAfter": "e2b60f391107e1837f61fa2083d9b3526b4ef5c387a518af9b7cf31856268113",
+            "publicHashAfter": "88802b39fe29c3d2ec89359374a13ae6b5c3e5120593504b2593b6c8e2e70850"
+          },
+          {
+            "turn": 2,
+            "side": "B",
+            "type": "place",
+            "action": {
+              "type": "place",
+              "placements": [
+                {
+                  "cell": 42,
+                  "kind": "7",
+                  "face": "7",
+                  "tileId": "7#1"
+                },
+                {
+                  "cell": 57,
+                  "kind": "1",
+                  "face": "1",
+                  "tileId": "1#1"
+                },
+                {
+                  "cell": 72,
+                  "kind": "=",
+                  "face": "=",
+                  "tileId": "=#8"
+                },
+                {
+                  "cell": 87,
+                  "kind": "1",
+                  "face": "1",
+                  "tileId": "1#5"
+                },
+                {
+                  "cell": 102,
+                  "kind": "2",
+                  "face": "2",
+                  "tileId": "2#3"
+                },
+                {
+                  "cell": 132,
+                  "kind": "-",
+                  "face": "-",
+                  "tileId": "-#1"
+                },
+                {
+                  "cell": 147,
+                  "kind": "5",
+                  "face": "5",
+                  "tileId": "5#2"
+                },
+                {
+                  "cell": 162,
+                  "kind": "1",
+                  "face": "1",
+                  "tileId": "1#3"
+                }
+              ]
+            },
+            "decision": {
+              "policy": "stage5b64",
+              "seed": 2025272832,
+              "value": 85.95066321301191
+            },
+            "rackBefore": [
+              "1",
+              "1",
+              "1",
+              "2",
+              "5",
+              "7",
+              "-",
+              "="
+            ],
+            "scoreGained": 70,
+            "scoresBefore": {
+              "A": 21,
+              "B": 0
+            },
+            "scoresAfter": {
+              "A": 21,
+              "B": 70
+            },
+            "drawn": [
+              "=",
+              "x//",
+              "/",
+              "0",
+              "x//",
+              "+",
+              "+",
+              "12"
+            ],
+            "bagCountBefore": 78,
+            "bagCountAfter": 70,
+            "noScoreTailAfter": [],
+            "stateHashAfter": "813197539197fd534570a715b85b2d4d04c5f71b9132f016f6b19e638e13a0f5",
+            "publicHashAfter": "d2572e580dcfbdd3fe77a0c3c92cd58aeebba30465a401c39fa076aeb27ff039"
+          }
+        ],
+        "puzzle": {
+          "turn": 3,
+          "sideToMove": "A",
+          "stateHash": "813197539197fd534570a715b85b2d4d04c5f71b9132f016f6b19e638e13a0f5",
+          "publicHash": "d2572e580dcfbdd3fe77a0c3c92cd58aeebba30465a401c39fa076aeb27ff039"
+        }
+      }
+    },
+    "position": {
+      "sideToMove": "A",
+      "turnNumber": 3,
+      "board": [
+        {
+          "r": 2,
+          "c": 12,
+          "kind": "7",
+          "face": "7",
+          "side": "B",
+          "turn": 2
+        },
+        {
+          "r": 3,
+          "c": 12,
+          "kind": "1",
+          "face": "1",
+          "side": "B",
+          "turn": 2
+        },
+        {
+          "r": 4,
+          "c": 12,
+          "kind": "=",
+          "face": "=",
+          "side": "B",
+          "turn": 2
+        },
+        {
+          "r": 5,
+          "c": 12,
+          "kind": "1",
+          "face": "1",
+          "side": "B",
+          "turn": 2
+        },
+        {
+          "r": 6,
+          "c": 12,
+          "kind": "2",
+          "face": "2",
+          "side": "B",
+          "turn": 2
+        },
+        {
+          "r": 7,
+          "c": 7,
+          "kind": "14",
+          "face": "14",
+          "side": "A",
+          "turn": 1
+        },
+        {
+          "r": 7,
+          "c": 8,
+          "kind": "x",
+          "face": "×",
+          "side": "A",
+          "turn": 1
+        },
+        {
+          "r": 7,
+          "c": 9,
+          "kind": "3",
+          "face": "3",
+          "side": "A",
+          "turn": 1
+        },
+        {
+          "r": 7,
+          "c": 10,
+          "kind": "=",
+          "face": "=",
+          "side": "A",
+          "turn": 1
+        },
+        {
+          "r": 7,
+          "c": 11,
+          "kind": "4",
+          "face": "4",
+          "side": "A",
+          "turn": 1
+        },
+        {
+          "r": 7,
+          "c": 12,
+          "kind": "2",
+          "face": "2",
+          "side": "A",
+          "turn": 1
+        },
+        {
+          "r": 8,
+          "c": 12,
+          "kind": "-",
+          "face": "-",
+          "side": "B",
+          "turn": 2
+        },
+        {
+          "r": 9,
+          "c": 12,
+          "kind": "5",
+          "face": "5",
+          "side": "B",
+          "turn": 2
+        },
+        {
+          "r": 10,
+          "c": 12,
+          "kind": "1",
+          "face": "1",
+          "side": "B",
+          "turn": 2
+        }
+      ],
+      "rack": [
+        "0",
+        "2",
+        "4",
+        "6",
+        "-",
+        "x",
+        "x//",
+        "="
+      ],
+      "scores": {
+        "self": 21,
+        "opponent": 70
+      },
+      "bagCount": 70,
+      "oppRackCount": 8,
+      "noScoreStreak": 0,
+      "unseen": {
+        "0": 4,
+        "1": 3,
+        "2": 3,
+        "3": 4,
+        "4": 3,
+        "5": 3,
+        "6": 3,
+        "7": 3,
+        "8": 4,
+        "9": 4,
+        "10": 2,
+        "11": 1,
+        "12": 2,
+        "13": 1,
+        "15": 1,
+        "16": 1,
+        "17": 1,
+        "18": 1,
+        "19": 1,
+        "20": 1,
+        "+": 4,
+        "-": 2,
+        "x": 2,
+        "/": 4,
+        "+/-": 5,
+        "x//": 3,
+        "=": 8,
+        "?": 4
+      },
+      "hidden": {
+        "opponentRack": [
+          "+",
+          "+",
+          "+",
+          "+",
+          "+/-",
+          "+/-",
+          "+/-",
+          "+/-"
+        ],
+        "bag": [
+          "+/-",
+          "-",
+          "-",
+          "/",
+          "/",
+          "/",
+          "/",
+          "0",
+          "0",
+          "0",
+          "0",
+          "1",
+          "1",
+          "1",
+          "10",
+          "10",
+          "11",
+          "12",
+          "12",
+          "13",
+          "15",
+          "16",
+          "17",
+          "18",
+          "19",
+          "2",
+          "2",
+          "2",
+          "20",
+          "3",
+          "3",
+          "3",
+          "3",
+          "4",
+          "4",
+          "4",
+          "5",
+          "5",
+          "5",
+          "6",
+          "6",
+          "6",
+          "7",
+          "7",
+          "7",
+          "8",
+          "8",
+          "8",
+          "8",
+          "9",
+          "9",
+          "9",
+          "9",
+          "=",
+          "=",
+          "=",
+          "=",
+          "=",
+          "=",
+          "=",
+          "=",
+          "?",
+          "?",
+          "?",
+          "?",
+          "x",
+          "x",
+          "x//",
+          "x//",
+          "x//"
+        ]
+      }
+    },
+    "studyRequest": {
+      "board": [
+        {
+          "r": 2,
+          "c": 12,
+          "kind": "7",
+          "token": "7"
+        },
+        {
+          "r": 3,
+          "c": 12,
+          "kind": "1",
+          "token": "1"
+        },
+        {
+          "r": 4,
+          "c": 12,
+          "kind": "=",
+          "token": "="
+        },
+        {
+          "r": 5,
+          "c": 12,
+          "kind": "1",
+          "token": "1"
+        },
+        {
+          "r": 6,
+          "c": 12,
+          "kind": "2",
+          "token": "2"
+        },
+        {
+          "r": 7,
+          "c": 7,
+          "kind": "14",
+          "token": "14"
+        },
+        {
+          "r": 7,
+          "c": 8,
+          "kind": "x",
+          "token": "x"
+        },
+        {
+          "r": 7,
+          "c": 9,
+          "kind": "3",
+          "token": "3"
+        },
+        {
+          "r": 7,
+          "c": 10,
+          "kind": "=",
+          "token": "="
+        },
+        {
+          "r": 7,
+          "c": 11,
+          "kind": "4",
+          "token": "4"
+        },
+        {
+          "r": 7,
+          "c": 12,
+          "kind": "2",
+          "token": "2"
+        },
+        {
+          "r": 8,
+          "c": 12,
+          "kind": "-",
+          "token": "-"
+        },
+        {
+          "r": 9,
+          "c": 12,
+          "kind": "5",
+          "token": "5"
+        },
+        {
+          "r": 10,
+          "c": 12,
+          "kind": "1",
+          "token": "1"
+        }
+      ],
+      "rack": [
+        "0",
+        "2",
+        "4",
+        "6",
+        "-",
+        "x",
+        "x//",
+        "="
+      ],
+      "scoreSelf": 21,
+      "scoreOpponent": 70,
+      "level": "stage5b64"
+    }
+  },
+  "answer": {
+    "engine": {
+      "solver": "stage5b",
+      "request": {
+        "board": [
+          {
+            "r": 2,
+            "c": 12,
+            "kind": "7",
+            "token": "7"
+          },
+          {
+            "r": 3,
+            "c": 12,
+            "kind": "1",
+            "token": "1"
+          },
+          {
+            "r": 4,
+            "c": 12,
+            "kind": "=",
+            "token": "="
+          },
+          {
+            "r": 5,
+            "c": 12,
+            "kind": "1",
+            "token": "1"
+          },
+          {
+            "r": 6,
+            "c": 12,
+            "kind": "2",
+            "token": "2"
+          },
+          {
+            "r": 7,
+            "c": 7,
+            "kind": "14",
+            "token": "14"
+          },
+          {
+            "r": 7,
+            "c": 8,
+            "kind": "x",
+            "token": "x"
+          },
+          {
+            "r": 7,
+            "c": 9,
+            "kind": "3",
+            "token": "3"
+          },
+          {
+            "r": 7,
+            "c": 10,
+            "kind": "=",
+            "token": "="
+          },
+          {
+            "r": 7,
+            "c": 11,
+            "kind": "4",
+            "token": "4"
+          },
+          {
+            "r": 7,
+            "c": 12,
+            "kind": "2",
+            "token": "2"
+          },
+          {
+            "r": 8,
+            "c": 12,
+            "kind": "-",
+            "token": "-"
+          },
+          {
+            "r": 9,
+            "c": 12,
+            "kind": "5",
+            "token": "5"
+          },
+          {
+            "r": 10,
+            "c": 12,
+            "kind": "1",
+            "token": "1"
+          }
+        ],
+        "rack": [
+          "0",
+          "2",
+          "4",
+          "6",
+          "-",
+          "x",
+          "x//",
+          "="
+        ],
+        "bagCount": 70,
+        "oppRackCount": 8,
+        "myScore": 21,
+        "oppScore": 70,
+        "noScoreStreak": 0,
+        "exchangeAllowed": true,
+        "seed": 1356235850,
+        "topN": 50
+      },
+      "legalMoves": 818,
+      "elapsedMs": 528.224542,
+      "candidates": [
+        {
+          "rank": 1,
+          "type": "place",
+          "placements": [
+            {
+              "r": 7,
+              "c": 0,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 7,
+              "c": 1,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 7,
+              "c": 2,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 7,
+              "c": 3,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 7,
+              "c": 4,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 7,
+              "c": 5,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 7,
+              "c": 6,
+              "kind": "=",
+              "face": "="
+            }
+          ],
+          "exchange": [],
+          "score": 72,
+          "value": 89.47802805463688,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 72
+            },
+            {
+              "name": "area-potential",
+              "points": 5.4896
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.946908
+            },
+            {
+              "name": "leave",
+              "points": 0.135
+            },
+            {
+              "name": "future-access",
+              "points": 4.046
+            },
+            {
+              "name": "exposure",
+              "points": -2.4000000000000004
+            },
+            {
+              "name": "nn-value",
+              "points": 7.260520054636881
+            }
+          ]
+        },
+        {
+          "rank": 2,
+          "type": "place",
+          "placements": [
+            {
+              "r": 7,
+              "c": 0,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 7,
+              "c": 1,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 7,
+              "c": 2,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 7,
+              "c": 3,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 7,
+              "c": 4,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 7,
+              "c": 5,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 7,
+              "c": 6,
+              "kind": "x//",
+              "face": "×"
+            }
+          ],
+          "exchange": [],
+          "score": 72,
+          "value": 88.73013752044285,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 72
+            },
+            {
+              "name": "area-potential",
+              "points": 5.4896
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.946908
+            },
+            {
+              "name": "leave",
+              "points": -0.375
+            },
+            {
+              "name": "future-access",
+              "points": 4.046
+            },
+            {
+              "name": "exposure",
+              "points": -2.4000000000000004
+            },
+            {
+              "name": "nn-value",
+              "points": 7.022629520442867
+            }
+          ]
+        },
+        {
+          "rank": 3,
+          "type": "place",
+          "placements": [
+            {
+              "r": 7,
+              "c": 0,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 7,
+              "c": 1,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 7,
+              "c": 2,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 7,
+              "c": 3,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 7,
+              "c": 4,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 7,
+              "c": 5,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 7,
+              "c": 6,
+              "kind": "x//",
+              "face": "÷"
+            }
+          ],
+          "exchange": [],
+          "score": 72,
+          "value": 88.5305812162039,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 72
+            },
+            {
+              "name": "area-potential",
+              "points": 5.4896
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.946908
+            },
+            {
+              "name": "leave",
+              "points": -0.375
+            },
+            {
+              "name": "future-access",
+              "points": 4.046
+            },
+            {
+              "name": "exposure",
+              "points": -2.4000000000000004
+            },
+            {
+              "name": "nn-value",
+              "points": 6.823073216203911
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "type": "place",
+          "placements": [
+            {
+              "r": 7,
+              "c": 0,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 7,
+              "c": 1,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 7,
+              "c": 2,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 7,
+              "c": 3,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 7,
+              "c": 4,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 7,
+              "c": 5,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 7,
+              "c": 6,
+              "kind": "x",
+              "face": "×"
+            }
+          ],
+          "exchange": [],
+          "score": 72,
+          "value": 88.41324015129663,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 72
+            },
+            {
+              "name": "area-potential",
+              "points": 5.4896
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.946908
+            },
+            {
+              "name": "leave",
+              "points": -0.375
+            },
+            {
+              "name": "future-access",
+              "points": 4.046
+            },
+            {
+              "name": "exposure",
+              "points": -2.4000000000000004
+            },
+            {
+              "name": "nn-value",
+              "points": 6.705732151296651
+            }
+          ]
+        },
+        {
+          "rank": 5,
+          "type": "place",
+          "placements": [
+            {
+              "r": 7,
+              "c": 0,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 7,
+              "c": 1,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 7,
+              "c": 2,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 7,
+              "c": 3,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 7,
+              "c": 4,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 7,
+              "c": 5,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 7,
+              "c": 6,
+              "kind": "=",
+              "face": "="
+            }
+          ],
+          "exchange": [],
+          "score": 69,
+          "value": 85.13092646602558,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 69
+            },
+            {
+              "name": "area-potential",
+              "points": 5.4896
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.946908
+            },
+            {
+              "name": "leave",
+              "points": 0.135
+            },
+            {
+              "name": "future-access",
+              "points": 4.046
+            },
+            {
+              "name": "exposure",
+              "points": -2.4000000000000004
+            },
+            {
+              "name": "nn-value",
+              "points": 5.913418466025583
+            }
+          ]
+        },
+        {
+          "rank": 6,
+          "type": "place",
+          "placements": [
+            {
+              "r": 7,
+              "c": 0,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 7,
+              "c": 1,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 7,
+              "c": 2,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 7,
+              "c": 3,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 7,
+              "c": 4,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 7,
+              "c": 5,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 7,
+              "c": 6,
+              "kind": "x//",
+              "face": "×"
+            }
+          ],
+          "exchange": [],
+          "score": 69,
+          "value": 84.45792595374762,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 69
+            },
+            {
+              "name": "area-potential",
+              "points": 5.4896
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.946908
+            },
+            {
+              "name": "leave",
+              "points": -0.375
+            },
+            {
+              "name": "future-access",
+              "points": 4.046
+            },
+            {
+              "name": "exposure",
+              "points": -2.4000000000000004
+            },
+            {
+              "name": "nn-value",
+              "points": 5.750417953747634
+            }
+          ]
+        },
+        {
+          "rank": 7,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "x//",
+              "face": "÷"
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 84.24962756027573,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 7.726399560275727
+            }
+          ]
+        },
+        {
+          "rank": 8,
+          "type": "place",
+          "placements": [
+            {
+              "r": 7,
+              "c": 0,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 7,
+              "c": 1,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 7,
+              "c": 2,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 7,
+              "c": 3,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 7,
+              "c": 4,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 7,
+              "c": 5,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 7,
+              "c": 6,
+              "kind": "x//",
+              "face": "÷"
+            }
+          ],
+          "exchange": [],
+          "score": 69,
+          "value": 84.23990868391093,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 69
+            },
+            {
+              "name": "area-potential",
+              "points": 5.4896
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.946908
+            },
+            {
+              "name": "leave",
+              "points": -0.375
+            },
+            {
+              "name": "future-access",
+              "points": 4.046
+            },
+            {
+              "name": "exposure",
+              "points": -2.4000000000000004
+            },
+            {
+              "name": "nn-value",
+              "points": 5.532400683910934
+            }
+          ]
+        },
+        {
+          "rank": 9,
+          "type": "place",
+          "placements": [
+            {
+              "r": 7,
+              "c": 0,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 7,
+              "c": 1,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 7,
+              "c": 2,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 7,
+              "c": 3,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 7,
+              "c": 4,
+              "kind": "x//",
+              "face": "÷"
+            },
+            {
+              "r": 7,
+              "c": 5,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 7,
+              "c": 6,
+              "kind": "x",
+              "face": "×"
+            }
+          ],
+          "exchange": [],
+          "score": 69,
+          "value": 84.2151438164882,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 69
+            },
+            {
+              "name": "area-potential",
+              "points": 5.4896
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.946908
+            },
+            {
+              "name": "leave",
+              "points": -0.375
+            },
+            {
+              "name": "future-access",
+              "points": 4.046
+            },
+            {
+              "name": "exposure",
+              "points": -2.4000000000000004
+            },
+            {
+              "name": "nn-value",
+              "points": 5.507635816488202
+            }
+          ]
+        },
+        {
+          "rank": 10,
+          "type": "place",
+          "placements": [
+            {
+              "r": 7,
+              "c": 0,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 7,
+              "c": 1,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 7,
+              "c": 2,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 7,
+              "c": 3,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 7,
+              "c": 4,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 7,
+              "c": 5,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 7,
+              "c": 6,
+              "kind": "x",
+              "face": "×"
+            }
+          ],
+          "exchange": [],
+          "score": 69,
+          "value": 84.03564138795718,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 69
+            },
+            {
+              "name": "area-potential",
+              "points": 5.4896
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.946908
+            },
+            {
+              "name": "leave",
+              "points": -0.375
+            },
+            {
+              "name": "future-access",
+              "points": 4.046
+            },
+            {
+              "name": "exposure",
+              "points": -2.4000000000000004
+            },
+            {
+              "name": "nn-value",
+              "points": 5.328133387957189
+            }
+          ]
+        },
+        {
+          "rank": 11,
+          "type": "place",
+          "placements": [
+            {
+              "r": 1,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 2,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 3,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 4,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x//",
+              "face": "÷"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 83.71843502848016,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.2776
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 7.219007028480169
+            }
+          ]
+        },
+        {
+          "rank": 12,
+          "type": "place",
+          "placements": [
+            {
+              "r": 7,
+              "c": 0,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 7,
+              "c": 1,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 7,
+              "c": 2,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 7,
+              "c": 3,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 7,
+              "c": 4,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 7,
+              "c": 5,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 7,
+              "c": 6,
+              "kind": "=",
+              "face": "="
+            }
+          ],
+          "exchange": [],
+          "score": 69,
+          "value": 83.66841184314117,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 69
+            },
+            {
+              "name": "area-potential",
+              "points": 5.4896
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.946908
+            },
+            {
+              "name": "leave",
+              "points": -1.365
+            },
+            {
+              "name": "future-access",
+              "points": 4.046
+            },
+            {
+              "name": "exposure",
+              "points": -2.4000000000000004
+            },
+            {
+              "name": "nn-value",
+              "points": 5.950903843141182
+            }
+          ]
+        },
+        {
+          "rank": 13,
+          "type": "place",
+          "placements": [
+            {
+              "r": 1,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 2,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 3,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 4,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 83.3055733941041,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.2776
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 6.806145394104103
+            }
+          ]
+        },
+        {
+          "rank": 14,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "x//",
+              "face": "÷"
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 83.28719031568276,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 6.763962315682765
+            }
+          ]
+        },
+        {
+          "rank": 15,
+          "type": "place",
+          "placements": [
+            {
+              "r": 1,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 2,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 3,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 4,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 83.08697780832668,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.2776
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 6.58754980832669
+            }
+          ]
+        },
+        {
+          "rank": 16,
+          "type": "place",
+          "placements": [
+            {
+              "r": 1,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 2,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 3,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 4,
+              "c": 9,
+              "kind": "x//",
+              "face": "÷"
+            },
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 82.9600971523228,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.2776
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 6.4606691523228035
+            }
+          ]
+        },
+        {
+          "rank": 17,
+          "type": "place",
+          "placements": [
+            {
+              "r": 1,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 2,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 3,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 4,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 82.91486346071576,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.2776
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 6.415435460715773
+            }
+          ]
+        },
+        {
+          "rank": 18,
+          "type": "place",
+          "placements": [
+            {
+              "r": 1,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 2,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 3,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 4,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x//",
+              "face": "÷"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 82.8613164897061,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.2776
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 6.361888489706104
+            }
+          ]
+        },
+        {
+          "rank": 19,
+          "type": "place",
+          "placements": [
+            {
+              "r": 1,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 2,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 3,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 4,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x//",
+              "face": "÷"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 82.71010949424245,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.2776
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 6.210681494242457
+            }
+          ]
+        },
+        {
+          "rank": 20,
+          "type": "place",
+          "placements": [
+            {
+              "r": 1,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 2,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 3,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 4,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 82.53947027729045,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.2776
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 6.04004227729046
+            }
+          ]
+        },
+        {
+          "rank": 21,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 82.4958795705393,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.972651570539301
+            }
+          ]
+        },
+        {
+          "rank": 22,
+          "type": "place",
+          "placements": [
+            {
+              "r": 1,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 2,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 3,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 4,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 82.47374372196984,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.1575999999999995
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 6.09431572196983
+            }
+          ]
+        },
+        {
+          "rank": 23,
+          "type": "place",
+          "placements": [
+            {
+              "r": 1,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 2,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 3,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 4,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 82.4727506792703,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.1575999999999995
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 6.0933226792703055
+            }
+          ]
+        },
+        {
+          "rank": 24,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 82.28073053251637,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.757502532516362
+            }
+          ]
+        },
+        {
+          "rank": 25,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 82.24748214450592,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.724254144505919
+            }
+          ]
+        },
+        {
+          "rank": 26,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 82.17516496626682,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.651936966266811
+            }
+          ]
+        },
+        {
+          "rank": 27,
+          "type": "place",
+          "placements": [
+            {
+              "r": 1,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 2,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 3,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 4,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 82.17501228980068,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.1575999999999995
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.7955842898006775
+            }
+          ]
+        },
+        {
+          "rank": 28,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 82.15845719724673,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.635229197246727
+            }
+          ]
+        },
+        {
+          "rank": 29,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "x//",
+              "face": "÷"
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 82.11059230833936,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.5873643083393665
+            }
+          ]
+        },
+        {
+          "rank": 30,
+          "type": "place",
+          "placements": [
+            {
+              "r": 1,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 2,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 3,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 4,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x//",
+              "face": "÷"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 82.10489980622046,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.2776
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.605471806220461
+            }
+          ]
+        },
+        {
+          "rank": 31,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x//",
+              "face": "÷"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 82.1047566227511,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.581528622751088
+            }
+          ]
+        },
+        {
+          "rank": 32,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "x//",
+              "face": "÷"
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 82.07700508943813,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.553777089438135
+            }
+          ]
+        },
+        {
+          "rank": 33,
+          "type": "place",
+          "placements": [
+            {
+              "r": 1,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 2,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 3,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 4,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 82.06325806975481,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.1575999999999995
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.683830069754805
+            }
+          ]
+        },
+        {
+          "rank": 34,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 82.04139510656009,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.518167106560084
+            }
+          ]
+        },
+        {
+          "rank": 35,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x//",
+              "face": "÷"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 82.01793251252437,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.49470451252437
+            }
+          ]
+        },
+        {
+          "rank": 36,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 81.9667265189743,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.4434985189742875
+            }
+          ]
+        },
+        {
+          "rank": 37,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 81.93637976567682,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.413151765676815
+            }
+          ]
+        },
+        {
+          "rank": 38,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x//",
+              "face": "÷"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 81.88732927459509,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.364101274595092
+            }
+          ]
+        },
+        {
+          "rank": 39,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 81.88357996062524,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.360351960625244
+            }
+          ]
+        },
+        {
+          "rank": 40,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 81.83968026550946,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.316452265509457
+            }
+          ]
+        },
+        {
+          "rank": 41,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x//",
+              "face": "÷"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 81.82639808832131,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.303170088321309
+            }
+          ]
+        },
+        {
+          "rank": 42,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x//",
+              "face": "÷"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 81.82624729809658,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.303019298096573
+            }
+          ]
+        },
+        {
+          "rank": 43,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x//",
+              "face": "÷"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 81.82281852982729,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.299590529827281
+            }
+          ]
+        },
+        {
+          "rank": 44,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "x//",
+              "face": "÷"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 81.8075076758355,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.284279675835485
+            }
+          ]
+        },
+        {
+          "rank": 45,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 81.80517157764642,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.281943577646421
+            }
+          ]
+        },
+        {
+          "rank": 46,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 81.77059587052837,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.247367870528365
+            }
+          ]
+        },
+        {
+          "rank": 47,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "x//",
+              "face": "÷"
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 81.75987014764928,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.2366421476492775
+            }
+          ]
+        },
+        {
+          "rank": 48,
+          "type": "place",
+          "placements": [
+            {
+              "r": 1,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            },
+            {
+              "r": 2,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 3,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 4,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x//",
+              "face": "÷"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 81.75550987157801,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.1575999999999995
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.376081871578011
+            }
+          ]
+        },
+        {
+          "rank": 49,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 81.7404557436956,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.217227743695608
+            }
+          ]
+        },
+        {
+          "rank": 50,
+          "type": "place",
+          "placements": [
+            {
+              "r": 5,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 6,
+              "c": 9,
+              "kind": "x//",
+              "face": "×"
+            },
+            {
+              "r": 8,
+              "c": 9,
+              "kind": "-",
+              "face": "-"
+            },
+            {
+              "r": 9,
+              "c": 9,
+              "kind": "6",
+              "face": "6"
+            },
+            {
+              "r": 10,
+              "c": 9,
+              "kind": "=",
+              "face": "="
+            },
+            {
+              "r": 11,
+              "c": 9,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 13,
+              "c": 9,
+              "kind": "4",
+              "face": "4"
+            }
+          ],
+          "exchange": [],
+          "score": 63,
+          "value": 81.704944949345,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 63
+            },
+            {
+              "name": "area-potential",
+              "points": 6.2384
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.983428
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 4.3014
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 5.181716949345004
+            }
+          ]
+        }
+      ]
+    },
+    "best": {
+      "placements": [
+        {
+          "r": 7,
+          "c": 0,
+          "kind": "4",
+          "face": "4"
+        },
+        {
+          "r": 7,
+          "c": 1,
+          "kind": "2",
+          "face": "2"
+        },
+        {
+          "r": 7,
+          "c": 2,
+          "kind": "-",
+          "face": "-"
+        },
+        {
+          "r": 7,
+          "c": 3,
+          "kind": "6",
+          "face": "6"
+        },
+        {
+          "r": 7,
+          "c": 4,
+          "kind": "x",
+          "face": "×"
+        },
+        {
+          "r": 7,
+          "c": 5,
+          "kind": "0",
+          "face": "0"
+        },
+        {
+          "r": 7,
+          "c": 6,
+          "kind": "=",
+          "face": "="
+        }
+      ],
+      "score": 72,
+      "value": 89.47802805463688,
+      "components": [
+        {
+          "name": "immediate-score",
+          "points": 72
+        },
+        {
+          "name": "area-potential",
+          "points": 5.4896
+        },
+        {
+          "name": "unseen-potential",
+          "points": 2.946908
+        },
+        {
+          "name": "leave",
+          "points": 0.135
+        },
+        {
+          "name": "future-access",
+          "points": 4.046
+        },
+        {
+          "name": "exposure",
+          "points": -2.4000000000000004
+        },
+        {
+          "name": "nn-value",
+          "points": 7.260520054636881
+        }
+      ]
+    },
+    "nearBest": [
+      {
+        "rank": 1,
+        "type": "place",
+        "score": 72,
+        "value": 89.47802805463688,
+        "placements": [
+          {
+            "r": 7,
+            "c": 0,
+            "kind": "4",
+            "face": "4"
+          },
+          {
+            "r": 7,
+            "c": 1,
+            "kind": "2",
+            "face": "2"
+          },
+          {
+            "r": 7,
+            "c": 2,
+            "kind": "-",
+            "face": "-"
+          },
+          {
+            "r": 7,
+            "c": 3,
+            "kind": "6",
+            "face": "6"
+          },
+          {
+            "r": 7,
+            "c": 4,
+            "kind": "x",
+            "face": "×"
+          },
+          {
+            "r": 7,
+            "c": 5,
+            "kind": "0",
+            "face": "0"
+          },
+          {
+            "r": 7,
+            "c": 6,
+            "kind": "=",
+            "face": "="
+          }
+        ],
+        "exchange": []
+      }
+    ],
+    "equations": [
+      {
+        "direction": "horizontal",
+        "tiles": [
+          {
+            "r": 7,
+            "c": 0,
+            "kind": "4",
+            "face": "4",
+            "new": true
+          },
+          {
+            "r": 7,
+            "c": 1,
+            "kind": "2",
+            "face": "2",
+            "new": true
+          },
+          {
+            "r": 7,
+            "c": 2,
+            "kind": "-",
+            "face": "-",
+            "new": true
+          },
+          {
+            "r": 7,
+            "c": 3,
+            "kind": "6",
+            "face": "6",
+            "new": true
+          },
+          {
+            "r": 7,
+            "c": 4,
+            "kind": "x",
+            "face": "×",
+            "new": true
+          },
+          {
+            "r": 7,
+            "c": 5,
+            "kind": "0",
+            "face": "0",
+            "new": true
+          },
+          {
+            "r": 7,
+            "c": 6,
+            "kind": "=",
+            "face": "=",
+            "new": true
+          },
+          {
+            "r": 7,
+            "c": 7,
+            "kind": "14",
+            "face": "14",
+            "new": false
+          },
+          {
+            "r": 7,
+            "c": 8,
+            "kind": "x",
+            "face": "×",
+            "new": false
+          },
+          {
+            "r": 7,
+            "c": 9,
+            "kind": "3",
+            "face": "3",
+            "new": false
+          },
+          {
+            "r": 7,
+            "c": 10,
+            "kind": "=",
+            "face": "=",
+            "new": false
+          },
+          {
+            "r": 7,
+            "c": 11,
+            "kind": "4",
+            "face": "4",
+            "new": false
+          },
+          {
+            "r": 7,
+            "c": 12,
+            "kind": "2",
+            "face": "2",
+            "new": false
+          }
+        ],
+        "text": "42 - 6 × 0 = 14 × 3 = 42",
+        "pattern": "NN O N O N = H O N = NN",
+        "score": 72,
+        "multiplier": 3,
+        "tileCount": 13,
+        "placedParticipating": 7,
+        "reusedBoardTiles": 6,
+        "semantics": {
+          "result": {
+            "numerator": "42",
+            "denominator": "1"
+          },
+          "fractionAddSub": false,
+          "mulDivOnly": false,
+          "fractionResult": false,
+          "negativeResult": false,
+          "operations": [
+            "×",
+            "-",
+            "×"
+          ]
+        },
+        "role": "main"
+      }
+    ],
+    "bingoBonus": 0,
+    "moveTypes": [
+      "EXTEND"
+    ],
+    "primaryType": "EXTEND",
+    "moveFacts": {
+      "equationCount": 1,
+      "main": {
+        "direction": "horizontal",
+        "tiles": 13,
+        "placed": 7,
+        "reusedSegments": [
+          6
+        ]
+      },
+      "hooks": []
+    },
+    "geometry": {
+      "extend": {
+        "shape": "HEAD_ONLY",
+        "headContact": [
+          "HEAVY_NUMBER",
+          "EQUALS"
+        ],
+        "tailContact": null
+      }
+    },
+    "composition": {
+      "digit": 4,
+      "heavy": 0,
+      "operator": 2,
+      "choice": 0,
+      "equals": 1,
+      "blank": 0,
+      "total": 7
+    },
+    "placedKinds": [
+      "4",
+      "2",
+      "-",
+      "6",
+      "x",
+      "0",
+      "="
+    ],
+    "patterns": {
+      "main": "NN O N O N = H O N = NN",
+      "hooks": []
+    },
+    "content": {
+      "arithmetic": true,
+      "fraction": false,
+      "fractionSum": false,
+      "large": false,
+      "trivialZero": true
+    },
+    "checks": {
+      "stage5b": 72,
+      "eqlab": 72,
+      "amathCli": 72
+    }
+  },
+  "features": {
+    "version": "study-difficulty-features-v1",
+    "legalMoves": 818,
+    "candidatesReturned": 50,
+    "bestScore": 72,
+    "bestValue": 89.47802805463688,
+    "secondScore": 72,
+    "secondValue": 88.73013752044285,
+    "thirdValue": 88.5305812162039,
+    "valueGapToSecond": 0.7478905341940276,
+    "valueGapToThird": 0.947446838432981,
+    "scoreGapToSecond": 0,
+    "nearBestCount": 1,
+    "highestCandidateScore": 72,
+    "bestIsHighestScoring": true,
+    "highestScoringRank": 1,
+    "tilesPlaced": 7,
+    "equationCount": 1,
+    "moveTypes": [
+      "EXTEND"
+    ],
+    "hookSubtypes": [],
+    "composition": {
+      "digit": 4,
+      "heavy": 0,
+      "operator": 2,
+      "choice": 0,
+      "equals": 1,
+      "blank": 0,
+      "total": 7
+    },
+    "mainPatternTokens": 11,
+    "longestNumberTiles": 2,
+    "usesBlank": false,
+    "usesChoice": false,
+    "bingo": false,
+    "boardTiles": 14,
+    "bagCount": 70,
+    "turnNumber": 3,
+    "scoreDiff": -49,
+    "rackIndex": 3,
+    "candidateValues": [
+      89.47802805463688,
+      88.73013752044285,
+      88.5305812162039,
+      88.41324015129663,
+      85.13092646602558,
+      84.45792595374762,
+      84.24962756027573,
+      84.23990868391093,
+      84.2151438164882,
+      84.03564138795718
+    ],
+    "candidateScores": [
+      72,
+      72,
+      72,
+      72,
+      69,
+      69,
+      63,
+      69,
+      69,
+      69
+    ]
+  }
+}

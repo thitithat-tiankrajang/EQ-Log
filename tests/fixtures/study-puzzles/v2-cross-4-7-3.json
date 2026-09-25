@@ -1,0 +1,5244 @@
+{
+  "schema": "eqlab-study-puzzle-v2",
+  "id": "pz-410ea33531c2",
+  "setId": "set-20260925-181506-e4b87e",
+  "index": 0,
+  "hashes": {
+    "position": "410ea33531c279a5d71b60e3545ad2c693f7c8b994b9064a9f4412540551b744",
+    "puzzle": "cb336d9c4c8b09df5bd4759f3fdd96af29f6b5c2ccbc1cbd27c81a17d15a16e0"
+  },
+  "canonical": {
+    "provenance": {
+      "origin": "CONFIG_GUIDED_RACK",
+      "version": "study-rack-allocation-v1",
+      "sourceTurn": 14,
+      "sourcePositionHash": "c7b5224dea6621337d3bb1e8f4c8f16c6b9c224f1d24bd9357511fbc44694955",
+      "sourceStateHash": "317ad3df0f11062ac3bd2fc2658f3343e2c82ec1525f6fcd6b4e015077eb0fd0",
+      "originalRack": [
+        "3",
+        "7",
+        "9",
+        "10",
+        "+",
+        "/",
+        "/",
+        "x//"
+      ],
+      "constructedRack": [
+        "0",
+        "2",
+        "5",
+        "9",
+        "10",
+        "17",
+        "x",
+        "/"
+      ],
+      "remainingUnseen": {
+        "1": 2,
+        "2": 2,
+        "3": 2,
+        "6": 1,
+        "7": 2,
+        "8": 1,
+        "+": 1,
+        "/": 1,
+        "+/-": 3,
+        "x//": 2,
+        "=": 4,
+        "?": 1
+      },
+      "candidateIndex": 25,
+      "candidateSeed": 1396727790,
+      "family": "diverse",
+      "strategyVersion": "study-guided-racks-v1",
+      "puzzlePositionHash": "410ea33531c279a5d71b60e3545ad2c693f7c8b994b9064a9f4412540551b744"
+    },
+    "source": {
+      "game": 94,
+      "seed": 864746426,
+      "policy": {
+        "engine": "stage5b64",
+        "request": "study-endpoint-equivalent",
+        "topN": 50
+      },
+      "log": {
+        "format": "study-source-log-v1",
+        "stateHash": "survival-state-hash-v1",
+        "publicHash": "survival-public-hash-v1",
+        "sourceRules": "eqlab-compat: every draw from the front of the bag; an exchanged pile rejoins the bag after the draw and the bag is reshuffled",
+        "sourceSeed": 864746426,
+        "initial": {
+          "rules": "eqlab-compat",
+          "racks": {
+            "A": [
+              "7",
+              "+/-",
+              "+/-",
+              "x",
+              "0",
+              "2",
+              "6",
+              "0"
+            ],
+            "B": [
+              "15",
+              "/",
+              "?",
+              "9",
+              "=",
+              "0",
+              "19",
+              "2"
+            ]
+          },
+          "bag": [
+            "1",
+            "5",
+            "-",
+            "3",
+            "8",
+            "=",
+            "4",
+            "+/-",
+            "+",
+            "8",
+            "1",
+            "13",
+            "4",
+            "?",
+            "=",
+            "17",
+            "20",
+            "+",
+            "3",
+            "/",
+            "-",
+            "?",
+            "=",
+            "4",
+            "/",
+            "3",
+            "2",
+            "+",
+            "8",
+            "5",
+            "18",
+            "=",
+            "7",
+            "=",
+            "=",
+            "16",
+            "+",
+            "4",
+            "=",
+            "14",
+            "9",
+            "5",
+            "6",
+            "1",
+            "1",
+            "-",
+            "9",
+            "9",
+            "6",
+            "x",
+            "4",
+            "2",
+            "=",
+            "3",
+            "10",
+            "0",
+            "3",
+            "1",
+            "=",
+            "12",
+            "x//",
+            "x//",
+            "7",
+            "2",
+            "x//",
+            "11",
+            "2",
+            "?",
+            "-",
+            "x",
+            "10",
+            "+/-",
+            "8",
+            "x//",
+            "1",
+            "=",
+            "6",
+            "5",
+            "0",
+            "12",
+            "7",
+            "+/-",
+            "/",
+            "x"
+          ],
+          "scores": {
+            "A": 0,
+            "B": 0
+          },
+          "sideToMove": "A",
+          "turnNumber": 1,
+          "noScoreTail": [],
+          "hasPlacement": false,
+          "stateHash": "c8f0891b67fafb30678f288702a34ea3844ec3fe0058d6a2586029cdac29e1e6",
+          "publicHash": "c0699afa488ea964d951cd6db7606db34860132ec465281c8d94e608d7817d81"
+        },
+        "turns": [
+          {
+            "turn": 1,
+            "side": "A",
+            "type": "exchange",
+            "action": {
+              "type": "exchange",
+              "kinds": [
+                "0",
+                "0",
+                "2",
+                "6",
+                "7",
+                "x",
+                "+/-"
+              ],
+              "tileIds": [
+                "0#0",
+                "0#1",
+                "2#0",
+                "6#1",
+                "7#1",
+                "x#0",
+                "+/-#3"
+              ]
+            },
+            "decision": {
+              "policy": "stage5b64",
+              "seed": 1137287684,
+              "value": 16.894488197039983
+            },
+            "rackBefore": [
+              "0",
+              "0",
+              "2",
+              "6",
+              "7",
+              "x",
+              "+/-",
+              "+/-"
+            ],
+            "scoreGained": 0,
+            "scoresBefore": {
+              "A": 0,
+              "B": 0
+            },
+            "scoresAfter": {
+              "A": 0,
+              "B": 0
+            },
+            "drawn": [
+              "1",
+              "5",
+              "-",
+              "3",
+              "8",
+              "=",
+              "4"
+            ],
+            "bagCountBefore": 84,
+            "bagCountAfter": 84,
+            "noScoreTailAfter": [
+              "A"
+            ],
+            "stateHashAfter": "a03d9aacc77195c743b1a6d6d217518e2e4c56a175d4f79d3dbeb8c8997573e1",
+            "publicHashAfter": "72907e1e560b8158401adc26a5ab4f8e3358bea18126c08b5eb44afb42ad98ef",
+            "returned": [
+              "0",
+              "0",
+              "2",
+              "6",
+              "7",
+              "x",
+              "+/-"
+            ],
+            "bagAfter": [
+              "20",
+              "14",
+              "12",
+              "8",
+              "+/-",
+              "-",
+              "11",
+              "=",
+              "?",
+              "x//",
+              "1",
+              "-",
+              "=",
+              "9",
+              "0",
+              "2",
+              "x//",
+              "3",
+              "4",
+              "13",
+              "5",
+              "4",
+              "+",
+              "10",
+              "4",
+              "0",
+              "8",
+              "=",
+              "?",
+              "16",
+              "-",
+              "+",
+              "3",
+              "/",
+              "4",
+              "6",
+              "9",
+              "2",
+              "+",
+              "5",
+              "6",
+              "/",
+              "x//",
+              "12",
+              "3",
+              "0",
+              "/",
+              "9",
+              "x",
+              "6",
+              "1",
+              "x",
+              "=",
+              "x",
+              "18",
+              "10",
+              "17",
+              "3",
+              "1",
+              "7",
+              "=",
+              "=",
+              "=",
+              "7",
+              "7",
+              "+",
+              "1",
+              "8",
+              "+/-",
+              "=",
+              "6",
+              "2",
+              "7",
+              "?",
+              "+/-",
+              "5",
+              "2",
+              "=",
+              "x",
+              "1",
+              "2",
+              "x//",
+              "0",
+              "+/-"
+            ]
+          },
+          {
+            "turn": 2,
+            "side": "B",
+            "type": "place",
+            "action": {
+              "type": "place",
+              "placements": [
+                {
+                  "cell": 112,
+                  "kind": "19",
+                  "face": "19",
+                  "tileId": "19#0"
+                },
+                {
+                  "cell": 113,
+                  "kind": "=",
+                  "face": "=",
+                  "tileId": "=#9"
+                },
+                {
+                  "cell": 114,
+                  "kind": "2",
+                  "face": "2",
+                  "tileId": "2#3"
+                },
+                {
+                  "cell": 115,
+                  "kind": "0",
+                  "face": "0",
+                  "tileId": "0#4"
+                },
+                {
+                  "cell": 116,
+                  "kind": "9",
+                  "face": "9",
+                  "tileId": "9#1"
+                },
+                {
+                  "cell": 117,
+                  "kind": "/",
+                  "face": "÷",
+                  "tileId": "/#0"
+                },
+                {
+                  "cell": 118,
+                  "kind": "?",
+                  "face": "11",
+                  "tileId": "?#2"
+                }
+              ]
+            },
+            "decision": {
+              "policy": "stage5b64",
+              "seed": 2121750210,
+              "value": 43.00908368639835
+            },
+            "rackBefore": [
+              "0",
+              "2",
+              "9",
+              "15",
+              "19",
+              "/",
+              "=",
+              "?"
+            ],
+            "scoreGained": 30,
+            "scoresBefore": {
+              "A": 0,
+              "B": 0
+            },
+            "scoresAfter": {
+              "A": 0,
+              "B": 30
+            },
+            "drawn": [
+              "20",
+              "14",
+              "12",
+              "8",
+              "+/-",
+              "-",
+              "11"
+            ],
+            "bagCountBefore": 84,
+            "bagCountAfter": 77,
+            "noScoreTailAfter": [],
+            "stateHashAfter": "3f7e9329571140f7e887c3341bcf520127ad64dd3e43bd4aeac282aa28ad5608",
+            "publicHashAfter": "aeee8d0bfc136fb98c2d221a9d8385d6d3cdaca8366cfa8b623cfc685a0ff271"
+          },
+          {
+            "turn": 3,
+            "side": "A",
+            "type": "place",
+            "action": {
+              "type": "place",
+              "placements": [
+                {
+                  "cell": 56,
+                  "kind": "5",
+                  "face": "5",
+                  "tileId": "5#1"
+                },
+                {
+                  "cell": 71,
+                  "kind": "1",
+                  "face": "1",
+                  "tileId": "1#4"
+                },
+                {
+                  "cell": 86,
+                  "kind": "+/-",
+                  "face": "-",
+                  "tileId": "+/-#1"
+                },
+                {
+                  "cell": 101,
+                  "kind": "3",
+                  "face": "3",
+                  "tileId": "3#2"
+                },
+                {
+                  "cell": 131,
+                  "kind": "-",
+                  "face": "-",
+                  "tileId": "-#0"
+                },
+                {
+                  "cell": 146,
+                  "kind": "4",
+                  "face": "4",
+                  "tileId": "4#0"
+                },
+                {
+                  "cell": 161,
+                  "kind": "=",
+                  "face": "=",
+                  "tileId": "=#10"
+                },
+                {
+                  "cell": 176,
+                  "kind": "8",
+                  "face": "8",
+                  "tileId": "8#3"
+                }
+              ]
+            },
+            "decision": {
+              "policy": "stage5b64",
+              "seed": 591826017,
+              "value": 117.68487050724457
+            },
+            "rackBefore": [
+              "1",
+              "3",
+              "4",
+              "5",
+              "8",
+              "-",
+              "+/-",
+              "="
+            ],
+            "scoreGained": 96,
+            "scoresBefore": {
+              "A": 0,
+              "B": 30
+            },
+            "scoresAfter": {
+              "A": 96,
+              "B": 30
+            },
+            "drawn": [
+              "=",
+              "?",
+              "x//",
+              "1",
+              "-",
+              "=",
+              "9",
+              "0"
+            ],
+            "bagCountBefore": 77,
+            "bagCountAfter": 69,
+            "noScoreTailAfter": [],
+            "stateHashAfter": "02760d22ec4b37715dd7eb05545c124a402908887df47e347d19af583cace9db",
+            "publicHashAfter": "3ec4ddc9ce7833f4b49b8d83b9852d05ce7f9ffd94e68abbd1b02a16de89ae78"
+          },
+          {
+            "turn": 4,
+            "side": "B",
+            "type": "place",
+            "action": {
+              "type": "place",
+              "placements": [
+                {
+                  "cell": 38,
+                  "kind": "11",
+                  "face": "11",
+                  "tileId": "11#0"
+                },
+                {
+                  "cell": 53,
+                  "kind": "-",
+                  "face": "-",
+                  "tileId": "-#3"
+                },
+                {
+                  "cell": 68,
+                  "kind": "12",
+                  "face": "12",
+                  "tileId": "12#1"
+                },
+                {
+                  "cell": 83,
+                  "kind": "+/-",
+                  "face": "+",
+                  "tileId": "+/-#0"
+                },
+                {
+                  "cell": 98,
+                  "kind": "15",
+                  "face": "15",
+                  "tileId": "15#0"
+                },
+                {
+                  "cell": 128,
+                  "kind": "14",
+                  "face": "14",
+                  "tileId": "14#0"
+                }
+              ]
+            },
+            "decision": {
+              "policy": "stage5b64",
+              "seed": 17359312,
+              "value": 40.78376616903173
+            },
+            "rackBefore": [
+              "8",
+              "11",
+              "12",
+              "14",
+              "15",
+              "20",
+              "-",
+              "+/-"
+            ],
+            "scoreGained": 31,
+            "scoresBefore": {
+              "A": 96,
+              "B": 30
+            },
+            "scoresAfter": {
+              "A": 96,
+              "B": 61
+            },
+            "drawn": [
+              "2",
+              "x//",
+              "3",
+              "4",
+              "13",
+              "5"
+            ],
+            "bagCountBefore": 69,
+            "bagCountAfter": 63,
+            "noScoreTailAfter": [],
+            "stateHashAfter": "0ef9d6538e05e057b418a25a5197fa261d35e0addccaaa94579045a88618c25c",
+            "publicHashAfter": "201d17f49d21d3c9aa21794fc8a11001420c53f82e4bf319b5feab72e0ae828e"
+          },
+          {
+            "turn": 5,
+            "side": "A",
+            "type": "place",
+            "action": {
+              "type": "place",
+              "placements": [
+                {
+                  "cell": 105,
+                  "kind": "?",
+                  "face": "19",
+                  "tileId": "?#0"
+                },
+                {
+                  "cell": 106,
+                  "kind": "=",
+                  "face": "=",
+                  "tileId": "=#8"
+                },
+                {
+                  "cell": 107,
+                  "kind": "1",
+                  "face": "1",
+                  "tileId": "1#0"
+                },
+                {
+                  "cell": 108,
+                  "kind": "9",
+                  "face": "9",
+                  "tileId": "9#2"
+                },
+                {
+                  "cell": 109,
+                  "kind": "-",
+                  "face": "-",
+                  "tileId": "-#2"
+                },
+                {
+                  "cell": 110,
+                  "kind": "0",
+                  "face": "0",
+                  "tileId": "0#3"
+                },
+                {
+                  "cell": 111,
+                  "kind": "=",
+                  "face": "=",
+                  "tileId": "=#5"
+                }
+              ]
+            },
+            "decision": {
+              "policy": "stage5b64",
+              "seed": 1810167470,
+              "value": 82.74540695776182
+            },
+            "rackBefore": [
+              "0",
+              "1",
+              "9",
+              "-",
+              "x//",
+              "=",
+              "=",
+              "?"
+            ],
+            "scoreGained": 72,
+            "scoresBefore": {
+              "A": 96,
+              "B": 61
+            },
+            "scoresAfter": {
+              "A": 168,
+              "B": 61
+            },
+            "drawn": [
+              "4",
+              "+",
+              "10",
+              "4",
+              "0",
+              "8",
+              "="
+            ],
+            "bagCountBefore": 63,
+            "bagCountAfter": 56,
+            "noScoreTailAfter": [],
+            "stateHashAfter": "ed16c62787437d62df8a84d57a84599b0b9f138220aa82a2a6b5344f1e21df46",
+            "publicHashAfter": "7058adbedc148d613d1fd15ab2bb382e3b024c0df8eea61d1aca563203df8a22"
+          },
+          {
+            "turn": 6,
+            "side": "B",
+            "type": "place",
+            "action": {
+              "type": "place",
+              "placements": [
+                {
+                  "cell": 157,
+                  "kind": "5",
+                  "face": "5",
+                  "tileId": "5#0"
+                },
+                {
+                  "cell": 158,
+                  "kind": "2",
+                  "face": "2",
+                  "tileId": "2#2"
+                },
+                {
+                  "cell": 159,
+                  "kind": "x//",
+                  "face": "÷",
+                  "tileId": "x//#1"
+                },
+                {
+                  "cell": 160,
+                  "kind": "13",
+                  "face": "13",
+                  "tileId": "13#0"
+                },
+                {
+                  "cell": 162,
+                  "kind": "4",
+                  "face": "4",
+                  "tileId": "4#1"
+                }
+              ]
+            },
+            "decision": {
+              "policy": "stage5b64",
+              "seed": 739241254,
+              "value": 32.680188959850575
+            },
+            "rackBefore": [
+              "2",
+              "3",
+              "4",
+              "5",
+              "8",
+              "13",
+              "20",
+              "x//"
+            ],
+            "scoreGained": 25,
+            "scoresBefore": {
+              "A": 168,
+              "B": 61
+            },
+            "scoresAfter": {
+              "A": 168,
+              "B": 86
+            },
+            "drawn": [
+              "?",
+              "16",
+              "-",
+              "+",
+              "3"
+            ],
+            "bagCountBefore": 56,
+            "bagCountAfter": 51,
+            "noScoreTailAfter": [],
+            "stateHashAfter": "d12bd4ed2050ad16d723b9a02de47d21b781fdb341a372d241c7bd437b3575b7",
+            "publicHashAfter": "0a47468b0283d5400f8c5dafd1f7e7d065b05e123d68db440c7242614a68a643"
+          },
+          {
+            "turn": 7,
+            "side": "A",
+            "type": "place",
+            "action": {
+              "type": "place",
+              "placements": [
+                {
+                  "cell": 46,
+                  "kind": "4",
+                  "face": "4",
+                  "tileId": "4#3"
+                },
+                {
+                  "cell": 47,
+                  "kind": "=",
+                  "face": "=",
+                  "tileId": "=#0"
+                },
+                {
+                  "cell": 48,
+                  "kind": "8",
+                  "face": "8",
+                  "tileId": "8#0"
+                },
+                {
+                  "cell": 49,
+                  "kind": "+",
+                  "face": "+",
+                  "tileId": "+#1"
+                },
+                {
+                  "cell": 50,
+                  "kind": "0",
+                  "face": "0",
+                  "tileId": "0#1"
+                },
+                {
+                  "cell": 51,
+                  "kind": "x//",
+                  "face": "÷",
+                  "tileId": "x//#2"
+                },
+                {
+                  "cell": 52,
+                  "kind": "10",
+                  "face": "10",
+                  "tileId": "10#0"
+                },
+                {
+                  "cell": 54,
+                  "kind": "4",
+                  "face": "4",
+                  "tileId": "4#4"
+                }
+              ]
+            },
+            "decision": {
+              "policy": "stage5b64",
+              "seed": 1091616331,
+              "value": 93.04119233624317
+            },
+            "rackBefore": [
+              "0",
+              "4",
+              "4",
+              "8",
+              "10",
+              "+",
+              "x//",
+              "="
+            ],
+            "scoreGained": 78,
+            "scoresBefore": {
+              "A": 168,
+              "B": 86
+            },
+            "scoresAfter": {
+              "A": 246,
+              "B": 86
+            },
+            "drawn": [
+              "/",
+              "4",
+              "6",
+              "9",
+              "2",
+              "+",
+              "5",
+              "6"
+            ],
+            "bagCountBefore": 51,
+            "bagCountAfter": 43,
+            "noScoreTailAfter": [],
+            "stateHashAfter": "069fc1634c5a83d7249d46ce6bb44dccea95a2e52c5a1f3bc534d8d7761ab794",
+            "publicHashAfter": "64ece386e75936bbfdd9a4605c79c89fc31ed229bf3549d26de330cdaa83b22b"
+          },
+          {
+            "turn": 8,
+            "side": "B",
+            "type": "place",
+            "action": {
+              "type": "place",
+              "placements": [
+                {
+                  "cell": 16,
+                  "kind": "?",
+                  "face": "-",
+                  "tileId": "?#1"
+                },
+                {
+                  "cell": 31,
+                  "kind": "3",
+                  "face": "3",
+                  "tileId": "3#3"
+                },
+                {
+                  "cell": 61,
+                  "kind": "+",
+                  "face": "+",
+                  "tileId": "+#3"
+                },
+                {
+                  "cell": 76,
+                  "kind": "3",
+                  "face": "3",
+                  "tileId": "3#0"
+                },
+                {
+                  "cell": 91,
+                  "kind": "8",
+                  "face": "8",
+                  "tileId": "8#1"
+                },
+                {
+                  "cell": 121,
+                  "kind": "20",
+                  "face": "20",
+                  "tileId": "20#0"
+                },
+                {
+                  "cell": 136,
+                  "kind": "-",
+                  "face": "-",
+                  "tileId": "-#1"
+                },
+                {
+                  "cell": 151,
+                  "kind": "16",
+                  "face": "16",
+                  "tileId": "16#0"
+                }
+              ]
+            },
+            "decision": {
+              "policy": "stage5b64",
+              "seed": 51000044,
+              "value": 108.10405709663995
+            },
+            "rackBefore": [
+              "3",
+              "3",
+              "8",
+              "16",
+              "20",
+              "+",
+              "-",
+              "?"
+            ],
+            "scoreGained": 92,
+            "scoresBefore": {
+              "A": 246,
+              "B": 86
+            },
+            "scoresAfter": {
+              "A": 246,
+              "B": 178
+            },
+            "drawn": [
+              "/",
+              "x//",
+              "12",
+              "3",
+              "0",
+              "/",
+              "9",
+              "x"
+            ],
+            "bagCountBefore": 43,
+            "bagCountAfter": 35,
+            "noScoreTailAfter": [],
+            "stateHashAfter": "0c8d1a738f0518e638c741601f66f9cac4bca197f62428cc758ecdb956cf088d",
+            "publicHashAfter": "42c3d00901d189403b4dd53022e2dd1456b44cb78db6644ad43b282d15853dbc"
+          },
+          {
+            "turn": 9,
+            "side": "A",
+            "type": "place",
+            "action": {
+              "type": "place",
+              "placements": [
+                {
+                  "cell": 153,
+                  "kind": "4",
+                  "face": "4",
+                  "tileId": "4#2"
+                },
+                {
+                  "cell": 154,
+                  "kind": "6",
+                  "face": "6",
+                  "tileId": "6#2"
+                },
+                {
+                  "cell": 155,
+                  "kind": "5",
+                  "face": "5",
+                  "tileId": "5#2"
+                },
+                {
+                  "cell": 156,
+                  "kind": "+",
+                  "face": "+",
+                  "tileId": "+#2"
+                },
+                {
+                  "cell": 163,
+                  "kind": "6",
+                  "face": "6",
+                  "tileId": "6#0"
+                },
+                {
+                  "cell": 164,
+                  "kind": "9",
+                  "face": "9",
+                  "tileId": "9#3"
+                }
+              ]
+            },
+            "decision": {
+              "policy": "stage5b64",
+              "seed": 1533796990,
+              "value": 36.40477817870007
+            },
+            "rackBefore": [
+              "2",
+              "4",
+              "5",
+              "6",
+              "6",
+              "9",
+              "+",
+              "/"
+            ],
+            "scoreGained": 29,
+            "scoresBefore": {
+              "A": 246,
+              "B": 178
+            },
+            "scoresAfter": {
+              "A": 275,
+              "B": 178
+            },
+            "drawn": [
+              "6",
+              "1",
+              "x",
+              "=",
+              "x",
+              "18"
+            ],
+            "bagCountBefore": 35,
+            "bagCountAfter": 29,
+            "noScoreTailAfter": [],
+            "stateHashAfter": "d7a14322dbd2eb5c1758405c34b0a6b65cbb9f18ed882bde605b1edfa8b9f20e",
+            "publicHashAfter": "8fee156bf836ecd524e932b13efb5768816d79390a771818beda34a6f1d0a839"
+          },
+          {
+            "turn": 10,
+            "side": "B",
+            "type": "place",
+            "action": {
+              "type": "place",
+              "placements": [
+                {
+                  "cell": 1,
+                  "kind": "0",
+                  "face": "0",
+                  "tileId": "0#2"
+                }
+              ]
+            },
+            "decision": {
+              "policy": "stage5b64",
+              "seed": 836462984,
+              "value": 22.264717160132967
+            },
+            "rackBefore": [
+              "0",
+              "3",
+              "9",
+              "12",
+              "x",
+              "/",
+              "/",
+              "x//"
+            ],
+            "scoreGained": 21,
+            "scoresBefore": {
+              "A": 275,
+              "B": 178
+            },
+            "scoresAfter": {
+              "A": 275,
+              "B": 199
+            },
+            "drawn": [
+              "10"
+            ],
+            "bagCountBefore": 29,
+            "bagCountAfter": 28,
+            "noScoreTailAfter": [],
+            "stateHashAfter": "a5c39a0362e6acd33a21dc192b8c3432c60b476db9bcbaf075bd91af11d67dee",
+            "publicHashAfter": "bc3f96dd483db6808155cfefb2730c5f504f88dc17d5e61a2a8268b14b551f61"
+          },
+          {
+            "turn": 11,
+            "side": "A",
+            "type": "place",
+            "action": {
+              "type": "place",
+              "placements": [
+                {
+                  "cell": 65,
+                  "kind": "/",
+                  "face": "÷",
+                  "tileId": "/#1"
+                },
+                {
+                  "cell": 80,
+                  "kind": "6",
+                  "face": "6",
+                  "tileId": "6#1"
+                },
+                {
+                  "cell": 95,
+                  "kind": "=",
+                  "face": "=",
+                  "tileId": "=#6"
+                },
+                {
+                  "cell": 125,
+                  "kind": "x",
+                  "face": "×",
+                  "tileId": "x#3"
+                },
+                {
+                  "cell": 140,
+                  "kind": "1",
+                  "face": "1",
+                  "tileId": "1#3"
+                },
+                {
+                  "cell": 170,
+                  "kind": "2",
+                  "face": "2",
+                  "tileId": "2#1"
+                },
+                {
+                  "cell": 185,
+                  "kind": "x",
+                  "face": "×",
+                  "tileId": "x#0"
+                },
+                {
+                  "cell": 200,
+                  "kind": "18",
+                  "face": "18",
+                  "tileId": "18#0"
+                }
+              ]
+            },
+            "decision": {
+              "policy": "stage5b64",
+              "seed": 114497739,
+              "value": 86.91987144039037
+            },
+            "rackBefore": [
+              "1",
+              "2",
+              "6",
+              "18",
+              "x",
+              "x",
+              "/",
+              "="
+            ],
+            "scoreGained": 73,
+            "scoresBefore": {
+              "A": 275,
+              "B": 199
+            },
+            "scoresAfter": {
+              "A": 348,
+              "B": 199
+            },
+            "drawn": [
+              "17",
+              "3",
+              "1",
+              "7",
+              "=",
+              "=",
+              "=",
+              "7"
+            ],
+            "bagCountBefore": 28,
+            "bagCountAfter": 20,
+            "noScoreTailAfter": [],
+            "stateHashAfter": "08ceb2bffd71026c4341a9bed8b3fc8ef6e5417334ef5040d96530a0e1026adf",
+            "publicHashAfter": "2ea6a2909a7bb22ba0f2629564f988075e738b31a1d9d35895ab94f87afa2406"
+          },
+          {
+            "turn": 12,
+            "side": "B",
+            "type": "place",
+            "action": {
+              "type": "place",
+              "placements": [
+                {
+                  "cell": 20,
+                  "kind": "12",
+                  "face": "12",
+                  "tileId": "12#0"
+                },
+                {
+                  "cell": 35,
+                  "kind": "x",
+                  "face": "×",
+                  "tileId": "x#1"
+                }
+              ]
+            },
+            "decision": {
+              "policy": "stage5b64",
+              "seed": 1745153945,
+              "value": 34.33526805121159
+            },
+            "rackBefore": [
+              "3",
+              "9",
+              "10",
+              "12",
+              "x",
+              "/",
+              "/",
+              "x//"
+            ],
+            "scoreGained": 30,
+            "scoresBefore": {
+              "A": 348,
+              "B": 199
+            },
+            "scoresAfter": {
+              "A": 348,
+              "B": 229
+            },
+            "drawn": [
+              "7",
+              "+"
+            ],
+            "bagCountBefore": 20,
+            "bagCountAfter": 18,
+            "noScoreTailAfter": [],
+            "stateHashAfter": "4c3bbe79b64dc1c050f9e8a5cac4415592f1a2503500205c7401440082bb2bd9",
+            "publicHashAfter": "bff8923029db08bc09709492aa6ebdfaf1432ed32bb76c9b150ac24d26f38521"
+          },
+          {
+            "turn": 13,
+            "side": "A",
+            "type": "place",
+            "action": {
+              "type": "place",
+              "placements": [
+                {
+                  "cell": 182,
+                  "kind": "7",
+                  "face": "7",
+                  "tileId": "7#1"
+                },
+                {
+                  "cell": 183,
+                  "kind": "=",
+                  "face": "=",
+                  "tileId": "=#1"
+                },
+                {
+                  "cell": 184,
+                  "kind": "1",
+                  "face": "1",
+                  "tileId": "1#1"
+                },
+                {
+                  "cell": 186,
+                  "kind": "7",
+                  "face": "7",
+                  "tileId": "7#2"
+                }
+              ]
+            },
+            "decision": {
+              "policy": "stage5b64",
+              "seed": 1128693575,
+              "value": 29.046550313438544
+            },
+            "rackBefore": [
+              "1",
+              "3",
+              "7",
+              "7",
+              "17",
+              "=",
+              "=",
+              "="
+            ],
+            "scoreGained": 20,
+            "scoresBefore": {
+              "A": 348,
+              "B": 229
+            },
+            "scoresAfter": {
+              "A": 368,
+              "B": 229
+            },
+            "drawn": [
+              "1",
+              "8",
+              "+/-",
+              "="
+            ],
+            "bagCountBefore": 18,
+            "bagCountAfter": 14,
+            "noScoreTailAfter": [],
+            "stateHashAfter": "317ad3df0f11062ac3bd2fc2658f3343e2c82ec1525f6fcd6b4e015077eb0fd0",
+            "publicHashAfter": "5ec4ed82bb8a5f0acbb05a7772819cde7f64d61dd2f6809d7811085f039fb52b"
+          }
+        ],
+        "puzzle": {
+          "turn": 14,
+          "sideToMove": "B",
+          "stateHash": "317ad3df0f11062ac3bd2fc2658f3343e2c82ec1525f6fcd6b4e015077eb0fd0",
+          "publicHash": "5ec4ed82bb8a5f0acbb05a7772819cde7f64d61dd2f6809d7811085f039fb52b"
+        }
+      }
+    },
+    "position": {
+      "sideToMove": "B",
+      "turnNumber": 14,
+      "board": [
+        {
+          "r": 0,
+          "c": 1,
+          "kind": "0",
+          "face": "0",
+          "side": "B",
+          "turn": 10
+        },
+        {
+          "r": 1,
+          "c": 1,
+          "kind": "?",
+          "face": "-",
+          "side": "B",
+          "turn": 8
+        },
+        {
+          "r": 1,
+          "c": 5,
+          "kind": "12",
+          "face": "12",
+          "side": "B",
+          "turn": 12
+        },
+        {
+          "r": 2,
+          "c": 1,
+          "kind": "3",
+          "face": "3",
+          "side": "B",
+          "turn": 8
+        },
+        {
+          "r": 2,
+          "c": 5,
+          "kind": "x",
+          "face": "×",
+          "side": "B",
+          "turn": 12
+        },
+        {
+          "r": 2,
+          "c": 8,
+          "kind": "11",
+          "face": "11",
+          "side": "B",
+          "turn": 4
+        },
+        {
+          "r": 3,
+          "c": 1,
+          "kind": "4",
+          "face": "4",
+          "side": "A",
+          "turn": 7
+        },
+        {
+          "r": 3,
+          "c": 2,
+          "kind": "=",
+          "face": "=",
+          "side": "A",
+          "turn": 7
+        },
+        {
+          "r": 3,
+          "c": 3,
+          "kind": "8",
+          "face": "8",
+          "side": "A",
+          "turn": 7
+        },
+        {
+          "r": 3,
+          "c": 4,
+          "kind": "+",
+          "face": "+",
+          "side": "A",
+          "turn": 7
+        },
+        {
+          "r": 3,
+          "c": 5,
+          "kind": "0",
+          "face": "0",
+          "side": "A",
+          "turn": 7
+        },
+        {
+          "r": 3,
+          "c": 6,
+          "kind": "x//",
+          "face": "÷",
+          "side": "A",
+          "turn": 7
+        },
+        {
+          "r": 3,
+          "c": 7,
+          "kind": "10",
+          "face": "10",
+          "side": "A",
+          "turn": 7
+        },
+        {
+          "r": 3,
+          "c": 8,
+          "kind": "-",
+          "face": "-",
+          "side": "B",
+          "turn": 4
+        },
+        {
+          "r": 3,
+          "c": 9,
+          "kind": "4",
+          "face": "4",
+          "side": "A",
+          "turn": 7
+        },
+        {
+          "r": 3,
+          "c": 11,
+          "kind": "5",
+          "face": "5",
+          "side": "A",
+          "turn": 3
+        },
+        {
+          "r": 4,
+          "c": 1,
+          "kind": "+",
+          "face": "+",
+          "side": "B",
+          "turn": 8
+        },
+        {
+          "r": 4,
+          "c": 5,
+          "kind": "/",
+          "face": "÷",
+          "side": "A",
+          "turn": 11
+        },
+        {
+          "r": 4,
+          "c": 8,
+          "kind": "12",
+          "face": "12",
+          "side": "B",
+          "turn": 4
+        },
+        {
+          "r": 4,
+          "c": 11,
+          "kind": "1",
+          "face": "1",
+          "side": "A",
+          "turn": 3
+        },
+        {
+          "r": 5,
+          "c": 1,
+          "kind": "3",
+          "face": "3",
+          "side": "B",
+          "turn": 8
+        },
+        {
+          "r": 5,
+          "c": 5,
+          "kind": "6",
+          "face": "6",
+          "side": "A",
+          "turn": 11
+        },
+        {
+          "r": 5,
+          "c": 8,
+          "kind": "+/-",
+          "face": "+",
+          "side": "B",
+          "turn": 4
+        },
+        {
+          "r": 5,
+          "c": 11,
+          "kind": "+/-",
+          "face": "-",
+          "side": "A",
+          "turn": 3
+        },
+        {
+          "r": 6,
+          "c": 1,
+          "kind": "8",
+          "face": "8",
+          "side": "B",
+          "turn": 8
+        },
+        {
+          "r": 6,
+          "c": 5,
+          "kind": "=",
+          "face": "=",
+          "side": "A",
+          "turn": 11
+        },
+        {
+          "r": 6,
+          "c": 8,
+          "kind": "15",
+          "face": "15",
+          "side": "B",
+          "turn": 4
+        },
+        {
+          "r": 6,
+          "c": 11,
+          "kind": "3",
+          "face": "3",
+          "side": "A",
+          "turn": 3
+        },
+        {
+          "r": 7,
+          "c": 0,
+          "kind": "?",
+          "face": "19",
+          "side": "A",
+          "turn": 5
+        },
+        {
+          "r": 7,
+          "c": 1,
+          "kind": "=",
+          "face": "=",
+          "side": "A",
+          "turn": 5
+        },
+        {
+          "r": 7,
+          "c": 2,
+          "kind": "1",
+          "face": "1",
+          "side": "A",
+          "turn": 5
+        },
+        {
+          "r": 7,
+          "c": 3,
+          "kind": "9",
+          "face": "9",
+          "side": "A",
+          "turn": 5
+        },
+        {
+          "r": 7,
+          "c": 4,
+          "kind": "-",
+          "face": "-",
+          "side": "A",
+          "turn": 5
+        },
+        {
+          "r": 7,
+          "c": 5,
+          "kind": "0",
+          "face": "0",
+          "side": "A",
+          "turn": 5
+        },
+        {
+          "r": 7,
+          "c": 6,
+          "kind": "=",
+          "face": "=",
+          "side": "A",
+          "turn": 5
+        },
+        {
+          "r": 7,
+          "c": 7,
+          "kind": "19",
+          "face": "19",
+          "side": "B",
+          "turn": 2
+        },
+        {
+          "r": 7,
+          "c": 8,
+          "kind": "=",
+          "face": "=",
+          "side": "B",
+          "turn": 2
+        },
+        {
+          "r": 7,
+          "c": 9,
+          "kind": "2",
+          "face": "2",
+          "side": "B",
+          "turn": 2
+        },
+        {
+          "r": 7,
+          "c": 10,
+          "kind": "0",
+          "face": "0",
+          "side": "B",
+          "turn": 2
+        },
+        {
+          "r": 7,
+          "c": 11,
+          "kind": "9",
+          "face": "9",
+          "side": "B",
+          "turn": 2
+        },
+        {
+          "r": 7,
+          "c": 12,
+          "kind": "/",
+          "face": "÷",
+          "side": "B",
+          "turn": 2
+        },
+        {
+          "r": 7,
+          "c": 13,
+          "kind": "?",
+          "face": "11",
+          "side": "B",
+          "turn": 2
+        },
+        {
+          "r": 8,
+          "c": 1,
+          "kind": "20",
+          "face": "20",
+          "side": "B",
+          "turn": 8
+        },
+        {
+          "r": 8,
+          "c": 5,
+          "kind": "x",
+          "face": "×",
+          "side": "A",
+          "turn": 11
+        },
+        {
+          "r": 8,
+          "c": 8,
+          "kind": "14",
+          "face": "14",
+          "side": "B",
+          "turn": 4
+        },
+        {
+          "r": 8,
+          "c": 11,
+          "kind": "-",
+          "face": "-",
+          "side": "A",
+          "turn": 3
+        },
+        {
+          "r": 9,
+          "c": 1,
+          "kind": "-",
+          "face": "-",
+          "side": "B",
+          "turn": 8
+        },
+        {
+          "r": 9,
+          "c": 5,
+          "kind": "1",
+          "face": "1",
+          "side": "A",
+          "turn": 11
+        },
+        {
+          "r": 9,
+          "c": 11,
+          "kind": "4",
+          "face": "4",
+          "side": "A",
+          "turn": 3
+        },
+        {
+          "r": 10,
+          "c": 1,
+          "kind": "16",
+          "face": "16",
+          "side": "B",
+          "turn": 8
+        },
+        {
+          "r": 10,
+          "c": 3,
+          "kind": "4",
+          "face": "4",
+          "side": "A",
+          "turn": 9
+        },
+        {
+          "r": 10,
+          "c": 4,
+          "kind": "6",
+          "face": "6",
+          "side": "A",
+          "turn": 9
+        },
+        {
+          "r": 10,
+          "c": 5,
+          "kind": "5",
+          "face": "5",
+          "side": "A",
+          "turn": 9
+        },
+        {
+          "r": 10,
+          "c": 6,
+          "kind": "+",
+          "face": "+",
+          "side": "A",
+          "turn": 9
+        },
+        {
+          "r": 10,
+          "c": 7,
+          "kind": "5",
+          "face": "5",
+          "side": "B",
+          "turn": 6
+        },
+        {
+          "r": 10,
+          "c": 8,
+          "kind": "2",
+          "face": "2",
+          "side": "B",
+          "turn": 6
+        },
+        {
+          "r": 10,
+          "c": 9,
+          "kind": "x//",
+          "face": "÷",
+          "side": "B",
+          "turn": 6
+        },
+        {
+          "r": 10,
+          "c": 10,
+          "kind": "13",
+          "face": "13",
+          "side": "B",
+          "turn": 6
+        },
+        {
+          "r": 10,
+          "c": 11,
+          "kind": "=",
+          "face": "=",
+          "side": "A",
+          "turn": 3
+        },
+        {
+          "r": 10,
+          "c": 12,
+          "kind": "4",
+          "face": "4",
+          "side": "B",
+          "turn": 6
+        },
+        {
+          "r": 10,
+          "c": 13,
+          "kind": "6",
+          "face": "6",
+          "side": "A",
+          "turn": 9
+        },
+        {
+          "r": 10,
+          "c": 14,
+          "kind": "9",
+          "face": "9",
+          "side": "A",
+          "turn": 9
+        },
+        {
+          "r": 11,
+          "c": 5,
+          "kind": "2",
+          "face": "2",
+          "side": "A",
+          "turn": 11
+        },
+        {
+          "r": 11,
+          "c": 11,
+          "kind": "8",
+          "face": "8",
+          "side": "A",
+          "turn": 3
+        },
+        {
+          "r": 12,
+          "c": 2,
+          "kind": "7",
+          "face": "7",
+          "side": "A",
+          "turn": 13
+        },
+        {
+          "r": 12,
+          "c": 3,
+          "kind": "=",
+          "face": "=",
+          "side": "A",
+          "turn": 13
+        },
+        {
+          "r": 12,
+          "c": 4,
+          "kind": "1",
+          "face": "1",
+          "side": "A",
+          "turn": 13
+        },
+        {
+          "r": 12,
+          "c": 5,
+          "kind": "x",
+          "face": "×",
+          "side": "A",
+          "turn": 11
+        },
+        {
+          "r": 12,
+          "c": 6,
+          "kind": "7",
+          "face": "7",
+          "side": "A",
+          "turn": 13
+        },
+        {
+          "r": 13,
+          "c": 5,
+          "kind": "18",
+          "face": "18",
+          "side": "A",
+          "turn": 11
+        }
+      ],
+      "rack": [
+        "0",
+        "2",
+        "5",
+        "9",
+        "10",
+        "17",
+        "x",
+        "/"
+      ],
+      "scores": {
+        "self": 229,
+        "opponent": 368
+      },
+      "bagCount": 14,
+      "oppRackCount": 8,
+      "noScoreStreak": 0,
+      "unseen": {
+        "1": 2,
+        "2": 2,
+        "3": 2,
+        "6": 1,
+        "7": 2,
+        "8": 1,
+        "+": 1,
+        "/": 1,
+        "+/-": 3,
+        "x//": 2,
+        "=": 4,
+        "?": 1
+      },
+      "hidden": {
+        "opponentRack": [
+          "1",
+          "1",
+          "2",
+          "+",
+          "/",
+          "+/-",
+          "+/-",
+          "+/-"
+        ],
+        "bag": [
+          "2",
+          "3",
+          "3",
+          "6",
+          "7",
+          "7",
+          "8",
+          "=",
+          "=",
+          "=",
+          "=",
+          "?",
+          "x//",
+          "x//"
+        ]
+      }
+    },
+    "studyRequest": {
+      "board": [
+        {
+          "r": 0,
+          "c": 1,
+          "kind": "0",
+          "token": "0"
+        },
+        {
+          "r": 1,
+          "c": 1,
+          "kind": "?",
+          "token": "-"
+        },
+        {
+          "r": 1,
+          "c": 5,
+          "kind": "12",
+          "token": "12"
+        },
+        {
+          "r": 2,
+          "c": 1,
+          "kind": "3",
+          "token": "3"
+        },
+        {
+          "r": 2,
+          "c": 5,
+          "kind": "x",
+          "token": "x"
+        },
+        {
+          "r": 2,
+          "c": 8,
+          "kind": "11",
+          "token": "11"
+        },
+        {
+          "r": 3,
+          "c": 1,
+          "kind": "4",
+          "token": "4"
+        },
+        {
+          "r": 3,
+          "c": 2,
+          "kind": "=",
+          "token": "="
+        },
+        {
+          "r": 3,
+          "c": 3,
+          "kind": "8",
+          "token": "8"
+        },
+        {
+          "r": 3,
+          "c": 4,
+          "kind": "+",
+          "token": "+"
+        },
+        {
+          "r": 3,
+          "c": 5,
+          "kind": "0",
+          "token": "0"
+        },
+        {
+          "r": 3,
+          "c": 6,
+          "kind": "x//",
+          "token": "÷"
+        },
+        {
+          "r": 3,
+          "c": 7,
+          "kind": "10",
+          "token": "10"
+        },
+        {
+          "r": 3,
+          "c": 8,
+          "kind": "-",
+          "token": "-"
+        },
+        {
+          "r": 3,
+          "c": 9,
+          "kind": "4",
+          "token": "4"
+        },
+        {
+          "r": 3,
+          "c": 11,
+          "kind": "5",
+          "token": "5"
+        },
+        {
+          "r": 4,
+          "c": 1,
+          "kind": "+",
+          "token": "+"
+        },
+        {
+          "r": 4,
+          "c": 5,
+          "kind": "/",
+          "token": "/"
+        },
+        {
+          "r": 4,
+          "c": 8,
+          "kind": "12",
+          "token": "12"
+        },
+        {
+          "r": 4,
+          "c": 11,
+          "kind": "1",
+          "token": "1"
+        },
+        {
+          "r": 5,
+          "c": 1,
+          "kind": "3",
+          "token": "3"
+        },
+        {
+          "r": 5,
+          "c": 5,
+          "kind": "6",
+          "token": "6"
+        },
+        {
+          "r": 5,
+          "c": 8,
+          "kind": "+/-",
+          "token": "+"
+        },
+        {
+          "r": 5,
+          "c": 11,
+          "kind": "+/-",
+          "token": "-"
+        },
+        {
+          "r": 6,
+          "c": 1,
+          "kind": "8",
+          "token": "8"
+        },
+        {
+          "r": 6,
+          "c": 5,
+          "kind": "=",
+          "token": "="
+        },
+        {
+          "r": 6,
+          "c": 8,
+          "kind": "15",
+          "token": "15"
+        },
+        {
+          "r": 6,
+          "c": 11,
+          "kind": "3",
+          "token": "3"
+        },
+        {
+          "r": 7,
+          "c": 0,
+          "kind": "?",
+          "token": "19"
+        },
+        {
+          "r": 7,
+          "c": 1,
+          "kind": "=",
+          "token": "="
+        },
+        {
+          "r": 7,
+          "c": 2,
+          "kind": "1",
+          "token": "1"
+        },
+        {
+          "r": 7,
+          "c": 3,
+          "kind": "9",
+          "token": "9"
+        },
+        {
+          "r": 7,
+          "c": 4,
+          "kind": "-",
+          "token": "-"
+        },
+        {
+          "r": 7,
+          "c": 5,
+          "kind": "0",
+          "token": "0"
+        },
+        {
+          "r": 7,
+          "c": 6,
+          "kind": "=",
+          "token": "="
+        },
+        {
+          "r": 7,
+          "c": 7,
+          "kind": "19",
+          "token": "19"
+        },
+        {
+          "r": 7,
+          "c": 8,
+          "kind": "=",
+          "token": "="
+        },
+        {
+          "r": 7,
+          "c": 9,
+          "kind": "2",
+          "token": "2"
+        },
+        {
+          "r": 7,
+          "c": 10,
+          "kind": "0",
+          "token": "0"
+        },
+        {
+          "r": 7,
+          "c": 11,
+          "kind": "9",
+          "token": "9"
+        },
+        {
+          "r": 7,
+          "c": 12,
+          "kind": "/",
+          "token": "/"
+        },
+        {
+          "r": 7,
+          "c": 13,
+          "kind": "?",
+          "token": "11"
+        },
+        {
+          "r": 8,
+          "c": 1,
+          "kind": "20",
+          "token": "20"
+        },
+        {
+          "r": 8,
+          "c": 5,
+          "kind": "x",
+          "token": "x"
+        },
+        {
+          "r": 8,
+          "c": 8,
+          "kind": "14",
+          "token": "14"
+        },
+        {
+          "r": 8,
+          "c": 11,
+          "kind": "-",
+          "token": "-"
+        },
+        {
+          "r": 9,
+          "c": 1,
+          "kind": "-",
+          "token": "-"
+        },
+        {
+          "r": 9,
+          "c": 5,
+          "kind": "1",
+          "token": "1"
+        },
+        {
+          "r": 9,
+          "c": 11,
+          "kind": "4",
+          "token": "4"
+        },
+        {
+          "r": 10,
+          "c": 1,
+          "kind": "16",
+          "token": "16"
+        },
+        {
+          "r": 10,
+          "c": 3,
+          "kind": "4",
+          "token": "4"
+        },
+        {
+          "r": 10,
+          "c": 4,
+          "kind": "6",
+          "token": "6"
+        },
+        {
+          "r": 10,
+          "c": 5,
+          "kind": "5",
+          "token": "5"
+        },
+        {
+          "r": 10,
+          "c": 6,
+          "kind": "+",
+          "token": "+"
+        },
+        {
+          "r": 10,
+          "c": 7,
+          "kind": "5",
+          "token": "5"
+        },
+        {
+          "r": 10,
+          "c": 8,
+          "kind": "2",
+          "token": "2"
+        },
+        {
+          "r": 10,
+          "c": 9,
+          "kind": "x//",
+          "token": "÷"
+        },
+        {
+          "r": 10,
+          "c": 10,
+          "kind": "13",
+          "token": "13"
+        },
+        {
+          "r": 10,
+          "c": 11,
+          "kind": "=",
+          "token": "="
+        },
+        {
+          "r": 10,
+          "c": 12,
+          "kind": "4",
+          "token": "4"
+        },
+        {
+          "r": 10,
+          "c": 13,
+          "kind": "6",
+          "token": "6"
+        },
+        {
+          "r": 10,
+          "c": 14,
+          "kind": "9",
+          "token": "9"
+        },
+        {
+          "r": 11,
+          "c": 5,
+          "kind": "2",
+          "token": "2"
+        },
+        {
+          "r": 11,
+          "c": 11,
+          "kind": "8",
+          "token": "8"
+        },
+        {
+          "r": 12,
+          "c": 2,
+          "kind": "7",
+          "token": "7"
+        },
+        {
+          "r": 12,
+          "c": 3,
+          "kind": "=",
+          "token": "="
+        },
+        {
+          "r": 12,
+          "c": 4,
+          "kind": "1",
+          "token": "1"
+        },
+        {
+          "r": 12,
+          "c": 5,
+          "kind": "x",
+          "token": "x"
+        },
+        {
+          "r": 12,
+          "c": 6,
+          "kind": "7",
+          "token": "7"
+        },
+        {
+          "r": 13,
+          "c": 5,
+          "kind": "18",
+          "token": "18"
+        }
+      ],
+      "rack": [
+        "0",
+        "2",
+        "5",
+        "9",
+        "10",
+        "17",
+        "x",
+        "/"
+      ],
+      "scoreSelf": 229,
+      "scoreOpponent": 368,
+      "level": "stage5b64"
+    }
+  },
+  "answer": {
+    "engine": {
+      "solver": "stage5b",
+      "request": {
+        "board": [
+          {
+            "r": 0,
+            "c": 1,
+            "kind": "0",
+            "token": "0"
+          },
+          {
+            "r": 1,
+            "c": 1,
+            "kind": "?",
+            "token": "-"
+          },
+          {
+            "r": 1,
+            "c": 5,
+            "kind": "12",
+            "token": "12"
+          },
+          {
+            "r": 2,
+            "c": 1,
+            "kind": "3",
+            "token": "3"
+          },
+          {
+            "r": 2,
+            "c": 5,
+            "kind": "x",
+            "token": "x"
+          },
+          {
+            "r": 2,
+            "c": 8,
+            "kind": "11",
+            "token": "11"
+          },
+          {
+            "r": 3,
+            "c": 1,
+            "kind": "4",
+            "token": "4"
+          },
+          {
+            "r": 3,
+            "c": 2,
+            "kind": "=",
+            "token": "="
+          },
+          {
+            "r": 3,
+            "c": 3,
+            "kind": "8",
+            "token": "8"
+          },
+          {
+            "r": 3,
+            "c": 4,
+            "kind": "+",
+            "token": "+"
+          },
+          {
+            "r": 3,
+            "c": 5,
+            "kind": "0",
+            "token": "0"
+          },
+          {
+            "r": 3,
+            "c": 6,
+            "kind": "x//",
+            "token": "÷"
+          },
+          {
+            "r": 3,
+            "c": 7,
+            "kind": "10",
+            "token": "10"
+          },
+          {
+            "r": 3,
+            "c": 8,
+            "kind": "-",
+            "token": "-"
+          },
+          {
+            "r": 3,
+            "c": 9,
+            "kind": "4",
+            "token": "4"
+          },
+          {
+            "r": 3,
+            "c": 11,
+            "kind": "5",
+            "token": "5"
+          },
+          {
+            "r": 4,
+            "c": 1,
+            "kind": "+",
+            "token": "+"
+          },
+          {
+            "r": 4,
+            "c": 5,
+            "kind": "/",
+            "token": "/"
+          },
+          {
+            "r": 4,
+            "c": 8,
+            "kind": "12",
+            "token": "12"
+          },
+          {
+            "r": 4,
+            "c": 11,
+            "kind": "1",
+            "token": "1"
+          },
+          {
+            "r": 5,
+            "c": 1,
+            "kind": "3",
+            "token": "3"
+          },
+          {
+            "r": 5,
+            "c": 5,
+            "kind": "6",
+            "token": "6"
+          },
+          {
+            "r": 5,
+            "c": 8,
+            "kind": "+/-",
+            "token": "+"
+          },
+          {
+            "r": 5,
+            "c": 11,
+            "kind": "+/-",
+            "token": "-"
+          },
+          {
+            "r": 6,
+            "c": 1,
+            "kind": "8",
+            "token": "8"
+          },
+          {
+            "r": 6,
+            "c": 5,
+            "kind": "=",
+            "token": "="
+          },
+          {
+            "r": 6,
+            "c": 8,
+            "kind": "15",
+            "token": "15"
+          },
+          {
+            "r": 6,
+            "c": 11,
+            "kind": "3",
+            "token": "3"
+          },
+          {
+            "r": 7,
+            "c": 0,
+            "kind": "?",
+            "token": "19"
+          },
+          {
+            "r": 7,
+            "c": 1,
+            "kind": "=",
+            "token": "="
+          },
+          {
+            "r": 7,
+            "c": 2,
+            "kind": "1",
+            "token": "1"
+          },
+          {
+            "r": 7,
+            "c": 3,
+            "kind": "9",
+            "token": "9"
+          },
+          {
+            "r": 7,
+            "c": 4,
+            "kind": "-",
+            "token": "-"
+          },
+          {
+            "r": 7,
+            "c": 5,
+            "kind": "0",
+            "token": "0"
+          },
+          {
+            "r": 7,
+            "c": 6,
+            "kind": "=",
+            "token": "="
+          },
+          {
+            "r": 7,
+            "c": 7,
+            "kind": "19",
+            "token": "19"
+          },
+          {
+            "r": 7,
+            "c": 8,
+            "kind": "=",
+            "token": "="
+          },
+          {
+            "r": 7,
+            "c": 9,
+            "kind": "2",
+            "token": "2"
+          },
+          {
+            "r": 7,
+            "c": 10,
+            "kind": "0",
+            "token": "0"
+          },
+          {
+            "r": 7,
+            "c": 11,
+            "kind": "9",
+            "token": "9"
+          },
+          {
+            "r": 7,
+            "c": 12,
+            "kind": "/",
+            "token": "/"
+          },
+          {
+            "r": 7,
+            "c": 13,
+            "kind": "?",
+            "token": "11"
+          },
+          {
+            "r": 8,
+            "c": 1,
+            "kind": "20",
+            "token": "20"
+          },
+          {
+            "r": 8,
+            "c": 5,
+            "kind": "x",
+            "token": "x"
+          },
+          {
+            "r": 8,
+            "c": 8,
+            "kind": "14",
+            "token": "14"
+          },
+          {
+            "r": 8,
+            "c": 11,
+            "kind": "-",
+            "token": "-"
+          },
+          {
+            "r": 9,
+            "c": 1,
+            "kind": "-",
+            "token": "-"
+          },
+          {
+            "r": 9,
+            "c": 5,
+            "kind": "1",
+            "token": "1"
+          },
+          {
+            "r": 9,
+            "c": 11,
+            "kind": "4",
+            "token": "4"
+          },
+          {
+            "r": 10,
+            "c": 1,
+            "kind": "16",
+            "token": "16"
+          },
+          {
+            "r": 10,
+            "c": 3,
+            "kind": "4",
+            "token": "4"
+          },
+          {
+            "r": 10,
+            "c": 4,
+            "kind": "6",
+            "token": "6"
+          },
+          {
+            "r": 10,
+            "c": 5,
+            "kind": "5",
+            "token": "5"
+          },
+          {
+            "r": 10,
+            "c": 6,
+            "kind": "+",
+            "token": "+"
+          },
+          {
+            "r": 10,
+            "c": 7,
+            "kind": "5",
+            "token": "5"
+          },
+          {
+            "r": 10,
+            "c": 8,
+            "kind": "2",
+            "token": "2"
+          },
+          {
+            "r": 10,
+            "c": 9,
+            "kind": "x//",
+            "token": "÷"
+          },
+          {
+            "r": 10,
+            "c": 10,
+            "kind": "13",
+            "token": "13"
+          },
+          {
+            "r": 10,
+            "c": 11,
+            "kind": "=",
+            "token": "="
+          },
+          {
+            "r": 10,
+            "c": 12,
+            "kind": "4",
+            "token": "4"
+          },
+          {
+            "r": 10,
+            "c": 13,
+            "kind": "6",
+            "token": "6"
+          },
+          {
+            "r": 10,
+            "c": 14,
+            "kind": "9",
+            "token": "9"
+          },
+          {
+            "r": 11,
+            "c": 5,
+            "kind": "2",
+            "token": "2"
+          },
+          {
+            "r": 11,
+            "c": 11,
+            "kind": "8",
+            "token": "8"
+          },
+          {
+            "r": 12,
+            "c": 2,
+            "kind": "7",
+            "token": "7"
+          },
+          {
+            "r": 12,
+            "c": 3,
+            "kind": "=",
+            "token": "="
+          },
+          {
+            "r": 12,
+            "c": 4,
+            "kind": "1",
+            "token": "1"
+          },
+          {
+            "r": 12,
+            "c": 5,
+            "kind": "x",
+            "token": "x"
+          },
+          {
+            "r": 12,
+            "c": 6,
+            "kind": "7",
+            "token": "7"
+          },
+          {
+            "r": 13,
+            "c": 5,
+            "kind": "18",
+            "token": "18"
+          }
+        ],
+        "rack": [
+          "0",
+          "2",
+          "5",
+          "9",
+          "10",
+          "17",
+          "x",
+          "/"
+        ],
+        "bagCount": 14,
+        "oppRackCount": 8,
+        "myScore": 229,
+        "oppScore": 368,
+        "noScoreStreak": 0,
+        "exchangeAllowed": true,
+        "seed": 2083308472,
+        "topN": 50
+      },
+      "legalMoves": 266,
+      "elapsedMs": 361.87470799999994,
+      "candidates": [
+        {
+          "rank": 1,
+          "type": "place",
+          "placements": [
+            {
+              "r": 8,
+              "c": 3,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 9,
+              "c": 3,
+              "kind": "/",
+              "face": "÷"
+            },
+            {
+              "r": 11,
+              "c": 3,
+              "kind": "5",
+              "face": "5"
+            },
+            {
+              "r": 13,
+              "c": 3,
+              "kind": "2",
+              "face": "2"
+            }
+          ],
+          "exchange": [],
+          "score": 22,
+          "value": 26.623349795710187,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 22
+            },
+            {
+              "name": "area-potential",
+              "points": 4.5312
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.0754
+            },
+            {
+              "name": "leave",
+              "points": -6.9399999999999995
+            },
+            {
+              "name": "future-access",
+              "points": 3.8891999999999998
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 0.06754979571018449
+            }
+          ]
+        },
+        {
+          "rank": 2,
+          "type": "place",
+          "placements": [
+            {
+              "r": 9,
+              "c": 8,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 11,
+              "c": 8,
+              "kind": "/",
+              "face": "÷"
+            },
+            {
+              "r": 12,
+              "c": 8,
+              "kind": "2",
+              "face": "2"
+            }
+          ],
+          "exchange": [],
+          "score": 26,
+          "value": 26.374739573722486,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 26
+            },
+            {
+              "name": "area-potential",
+              "points": 4.3016
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.9818200000000004
+            },
+            {
+              "name": "leave",
+              "points": -10.975
+            },
+            {
+              "name": "future-access",
+              "points": 3.9399999999999995
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 0.12631957372249092
+            }
+          ]
+        },
+        {
+          "rank": 3,
+          "type": "place",
+          "placements": [
+            {
+              "r": 9,
+              "c": 8,
+              "kind": "/",
+              "face": "÷"
+            },
+            {
+              "r": 11,
+              "c": 8,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 12,
+              "c": 8,
+              "kind": "2",
+              "face": "2"
+            }
+          ],
+          "exchange": [],
+          "score": 26,
+          "value": 26.34730256991675,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 26
+            },
+            {
+              "name": "area-potential",
+              "points": 4.3016
+            },
+            {
+              "name": "unseen-potential",
+              "points": 2.9818200000000004
+            },
+            {
+              "name": "leave",
+              "points": -10.975
+            },
+            {
+              "name": "future-access",
+              "points": 3.9399999999999995
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 0.09888256991675504
+            }
+          ]
+        },
+        {
+          "rank": 4,
+          "type": "place",
+          "placements": [
+            {
+              "r": 3,
+              "c": 10,
+              "kind": "/",
+              "face": "÷"
+            },
+            {
+              "r": 3,
+              "c": 12,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 3,
+              "c": 13,
+              "kind": "5",
+              "face": "5"
+            }
+          ],
+          "exchange": [],
+          "score": 24,
+          "value": 23.248768261872033,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 24
+            },
+            {
+              "name": "area-potential",
+              "points": 4.7768
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.095456
+            },
+            {
+              "name": "leave",
+              "points": -10.975
+            },
+            {
+              "name": "future-access",
+              "points": 4
+            },
+            {
+              "name": "exposure",
+              "points": -1.7999999999999998
+            },
+            {
+              "name": "nn-value",
+              "points": 0.15151226187203437
+            }
+          ]
+        },
+        {
+          "rank": 5,
+          "type": "place",
+          "placements": [
+            {
+              "r": 3,
+              "c": 10,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 3,
+              "c": 12,
+              "kind": "/",
+              "face": "÷"
+            },
+            {
+              "r": 3,
+              "c": 13,
+              "kind": "5",
+              "face": "5"
+            }
+          ],
+          "exchange": [],
+          "score": 24,
+          "value": 23.226885031202976,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 24
+            },
+            {
+              "name": "area-potential",
+              "points": 4.7768
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.095456
+            },
+            {
+              "name": "leave",
+              "points": -10.975
+            },
+            {
+              "name": "future-access",
+              "points": 4
+            },
+            {
+              "name": "exposure",
+              "points": -1.7999999999999998
+            },
+            {
+              "name": "nn-value",
+              "points": 0.12962903120297797
+            }
+          ]
+        },
+        {
+          "rank": 6,
+          "type": "place",
+          "placements": [
+            {
+              "r": 12,
+              "c": 11,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 13,
+              "c": 11,
+              "kind": "/",
+              "face": "÷"
+            },
+            {
+              "r": 14,
+              "c": 11,
+              "kind": "10",
+              "face": "10"
+            }
+          ],
+          "exchange": [],
+          "score": 23,
+          "value": 22.338607228339022,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 23
+            },
+            {
+              "name": "area-potential",
+              "points": 4.5056
+            },
+            {
+              "name": "unseen-potential",
+              "points": 4
+            },
+            {
+              "name": "leave",
+              "points": -8.225
+            },
+            {
+              "name": "future-access",
+              "points": 3.7382
+            },
+            {
+              "name": "exposure",
+              "points": -4.800000000000001
+            },
+            {
+              "name": "nn-value",
+              "points": 0.1198072283390228
+            }
+          ]
+        },
+        {
+          "rank": 7,
+          "type": "place",
+          "placements": [
+            {
+              "r": 12,
+              "c": 0,
+              "kind": "5",
+              "face": "5"
+            },
+            {
+              "r": 12,
+              "c": 1,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 12,
+              "c": 7,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 12,
+              "c": 8,
+              "kind": "/",
+              "face": "÷"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "2",
+              "face": "2"
+            }
+          ],
+          "exchange": [],
+          "score": 18,
+          "value": 17.239618032285136,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 18
+            },
+            {
+              "name": "area-potential",
+              "points": 4.5312
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.0754
+            },
+            {
+              "name": "leave",
+              "points": -6.324999999999999
+            },
+            {
+              "name": "future-access",
+              "points": 3.9024
+            },
+            {
+              "name": "exposure",
+              "points": -6
+            },
+            {
+              "name": "nn-value",
+              "points": 0.05561803228513629
+            }
+          ]
+        },
+        {
+          "rank": 8,
+          "type": "place",
+          "placements": [
+            {
+              "r": 12,
+              "c": 0,
+              "kind": "2",
+              "face": "2"
+            },
+            {
+              "r": 12,
+              "c": 1,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 12,
+              "c": 7,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 12,
+              "c": 8,
+              "kind": "/",
+              "face": "÷"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "5",
+              "face": "5"
+            }
+          ],
+          "exchange": [],
+          "score": 18,
+          "value": 17.197344765123372,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 18
+            },
+            {
+              "name": "area-potential",
+              "points": 4.5312
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.0754
+            },
+            {
+              "name": "leave",
+              "points": -6.324999999999999
+            },
+            {
+              "name": "future-access",
+              "points": 3.9024
+            },
+            {
+              "name": "exposure",
+              "points": -6
+            },
+            {
+              "name": "nn-value",
+              "points": 0.013344765123372015
+            }
+          ]
+        },
+        {
+          "rank": 9,
+          "type": "place",
+          "placements": [
+            {
+              "r": 12,
+              "c": 7,
+              "kind": "0",
+              "face": "0"
+            },
+            {
+              "r": 12,
+              "c": 8,
+              "kind": "/",
+              "face": "÷"
+            },
+            {
+              "r": 12,
+              "c": 9,
+              "kind": "10",
+              "face": "10"
+            }
+          ],
+          "exchange": [],
+          "score": 16,
+          "value": 16.6520292941264,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 16
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -8.225
+            },
+            {
+              "name": "future-access",
+              "points": 3.7958
+            },
+            {
+              "name": "exposure",
+              "points": -3
+            },
+            {
+              "name": "nn-value",
+              "points": 0.007153294126398535
+            }
+          ]
+        },
+        {
+          "rank": 10,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "2",
+            "5",
+            "9",
+            "10",
+            "17",
+            "x",
+            "/"
+          ],
+          "score": 0,
+          "value": 12.075858991279347,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": 0
+            },
+            {
+              "name": "future-access",
+              "points": 3.9859999999999998
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 0.015782991279348346
+            }
+          ]
+        },
+        {
+          "rank": 11,
+          "type": "place",
+          "placements": [
+            {
+              "r": 12,
+              "c": 0,
+              "kind": "10",
+              "face": "10"
+            },
+            {
+              "r": 12,
+              "c": 1,
+              "kind": "x",
+              "face": "×"
+            },
+            {
+              "r": 12,
+              "c": 7,
+              "kind": "0",
+              "face": "0"
+            }
+          ],
+          "exchange": [],
+          "score": 14,
+          "value": 11.351233455104076,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 14
+            },
+            {
+              "name": "area-potential",
+              "points": 4.5312
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.0754
+            },
+            {
+              "name": "leave",
+              "points": -8.225
+            },
+            {
+              "name": "future-access",
+              "points": 3.8857999999999997
+            },
+            {
+              "name": "exposure",
+              "points": -6
+            },
+            {
+              "name": "nn-value",
+              "points": 0.08383345510407314
+            }
+          ]
+        },
+        {
+          "rank": 12,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "2",
+            "5",
+            "10",
+            "17",
+            "x",
+            "/"
+          ],
+          "score": 0,
+          "value": 10.815095716022968,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -1.275
+            },
+            {
+              "name": "future-access",
+              "points": 3.9859999999999998
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 0.030019716022967602
+            }
+          ]
+        },
+        {
+          "rank": 13,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "5",
+            "9",
+            "10",
+            "17",
+            "x",
+            "/"
+          ],
+          "score": 0,
+          "value": 10.800008254293381,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -1.275
+            },
+            {
+              "name": "future-access",
+              "points": 3.9859999999999998
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 0.01493225429338052
+            }
+          ]
+        },
+        {
+          "rank": 14,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "2",
+            "9",
+            "10",
+            "17",
+            "x",
+            "/"
+          ],
+          "score": 0,
+          "value": 10.78170171120884,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -1.275
+            },
+            {
+              "name": "future-access",
+              "points": 3.9859999999999998
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": -0.003374288791160307
+            }
+          ]
+        },
+        {
+          "rank": 15,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "2",
+            "5",
+            "9",
+            "10",
+            "17",
+            "x",
+            "/"
+          ],
+          "score": 0,
+          "value": 10.760153861795983,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -1.275
+            },
+            {
+              "name": "future-access",
+              "points": 3.9859999999999998
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": -0.024922138204016564
+            }
+          ]
+        },
+        {
+          "rank": 16,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "2",
+            "5",
+            "9",
+            "10",
+            "17",
+            "/"
+          ],
+          "score": 0,
+          "value": 10.192628059745209,
+          "deep": true,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -1.365
+            },
+            {
+              "name": "future-access",
+              "points": 3.4417999999999997
+            },
+            {
+              "name": "exposure",
+              "points": 0
+            },
+            {
+              "name": "nn-value",
+              "points": 0.041752059745208125
+            }
+          ]
+        },
+        {
+          "rank": 17,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "2",
+            "5",
+            "9",
+            "10",
+            "17",
+            "x"
+          ],
+          "score": 0,
+          "value": 6.709076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -1.365
+            }
+          ]
+        },
+        {
+          "rank": 18,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "2",
+            "5",
+            "9",
+            "10",
+            "x",
+            "/"
+          ],
+          "score": 0,
+          "value": 5.999076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -2.075
+            }
+          ]
+        },
+        {
+          "rank": 19,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "2",
+            "5",
+            "9",
+            "17",
+            "x",
+            "/"
+          ],
+          "score": 0,
+          "value": 5.999076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -2.075
+            }
+          ]
+        },
+        {
+          "rank": 20,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "2",
+            "5",
+            "9",
+            "10",
+            "17",
+            "/"
+          ],
+          "score": 0,
+          "value": 5.644076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -2.4299999999999997
+            }
+          ]
+        },
+        {
+          "rank": 21,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "2",
+            "5",
+            "10",
+            "17",
+            "/"
+          ],
+          "score": 0,
+          "value": 5.644076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -2.4299999999999997
+            }
+          ]
+        },
+        {
+          "rank": 22,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "2",
+            "9",
+            "10",
+            "17",
+            "/"
+          ],
+          "score": 0,
+          "value": 5.644076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -2.4299999999999997
+            }
+          ]
+        },
+        {
+          "rank": 23,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "2",
+            "5",
+            "10",
+            "17",
+            "x"
+          ],
+          "score": 0,
+          "value": 5.644076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -2.4299999999999997
+            }
+          ]
+        },
+        {
+          "rank": 24,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "5",
+            "9",
+            "10",
+            "17",
+            "x"
+          ],
+          "score": 0,
+          "value": 5.644076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -2.4299999999999997
+            }
+          ]
+        },
+        {
+          "rank": 25,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "2",
+            "5",
+            "9",
+            "10",
+            "17",
+            "x"
+          ],
+          "score": 0,
+          "value": 5.644076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -2.4299999999999997
+            }
+          ]
+        },
+        {
+          "rank": 26,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "2",
+            "9",
+            "10",
+            "17",
+            "x"
+          ],
+          "score": 0,
+          "value": 5.644076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -2.4299999999999997
+            }
+          ]
+        },
+        {
+          "rank": 27,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "5",
+            "9",
+            "10",
+            "17",
+            "/"
+          ],
+          "score": 0,
+          "value": 5.644076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -2.4299999999999997
+            }
+          ]
+        },
+        {
+          "rank": 28,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "5",
+            "9",
+            "10",
+            "17",
+            "x",
+            "/"
+          ],
+          "score": 0,
+          "value": 5.224076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -2.85
+            }
+          ]
+        },
+        {
+          "rank": 29,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "2",
+            "9",
+            "10",
+            "17",
+            "x",
+            "/"
+          ],
+          "score": 0,
+          "value": 5.224076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -2.85
+            }
+          ]
+        },
+        {
+          "rank": 30,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "2",
+            "5",
+            "10",
+            "17",
+            "x",
+            "/"
+          ],
+          "score": 0,
+          "value": 5.224076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -2.85
+            }
+          ]
+        },
+        {
+          "rank": 31,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "2",
+            "10",
+            "17",
+            "x",
+            "/"
+          ],
+          "score": 0,
+          "value": 5.224076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -2.85
+            }
+          ]
+        },
+        {
+          "rank": 32,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "9",
+            "10",
+            "17",
+            "x",
+            "/"
+          ],
+          "score": 0,
+          "value": 5.224076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -2.85
+            }
+          ]
+        },
+        {
+          "rank": 33,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "5",
+            "10",
+            "17",
+            "x",
+            "/"
+          ],
+          "score": 0,
+          "value": 5.224076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -2.85
+            }
+          ]
+        },
+        {
+          "rank": 34,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "2",
+            "5",
+            "9",
+            "10",
+            "17"
+          ],
+          "score": 0,
+          "value": 4.864076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -3.21
+            }
+          ]
+        },
+        {
+          "rank": 35,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "2",
+            "5",
+            "9",
+            "10",
+            "/"
+          ],
+          "score": 0,
+          "value": 4.844075999999999,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -3.23
+            }
+          ]
+        },
+        {
+          "rank": 36,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "2",
+            "5",
+            "9",
+            "17",
+            "/"
+          ],
+          "score": 0,
+          "value": 4.844075999999999,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -3.23
+            }
+          ]
+        },
+        {
+          "rank": 37,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "2",
+            "5",
+            "9",
+            "10",
+            "x"
+          ],
+          "score": 0,
+          "value": 4.844075999999999,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -3.23
+            }
+          ]
+        },
+        {
+          "rank": 38,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "2",
+            "5",
+            "9",
+            "17",
+            "x"
+          ],
+          "score": 0,
+          "value": 4.844075999999999,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -3.23
+            }
+          ]
+        },
+        {
+          "rank": 39,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "2",
+            "5",
+            "10",
+            "17",
+            "x"
+          ],
+          "score": 0,
+          "value": 4.519076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -3.5549999999999997
+            }
+          ]
+        },
+        {
+          "rank": 40,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "5",
+            "10",
+            "17",
+            "x"
+          ],
+          "score": 0,
+          "value": 4.519076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -3.5549999999999997
+            }
+          ]
+        },
+        {
+          "rank": 41,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "2",
+            "9",
+            "10",
+            "17",
+            "x"
+          ],
+          "score": 0,
+          "value": 4.519076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -3.5549999999999997
+            }
+          ]
+        },
+        {
+          "rank": 42,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "2",
+            "10",
+            "17",
+            "x"
+          ],
+          "score": 0,
+          "value": 4.519076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -3.5549999999999997
+            }
+          ]
+        },
+        {
+          "rank": 43,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "5",
+            "9",
+            "10",
+            "17",
+            "x"
+          ],
+          "score": 0,
+          "value": 4.519076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -3.5549999999999997
+            }
+          ]
+        },
+        {
+          "rank": 44,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "9",
+            "10",
+            "17",
+            "/"
+          ],
+          "score": 0,
+          "value": 4.519076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -3.5549999999999997
+            }
+          ]
+        },
+        {
+          "rank": 45,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "5",
+            "10",
+            "17",
+            "/"
+          ],
+          "score": 0,
+          "value": 4.519076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -3.5549999999999997
+            }
+          ]
+        },
+        {
+          "rank": 46,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "2",
+            "10",
+            "17",
+            "/"
+          ],
+          "score": 0,
+          "value": 4.519076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -3.5549999999999997
+            }
+          ]
+        },
+        {
+          "rank": 47,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "0",
+            "9",
+            "10",
+            "17",
+            "x"
+          ],
+          "score": 0,
+          "value": 4.519076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -3.5549999999999997
+            }
+          ]
+        },
+        {
+          "rank": 48,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "2",
+            "9",
+            "10",
+            "17",
+            "/"
+          ],
+          "score": 0,
+          "value": 4.519076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -3.5549999999999997
+            }
+          ]
+        },
+        {
+          "rank": 49,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "2",
+            "5",
+            "10",
+            "17",
+            "/"
+          ],
+          "score": 0,
+          "value": 4.519076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -3.5549999999999997
+            }
+          ]
+        },
+        {
+          "rank": 50,
+          "type": "exchange",
+          "placements": [],
+          "exchange": [
+            "5",
+            "9",
+            "10",
+            "17",
+            "/"
+          ],
+          "score": 0,
+          "value": 4.519076,
+          "deep": false,
+          "components": [
+            {
+              "name": "immediate-score",
+              "points": 0
+            },
+            {
+              "name": "area-potential",
+              "points": 4.852
+            },
+            {
+              "name": "unseen-potential",
+              "points": 3.222076
+            },
+            {
+              "name": "leave",
+              "points": -3.5549999999999997
+            }
+          ]
+        }
+      ]
+    },
+    "best": {
+      "placements": [
+        {
+          "r": 8,
+          "c": 3,
+          "kind": "0",
+          "face": "0"
+        },
+        {
+          "r": 9,
+          "c": 3,
+          "kind": "/",
+          "face": "÷"
+        },
+        {
+          "r": 11,
+          "c": 3,
+          "kind": "5",
+          "face": "5"
+        },
+        {
+          "r": 13,
+          "c": 3,
+          "kind": "2",
+          "face": "2"
+        }
+      ],
+      "score": 22,
+      "value": 26.623349795710187,
+      "components": [
+        {
+          "name": "immediate-score",
+          "points": 22
+        },
+        {
+          "name": "area-potential",
+          "points": 4.5312
+        },
+        {
+          "name": "unseen-potential",
+          "points": 3.0754
+        },
+        {
+          "name": "leave",
+          "points": -6.9399999999999995
+        },
+        {
+          "name": "future-access",
+          "points": 3.8891999999999998
+        },
+        {
+          "name": "exposure",
+          "points": 0
+        },
+        {
+          "name": "nn-value",
+          "points": 0.06754979571018449
+        }
+      ]
+    },
+    "nearBest": [
+      {
+        "rank": 1,
+        "type": "place",
+        "score": 22,
+        "value": 26.623349795710187,
+        "placements": [
+          {
+            "r": 8,
+            "c": 3,
+            "kind": "0",
+            "face": "0"
+          },
+          {
+            "r": 9,
+            "c": 3,
+            "kind": "/",
+            "face": "÷"
+          },
+          {
+            "r": 11,
+            "c": 3,
+            "kind": "5",
+            "face": "5"
+          },
+          {
+            "r": 13,
+            "c": 3,
+            "kind": "2",
+            "face": "2"
+          }
+        ],
+        "exchange": []
+      },
+      {
+        "rank": 2,
+        "type": "place",
+        "score": 26,
+        "value": 26.374739573722486,
+        "placements": [
+          {
+            "r": 9,
+            "c": 8,
+            "kind": "x",
+            "face": "×"
+          },
+          {
+            "r": 11,
+            "c": 8,
+            "kind": "/",
+            "face": "÷"
+          },
+          {
+            "r": 12,
+            "c": 8,
+            "kind": "2",
+            "face": "2"
+          }
+        ],
+        "exchange": []
+      },
+      {
+        "rank": 3,
+        "type": "place",
+        "score": 26,
+        "value": 26.34730256991675,
+        "placements": [
+          {
+            "r": 9,
+            "c": 8,
+            "kind": "/",
+            "face": "÷"
+          },
+          {
+            "r": 11,
+            "c": 8,
+            "kind": "x",
+            "face": "×"
+          },
+          {
+            "r": 12,
+            "c": 8,
+            "kind": "2",
+            "face": "2"
+          }
+        ],
+        "exchange": []
+      }
+    ],
+    "equations": [
+      {
+        "direction": "vertical",
+        "tiles": [
+          {
+            "r": 7,
+            "c": 3,
+            "kind": "9",
+            "face": "9",
+            "new": false
+          },
+          {
+            "r": 8,
+            "c": 3,
+            "kind": "0",
+            "face": "0",
+            "new": true
+          },
+          {
+            "r": 9,
+            "c": 3,
+            "kind": "/",
+            "face": "÷",
+            "new": true
+          },
+          {
+            "r": 10,
+            "c": 3,
+            "kind": "4",
+            "face": "4",
+            "new": false
+          },
+          {
+            "r": 11,
+            "c": 3,
+            "kind": "5",
+            "face": "5",
+            "new": true
+          },
+          {
+            "r": 12,
+            "c": 3,
+            "kind": "=",
+            "face": "=",
+            "new": false
+          },
+          {
+            "r": 13,
+            "c": 3,
+            "kind": "2",
+            "face": "2",
+            "new": true
+          }
+        ],
+        "text": "90 ÷ 45 = 2",
+        "pattern": "NN O NN = N",
+        "score": 22,
+        "multiplier": 2,
+        "tileCount": 7,
+        "placedParticipating": 4,
+        "reusedBoardTiles": 3,
+        "semantics": {
+          "result": {
+            "numerator": "2",
+            "denominator": "1"
+          },
+          "fractionAddSub": false,
+          "mulDivOnly": true,
+          "fractionResult": false,
+          "negativeResult": false,
+          "operations": [
+            "÷"
+          ]
+        },
+        "role": "main"
+      }
+    ],
+    "bingoBonus": 0,
+    "moveTypes": [
+      "CROSS"
+    ],
+    "primaryType": "CROSS",
+    "moveFacts": {
+      "equationCount": 1,
+      "main": {
+        "direction": "vertical",
+        "tiles": 7,
+        "placed": 4,
+        "reusedSegments": [
+          1,
+          1,
+          1
+        ]
+      },
+      "hooks": []
+    },
+    "geometry": {
+      "extend": null
+    },
+    "composition": {
+      "digit": 3,
+      "heavy": 0,
+      "operator": 1,
+      "choice": 0,
+      "equals": 0,
+      "blank": 0,
+      "total": 4
+    },
+    "placedKinds": [
+      "0",
+      "/",
+      "5",
+      "2"
+    ],
+    "patterns": {
+      "main": "NN O NN = N",
+      "hooks": []
+    },
+    "content": {
+      "arithmetic": true,
+      "fraction": false,
+      "fractionSum": false,
+      "large": false,
+      "trivialZero": false
+    },
+    "checks": {
+      "stage5b": 22,
+      "eqlab": 22,
+      "amathCli": 22
+    }
+  },
+  "features": {
+    "version": "study-difficulty-features-v1",
+    "legalMoves": 266,
+    "candidatesReturned": 50,
+    "bestScore": 22,
+    "bestValue": 26.623349795710187,
+    "secondScore": 26,
+    "secondValue": 26.374739573722486,
+    "thirdValue": 26.34730256991675,
+    "valueGapToSecond": 0.24861022198770044,
+    "valueGapToThird": 0.27604722579343743,
+    "scoreGapToSecond": -4,
+    "nearBestCount": 3,
+    "highestCandidateScore": 26,
+    "bestIsHighestScoring": false,
+    "highestScoringRank": 2,
+    "tilesPlaced": 4,
+    "equationCount": 1,
+    "moveTypes": [
+      "CROSS"
+    ],
+    "hookSubtypes": [],
+    "composition": {
+      "digit": 3,
+      "heavy": 0,
+      "operator": 1,
+      "choice": 0,
+      "equals": 0,
+      "blank": 0,
+      "total": 4
+    },
+    "mainPatternTokens": 5,
+    "longestNumberTiles": 2,
+    "usesBlank": false,
+    "usesChoice": false,
+    "bingo": false,
+    "boardTiles": 70,
+    "bagCount": 14,
+    "turnNumber": 14,
+    "scoreDiff": -139,
+    "rackIndex": 3,
+    "candidateValues": [
+      26.623349795710187,
+      26.374739573722486,
+      26.34730256991675,
+      23.248768261872033,
+      23.226885031202976,
+      22.338607228339022,
+      17.239618032285136,
+      17.197344765123372,
+      16.6520292941264,
+      12.075858991279347
+    ],
+    "candidateScores": [
+      22,
+      26,
+      26,
+      24,
+      24,
+      23,
+      18,
+      18,
+      16,
+      0
+    ]
+  }
+}
