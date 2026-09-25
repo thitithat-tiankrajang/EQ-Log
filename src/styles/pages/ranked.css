@@ -1,0 +1,144 @@
+.ranked-page {
+  width: min(1100px, calc(100% - 32px));
+  margin: 28px auto 80px;
+  display: grid;
+  gap: 18px;
+}
+
+.ranked-head,
+.ranked-actions,
+.ranked-tabs,
+.ranked-room-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ranked-head h2 {
+  margin: 8px 0;
+}
+.ranked-head p {
+  margin: 0;
+  opacity: 0.76;
+}
+.ranked-head .eq-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ranked-card {
+  padding: 20px;
+  border: 1px solid var(--border, #d9d5cc);
+  border-radius: 18px;
+  background: var(--surface, #fff);
+}
+.ranked-card h2 {
+  margin: 0 0 10px;
+  font-size: 1.2rem;
+}
+.ranked-card p {
+  margin: 6px 0 14px;
+}
+.ranked-tabs {
+  justify-content: flex-start;
+}
+.ranked-tabs button {
+  padding: 10px 15px;
+  border: 1px solid #bbb;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+}
+.ranked-tabs button[aria-selected="true"] {
+  background: #1b3440;
+  color: white;
+}
+.ranked-room-list {
+  display: grid;
+  gap: 8px;
+}
+.ranked-room-list button {
+  padding: 8px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.ranked-leaders {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ranked-leaders li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 14px;
+  padding: 10px 0;
+  border-top: 1px solid #ddd;
+}
+.ranked-actions {
+  justify-content: flex-start;
+  margin: 12px 0;
+}
+.ranked-actions button {
+  padding: 8px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.ranked-play .ranked-result {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #e5f1ea;
+  font-weight: 700;
+}
+.ranked-play .tilebag-panel p {
+  margin: 8px 14px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.ranked-play .board-zone {
+  --cell: clamp(27px, min(3vw, calc((100vw - 700px) / 15)), 50px);
+}
+.ranked-play .ranked-log-detail {
+  padding: 12px;
+  border-top: 1px solid var(--border);
+}
+.ranked-play .ranked-log-detail p {
+  margin: 8px 0;
+}
+.ranked-play .rack-tile-back {
+  display: inline-grid;
+  place-items: center;
+  width: 100%;
+  min-height: 42px;
+  border: 2px solid #344b56;
+  border-radius: 7px;
+  background: #4d6470;
+  color: white;
+  font-weight: 800;
+}
+
+@media (max-width: 1000px) {
+  .ranked-play .board-zone {
+    --cell: clamp(25px, calc((100vw - 80px) / 15), 48px);
+  }
+}
+
+@media (max-width: 600px) {
+  .ranked-leaders li {
+    grid-template-columns: 1fr auto;
+  }
+  .ranked-leaders small {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 759px) {
+  .ranked-play .log-rail .log-panel {
+    display: block !important;
+    max-height: 170px;
+    overflow-y: auto;
+  }
+}
