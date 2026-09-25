@@ -1,0 +1,386 @@
+/* Admin → Vision dataset → Board Labeler. Loaded only with the (lazy) tool. */
+
+.labeler {
+  display: grid;
+  gap: 14px;
+  color: var(--eq-text);
+}
+
+.labeler-toolbar,
+.labeler-batch,
+.labeler-actions,
+.labeler-nudge,
+.labeler-counts,
+.labeler-board-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.labeler-spacer {
+  flex: 1;
+}
+
+.labeler-file {
+  position: relative;
+  cursor: pointer;
+}
+.labeler-file input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.labeler-field {
+  display: grid;
+  gap: 4px;
+  font-size: 0.8rem;
+  color: var(--eq-text-soft);
+}
+.labeler-field input:not([type="range"]),
+.labeler-field select {
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--eq-line-strong);
+  border-radius: var(--eq-radius-sm);
+  background: var(--eq-surface);
+  color: var(--eq-text);
+  font: inherit;
+  font-size: 0.9rem;
+}
+
+.labeler-notice {
+  justify-content: space-between;
+}
+
+.labeler-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.labeler-list button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 9px;
+  border: 1px solid var(--eq-line);
+  border-radius: var(--eq-radius-sm);
+  background: var(--eq-surface);
+  color: var(--eq-text);
+  font: inherit;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.labeler-list button[aria-current="true"] {
+  border-color: var(--eq-primary);
+  box-shadow: 0 0 0 2px var(--eq-primary-soft);
+}
+
+.labeler-status {
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: var(--eq-surface-subtle);
+  color: var(--eq-text-soft);
+}
+.labeler-status.is-draft {
+  background: var(--eq-warning-soft);
+  color: var(--eq-warning);
+}
+.labeler-status.is-completed {
+  background: var(--eq-success-soft);
+  color: var(--eq-success);
+}
+
+.labeler-sealed-chip {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--eq-danger);
+  color: #fff;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.labeler-sealed {
+  padding: 10px 14px;
+  border: 2px solid var(--eq-danger);
+  border-radius: var(--eq-radius-md);
+  background: var(--eq-danger-soft);
+  color: var(--eq-danger);
+  font-weight: 600;
+}
+
+.labeler-board {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--eq-line);
+  border-radius: var(--eq-radius-lg);
+  background: var(--eq-surface);
+}
+.labeler-board-head > div:first-child {
+  flex: 1;
+  min-width: 220px;
+}
+.labeler-board-head h2 {
+  margin: 0;
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+.labeler-meta {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: var(--eq-text-soft);
+  overflow-wrap: anywhere;
+}
+
+.labeler-steps {
+  display: flex;
+  gap: 4px;
+}
+.labeler-steps button {
+  flex: 1;
+  padding: 8px;
+  border: 1px solid var(--eq-line);
+  border-radius: var(--eq-radius-sm);
+  background: var(--eq-surface-subtle);
+  color: var(--eq-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.labeler-steps button[aria-current="step"] {
+  background: var(--eq-primary);
+  border-color: var(--eq-primary);
+  color: #fff;
+}
+.labeler-steps button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── the working area: image left, controls right ─────────────────── */
+.labeler-corners,
+.labeler-paint {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 250px;
+  gap: 14px;
+  align-items: start;
+}
+
+.labeler-stage {
+  position: relative;
+  /* no accidental image drag, text selection, page scroll or zoom while working */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  touch-action: none;
+  overscroll-behavior: contain;
+  background: #111;
+  border-radius: var(--eq-radius-md);
+  overflow: hidden;
+  line-height: 0;
+}
+.labeler-stage:focus-visible {
+  outline: 3px solid var(--focus-ring);
+}
+.labeler-photo,
+.labeler-rectified {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 78vh;
+  object-fit: contain;
+  pointer-events: none;
+}
+.labeler-board-stage {
+  max-width: min(78vh, 100%);
+}
+.labeler-overlay,
+.labeler-labels {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+.labeler-labels {
+  cursor: crosshair;
+}
+.is-review .labeler-labels {
+  cursor: default;
+}
+
+.labeler-handle {
+  cursor: grab;
+}
+.labeler-handle circle {
+  fill: rgba(0, 220, 255, 0.25);
+  stroke: #00dcff;
+  stroke-width: 3;
+  vector-effect: non-scaling-stroke;
+}
+.labeler-handle.is-active circle {
+  fill: rgba(255, 59, 48, 0.3);
+  stroke: #ff3b30;
+}
+.labeler-handle text {
+  fill: #fff;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+.labeler-side {
+  display: grid;
+  gap: 10px;
+  font-size: 0.86rem;
+}
+.labeler-side p,
+.labeler-side h3 {
+  margin: 0;
+}
+.labeler-loupe {
+  width: 180px;
+  height: 180px;
+  border-radius: var(--eq-radius-md);
+  border: 1px solid var(--eq-line-strong);
+  image-rendering: pixelated;
+}
+.labeler-nudge button {
+  min-width: 34px;
+  min-height: 34px;
+  border: 1px solid var(--eq-line-strong);
+  border-radius: var(--eq-radius-sm);
+  background: var(--eq-surface);
+  color: var(--eq-text);
+  font: inherit;
+  cursor: pointer;
+}
+.labeler-nudge button[aria-pressed="true"] {
+  background: #ff3b30;
+  border-color: #ff3b30;
+  color: #fff;
+}
+.labeler-problem {
+  color: var(--eq-danger);
+  font-weight: 600;
+}
+
+.labeler-hover {
+  font-family: var(--font-mono);
+  font-size: 1.6rem !important;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.labeler-brushes {
+  display: grid;
+  gap: 6px;
+}
+.labeler-brush {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 11px;
+  border: 2px solid var(--eq-line);
+  border-radius: var(--eq-radius-sm);
+  background: var(--eq-surface);
+  color: var(--eq-text);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.labeler-brush kbd {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--eq-text-soft);
+}
+.labeler-brush[aria-checked="true"].is-tile {
+  border-color: #16a34a;
+  background: #dcfce7;
+}
+.labeler-brush[aria-checked="true"].is-empty {
+  border-color: var(--eq-text-soft);
+  background: var(--eq-surface-subtle);
+}
+.labeler-brush[aria-checked="true"].is-unsure {
+  border-color: #f59e0b;
+  background: #fef3c7;
+}
+.labeler-hint {
+  font-size: 0.78rem;
+  color: var(--eq-text-soft);
+}
+
+.labeler-counts {
+  gap: 14px;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+.labeler-counts .is-tile {
+  color: #15803d;
+}
+.labeler-counts .is-unsure {
+  color: var(--eq-warning);
+}
+
+/* ── review ─────────────────────────────────────────────────────────── */
+.labeler-mini {
+  display: grid;
+  grid-template-columns: repeat(15, 1fr);
+  gap: 1px;
+  width: 225px;
+  padding: 1px;
+  background: var(--eq-line-strong);
+}
+.labeler-mini-cell {
+  aspect-ratio: 1;
+  background: var(--eq-surface);
+}
+.labeler-mini-cell.is-tile {
+  background: #16a34a;
+}
+.labeler-mini-cell.is-unsure {
+  background: repeating-linear-gradient(45deg, #f59e0b 0 3px, #fde68a 3px 6px);
+}
+.labeler-unsure ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.labeler-unsure button {
+  padding: 3px 7px;
+  border: 1px solid #f59e0b;
+  border-radius: 6px;
+  background: #fef3c7;
+  color: var(--eq-text);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.labeler-check {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-weight: 600;
+}
+
+@media (max-width: 760px) {
+  .labeler-corners,
+  .labeler-paint {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

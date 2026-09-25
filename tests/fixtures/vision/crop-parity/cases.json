@@ -1,0 +1,108 @@
+{
+  "source": "amath-vision-training/amathvision/crops.py",
+  "seed": 7000003,
+  "width": 480,
+  "height": 360,
+  "contract": {
+    "pxPerSquare": 50,
+    "marginSquares": 0.3,
+    "canonicalSize": 780,
+    "cropSize": 80
+  },
+  "tolerance": "each byte within \u00b11 (float32 vs float64 rounding at .5)",
+  "cases": [
+    {
+      "name": "native",
+      "quad": [
+        [
+          193.9849748301606,
+          -13.210938933793056
+        ],
+        [
+          444.94517791176804,
+          107.88296794367699
+        ],
+        [
+          313.03694297878417,
+          388.8674284310956
+        ],
+        [
+          38.315102225860436,
+          222.30457798437516
+        ]
+      ],
+      "prefilterFactor": 1,
+      "squares": [
+        {
+          "row": 7,
+          "col": 7,
+          "file": "native_7_7.rgb.gz"
+        },
+        {
+          "row": 0,
+          "col": 0,
+          "file": "native_0_0.rgb.gz"
+        },
+        {
+          "row": 3,
+          "col": 11,
+          "file": "native_3_11.rgb.gz"
+        },
+        {
+          "row": 14,
+          "col": 2,
+          "file": "native_14_2.rgb.gz"
+        },
+        {
+          "row": 9,
+          "col": 5,
+          "file": "native_9_5.rgb.gz"
+        }
+      ]
+    },
+    {
+      "name": "prefiltered",
+      "quad": [
+        [
+          -73.94289845225285,
+          -961.5706778844516
+        ],
+        [
+          1431.818320037392,
+          -235.00723661963147
+        ],
+        [
+          640.3689104394884,
+          1450.8995263048803
+        ],
+        [
+          -1007.9621340780539,
+          451.5224236245575
+        ]
+      ],
+      "prefilterFactor": 2,
+      "squares": [
+        {
+          "row": 7,
+          "col": 7,
+          "file": "prefiltered_7_7.rgb.gz"
+        },
+        {
+          "row": 6,
+          "col": 8,
+          "file": "prefiltered_6_8.rgb.gz"
+        },
+        {
+          "row": 8,
+          "col": 6,
+          "file": "prefiltered_8_6.rgb.gz"
+        },
+        {
+          "row": 0,
+          "col": 0,
+          "file": "prefiltered_0_0.rgb.gz"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "modelVersion": "0.1.0",
+  "domain": "synthetic-only \u2014 real-world accuracy NOT established",
+  "manifestFingerprint": "185b7ef4",
+  "vocabularyFingerprint": "b9fea6ae",
+  "cellClasses": [
+    "0",
+    "1",
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "11",
+    "12",
+    "13",
+    "14",
+    "15",
+    "16",
+    "17",
+    "18",
+    "19",
+    "20",
+    "+",
+    "-",
+    "x",
+    "/",
+    "+/-",
+    "x//",
+    "=",
+    "?",
+    "empty",
+    "unknown"
+  ],
+  "input": {
+    "name": "crops",
+    "shape": [
+      null,
+      3,
+      80,
+      80
+    ],
+    "dtype": "float32",
+    "layout": "NCHW",
+    "channels": "RGB",
+    "normalisation": {
+      "divide": 255,
+      "mean": 0.5,
+      "std": 0.5
+    },
+    "geometry": {
+      "pxPerSquare": 50,
+      "marginSquares": 0.3,
+      "canonicalSize": 780,
+      "cropSize": 80,
+      "corners": "grid corners TL, TR, BR, BL of the board as it is to be READ, image continuous coords",
+      "pixelConvention": "pixel (i, j) covers [i, i+1) x [j, j+1); its centre is (i+0.5, j+0.5)",
+      "prefilter": "s = mean grid edge / 15; if s >= 2*pxPerSquare, box-downsample by floor(s / pxPerSquare), round half up",
+      "sampling": "bilinear between pixel centres; neighbours outside the image contribute 0",
+      "canonical": "pixel (x, y) samples H((x+0.5)/pxPerSquare - margin, (y+0.5)/pxPerSquare - margin), H: board square coords -> image",
+      "crop": "square (r, c) = canonical[r*pxPerSquare : +cropSize, c*pxPerSquare : +cropSize], rounded half up to uint8",
+      "spec": "amath-vision-training/amathvision/crops.py"
+    }
+  },
+  "outputs": {
+    "kind_logits": {
+      "classes": [
+        "0",
+        "1",
+        "2",
+        "3",
+        "4",
+        "5",
+        "6",
+        "7",
+        "8",
+        "9",
+        "10",
+        "11",
+        "12",
+        "13",
+        "14",
+        "15",
+        "16",
+        "17",
+        "18",
+        "19",
+        "20",
+        "+",
+        "-",
+        "x",
+        "/",
+        "+/-",
+        "x//",
+        "=",
+        "?",
+        "empty"
+      ],
+      "semantics": "the PHYSICAL tile kind, or empty. Never an assigned face: faces are not visible and belong to reconstruction."
+    },
+    "turn_logits": {
+      "classes": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "semantics": "clockwise quarter-turns of the print as seen in the crop; undefined for empty squares. The board's reading side is the turn most tiles agree on."
+    }
+  },
+  "runtime": {
+    "passes": [
+      "1. Crop all 225 squares with the corners in ANY order. Softmax turn_logits; over squares whose kind is not empty, sum log p(turn = h) for h in 0..3. The side the board is read from is the h that wins: rotate the corner list by h (corners[h:] + corners[:h]).",
+      "2. Re-crop with the rotated corners. Now nearly every tile is upright; use kind_logits from this pass for evidence."
+    ],
+    "why": "a \u00f7 turned 90\u00b0 is nearly a + at 40 px per square; reading the board from its correct side first removes that ambiguity for every tile that sits upright",
+    "evidence": "CellEvidence per square from softmax(kind_logits / temperature), top-K kept, remaining mass to unknown; CellEvidence.orientation from softmax(turn_logits)"
+  },
+  "calibration": {
+    "method": "temperature",
+    "temperature": 0.8082341436099503,
+    "apply": "softmax(kind_logits / temperature)",
+    "fittedOn": "synthetic validation set"
+  },
+  "unknown": {
+    "trained": false,
+    "rule": "topK",
+    "k": 3,
+    "apply": "keep the 3 most probable classes; the remaining mass is `unknown` (cellEvidenceFromProbabilities does this)"
+  },
+  "uncertainBelow": 0.9,
+  "model": {
+    "architecture": "SquareNet (depthwise-separable CNN; final feature map flattened, not pooled)",
+    "width": 1.5,
+    "parameters": 249778,
+    "onnxBytes": 1006514,
+    "opset": 17
+  },
+  "training": {
+    "seed": 7,
+    "trainCrops": 298960,
+    "epochs": 10,
+    "device": "mps"
+  },
+  "syntheticMetrics": {
+    "note": "SYNTHETIC-DOMAIN \u2014 held-out synthetic test set, calibrated",
+    "accuracy": 0.9744746396743316,
+    "occupiedAccuracy": 0.9078385452541673,
+    "pWrongGivenConf": {
+      ">=0.90": 0.004665053091817614,
+      ">=0.95": 0.0026311528497409324,
+      ">=0.99": 0.0011547595703422881
+    },
+    "boardsFullyCorrect": 0.212
+  },
+  "files": {
+    "classifier.onnx": "b7384f2c4234e6254e0d62accbdbdc8694b22c4250e94e1326058958e060f6aa"
+  },
+  "onnxMaxAbsDiffVsTorch": 1.5735626220703125e-05,
+  "benchmark": {
+    "squares": 225,
+    "onnxruntime": "1.30.0",
+    "provider": "CPUExecutionProvider",
+    "median_ms": 76.08022954082116,
+    "machine": "Apple M3 (training host)"
+  }
+}
