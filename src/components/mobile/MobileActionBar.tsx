@@ -10,12 +10,7 @@ import {
   X,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import type {
-  ActionType,
-  GameStatus,
-  MoveValidation,
-  TileDrawMode,
-} from "../../game";
+import type { ActionType, GameStatus, MoveValidation, TileDrawMode } from "../../game";
 import { RACK_SIZE } from "../../constants/gameRules";
 
 type ActionMode = "none" | ActionType;
@@ -33,12 +28,15 @@ type MobileActionBarProps = {
   actionMode: ActionMode;
   canChooseAction: boolean;
   canExchange: boolean;
+  /** False where the turn must be a placement (a Study puzzle). Default true. */
+  canPass?: boolean;
   canEditRefill: boolean;
   canPickFromTilebag: boolean;
   canUndoPlacement: boolean;
   exchangeCount: number;
   exchangeReady: boolean;
   gameFinished: boolean;
+  finishedMessage?: string;
   gameStatus: GameStatus;
   pendingCount: number;
   rackCount: number;
@@ -70,12 +68,14 @@ export function MobileActionBar({
   actionMode,
   canChooseAction,
   canExchange,
+  canPass = true,
   canEditRefill,
   canPickFromTilebag,
   canUndoPlacement,
   exchangeCount,
   exchangeReady,
   gameFinished,
+  finishedMessage = "Result and Replay are in the top bar.",
   gameStatus,
   pendingCount,
   rackCount,
@@ -138,7 +138,7 @@ export function MobileActionBar({
       <div className="mobile-action-bar">
         <div className="mab-status info wide">
           <strong>Game finished</strong>
-          <span>Result and Replay are in the top bar.</span>
+          <span>{finishedMessage}</span>
         </div>
       </div>
     );
@@ -239,7 +239,7 @@ export function MobileActionBar({
         </button>
         <button
           className="mab-btn"
-          disabled={!canChooseAction}
+          disabled={!canChooseAction || !canPass}
           type="button"
           onClick={() => onStartAction("pass")}
         >
@@ -254,7 +254,12 @@ export function MobileActionBar({
     const statusClass = validation.isValid ? "valid" : "invalid";
     return (
       <div className="mobile-action-bar">
-        <button aria-label="Cancel placement" className="mab-btn icon" type="button" onClick={onCancelAction}>
+        <button
+          aria-label="Cancel placement"
+          className="mab-btn icon"
+          type="button"
+          onClick={onCancelAction}
+        >
           <X size={22} />
         </button>
         <button
@@ -268,13 +273,15 @@ export function MobileActionBar({
           <Undo2 size={21} />
         </button>
         <div className={`mab-status ${statusClass}`}>
-          <strong>{validation.isValid ? `${validation.score} pts` : `${pendingCount} tile(s)`}</strong>
+          <strong>
+            {validation.isValid ? `${validation.score} pts` : `${pendingCount} tile(s)`}
+          </strong>
           <span>
             {validation.isValid
               ? validation.bingoBonus > 0
                 ? "Valid · Bingo bonus!"
                 : "Valid equation"
-              : validation.errors[0] ?? "Place tiles to form an equation"}
+              : (validation.errors[0] ?? "Place tiles to form an equation")}
           </span>
         </div>
         <button
@@ -293,7 +300,12 @@ export function MobileActionBar({
   if (actionMode === "exchange") {
     return (
       <div className="mobile-action-bar">
-        <button aria-label="Cancel exchange" className="mab-btn icon" type="button" onClick={onCancelAction}>
+        <button
+          aria-label="Cancel exchange"
+          className="mab-btn icon"
+          type="button"
+          onClick={onCancelAction}
+        >
           <X size={22} />
         </button>
         <div className={`mab-status ${exchangeReady ? "valid" : "info"}`}>
@@ -316,7 +328,12 @@ export function MobileActionBar({
   if (actionMode === "pass") {
     return (
       <div className="mobile-action-bar">
-        <button aria-label="Cancel pass" className="mab-btn icon" type="button" onClick={onCancelAction}>
+        <button
+          aria-label="Cancel pass"
+          className="mab-btn icon"
+          type="button"
+          onClick={onCancelAction}
+        >
           <X size={22} />
         </button>
         <button className="mab-btn primary grow" type="button" onClick={onConfirmPass}>

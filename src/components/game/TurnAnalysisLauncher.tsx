@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
+import { ChevronRight, ScanSearch } from "lucide-react";
 
 import {
-  ANALYSIS_LEVELS,
   EngineApiError,
   type AnalysisLevel,
   type AnalysisResult,
@@ -45,6 +45,7 @@ const LEVEL_LABEL: Record<AnalysisLevel, string> = {
   normal: "ปกติ",
   deep: "ลึก",
   max: "สูงสุด (Super)",
+  stage5b64: "Stage 5B · 64 ตา",
 };
 
 const LEVEL_HINT: Record<AnalysisLevel, string> = {
@@ -55,6 +56,7 @@ const LEVEL_HINT: Record<AnalysisLevel, string> = {
   // see `localHint`. This is the backend's wait, which is what a device that
   // cannot run it locally will actually get.
   max: "หลายนาที · บนเซิร์ฟเวอร์",
+  stage5b64: "ตรวจเชิงลึก 64 ตา",
 };
 
 /** The coarsest unit that still says something. The estimate is a linear
@@ -74,7 +76,9 @@ function messageFor(error: EngineApiError): string {
     case "stale_revision":
       return "กระดานเปลี่ยนไปแล้วระหว่างวิเคราะห์ — กดวิเคราะห์อีกครั้งเพื่อดูตาปัจจุบัน";
     case "analysis_not_allowed":
-      return "วิเคราะห์ได้เฉพาะในตาของผู้เล่นที่เป็นมนุษย์ และต้องเป็นตาของคุณเอง";
+      return /mode/i.test(error.message)
+        ? "โหมดนี้ไม่เปิดให้ใช้เครื่องมือวิเคราะห์"
+        : "วิเคราะห์ได้เฉพาะในตาของผู้เล่นที่เป็นมนุษย์ และต้องเป็นตาของคุณเอง";
     case "turn_rule":
       return "ตอนนี้ยังวิเคราะห์ไม่ได้ — เกมยังไม่ถึงจังหวะที่ต้องตัดสินใจ";
     case "engine_timeout":
@@ -109,6 +113,7 @@ function messageFor(error: EngineApiError): string {
 
 export function TurnAnalysisLauncher({
   roomId,
+  authur = false,
   revision,
   playerName,
   disabled,
@@ -116,11 +121,14 @@ export function TurnAnalysisLauncher({
   reconnectEpoch = 0,
   makeLocal,
   localHint,
+  mobileTool = false,
 }: {
   /** The LIVE ROOM's id (`room_live.room_id`, this app's `activeRoomId`) — not
    *  `GameState.gameId`, which is a client-generated UUID the server has never
    *  seen. Named `roomId` here precisely so the two cannot be confused. */
   roomId: string;
+  /** Analysis still uses the common service, but must not adopt an Aether bot job. */
+  authur?: boolean;
   revision: number;
   playerName: string;
   /** The frontend's own view of whether this turn can be analysed. Convenience
@@ -142,9 +150,10 @@ export function TurnAnalysisLauncher({
   /** What the top level will cost on THIS machine — the measured estimate and
    *  the number of threads it will use. Absent when the level is not local. */
   localHint?: { estimatedMs: number; threads: number } | null;
+  mobileTool?: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  const [level, setLevel] = useState<AnalysisLevel>("quick");
+  const [level, setLevel] = useState<AnalysisLevel>("stage5b64");
   const [panelOpen, setPanelOpen] = useState(false);
   // Seeded from the session cache so a result the engine already computed for
   // THIS position is offered again without pressing Analyze. A result for a
@@ -252,20 +261,43 @@ export function TurnAnalysisLauncher({
   // replaces Exchange and Pass — see `TurnAnalysisBar` below. While a search is
   // in flight this component renders nothing at all, so there is no second
   // Analyze button next to the bar for a player to press again.
-  if (inFlight) return null;
+  if (inFlight) {
+    return mobileTool ? (
+      <div className="mobile-tool-running" role="status">
+        <span className="mobile-tool-icon">
+          <ScanSearch size={17} aria-hidden />
+        </span>
+        <span className="mobile-tool-copy">
+          <strong>กำลังวิเคราะห์</strong>
+          <small>ดูความคืบหน้าด้านล่าง</small>
+        </span>
+      </div>
+    ) : null;
+  }
 
   return (
     <>
       <div className="analysis-launcher">
         <button
           type="button"
-          className="bot-why-btn analysis-btn"
+          className={`bot-why-btn analysis-btn${mobileTool ? " mobile-tool-button" : ""}`}
           disabled={disabled}
           title={disabled ? disabledReason : undefined}
           onClick={() => setOpen((value) => !value)}
           aria-expanded={open}
         >
-          🔎 วิเคราะห์ตานี้
+          {mobileTool ? (
+            <span className="mobile-tool-icon">
+              <ScanSearch size={17} aria-hidden />
+            </span>
+          ) : (
+            <ScanSearch size={15} aria-hidden />
+          )}
+          <span className="mobile-tool-copy">
+            <strong>วิเคราะห์ตานี้</strong>
+            <small>ดูทางเลือกก่อนเดิน</small>
+          </span>
+          {mobileTool && <ChevronRight className="mobile-tool-arrow" size={15} aria-hidden />}
         </button>
         {showable && !panelOpen && (
           <button type="button" className="analysis-reopen" onClick={() => setPanelOpen(true)}>
@@ -276,7 +308,7 @@ export function TurnAnalysisLauncher({
 
       {open && !disabled && (
         <div className="analysis-levels" role="group" aria-label="ระดับการวิเคราะห์">
-          {ANALYSIS_LEVELS.map((option) => (
+          {(["stage5b64"] as const).map((option) => (
             <button
               key={option}
               type="button"
@@ -286,7 +318,7 @@ export function TurnAnalysisLauncher({
               <span className="analysis-level-name">{LEVEL_LABEL[option]}</span>
               <span className="analysis-level-hint">
                 {option === LOCAL_ANALYSIS_LEVEL && localHint
-                  ? `${formatWait(localHint.estimatedMs)} · ${localHint.threads} threads`
+                  ? `${formatWait(localHint.estimatedMs)} · ทำบนเครื่องนี้`
                   : LEVEL_HINT[option]}
               </span>
             </button>
@@ -294,7 +326,7 @@ export function TurnAnalysisLauncher({
         </div>
       )}
 
-      {open && !disabled && localHint && (
+      {open && !disabled && level === LOCAL_ANALYSIS_LEVEL && localHint && (
         // The honest cost of moving this level onto the device. A server-side
         // search is rediscoverable from any tab; this one lives in this tab's
         // worker and dies with it.

@@ -29,6 +29,7 @@ body:not([data-route="play"]) {
   --eq-shadow-sm: 0 1px 2px rgba(23, 32, 51, 0.06);
   --eq-shadow-md: 0 14px 34px rgba(23, 32, 51, 0.09);
   --eq-content: 1180px;
+  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   min-height: 100dvh;
   background: var(--eq-bg);
   color: var(--eq-text);
@@ -46,7 +47,7 @@ body:not([data-route="play"]) {
 body:not([data-route="play"]) {
   margin: 0;
   min-width: 320px;
-  background: #f6f7fb;
+  background: #edf4fd;
 }
 
 body[data-route="play"] {

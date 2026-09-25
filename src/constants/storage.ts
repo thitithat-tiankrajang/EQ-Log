@@ -9,3 +9,6 @@ export const STORAGE_KEYS = {
 } as const;
 
 export const ROOM_STORAGE_PREFIX = "amath-lab-room-";
+
+/** Parked lines of a local room (see `src/gameplay/multiverse.ts`), beside its game. */
+export const TIMELINE_STORAGE_PREFIX = "amath-lab-timeline-";

@@ -645,3 +645,249 @@
 .study-delete:hover {
   background: var(--eq-danger-soft);
 }
+
+/* ── board import & verification ──────────────────────────────────────────── */
+
+.study-import {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.study-import small {
+  color: var(--eq-text-faint);
+  font-weight: 500;
+}
+
+/* A marked square gets a ring drawn ABOVE whatever it holds, tile or not. An
+ * overlay rather than the cell's own outline/box-shadow, because the legacy
+ * board sheets set those with !important for the cursor and they would win. */
+.study-board .board-cell.marked {
+  position: relative;
+}
+
+.study-board .board-cell.marked::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: 2;
+  border-radius: 3px;
+  pointer-events: none;
+  box-shadow: inset 0 0 0 3px var(--study-mark);
+}
+
+.study-board .board-cell.mark-caution {
+  --study-mark: #e0a400;
+}
+
+.study-board .board-cell.mark-danger {
+  --study-mark: var(--eq-danger);
+}
+
+.study-board .board-cell.mark-selected {
+  --study-mark: var(--eq-primary);
+}
+
+.study-inspector {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--eq-line-strong);
+  border-radius: var(--eq-radius-md);
+  background: var(--eq-surface);
+}
+
+.study-inspector header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.study-inspector h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.study-inspector-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.study-inspector-options button {
+  display: grid;
+  gap: 3px;
+  min-width: 52px;
+  padding: 6px;
+  border: 1px solid var(--eq-line-strong);
+  border-radius: var(--eq-radius-sm);
+  background: var(--eq-surface);
+  color: var(--eq-text);
+  cursor: pointer;
+  place-items: center;
+}
+
+.study-inspector-options button[aria-pressed="true"] {
+  border-color: var(--eq-primary);
+  background: var(--eq-primary-soft);
+}
+
+.study-inspector-options .tile {
+  width: 34px;
+  height: 38px;
+  pointer-events: none;
+}
+
+.study-inspector-options small {
+  font-variant-numeric: tabular-nums;
+}
+
+.study-inspector-empty {
+  display: grid;
+  width: 34px;
+  height: 38px;
+  place-items: center;
+  font-size: 12px;
+}
+
+.study-verify-summary {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.study-verify-summary p {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.study-verify-summary ul {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  padding-left: 18px;
+}
+
+.study-verify-summary li button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--eq-danger);
+  cursor: pointer;
+  text-align: left;
+  text-decoration: underline;
+}
+
+/* ── photo import: corner picker ──────────────────────────────────────────── */
+
+.study-import-flow .visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* The photo and its overlay share one box, so photo coordinates (the SVG's
+ * viewBox) and screen coordinates line up exactly. */
+.corner-picker-stage {
+  position: relative;
+  width: 100%;
+  max-width: 1100px;
+  touch-action: none;
+  user-select: none;
+}
+
+.corner-picker-photo {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--eq-radius-sm);
+  background: #111;
+}
+
+.corner-picker-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.corner-picker-overlay .grid-line {
+  stroke: rgba(0, 170, 255, 0.75);
+  stroke-width: 1;
+}
+
+.corner-picker-overlay .grid-edge {
+  stroke: rgba(0, 170, 255, 1);
+  stroke-width: 2;
+}
+
+.corner-picker-overlay .quad {
+  fill: rgba(0, 170, 255, 0.06);
+  stroke: none;
+}
+
+.corner-picker-overlay .quad.invalid {
+  fill: rgba(220, 38, 38, 0.18);
+}
+
+.corner-handle {
+  cursor: grab;
+}
+
+.corner-handle .corner-hit {
+  fill: transparent;
+}
+
+.corner-handle .corner-dot {
+  fill: #fff;
+  stroke: #ff2d55;
+  stroke-width: 2;
+}
+
+.corner-handle.is-active .corner-dot {
+  fill: #ff2d55;
+}
+
+.corner-handle .corner-label {
+  fill: #fff;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.7);
+  stroke-width: 3px;
+  font-weight: 800;
+}
+
+.corner-loupe {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 176px;
+  height: 176px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+  image-rendering: pixelated;
+}
+
+.corner-picker-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.corner-picker-controls button[aria-pressed="true"] {
+  border-color: var(--eq-primary);
+  background: var(--eq-primary-soft);
+}
+
+.study-annotation {
+  padding: 10px 12px;
+  border: 1px dashed var(--eq-line-strong);
+  border-radius: var(--eq-radius-md);
+}

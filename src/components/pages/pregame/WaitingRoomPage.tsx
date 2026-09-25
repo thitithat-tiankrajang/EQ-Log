@@ -1,5 +1,19 @@
-import { Check, Copy, Crown, Eye, LogOut, Share2, Trash2, User } from "lucide-react";
-import { useMemo, useState } from "react";
+import {
+  Check,
+  Copy,
+  Crown,
+  Eye,
+  LogOut,
+  Rocket,
+  Settings2,
+  Share2,
+  Trash2,
+  User,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "../../../auth";
 import {
   formatSeconds,
@@ -20,6 +34,9 @@ import { CreateRoomPanel } from "../lobby/CreateRoomPanel";
 import { useMembersCatalog } from "../lobby/useMembersCatalog";
 import { useRegisteredPlayersCatalog } from "../lobby/useRegisteredPlayersCatalog";
 import { PreGameShell } from "./PreGameShell";
+import { playLaunchSound, unlockLaunchSound } from "./launchSound";
+
+const SOUND_PREFERENCE = "eq-lab-launch-sound";
 
 type Participant = {
   id: string;
@@ -59,6 +76,11 @@ export function WaitingRoomPage({
   const [editing, setEditing] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(
+    () => window.localStorage.getItem(SOUND_PREFERENCE) !== "off",
+  );
+  const [clock, setClock] = useState(Date.now);
+  const lastCue = useRef<string | null>(null);
   const [settings, setSettings] = useState<NewGameSettings>(() => settingsFromWaitingGame(game));
   const displayedCode = meta.roomCode ?? (!configured ? formatRoomCode(meta.id) : null);
   const accountEmail = normalizeEmail(profile?.email);
@@ -88,6 +110,7 @@ export function WaitingRoomPage({
       }),
     [accountEmail, game, meta, ownerEmail, profile?.display_name, userId],
   );
+  const hostParticipant = participants.find((participant) => participant.kind === "host");
   const requiredReadySides = (["A", "B"] as Side[]).filter((side) => {
     if (getGameMode(game) === "solo" && side === "B") return false;
     if (!hasPlayerIdentity(game, side)) return false;
@@ -98,6 +121,35 @@ export function WaitingRoomPage({
   const startBlockedReason =
     waitingFor.length > 0 ? `Waiting for ${waitingForNames.join(" and ")} to tap Ready` : null;
   const isReady = playerSide ? Boolean(game.lobbyReadyBySide?.[playerSide]) : false;
+  const launchAt = game.lobbyLaunchAt;
+  const secondsLeft = launchAt
+    ? Math.max(0, Math.ceil((Date.parse(launchAt) - clock) / 1000))
+    : null;
+
+  useEffect(() => {
+    if (!launchAt) return;
+    setClock(Date.now());
+    const timer = window.setInterval(() => setClock(Date.now()), 100);
+    return () => window.clearInterval(timer);
+  }, [launchAt]);
+
+  useEffect(() => {
+    if (secondsLeft === null) {
+      lastCue.current = null;
+      return;
+    }
+    const cue = `${launchAt}:${secondsLeft}`;
+    if (lastCue.current === cue) return;
+    lastCue.current = cue;
+    if (soundEnabled) playLaunchSound(secondsLeft);
+  }, [launchAt, secondsLeft, soundEnabled]);
+
+  function toggleSound() {
+    if (!soundEnabled) unlockLaunchSound();
+    const enabled = !soundEnabled;
+    setSoundEnabled(enabled);
+    window.localStorage.setItem(SOUND_PREFERENCE, enabled ? "on" : "off");
+  }
 
   // One sentence that answers "what is everyone waiting on right now?"
   const statusLine =
@@ -168,172 +220,243 @@ export function WaitingRoomPage({
         />
       }
     >
-      {/* Room code first: before the game starts, getting the other player in
-          IS the job of this page. */}
-      <section className="pregame-card code-card">
-        <span className="home-eyebrow">{WAITING_TEXT.roomCode}</span>
-        <button
-          type="button"
-          className="code-card-code"
-          onClick={copyCode}
-          disabled={!displayedCode}
-        >
-          <strong>{displayedCode ?? "Code available to players"}</strong>
-          <span className="code-card-copy">
-            {copied ? <Check size={16} /> : <Copy size={16} />}
-            {copied ? WAITING_TEXT.copied : WAITING_TEXT.copyCode}
-          </span>
-        </button>
-        <button type="button" className="ui-button-ghost" onClick={() => void onShare()}>
-          <Share2 size={16} />
-          {WAITING_TEXT.shareLink}
-        </button>
-        <span className="code-card-role">You are: {role}</span>
-      </section>
+      <div className="waiting-top">
+        <section className="waiting-stage" aria-labelledby="waiting-stage-title">
+          <div className="waiting-stage-top">
+            <span className="waiting-live-tag">
+              <span aria-hidden /> LAB STAGING
+            </span>
+            <span className="waiting-role">{role}</span>
+          </div>
+          <div className="waiting-stage-orbit" aria-hidden>
+            <span />
+            <span />
+            <span />
+          </div>
+          <h2 id="waiting-stage-title">
+            {waitingFor.length ? "Gather your crew" : "Ready to launch"}
+          </h2>
+          <p className="waiting-stage-status" id="waiting-room-status" role="status">
+            {statusLine}
+          </p>
+          <div className="waiting-stage-steps" aria-hidden>
+            <span className="complete">ROOM</span>
+            <span className={waitingFor.length ? "" : "complete"}>READY</span>
+            <span className={launchAt ? "complete" : ""}>LAUNCH</span>
+          </div>
+        </section>
 
-      <p className="waiting-status-line" role="status">
-        <span className="waiting-status-dot" aria-hidden />
-        {statusLine}
-      </p>
-
-      <section className="pregame-card waiting-section">
-        <header className="waiting-section-head">
-          <h2>{WAITING_TEXT.playersHeading}</h2>
-          <span className="pregame-count">{participants.length}</span>
-        </header>
-        <div className="participant-list">
-          {participants.map((participant) => (
-            <div className="participant-row" key={participant.id}>
-              <span className={`participant-icon ${participant.kind}`} aria-hidden>
-                {participant.kind === "host" ? (
-                  <Crown size={17} />
-                ) : participant.kind === "viewer" ? (
-                  <Eye size={17} />
-                ) : (
-                  <User size={17} />
-                )}
-              </span>
-              <div className="participant-copy">
-                <strong>
-                  {participant.name}
-                  {participant.isYou && <span className="participant-you">you</span>}
-                </strong>
-                <span>{participant.detail}</span>
-              </div>
-              {participant.side && (
-                <span className="participant-side">Side {participant.side}</span>
-              )}
-              <span className={`participant-status ${participant.ready ? "ready" : ""}`}>
-                {participant.status}
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="pregame-card waiting-section">
-        <header className="waiting-section-head">
-          <h2>{WAITING_TEXT.settingsHeading}</h2>
-          {canManage && (
+        <section className="waiting-invite" aria-label="Invite a player">
+          <div className="waiting-invite-head">
+            <span>{WAITING_TEXT.roomCode}</span>
             <button
               type="button"
-              className="waiting-edit-button"
-              disabled={busy}
-              onClick={() => {
-                setSettings(settingsFromWaitingGame(game));
-                setEditing(true);
-              }}
+              className="waiting-sound"
+              onClick={toggleSound}
+              aria-label={soundEnabled ? "Mute launch sounds" : "Enable launch sounds"}
+              title={soundEnabled ? "Mute launch sounds" : "Enable launch sounds"}
             >
-              {WAITING_TEXT.edit}
+              {soundEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
             </button>
+          </div>
+          <button
+            type="button"
+            className="waiting-code"
+            onClick={copyCode}
+            disabled={!displayedCode}
+            aria-label={displayedCode ? `Copy room code ${displayedCode}` : "Room code unavailable"}
+          >
+            <strong>{displayedCode ?? "Invite link available"}</strong>
+            {copied ? <Check size={17} /> : <Copy size={17} />}
+          </button>
+          <span className="waiting-copy-feedback" role="status">
+            {copied ? "Code copied" : "Tap code to copy"}
+          </span>
+          <button type="button" className="waiting-share" onClick={() => void onShare()}>
+            <Share2 size={15} /> {WAITING_TEXT.shareLink}
+          </button>
+        </section>
+      </div>
+
+      <div className="waiting-grid">
+        <section className="waiting-panel waiting-roster">
+          <header className="waiting-panel-head">
+            <div>
+              <span className="waiting-panel-index">01 / CREW</span>
+              <h2>{WAITING_TEXT.playersHeading}</h2>
+            </div>
+            <span className="waiting-player-count">
+              {participants.filter((participant) => participant.side).length} slots
+            </span>
+          </header>
+          <div className="waiting-player-list">
+            {participants
+              .filter((participant) => participant.kind !== "host")
+              .map((participant) => (
+                <div
+                  className={`waiting-player ${participant.ready ? "is-ready" : ""}`}
+                  key={participant.id}
+                >
+                  <span className={`participant-icon ${participant.kind}`} aria-hidden>
+                    {participant.kind === "host" ? (
+                      <Crown size={17} />
+                    ) : participant.kind === "viewer" ? (
+                      <Eye size={17} />
+                    ) : (
+                      <User size={17} />
+                    )}
+                  </span>
+                  <div className="participant-copy">
+                    <strong>
+                      {participant.name}
+                      {participant.isYou && <span className="participant-you">you</span>}
+                    </strong>
+                    <span>
+                      {participant.side ? `SIDE ${participant.side}` : participant.detail}
+                    </span>
+                  </div>
+                  <span className={`participant-status ${participant.ready ? "ready" : ""}`}>
+                    {participant.status}
+                  </span>
+                </div>
+              ))}
+          </div>
+          {hostParticipant && (
+            <p className="waiting-host-line">
+              <Crown size={13} aria-hidden /> Hosted by <strong>{hostParticipant.name}</strong>
+            </p>
           )}
-        </header>
-        {/* Same words the host just used on the Create form (design.md D7). */}
-        <dl className="settings-summary">
-          <SummaryRow label="Mode" value={playModeSummary(game)} />
-          <SummaryRow label="Time" value={solo ? timerA : `A ${timerA} · B ${timerB}`} />
-          <SummaryRow
-            label="Tiles"
-            value={
-              getTileDrawMode(game) === "play"
-                ? TILE_DRAW_TEXT.appDraws
-                : game.emailPlayMode === "hosted"
-                  ? TILE_DRAW_TEXT.hostEnters
-                  : TILE_DRAW_TEXT.realTiles
-            }
-          />
-          {!solo && (game.playerUserIds || game.playerEmails) && (
+        </section>
+
+        <section className="waiting-panel waiting-config">
+          <header className="waiting-panel-head">
+            <div>
+              <span className="waiting-panel-index">02 / RULES</span>
+              <h2>{WAITING_TEXT.settingsHeading}</h2>
+            </div>
+            {canManage && (
+              <button
+                type="button"
+                className="waiting-edit-button"
+                disabled={busy || Boolean(launchAt)}
+                onClick={() => {
+                  setSettings(settingsFromWaitingGame(game));
+                  setEditing(true);
+                }}
+              >
+                <Settings2 size={14} /> {WAITING_TEXT.edit}
+              </button>
+            )}
+          </header>
+          {/* Same words the host just used on the Create form (design.md D7). */}
+          <dl className="settings-summary">
+            <SummaryRow label="Mode" value={playModeSummary(game)} />
+            <SummaryRow label="Time" value={solo ? timerA : `A ${timerA} · B ${timerB}`} />
             <SummaryRow
-              label="Rack"
+              label="Tiles"
               value={
-                game.emailPlayersCanSeeOpponentRack
-                  ? CREATE_TEXT.rackVisible
-                  : CREATE_TEXT.rackHidden
+                getTileDrawMode(game) === "play"
+                  ? TILE_DRAW_TEXT.appDraws
+                  : game.emailPlayMode === "hosted"
+                    ? TILE_DRAW_TEXT.hostEnters
+                    : TILE_DRAW_TEXT.realTiles
               }
             />
-          )}
-          {!solo && (
-            <SummaryRow
-              label="First move"
-              value={`${game.players[game.startingSide ?? "A"]?.trim() || `Side ${game.startingSide ?? "A"}`} (Side ${game.startingSide ?? "A"})`}
-            />
-          )}
-        </dl>
-      </section>
+            {!solo && (game.playerUserIds || game.playerEmails) && (
+              <SummaryRow
+                label="Rack"
+                value={
+                  game.emailPlayersCanSeeOpponentRack
+                    ? CREATE_TEXT.rackVisible
+                    : CREATE_TEXT.rackHidden
+                }
+              />
+            )}
+            {!solo && (
+              <SummaryRow
+                label="First move"
+                value={`${game.players[game.startingSide ?? "A"]?.trim() || `Side ${game.startingSide ?? "A"}`} (Side ${game.startingSide ?? "A"})`}
+              />
+            )}
+          </dl>
+        </section>
+      </div>
 
-      <ActionDock reason={canManage ? startBlockedReason : null}>
+      <ActionDock>
         {canManage ? (
           <button
-            className="ui-button-primary"
+            className="waiting-primary-action"
             type="button"
-            disabled={busy || Boolean(startBlockedReason)}
-            onClick={onStart}
+            disabled={busy || Boolean(startBlockedReason) || Boolean(launchAt)}
+            aria-busy={busy}
+            aria-describedby="waiting-room-status"
+            onClick={() => {
+              if (soundEnabled) unlockLaunchSound();
+              onStart();
+            }}
           >
-            {WAITING_TEXT.startGame}
+            <Rocket size={17} /> Start Lab <span aria-hidden>→</span>
           </button>
         ) : playerSide ? (
           <button
-            className={isReady ? "ui-button-ghost" : "ui-button-primary"}
+            className={isReady ? "waiting-ready-action is-ready" : "waiting-primary-action"}
             type="button"
-            disabled={busy}
-            onClick={() => onReady(playerSide, !isReady)}
+            disabled={busy || Boolean(launchAt)}
+            aria-busy={busy}
+            onClick={() => {
+              if (soundEnabled) unlockLaunchSound();
+              onReady(playerSide, !isReady);
+            }}
           >
-            {isReady ? WAITING_TEXT.readyUndo : WAITING_TEXT.imReady}
+            {isReady ? <Check size={17} /> : <Rocket size={17} />}
+            {isReady ? "Ready · tap to undo" : WAITING_TEXT.imReady}
           </button>
         ) : (
           <p className="waiting-viewer-note">{WAITING_TEXT.viewerNote}</p>
         )}
       </ActionDock>
 
+      {launchAt &&
+        createPortal(
+          <LaunchSequence
+            secondsLeft={secondsLeft ?? 0}
+            soundEnabled={soundEnabled}
+            onToggleSound={toggleSound}
+          />,
+          document.body,
+        )}
+
       <Sheet
         open={editing && canManage}
         title="Edit room settings"
         onClose={() => setEditing(false)}
       >
-        <CreateRoomPanel
-          settings={settings}
-          members={members}
-          registeredPlayers={playerDirectory.players}
-          busy={busy}
-          submitLabel={WAITING_TEXT.saveChanges}
-          onChange={setSettings}
-          onSubmit={() => {
-            onSaveConfig({
-              ...settings,
-              playerA:
-                settings.playerA.trim() ||
-                members.find((member) => member.id === settings.playerAMemberId)?.name ||
-                "Player A",
-              playerB:
-                settings.gameMode === "solo"
-                  ? ""
-                  : settings.playerB.trim() ||
-                    members.find((member) => member.id === settings.playerBMemberId)?.name ||
-                    "Player B",
-            });
-            setEditing(false);
-          }}
-        />
+        <div className="eq-flow-page eq-edit-room-form">
+          <CreateRoomPanel
+            settings={settings}
+            members={members}
+            registeredPlayers={playerDirectory.players}
+            busy={busy}
+            submitLabel={WAITING_TEXT.saveChanges}
+            onChange={setSettings}
+            onSubmit={() => {
+              onSaveConfig({
+                ...settings,
+                playerA:
+                  settings.playerA.trim() ||
+                  members.find((member) => member.id === settings.playerAMemberId)?.name ||
+                  "Player A",
+                playerB:
+                  settings.gameMode === "solo"
+                    ? ""
+                    : settings.playerB.trim() ||
+                      members.find((member) => member.id === settings.playerBMemberId)?.name ||
+                      "Player B",
+              });
+              setEditing(false);
+            }}
+          />
+        </div>
       </Sheet>
 
       <ConfirmSheet
@@ -357,6 +480,72 @@ function SummaryRow({ label, value }: { label: string; value: string }) {
     <div className="settings-summary-row">
       <dt>{label}</dt>
       <dd>{value}</dd>
+    </div>
+  );
+}
+
+function LaunchSequence({
+  secondsLeft,
+  soundEnabled,
+  onToggleSound,
+}: {
+  secondsLeft: number;
+  soundEnabled: boolean;
+  onToggleSound: () => void;
+}) {
+  const launching = secondsLeft === 0;
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const soundRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    dialogRef.current?.focus();
+    const keepFocusInside = (event: KeyboardEvent) => {
+      if (event.key !== "Tab" || !dialogRef.current?.contains(document.activeElement)) return;
+      event.preventDefault();
+      soundRef.current?.focus();
+    };
+    document.addEventListener("keydown", keepFocusInside);
+    return () => document.removeEventListener("keydown", keepFocusInside);
+  }, []);
+
+  return (
+    <div
+      ref={dialogRef}
+      className="lab-launch"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Starting Lab"
+      tabIndex={-1}
+    >
+      <div className="lab-launch-grid" aria-hidden />
+      <div className="lab-launch-center">
+        <span className="eq-visually-hidden" role="status" aria-live="assertive">
+          {launching ? "Starting Lab" : `Lab starts in ${secondsLeft}`}
+        </span>
+        <span className="lab-launch-kicker">EQ LAB / INITIALIZING MATCH</span>
+        <div className="lab-launch-reactor" aria-hidden>
+          <span className="lab-launch-ring one" />
+          <span className="lab-launch-ring two" />
+          <span className="lab-launch-number" key={secondsLeft}>
+            {launching ? <Rocket size={44} /> : secondsLeft}
+          </span>
+        </div>
+        <h2>{launching ? "Starting Lab" : "Lab starts in"}</h2>
+        <p>{launching ? "Opening your game…" : "Get ready to play"}</p>
+        <div className="lab-launch-progress" aria-hidden>
+          <span />
+        </div>
+        <button
+          ref={soundRef}
+          type="button"
+          className="lab-launch-sound"
+          aria-label={soundEnabled ? "Mute launch sounds" : "Enable launch sounds"}
+          onClick={onToggleSound}
+        >
+          {soundEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
+          {soundEnabled ? "Sound on" : "Sound off"}
+        </button>
+      </div>
     </div>
   );
 }

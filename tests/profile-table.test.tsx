@@ -18,7 +18,7 @@ vi.mock("../src/features/gameRecords/repository", () => ({ listMyModeStats }));
 
 import { ProfilePage } from "../src/components/pages/ProfilePage";
 
-describe("Profile tables", () => {
+describe("Profile game record", () => {
   beforeEach(() => {
     window.location.hash = "#/profile";
     listMyModeStats.mockResolvedValue([
@@ -58,27 +58,25 @@ describe("Profile tables", () => {
     ]);
   });
 
-  it("renders overview and mode details as table rows instead of cards", async () => {
+  it("shows compact player stats and a card for each mode", async () => {
     const { container } = render(<ProfilePage />);
 
-    const overview = await screen.findByRole("table", { name: "Profile overview" });
-    expect(within(overview).getByRole("columnheader", { name: "Content" })).toBeVisible();
-    const favoriteModeRow = within(overview).getByRole("row", { name: /Favorite mode Aether/ });
-    expect(favoriteModeRow).toBeVisible();
-    expect(within(favoriteModeRow).getByText("Aether")).toHaveAttribute("data-label", "Value");
-    expect(within(overview).getByRole("row", { name: /Versus win rate 57%/ })).toHaveTextContent(
-      "Wins 4 · Losses 2 · Draws 1",
+    const overview = await screen.findByRole("region", { name: "At a glance" });
+    expect(within(overview).getByText("Favorite mode").closest("li")).toHaveTextContent("Aether");
+    expect(within(overview).getByText("Versus win rate").closest("li")).toHaveTextContent("57%");
+    expect(within(overview).getByText("Versus win rate").closest("li")).toHaveTextContent(
+      "4 wins · 2 losses · 1 draws",
     );
 
-    const modes = screen.getByRole("table", { name: "Mode breakdown" });
-    expect(within(modes).getByRole("row", { name: /Solo Practice/ })).toHaveTextContent(
-      "1,200 total score",
+    const modes = screen.getByRole("region", { name: "By mode" });
+    expect(within(modes).getByText("Solo Practice").closest("li")).toHaveTextContent(
+      "1,200Total score",
     );
-    expect(within(modes).getByRole("row", { name: /Aether/ })).toHaveTextContent(
+    expect(within(modes).getByText("Aether").closest("li")).toHaveTextContent(
       // `easy` is retired, so it is listed only because this player has games
       // there; a player who never used it sees the four current tiers alone.
       "easy 4 · medium 0 · hard 0 · max 0 · super 0",
     );
-    expect(container.querySelector(".eq-profile-metric, .eq-mode-stat-card")).toBeNull();
+    expect(container.querySelectorAll(".eq-player-stat")).toHaveLength(5);
   });
 });

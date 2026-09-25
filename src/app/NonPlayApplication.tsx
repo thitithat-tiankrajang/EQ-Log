@@ -1,5 +1,5 @@
 import { Coffee } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AdminPage } from "../admin";
 import { useAuth } from "../auth";
 import { GlobalActivity } from "../components/feedback/LoadingActivity";
@@ -9,6 +9,9 @@ import { JoinRoomPage } from "../components/pages/pregame/JoinRoomPage";
 import { WaitingRoomPage } from "../components/pages/pregame/WaitingRoomPage";
 import { PrivateLibraryPage } from "../components/pages/PrivateLibraryPage";
 import { StudyPage } from "../components/pages/study/StudyPage";
+import { SurvivalPage } from "../components/pages/survival/SurvivalPage";
+import { RankedPage } from "../components/pages/ranked/RankedPage";
+import { rankedClient } from "../features/ranked/client";
 import { ProfilePage } from "../components/pages/ProfilePage";
 import { STORAGE_KEYS } from "../constants/storage";
 import {
@@ -37,7 +40,7 @@ import {
 } from "../roomScope";
 import * as localRooms from "../rooms";
 import type { RoomMeta } from "../rooms";
-import { navigate, useRoute } from "../router";
+import { navigate, returnDestinationFor, useRoute } from "../router";
 import { isSupabaseConfigured } from "../supabaseClient";
 import { ApplicationShell } from "./shells/ApplicationShell";
 import {
@@ -72,11 +75,16 @@ export default function NonPlayApplication() {
   const [backgroundSyncing, setBackgroundSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [joining, setJoining] = useState(false);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(
     route.kind === "room" ? route.roomId : null,
   );
   const [activeRoomMeta, setActiveRoomMeta] = useState<RoomMeta | null>(null);
   const [game, setGame] = useState<GameState | null>(null);
+  const launchBusy = useRef(false);
+  const finishRoomLaunchRef = useRef<(roomId: string, launchAt: string) => Promise<void>>(
+    async () => undefined,
+  );
   const [coffeeRoomId, setCoffeeRoomId] = useState<string | null>(() =>
     window.localStorage.getItem(STORAGE_KEYS.coffeeRoom),
   );
@@ -87,6 +95,7 @@ export default function NonPlayApplication() {
     [regionId, requestedVisibility],
   );
   const roomRouteId = route.kind === "room" ? route.roomId : null;
+  const roomReturnTo = route.kind === "room" ? route.returnTo : undefined;
   const canCreateInScope = canCreateRoom && requestedScope !== null;
   const createDisabledReason = configured
     ? !userId
@@ -213,7 +222,7 @@ export default function NonPlayApplication() {
         setGame(payload.game);
         setLobbyVisibility(payload.meta.visibility ?? "public");
         if (getRoomStage(payload.game) === "playing") {
-          navigate({ kind: "play", roomId: roomRouteId }, true);
+          navigate({ kind: "play", roomId: roomRouteId, returnTo: roomReturnTo }, true);
         }
       })
       .catch((error: Error) => {
@@ -225,7 +234,7 @@ export default function NonPlayApplication() {
     return () => {
       active = false;
     };
-  }, [readRoom, roomRouteId]);
+  }, [readRoom, roomReturnTo, roomRouteId]);
 
   useEffect(() => {
     if (!remoteEnabled || !roomRouteId) return;
@@ -240,7 +249,7 @@ export default function NonPlayApplication() {
         }));
         setGame(payload.game);
         if (getRoomStage(payload.game) === "playing") {
-          navigate({ kind: "play", roomId: roomRouteId }, true);
+          navigate({ kind: "play", roomId: roomRouteId, returnTo: roomReturnTo }, true);
         }
       },
       () => undefined,
@@ -257,7 +266,7 @@ export default function NonPlayApplication() {
         });
       },
     );
-  }, [readRoom, remoteEnabled, roomRouteId]);
+  }, [readRoom, remoteEnabled, roomReturnTo, roomRouteId]);
 
   const invitedSides = useMemo(
     () =>
@@ -290,6 +299,18 @@ export default function NonPlayApplication() {
   const canConfigureWaiting =
     canManageActive && (!activeDirectRoom || activeRoomMeta?.ownerId === userId);
 
+  useEffect(() => {
+    if (!roomRouteId || !game?.lobbyLaunchAt || !canConfigureWaiting) return;
+    const launchAt = game.lobbyLaunchAt;
+    const timer = window.setTimeout(
+      () => {
+        void finishRoomLaunchRef.current(roomRouteId, launchAt);
+      },
+      Math.max(0, Date.parse(launchAt) - Date.now()),
+    );
+    return () => window.clearTimeout(timer);
+  }, [canConfigureWaiting, game?.lobbyLaunchAt, roomRouteId]);
+
   async function withLoading<T>(
     message: string,
     operation: () => Promise<T>,
@@ -317,10 +338,11 @@ export default function NonPlayApplication() {
     setGame(payload.game);
     setLobbyVisibility(payload.meta.visibility ?? "public");
     if (!remoteEnabled) localRooms.setActiveRoomId(id);
+    const returnTo = returnDestinationFor(route) ?? undefined;
     navigate(
       getRoomStage(payload.game) === "waiting"
-        ? { kind: "room", roomId: id }
-        : { kind: "play", roomId: id },
+        ? { kind: "room", roomId: id, returnTo }
+        : { kind: "play", roomId: id, returnTo },
     );
     return true;
   }
@@ -380,10 +402,24 @@ export default function NonPlayApplication() {
     setActiveRoomMeta(value.meta);
     setGame(value.game);
     if (!remoteEnabled) localRooms.setActiveRoomId(value.id);
-    navigate({ kind: "room", roomId: value.id });
+    const returnTo =
+      policy.accessScope === "private"
+        ? ({ kind: "private", folderId: null } as const)
+        : ({ kind: "home", visibility, section: "live" } as const);
+    navigate({ kind: "room", roomId: value.id, returnTo }, true);
   }
 
   async function joinRoomByCode(value: string) {
+    if (joining) return;
+    setJoining(true);
+    try {
+      await joinRoomByCodeInner(value);
+    } finally {
+      setJoining(false);
+    }
+  }
+
+  async function joinRoomByCodeInner(value: string) {
     setJoinError(null);
     if (remoteEnabled) {
       try {
@@ -441,19 +477,22 @@ export default function NonPlayApplication() {
 
   async function persistWaiting(next: GameState) {
     if (!activeRoomId) return;
+    let saved = next;
     if (remoteEnabled) {
-      await remoteRooms.commitRoomState({
+      const result = await remoteRooms.commitRoomState({
         id: activeRoomId,
         game: next,
         session: remoteRooms.emptyLiveSession(userId),
         event: "state",
       });
+      if (result.outcome === "conflict") throw new Error("Room changed. Please try again.");
+      saved = { ...next, revision: result.revision };
     } else {
       localRooms.writeRoom(activeRoomId, next);
       const scope = currentScope();
       if (scope) setRooms(localRooms.listRooms(scope));
     }
-    setGame(next);
+    setGame(saved);
     setActiveRoomMeta((current) =>
       current
         ? {
@@ -493,17 +532,69 @@ export default function NonPlayApplication() {
   }
 
   async function startRoom() {
-    if (!game || !activeRoomId || !canConfigureWaiting) return;
+    if (!game || !activeRoomId || !canConfigureWaiting || game.lobbyLaunchAt || launchBusy.current)
+      return;
     const waiting = requiredReadySides(
       game,
       activeRoomMeta?.ownerId ?? null,
       normalizeEmail(activeRoomMeta?.ownerEmail),
     ).filter((side) => !game.lobbyReadyBySide?.[side]);
     if (waiting.length > 0) return;
-    const started = startWaitingGame(game);
-    const result = await withLoading("Starting game…", () => persistWaiting(started));
-    if (result.ok) navigate({ kind: "play", roomId: activeRoomId });
+    launchBusy.current = true;
+    const launching = { ...game, lobbyLaunchAt: new Date(Date.now() + 3_000).toISOString() };
+    setGame(launching);
+    setSyncError(null);
+    try {
+      await persistWaiting(launching);
+    } catch (error) {
+      setGame(game);
+      setSyncError(error instanceof Error ? error.message : "Could not start the game.");
+    } finally {
+      launchBusy.current = false;
+    }
   }
+
+  async function finishRoomLaunch(roomId: string, launchAt: string) {
+    if (!window.location.hash.includes(`/room/${roomId}`)) return;
+    if (launchBusy.current) {
+      window.setTimeout(() => void finishRoomLaunch(roomId, launchAt), 250);
+      return;
+    }
+    launchBusy.current = true;
+    try {
+      const latest = await readRoom(roomId);
+      if (
+        !latest ||
+        getRoomStage(latest.game) !== "waiting" ||
+        latest.game.lobbyLaunchAt !== launchAt
+      )
+        return;
+      const waiting = requiredReadySides(
+        latest.game,
+        latest.meta.ownerId ?? null,
+        normalizeEmail(latest.meta.ownerEmail),
+      ).filter((side) => !latest.game.lobbyReadyBySide?.[side]);
+      if (waiting.length > 0) {
+        await persistWaiting({ ...latest.game, lobbyLaunchAt: undefined });
+        setSyncError("A player is no longer ready. Start again when everyone is ready.");
+        return;
+      }
+      await persistWaiting(startWaitingGame(latest.game));
+      navigate({ kind: "play", roomId, returnTo: roomReturnTo }, true);
+    } catch (error) {
+      setSyncError(error instanceof Error ? error.message : "Could not start the game.");
+      window.setTimeout(() => {
+        if (window.location.hash.includes(`/room/${roomId}`))
+          void finishRoomLaunch(roomId, launchAt);
+      }, 2_000);
+    } finally {
+      launchBusy.current = false;
+    }
+  }
+
+  useEffect(() => {
+    finishRoomLaunchRef.current = finishRoomLaunch;
+  });
 
   async function deleteRoom(id: string) {
     if (!canManageRoom(id)) return;
@@ -517,7 +608,7 @@ export default function NonPlayApplication() {
       setActiveRoomId(null);
       setActiveRoomMeta(null);
       setGame(null);
-      navigate({ kind: "home", visibility: lobbyVisibility, section: "live" });
+      navigate(roomReturnTo ?? { kind: "home", visibility: lobbyVisibility, section: "live" });
     }
   }
 
@@ -604,7 +695,7 @@ export default function NonPlayApplication() {
         }
       }
     }
-    navigate({ kind: "home", visibility: lobbyVisibility, section: "live" });
+    navigate(roomReturnTo ?? { kind: "home", visibility: lobbyVisibility, section: "live" });
   }
 
   async function shareWaitingRoom() {
@@ -634,7 +725,11 @@ export default function NonPlayApplication() {
         title="Return to paused game"
         type="button"
         onClick={() => {
-          navigate({ kind: "play", roomId: coffeeRoomId });
+          navigate({
+            kind: "play",
+            roomId: coffeeRoomId,
+            returnTo: returnDestinationFor(route) ?? undefined,
+          });
           window.localStorage.removeItem(STORAGE_KEYS.coffeeRoom);
           setCoffeeRoomId(null);
         }}
@@ -681,6 +776,17 @@ export default function NonPlayApplication() {
       </>
     );
   }
+  if (route.kind === "survival") {
+    return (
+      <>
+        <SurvivalPage />
+        {coffeeReturn}
+      </>
+    );
+  }
+  if (route.kind === "ranked") {
+    return <RankedPage matchId={route.matchId} />;
+  }
 
   if (route.kind === "home") {
     return (
@@ -691,6 +797,7 @@ export default function NonPlayApplication() {
           regionName={regionName}
           regionAvailable={Boolean(userId && regionId)}
           loading={roomsLoading}
+          busyMessage={foregroundLoading}
           rooms={rooms}
           archives={archives}
           archivesTotal={archivesTotal}
@@ -712,7 +819,10 @@ export default function NonPlayApplication() {
             navigate({ kind: "home", visibility: route.visibility, section })
           }
         />
-        <GlobalActivity foreground={foregroundLoading} syncing={backgroundSyncing} />
+        <GlobalActivity
+          foreground={route.section === "history" ? foregroundLoading : null}
+          syncing={false}
+        />
         {coffeeReturn}
       </>
     );
@@ -731,14 +841,22 @@ export default function NonPlayApplication() {
           regionName={regionName}
           preset={route.preset}
           submitting={Boolean(foregroundLoading)}
-          onBack={() => navigate({ kind: "home", visibility: "public", section: "live" })}
+          onBack={() =>
+            navigate(
+              returnDestinationFor(route) ?? {
+                kind: "home",
+                visibility: route.visibility,
+                section: "live",
+              },
+            )
+          }
           onCreate={(settings, policy) => void createAndOpenRoom(settings, policy)}
+          onCreateRanked={async (minutes) => {
+            const { match } = await rankedClient.create(minutes, minutes);
+            navigate({ kind: "ranked", matchId: match.id });
+          }}
         />
-        <GlobalActivity
-          error={syncError}
-          foreground={foregroundLoading}
-          syncing={backgroundSyncing}
-        />
+        <GlobalActivity error={syncError} foreground={null} syncing={false} />
         {coffeeReturn}
       </>
     );
@@ -748,7 +866,7 @@ export default function NonPlayApplication() {
     return (
       <>
         <JoinRoomPage
-          busy={Boolean(foregroundLoading)}
+          busy={joining || Boolean(foregroundLoading)}
           error={joinError}
           visibility={route.visibility}
           regionName={regionName}
@@ -756,7 +874,7 @@ export default function NonPlayApplication() {
           onBack={() => navigate({ kind: "home", visibility: route.visibility, section: "live" })}
           onJoin={(value) => void joinRoomByCode(value)}
         />
-        <GlobalActivity foreground={foregroundLoading} syncing={backgroundSyncing} />
+        <GlobalActivity foreground={null} syncing={false} />
         {coffeeReturn}
       </>
     );

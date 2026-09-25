@@ -32,9 +32,11 @@ export type ModeKey =
   | "aether_medium"
   | "aether_hard"
   | "aether_max"
-  | "aether_super";
+  | "aether_super"
+  | "authur_strong";
 
-export type ProfileModeKey = Exclude<ModeKey, `aether_${string}`> | "aether";
+export type ProfileModeKey =
+  Exclude<ModeKey, `aether_${string}` | `authur_${string}`> | "aether" | "authur";
 
 export const MODE_CATALOG: ReadonlyArray<{
   key: ProfileModeKey;
@@ -46,6 +48,7 @@ export const MODE_CATALOG: ReadonlyArray<{
   { key: "hosted_versus", label: "Hosted Versus", family: "versus" },
   { key: "solo_practice", label: "Solo Practice", family: "solo" },
   { key: "aether", label: "Aether", family: "versus" },
+  { key: "authur", label: "Authur", family: "versus" },
 ];
 
 const NATURAL_REASONS = new Set<CompletionReason>(["rack_out", "no_score_streak", "perfect_game"]);
@@ -53,10 +56,14 @@ const NATURAL_REASONS = new Set<CompletionReason>(["rack_out", "no_score_streak"
 export function deriveModeKey(
   game: Pick<
     GameState,
-    "botSide" | "botDifficulty" | "emailPlayMode" | "gameMode" | "playerUserIds"
+    "botSide" | "botEngine" | "botDifficulty" | "emailPlayMode" | "gameMode" | "playerUserIds"
   >,
 ): ModeKey {
-  if (game.botSide) return `aether_${game.botDifficulty ?? "medium"}`;
+  if (game.botSide) {
+    return game.botEngine === "authur"
+      ? "authur_strong"
+      : `aether_${game.botDifficulty ?? "medium"}`;
+  }
   if (game.gameMode === "solo") return "solo_practice";
   if (game.emailPlayMode === "direct") return "online_versus";
   if (game.emailPlayMode === "hosted" && (game.playerUserIds?.A || game.playerUserIds?.B)) {
@@ -66,7 +73,9 @@ export function deriveModeKey(
 }
 
 export function isModeInProfileGroup(modeKey: ModeKey, profileKey: ProfileModeKey): boolean {
-  return profileKey === "aether" ? modeKey.startsWith("aether_") : modeKey === profileKey;
+  if (profileKey === "aether") return modeKey.startsWith("aether_");
+  if (profileKey === "authur") return modeKey.startsWith("authur_");
+  return modeKey === profileKey;
 }
 
 export function deriveCompletion(game: Pick<GameState, "logs" | "matchControl">): GameCompletion {

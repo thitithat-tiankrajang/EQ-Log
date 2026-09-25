@@ -82,7 +82,7 @@ function analysisAt(revision: number): AnalysisResult {
     note: "Best overall balance.",
   };
   return {
-    level: "quick",
+    level: "stage5b64",
     gameId: "g1",
     revision,
     turnNumber: 4,
@@ -91,8 +91,9 @@ function analysisAt(revision: number): AnalysisResult {
     alternatives: [],
     summary: "A summary.",
     method: {
-      solver: "sim",
-      samples: 4,
+      solver: "stage5b",
+      samples: 0,
+      depth: 64,
       legalMoves: 100,
       candidatesEvaluated: 8,
       nodes: 1000,
@@ -103,14 +104,14 @@ function analysisAt(revision: number): AnalysisResult {
   };
 }
 
-/** Render the launcher and press Analyse → quick. */
+/** Render the launcher and press Analyse → Stage 5B. */
 async function startAnalysis(revision = 7) {
   const view = render(
     <AnalysisSurface roomId={ROOM_ID} revision={revision} playerName="Player" disabled={false} />,
   );
   const user = userEvent.setup();
   await user.click(screen.getByRole("button", { name: /วิเคราะห์ตานี้/ }));
-  await user.click(screen.getByText("เร็ว"));
+  await user.click(screen.getByText("Stage 5B · 64 ตา"));
   return { ...view, user };
 }
 

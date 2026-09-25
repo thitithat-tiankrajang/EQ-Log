@@ -1,4 +1,7 @@
-import { defineConfig } from "vite";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { defineConfig, type Plugin } from "vite";
 
 /**
  * This project ran without a Vite config for a long time, and everything in it
@@ -55,8 +58,91 @@ const crossOriginIsolation = {
   "Cross-Origin-Embedder-Policy": "require-corp",
 };
 
+type LocalToolApi = {
+  middleware: (req: unknown, res: unknown, next: () => void) => void;
+  close: () => Promise<unknown>;
+};
+
+/**
+ * DEV ONLY — a local tool's HTTP API, mounted into the dev server.
+ *
+ * Nothing is loaded until the first request under `mount`, so an ordinary
+ * `npm run dev` starts none of these tools, and `vite build` never sees any of
+ * it (`apply: "serve"`).
+ */
+function localToolApi(tool: {
+  name: string;
+  mount: string;
+  /** Relative to this file. */
+  module: string;
+  /** The module's export that builds the API. */
+  factory: string;
+}): Plugin {
+  const serverModule = resolve(fileURLToPath(new URL(".", import.meta.url)), tool.module);
+  let api: Promise<LocalToolApi> | null = null;
+  return {
+    name: tool.name,
+    apply: "serve",
+    configureServer(server) {
+      if (!existsSync(serverModule)) return;
+      server.middlewares.use(tool.mount, (req, res, next) => {
+        api ??= import(pathToFileURL(serverModule).href).then(
+          (module: Record<string, () => LocalToolApi | Promise<LocalToolApi>>) =>
+            module[tool.factory]!(),
+        );
+        api.then(
+          (ready) => ready.middleware(req, res, next),
+          (error: Error) => {
+            api = null;
+            res.statusCode = 503;
+            res.setHeader("content-type", "application/json; charset=utf-8");
+            res.end(JSON.stringify({ error: `${tool.name} unavailable: ${error.message}` }));
+          },
+        );
+      });
+      server.httpServer?.once("close", () => void api?.then((ready) => ready.close()));
+    },
+  };
+}
+
+/**
+ * The offline Survival playtest engine, at /survival-playtest.
+ *
+ * A Survival level is played on the Play page against a server that holds the
+ * whole game (tools/survival-generator/playtest/server): the bag order and
+ * Authur's rack never reach the browser. For now that server is this dev
+ * server; `src/features/survivalPlay/api.ts` is the only thing that knows.
+ */
+const survivalPlaytest = localToolApi({
+  name: "Survival playtest server",
+  mount: "/survival-playtest",
+  module: "tools/survival-generator/playtest/server/api.mjs",
+  factory: "createPlaytestApi",
+});
+
+/**
+ * Study puzzle sets for the admin page, at /study-puzzles.
+ *
+ * Runs the Find Best Play generator from the amath-engine checkout
+ * (`AMATH_ENGINE_DIR`, else ../amath-engine) and keeps every set it makes in
+ * tools/study-puzzles/archive/. `src/features/studyPuzzles/api.ts` is the only
+ * thing in the app that knows.
+ */
+const studyPuzzles = localToolApi({
+  name: "Study puzzle server",
+  mount: "/study-puzzles",
+  module: "tools/study-puzzles/server/api.mjs",
+  factory: "createStudyPuzzleApi",
+});
+
 export default defineConfig({
+  plugins: [survivalPlaytest, studyPuzzles],
   worker: { format: "es" },
+  // Dev server only. ONNX Runtime is reached solely through a dynamic import in
+  // the board-recognition worker, so Vite would otherwise discover it on the
+  // first recognition, re-optimise, and RELOAD the page mid-import. Declaring
+  // it up front avoids that; production builds are unaffected.
+  optimizeDeps: { include: ["onnxruntime-web/wasm"] },
   server: { headers: crossOriginIsolation },
   preview: { headers: crossOriginIsolation },
 });

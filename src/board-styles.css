@@ -14,10 +14,10 @@
  * Without them `--cell` falls back to the 36px in `00-base.css`, which is what
  * a standalone board wants: one fixed, predictable size.
  *
- * The order is a strict SUBSEQUENCE of the order in `play-styles.css`. Both
- * sheets end up in the document once a session visits Play and Study, and
- * keeping the relative order identical is what makes the second one to load a
- * no-op rather than a re-cascade with a different answer.
+ * Never imported as a global stylesheet: the Study page mounts it while it is on
+ * screen and removes it on leaving (`useBoardStyles`). Loaded globally, it stayed
+ * for the whole session once the lobby had pulled in the Study page, and its
+ * `!important` copies of the base sheets overrode Play's own on entering Play.
  *
  * Every import carries `layer(legacy)` on purpose. An unlayered stylesheet wins
  * over every named layer, so importing these bare from a .tsx file would put

@@ -1,24 +1,27 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState, type DragEvent, type MouseEvent } from "react";
 import {
   ArchiveRestore,
-  Check,
   ChevronRight,
   FileClock,
   Folder,
   FolderInput,
   FolderPlus,
-  ListChecks,
   Pencil,
   PlayCircle,
   Search,
   Trash2,
   Copy,
+  Check,
+  GripVertical,
+  ArrowUpRight,
+  X,
 } from "lucide-react";
 import { AccountChip, useAuth } from "../../auth";
 import { AdminButton } from "../../admin";
 import { ApplicationShell } from "../../app/shells/ApplicationShell";
 import { listPrivateRooms } from "../../remoteRooms";
 import type { RoomMeta } from "../../rooms";
+import { routeToHash } from "../../router";
 import {
   createPrivateFolder,
   copyPrivateGameItem,
@@ -32,7 +35,7 @@ import {
 import { ConfirmSheet, Sheet, TextPromptSheet } from "../ui/Sheet";
 import { OverflowMenu } from "../ui/OverflowMenu";
 import { SelectControl } from "../ui/SelectControl";
-import { GameTable, GameTableRow } from "./lobby/GameTable";
+import { CheckboxControl } from "../ui/CheckboxControl";
 
 export function PrivateLibraryPage({
   folderId,
@@ -41,7 +44,7 @@ export function PrivateLibraryPage({
   folderId: string | null;
   trash?: boolean;
 }) {
-  const { configured, profile, userId } = useAuth();
+  const { configured, userId } = useAuth();
   const [items, setItems] = useState<PrivateLibraryItem[]>([]);
   const [liveRooms, setLiveRooms] = useState<RoomMeta[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,17 +52,19 @@ export function PrivateLibraryPage({
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<"updated" | "name">("updated");
   const [selected, setSelected] = useState<string[]>([]);
-  const [multiSelect, setMultiSelect] = useState(false);
+  const [selectionAnchor, setSelectionAnchor] = useState<string | null>(null);
+  const [draggingIds, setDraggingIds] = useState<string[]>([]);
+  const [dropTarget, setDropTarget] = useState<string | null>(null);
+  const [mutating, setMutating] = useState(false);
   const [createFolderOpen, setCreateFolderOpen] = useState(false);
   const [renaming, setRenaming] = useState<PrivateLibraryItem | null>(null);
   const [movingIds, setMovingIds] = useState<string[]>([]);
   const [deleting, setDeleting] = useState<PrivateLibraryItem | null>(null);
-  const [moveTarget, setMoveTarget] = useState<string>("");
+  const [moveTarget, setMoveTarget] = useState<string | null>(null);
   const [boardLimit, setBoardLimit] = useState(1_000);
-  const tableAreaRef = useRef<HTMLDivElement | null>(null);
 
-  async function load() {
-    setLoading(true);
+  async function load(silent = false) {
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const [nextItems, limits, nextLiveRooms] = await Promise.all([
@@ -73,7 +78,7 @@ export function PrivateLibraryPage({
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to load Private Library.");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
@@ -82,15 +87,8 @@ export function PrivateLibraryPage({
   }, [userId]);
   useEffect(() => {
     setSelected([]);
-    setMultiSelect(false);
+    setSelectionAnchor(null);
   }, [folderId, trash]);
-  useEffect(() => {
-    const clearSelectionOutsideTable = (event: PointerEvent) => {
-      if (!tableAreaRef.current?.contains(event.target as Node)) setSelected([]);
-    };
-    document.addEventListener("pointerdown", clearSelectionOutsideTable);
-    return () => document.removeEventListener("pointerdown", clearSelectionOutsideTable);
-  }, []);
 
   const currentFolder =
     items.find((item) => item.id === folderId && item.itemType === "folder") ?? null;
@@ -115,14 +113,97 @@ export function PrivateLibraryPage({
   const boardCount = items.filter((item) => item.itemType === "game").length;
   const allFolders = items.filter((item) => item.itemType === "folder" && !item.trashedAt);
 
-  async function mutate(operation: () => Promise<void>) {
+  async function mutate(operation: () => Promise<void>): Promise<boolean> {
     setError(null);
+    setMutating(true);
     try {
       await operation();
-      await load();
+      await load(true);
+      return true;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Unable to update Private Library.");
+      return false;
+    } finally {
+      setMutating(false);
     }
+  }
+
+  function selectItem(id: string, event: MouseEvent<HTMLButtonElement>) {
+    if (event.shiftKey && selectionAnchor) {
+      const start = visibleItems.findIndex((item) => item.id === selectionAnchor);
+      const end = visibleItems.findIndex((item) => item.id === id);
+      if (start >= 0 && end >= 0) {
+        const range = visibleItems
+          .slice(Math.min(start, end), Math.max(start, end) + 1)
+          .map((item) => item.id);
+        setSelected(
+          event.metaKey || event.ctrlKey
+            ? (current) => [...new Set([...current, ...range])]
+            : range,
+        );
+        return;
+      }
+    }
+    if (event.metaKey || event.ctrlKey) {
+      setSelected((current) =>
+        current.includes(id) ? current.filter((itemId) => itemId !== id) : [...current, id],
+      );
+    } else {
+      setSelected([id]);
+    }
+    setSelectionAnchor(id);
+  }
+
+  function openMove(ids: string[]) {
+    setMovingIds(ids);
+    setMoveTarget(null);
+  }
+
+  function canDrop(ids: string[], destinationId: string | null) {
+    if (
+      ids.length === 0 ||
+      (destinationId && !allFolders.some((folder) => folder.id === destinationId))
+    )
+      return false;
+    return (
+      ids.every((id) => items.some((item) => item.id === id && !item.trashedAt)) &&
+      !ids.some(
+        (id) => id === destinationId || (destinationId && isDescendantOf(items, destinationId, id)),
+      ) &&
+      ids.some((id) => items.find((item) => item.id === id)?.parentId !== destinationId)
+    );
+  }
+
+  function dragStart(event: DragEvent<HTMLElement>, id: string) {
+    const ids = selected.includes(id) ? selected : [id];
+    setSelected(ids);
+    setSelectionAnchor(id);
+    setDraggingIds(ids);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("application/x-eq-private-items", ids.join(","));
+  }
+
+  function dragOver(event: DragEvent<HTMLElement>, destinationId: string | null) {
+    if (!canDrop(draggingIds, destinationId)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setDropTarget(destinationId ?? "root");
+  }
+
+  function drop(event: DragEvent<HTMLElement>, destinationId: string | null) {
+    event.preventDefault();
+    event.stopPropagation();
+    const ids = event.dataTransfer
+      .getData("application/x-eq-private-items")
+      .split(",")
+      .filter(Boolean);
+    setDropTarget(null);
+    setDraggingIds([]);
+    if (ids.join(",") !== draggingIds.join(",") || !canDrop(ids, destinationId)) return;
+    void mutate(async () => {
+      await movePrivateItems(ids, destinationId);
+      setSelected([]);
+    });
   }
 
   async function restoreOrTrashSelected() {
@@ -145,13 +226,13 @@ export function PrivateLibraryPage({
     return (
       <ApplicationShell
         title="Private"
-        description="Your permanent personal replay library."
+        description="Your saved game space"
         actions={<AccountChip />}
       >
         <section className="eq-state eq-state-access">
           <Folder size={30} />
           <h2>Sign in to open Private Library</h2>
-          <p>Saved boards and folders belong to your account.</p>
+          <p>Saved boards and folders are kept with your account.</p>
         </section>
       </ApplicationShell>
     );
@@ -170,7 +251,13 @@ export function PrivateLibraryPage({
       }
       secondaryNavigation={
         <div className="eq-library-toolbar">
-          <nav className="eq-breadcrumbs" aria-label="Folder path">
+          <nav
+            className={`eq-breadcrumbs eq-file-root-drop${dropTarget === "root" ? " is-drop-target" : ""}`}
+            aria-label="Folder path"
+            onDragOver={!trash ? (event) => dragOver(event, null) : undefined}
+            onDragLeave={() => setDropTarget(null)}
+            onDrop={!trash ? (event) => drop(event, null) : undefined}
+          >
             <a href="#/private">Private</a>
             {!trash &&
               breadcrumbs.map((folder) => (
@@ -212,8 +299,16 @@ export function PrivateLibraryPage({
                 className="eq-private-live-card"
                 href={
                   room.status === "draft"
-                    ? `#/room/${encodeURIComponent(room.id)}`
-                    : `#/play/${encodeURIComponent(room.id)}`
+                    ? routeToHash({
+                        kind: "room",
+                        roomId: room.id,
+                        returnTo: { kind: "private", folderId },
+                      })
+                    : routeToHash({
+                        kind: "play",
+                        roomId: room.id,
+                        returnTo: { kind: "private", folderId },
+                      })
                 }
                 key={room.id}
               >
@@ -238,7 +333,10 @@ export function PrivateLibraryPage({
               type="search"
               placeholder="Search this folder"
               value={query}
-              onChange={(event) => setQuery(event.target.value)}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setSelected([]);
+              }}
             />
           </label>
           <SelectControl<"updated" | "name">
@@ -251,7 +349,7 @@ export function PrivateLibraryPage({
             ]}
             onChange={(value) => value && setSort(value)}
           />
-          {!trash && (
+          {!trash && userId && (
             <button
               className="eq-button eq-button-primary"
               type="button"
@@ -281,205 +379,260 @@ export function PrivateLibraryPage({
             <p>
               {trash
                 ? "Deleted files remain recoverable for 30 days."
-                : "Save a replay from Public or Region, or create a folder here."}
+                : userId
+                  ? "Save a replay from Public or Region, or create a folder here."
+                  : "Saved games and folders appear here when you use an account."}
             </p>
           </div>
         ) : (
-          <div ref={tableAreaRef}>
-            <GameTable
-              label={trash ? "Private trash" : "Private files"}
-              emptyMessage={trash ? "Trash is empty" : "This folder is empty"}
-              className="eq-private-library-table"
-              primaryHeading="Name"
-              toolbar={
-                <div
-                  className="eq-library-selection-toolbar"
-                  role="toolbar"
-                  aria-label="Private file selection"
-                >
-                  <span className="eq-library-selection-status" aria-live="polite">
-                    {selected.length > 0 ? (
-                      <strong>{selected.length} selected</strong>
-                    ) : (
-                      <span>{multiSelect ? "Select multiple items" : "Select an item"}</span>
-                    )}
+          <div>
+            <div className="eq-file-browser" aria-busy={mutating}>
+              <div className="eq-file-toolbar" role="toolbar" aria-label="Private file selection">
+                <CheckboxControl
+                  checked={selected.length === visibleItems.length}
+                  mixed={selected.length > 0 && selected.length < visibleItems.length}
+                  ariaLabel="Select all visible files"
+                  onChange={(checked) =>
+                    setSelected(checked ? visibleItems.map((item) => item.id) : [])
+                  }
+                />
+                <span className="eq-file-selection-status" aria-live="polite">
+                  {selected.length > 0 ? (
+                    <strong>{selected.length} selected</strong>
+                  ) : (
+                    <span>Choose files to move or manage</span>
+                  )}
+                </span>
+                {mutating && (
+                  <span className="eq-file-updating" role="status">
+                    Updating…
                   </span>
-                  <span className="eq-library-selection-actions">
-                    {selected.length > 0 && !trash && (
-                      <button
-                        className="eq-button eq-button-secondary"
-                        type="button"
-                        aria-label={`Move ${selected.length} selected item${selected.length === 1 ? "" : "s"}`}
-                        onClick={() => setMovingIds([...selected])}
-                      >
-                        <FolderInput size={16} /> <span>Move</span>
-                      </button>
-                    )}
-                    {selected.length > 0 && (
-                      <button
-                        className={`eq-button ${trash ? "eq-button-secondary" : "eq-button-danger"}`}
-                        type="button"
-                        aria-label={`${trash ? "Restore" : "Move to Trash"} ${selected.length} selected item${selected.length === 1 ? "" : "s"}`}
-                        onClick={() => void restoreOrTrashSelected()}
-                      >
-                        {trash ? <ArchiveRestore size={16} /> : <Trash2 size={16} />}
-                        <span>{trash ? "Restore" : "Move to Trash"}</span>
-                      </button>
-                    )}
+                )}
+                <div className="eq-file-toolbar-actions">
+                  {selected.length > 0 && !trash && (
                     <button
-                      className="eq-button eq-button-secondary eq-library-multi-select-button"
+                      className="eq-file-tool"
                       type="button"
-                      aria-label={
-                        multiSelect ? "Finish selecting multiple items" : "Select multiple items"
-                      }
-                      aria-pressed={multiSelect}
-                      onClick={() => setMultiSelect((current) => !current)}
+                      disabled={mutating}
+                      onClick={() => openMove([...selected])}
                     >
-                      {multiSelect ? <Check size={16} /> : <ListChecks size={16} />}
-                      <span>{multiSelect ? "Done selecting" : "Select multiple"}</span>
+                      <FolderInput size={16} /> Move to…
                     </button>
-                  </span>
+                  )}
+                  {selected.length > 0 && (
+                    <button
+                      className="eq-file-tool is-danger"
+                      type="button"
+                      disabled={mutating}
+                      onClick={() => void restoreOrTrashSelected()}
+                    >
+                      {trash ? <ArchiveRestore size={16} /> : <Trash2 size={16} />}
+                      {trash ? "Restore" : "Trash"}
+                    </button>
+                  )}
+                  {selected.length > 0 && (
+                    <button
+                      className="eq-file-clear"
+                      type="button"
+                      aria-label="Clear selection"
+                      onClick={() => setSelected([])}
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
                 </div>
-              }
-            >
-              {visibleItems.map((item) => {
-                const isSelected = selected.includes(item.id);
-                const contentHref =
-                  item.itemType === "folder"
-                    ? `#/private/${encodeURIComponent(item.id)}`
-                    : `#/play/${encodeURIComponent(item.gameId ?? "")}`;
-                const overflowItems = trash
-                  ? [
-                      {
-                        icon: <ArchiveRestore size={16} />,
-                        label: "Restore",
-                        onSelect: () =>
-                          void mutate(() =>
-                            updatePrivateItem(item.id, {
-                              trashedAt: null,
-                              ...(item.parentId &&
-                              items.find((candidate) => candidate.id === item.parentId)?.trashedAt
-                                ? { parentId: null }
-                                : {}),
-                            }),
-                          ),
-                      },
-                      {
-                        icon: <Trash2 size={16} />,
-                        label: "Delete permanently",
-                        danger: true,
-                        onSelect: () => setDeleting(item),
-                      },
-                    ]
-                  : [
-                      ...(item.itemType === "game"
-                        ? [
-                            {
-                              icon: <Copy size={16} />,
-                              label: "Make a copy",
-                              onSelect: () => void mutate(() => copyPrivateGameItem(item.id)),
-                            },
-                          ]
-                        : []),
-                      {
-                        icon: <Pencil size={16} />,
-                        label: "Rename",
-                        onSelect: () => setRenaming(item),
-                      },
-                      {
-                        icon: <FolderInput size={16} />,
-                        label: "Move",
-                        onSelect: () => setMovingIds([item.id]),
-                      },
-                      {
-                        icon: <Trash2 size={16} />,
-                        label: "Move to Trash",
-                        danger: true,
-                        onSelect: () =>
-                          void mutate(() =>
-                            updatePrivateItem(item.id, { trashedAt: new Date().toISOString() }),
-                          ),
-                      },
-                    ];
-                return (
-                  <GameTableRow
-                    key={item.id}
-                    selected={isSelected}
-                    contentHref={trash ? "#/private?view=trash" : contentHref}
-                    contentLabel={
-                      isSelected
-                        ? multiSelect || trash
-                          ? `Deselect ${item.name}`
-                          : `Open ${item.name}`
-                        : multiSelect
-                          ? `Add ${item.name} to selection`
-                          : `Select ${item.name}; activate again to open`
-                    }
-                    onContentClick={(event) => {
-                      const additiveSelection = multiSelect || event.ctrlKey || event.metaKey;
-                      if (additiveSelection) {
-                        event.preventDefault();
-                        setSelected((current) =>
-                          current.includes(item.id)
-                            ? current.filter((id) => id !== item.id)
-                            : [...current, item.id],
-                        );
-                        return;
+              </div>
+              <div
+                className="eq-file-list"
+                role="list"
+                aria-label={trash ? "Private trash" : "Private files"}
+              >
+                {visibleItems.map((item) => {
+                  const isSelected = selected.includes(item.id);
+                  const contentHref =
+                    item.itemType === "folder"
+                      ? `#/private/${encodeURIComponent(item.id)}`
+                      : routeToHash({
+                          kind: "play",
+                          roomId: item.gameId ?? "",
+                          returnTo: { kind: "private", folderId, trash },
+                        });
+                  const overflowItems = trash
+                    ? [
+                        {
+                          icon: <ArchiveRestore size={16} />,
+                          label: "Restore",
+                          onSelect: () =>
+                            void mutate(() =>
+                              updatePrivateItem(item.id, {
+                                trashedAt: null,
+                                ...(item.parentId &&
+                                items.find((candidate) => candidate.id === item.parentId)?.trashedAt
+                                  ? { parentId: null }
+                                  : {}),
+                              }),
+                            ),
+                        },
+                        {
+                          icon: <Trash2 size={16} />,
+                          label: "Delete permanently",
+                          danger: true,
+                          onSelect: () => setDeleting(item),
+                        },
+                      ]
+                    : [
+                        ...(item.itemType === "game"
+                          ? [
+                              {
+                                icon: <Copy size={16} />,
+                                label: "Make a copy",
+                                onSelect: () => void mutate(() => copyPrivateGameItem(item.id)),
+                              },
+                            ]
+                          : []),
+                        {
+                          icon: <Pencil size={16} />,
+                          label: "Rename",
+                          onSelect: () => setRenaming(item),
+                        },
+                        {
+                          icon: <FolderInput size={16} />,
+                          label: "Move",
+                          onSelect: () => openMove([item.id]),
+                        },
+                        {
+                          icon: <Trash2 size={16} />,
+                          label: "Move to Trash",
+                          danger: true,
+                          onSelect: () =>
+                            void mutate(() =>
+                              updatePrivateItem(item.id, { trashedAt: new Date().toISOString() }),
+                            ),
+                        },
+                      ];
+                  return (
+                    <article
+                      key={item.id}
+                      role="listitem"
+                      className={`eq-file-row${isSelected ? " is-selected" : ""}${dropTarget === item.id ? " is-drop-target" : ""}${draggingIds.includes(item.id) ? " is-dragging" : ""}`}
+                      draggable={!trash && !mutating}
+                      onDragStart={!trash ? (event) => dragStart(event, item.id) : undefined}
+                      onDragEnd={() => {
+                        setDraggingIds([]);
+                        setDropTarget(null);
+                      }}
+                      onDragOver={
+                        item.itemType === "folder" && !trash
+                          ? (event) => dragOver(event, item.id)
+                          : undefined
                       }
-                      if (!isSelected) {
-                        event.preventDefault();
-                        setSelected([item.id]);
-                        return;
+                      onDragLeave={() => setDropTarget(null)}
+                      onDrop={
+                        item.itemType === "folder" && !trash
+                          ? (event) => drop(event, item.id)
+                          : undefined
                       }
-                      if (trash) event.preventDefault();
-                    }}
-                    primary={
-                      <>
-                        {item.itemType === "folder" ? (
-                          <Folder size={19} className="eq-private-library-icon" />
-                        ) : (
-                          <FileClock size={19} className="eq-private-library-icon" />
-                        )}
-                        <strong className="eq-game-row-name">{item.name}</strong>
-                      </>
-                    }
-                    secondary={
-                      item.itemType === "folder" ? (
-                        <span>Folder</span>
-                      ) : (
-                        <>
-                          <span>Saved game</span>
-                          <span>
-                            {item.scoreA ?? 0} · {item.scoreB ?? 0}
-                          </span>
-                          {item.modeKey && <span>{item.modeKey.replaceAll("_", " ")}</span>}
-                          {item.turnNumber !== null && <span>Turn {item.turnNumber}</span>}
-                        </>
-                      )
-                    }
-                    creator={profile?.display_name ?? "Current account"}
-                    actions={
-                      <>
-                        {!trash && (
-                          <a
-                            className="eq-icon-button"
-                            aria-label={`${item.itemType === "folder" ? "Open" : "View"} ${item.name}`}
-                            href={contentHref}
+                    >
+                      <CheckboxControl
+                        checked={isSelected}
+                        ariaLabel={`Select ${item.name}`}
+                        onChange={(checked) => {
+                          setSelected((current) =>
+                            checked
+                              ? [...new Set([...current, item.id])]
+                              : current.filter((id) => id !== item.id),
+                          );
+                          setSelectionAnchor(item.id);
+                        }}
+                      />
+                      <button
+                        className="eq-file-main"
+                        type="button"
+                        aria-pressed={isSelected}
+                        aria-label={`${isSelected ? "Selected" : "Select"} ${item.name}`}
+                        onClick={(event) => selectItem(item.id, event)}
+                        onDoubleClick={
+                          !trash
+                            ? () => {
+                                window.location.hash = contentHref;
+                              }
+                            : undefined
+                        }
+                        onKeyDown={(event) => {
+                          if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "a") {
+                            event.preventDefault();
+                            setSelected(visibleItems.map((visible) => visible.id));
+                          } else if (event.key === "Escape") {
+                            setSelected([]);
+                          } else if (!trash && event.key === "Enter") {
+                            event.preventDefault();
+                            window.location.hash = contentHref;
+                          }
+                        }}
+                      >
+                        <span className={`eq-file-icon is-${item.itemType}`} aria-hidden="true">
+                          {item.itemType === "folder" ? (
+                            <Folder size={22} />
+                          ) : (
+                            <FileClock size={21} />
+                          )}
+                        </span>
+                        <span className="eq-file-copy">
+                          <strong>{item.name}</strong>
+                          <small>
+                            {item.itemType === "folder"
+                              ? "Folder"
+                              : `${item.modeKey?.replaceAll("_", " ") ?? "Saved game"} · ${item.scoreA ?? 0}:${item.scoreB ?? 0}`}
+                            <span aria-hidden="true"> · </span>
+                            <time dateTime={item.updatedAt}>{formatFileDate(item.updatedAt)}</time>
+                          </small>
+                        </span>
+                      </button>
+                      <span className="eq-file-row-actions">
+                        {trash ? (
+                          <button
+                            className="eq-file-open"
+                            type="button"
+                            disabled={mutating}
+                            onClick={() =>
+                              void mutate(() =>
+                                updatePrivateItem(item.id, {
+                                  trashedAt: null,
+                                  ...(item.parentId &&
+                                  items.find((candidate) => candidate.id === item.parentId)
+                                    ?.trashedAt
+                                    ? { parentId: null }
+                                    : {}),
+                                }),
+                              )
+                            }
                           >
+                            <ArchiveRestore size={15} /> Restore
+                          </button>
+                        ) : (
+                          <a
+                            className="eq-file-open"
+                            href={contentHref}
+                            aria-label={`Open ${item.name}`}
+                          >
+                            Open{" "}
                             {item.itemType === "folder" ? (
-                              <ChevronRight size={17} />
+                              <ChevronRight size={15} />
                             ) : (
-                              <PlayCircle size={17} />
+                              <ArrowUpRight size={15} />
                             )}
                           </a>
                         )}
                         <OverflowMenu label={`Actions for ${item.name}`} items={overflowItems} />
-                      </>
-                    }
-                  />
-                );
-              })}
-            </GameTable>
+                      </span>
+                      {!trash && (
+                        <GripVertical className="eq-file-drag-hint" size={16} aria-hidden="true" />
+                      )}
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
           </div>
         )}
       </section>
@@ -512,30 +665,70 @@ export function PrivateLibraryPage({
       <Sheet
         open={movingIds.length > 0}
         title={movingIds.length > 1 ? `Move ${movingIds.length} items` : "Move item"}
-        onClose={() => setMovingIds([])}
+        onClose={() => {
+          if (!mutating) setMovingIds([]);
+        }}
       >
-        <div className="eq-field">
-          <span id="private-move-destination-label">Destination</span>
-          <SelectControl<string>
-            ariaLabelledBy="private-move-destination-label"
-            value={moveTarget}
-            options={[
-              { value: "", label: "Private root" },
-              ...allFolders
-                .filter(
-                  (folder) =>
-                    !movingIds.includes(folder.id) &&
-                    !movingIds.some((id) => isDescendantOf(items, folder.id, id)),
-                )
-                .map((folder) => ({ value: folder.id, label: folder.name })),
-            ]}
-            onChange={setMoveTarget}
-          />
+        <p className="eq-file-move-hint">
+          Choose where to put{" "}
+          {movingIds.length === 1 ? "this item" : `these ${movingIds.length} items`}.
+        </p>
+        <div className="eq-file-destinations" role="group" aria-label="Destination folder">
+          {[
+            { id: "", name: "Private", path: "Top level" },
+            ...allFolders
+              .filter(
+                (folder) =>
+                  !movingIds.includes(folder.id) &&
+                  !movingIds.some((id) => isDescendantOf(items, folder.id, id)),
+              )
+              .map((folder) => ({
+                id: folder.id,
+                name: folder.name,
+                path:
+                  buildBreadcrumbs(items, folder)
+                    .slice(0, -1)
+                    .map((ancestor) => ancestor.name)
+                    .join(" / ") || "Private",
+              }))
+              .sort((a, b) => `${a.path}/${a.name}`.localeCompare(`${b.path}/${b.name}`)),
+          ].map((destination) => {
+            const alreadyHere = movingIds.every(
+              (id) => items.find((item) => item.id === id)?.parentId === (destination.id || null),
+            );
+            return (
+              <label
+                key={destination.id}
+                className={`eq-file-destination${moveTarget === destination.id ? " is-selected" : ""}${alreadyHere ? " is-current" : ""}`}
+              >
+                <input
+                  type="radio"
+                  name="private-file-destination"
+                  aria-label={`${destination.name} — ${alreadyHere ? "Already here" : destination.path}`}
+                  checked={moveTarget === destination.id}
+                  disabled={mutating || alreadyHere}
+                  onChange={() => setMoveTarget(destination.id)}
+                />
+                <Folder size={20} aria-hidden="true" />
+                <span>
+                  <strong>{destination.name}</strong>
+                  <small>{alreadyHere ? "Already here" : destination.path}</small>
+                </span>
+                {moveTarget === destination.id && <Check size={17} aria-hidden="true" />}
+              </label>
+            );
+          })}
         </div>
+        {error && (
+          <p className="eq-alert eq-alert-error" role="alert">
+            {error}
+          </p>
+        )}
         <div className="ui-sheet-actions">
           <button
             className="eq-button eq-button-secondary"
             type="button"
+            disabled={mutating}
             onClick={() => setMovingIds([])}
           >
             Cancel
@@ -543,16 +736,17 @@ export function PrivateLibraryPage({
           <button
             className="eq-button eq-button-primary"
             type="button"
-            onClick={() => {
-              const ids = movingIds;
-              setMovingIds([]);
-              void mutate(async () => {
-                await movePrivateItems(ids, moveTarget || null);
+            disabled={moveTarget === null || mutating}
+            onClick={async () => {
+              if (moveTarget === null) return;
+              const moved = await mutate(() => movePrivateItems(movingIds, moveTarget || null));
+              if (moved) {
+                setMovingIds([]);
                 setSelected([]);
-              });
+              }
             }}
           >
-            Move
+            {mutating ? "Moving…" : "Move here"}
           </button>
         </div>
       </Sheet>
@@ -608,4 +802,12 @@ function isDescendantOf(
     cursor = items.find((item) => item.id === cursor?.parentId) ?? null;
   }
   return false;
+}
+
+function formatFileDate(value: string): string {
+  return new Intl.DateTimeFormat(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(value));
 }

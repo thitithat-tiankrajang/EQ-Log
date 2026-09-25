@@ -7,22 +7,33 @@ test.beforeEach(async ({ page }) => {
   await page.reload();
 });
 
-test("uses the center Play destination as the only create entry point", async ({ page }) => {
+test("opens a match from the lobby's game entry point", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1, name: "Public" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Create match/i })).toHaveCount(0);
-
-  await page.getByRole("link", { name: "Create game" }).click();
+  await expect(page.getByRole("region", { name: "Start a game" })).toBeVisible();
+  await page.getByRole("link", { name: /New game/ }).click();
   await expect(page).toHaveURL(/#\/create$/);
-  await expect(
-    page.getByRole("heading", { level: 1, name: "Where should this game live?" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Choose a space" })).toBeVisible();
   await page.getByRole("button", { name: /Public/ }).click();
   await page.getByRole("button", { name: /Match/ }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Configure match" })).toBeVisible();
   await page.getByRole("button", { name: /Create match room/i }).click();
   await expect(page).toHaveURL(/#\/room\//);
   await expect(page.getByRole("heading", { level: 1 })).toContainText(/Player A vs Player B/i);
+  const action = page.getByRole("button", { name: "Start Lab" });
+  await expect(action).toBeVisible();
+  const dockAndNav = await page.evaluate(() => {
+    const dock = document.querySelector(".action-dock")?.getBoundingClientRect();
+    const nav = document.querySelector(".eq-primary-nav")?.getBoundingClientRect();
+    return {
+      dockBottom: dock?.bottom ?? 0,
+      navTop: nav?.top ?? 0,
+      navFixed: getComputedStyle(document.querySelector(".eq-primary-nav")!).position === "fixed",
+    };
+  });
+  if (dockAndNav.navFixed) {
+    expect(dockAndNav.dockBottom).toBeLessThanOrEqual(dockAndNav.navTop);
+  }
 });
 
 test("keeps Region inaccessible until an admin assigns the account", async ({ page }) => {
@@ -35,6 +46,7 @@ test("keeps Region inaccessible until an admin assigns the account", async ({ pa
 test("@a11y has no serious accessibility violations on the main non-Play routes", async ({
   page,
 }) => {
+  test.setTimeout(90_000);
   for (const hash of [
     "#/public",
     "#/public/history",
@@ -42,14 +54,36 @@ test("@a11y has no serious accessibility violations on the main non-Play routes"
     "#/private",
     "#/profile",
     "#/public/join",
+    "#/private?view=trash",
+    "#/study",
+    "#/admin/users",
+    "#/admin/regions",
   ]) {
     await page.goto(`/${hash}`);
-    await expect(page.locator("main")).toBeVisible();
+    await expect(page.locator(".eq-app-shell main")).toBeVisible();
     const results = await new AxeBuilder({ page })
       .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
       .analyze();
     expect(results.violations, hash).toEqual([]);
   }
+
+  await page.goto("/#/create");
+  await page.getByRole("button", { name: /Public/ }).click();
+  await page.getByRole("button", { name: /Aether/ }).click();
+  const botResults = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .analyze();
+  expect(botResults.violations, "Aether setup").toEqual([]);
+
+  await page.goto("/#/public");
+  await page.goto("/#/create");
+  await page.getByRole("button", { name: /Public/ }).click();
+  await page.getByRole("button", { name: /Match/ }).click();
+  await page.getByRole("button", { name: /Create match room/i }).click();
+  const waitingResults = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .analyze();
+  expect(waitingResults.violations, "Waiting room").toEqual([]);
 });
 
 test("does not overflow the viewport horizontally", async ({ page }) => {
@@ -112,7 +146,7 @@ test("loads the designed Aether form instead of browser-default controls", async
   await page.getByRole("button", { name: /Aether/ }).click();
 
   const section = page.locator(".bot-config-section").first();
-  const option = page.getByRole("radio", { name: /Instant/ });
+  const option = page.getByRole("radio", { name: /Fast/ });
   await expect(section).toBeVisible();
   await expect(option).toBeVisible();
 
@@ -162,7 +196,7 @@ test("renders the custom dropdown instead of a native select", async ({ page }) 
     tagName: "BUTTON",
     display: "flex",
     minHeight: "40px",
-    borderRadius: "8px",
+    borderRadius: "10px",
   });
   await expect(page.locator("select")).toHaveCount(0);
 
@@ -207,14 +241,51 @@ test("renders the custom dropdown instead of a native select", async ({ page }) 
   expect(runtimeErrors).toEqual([]);
 });
 
+test("uses one focus ring around search and animates dialog exit", async ({ page }) => {
+  await page.goto("/#/private");
+  const search = page.getByPlaceholder("Search this folder");
+  await search.focus();
+  const focus = await search.evaluate((input) => ({
+    input: getComputedStyle(input).outlineStyle,
+    wrapper: getComputedStyle(input.parentElement!).outlineStyle,
+  }));
+  expect(focus).toEqual({ input: "none", wrapper: "solid" });
+
+  await page.goto("/#/create");
+  await page.getByRole("button", { name: /Public/ }).click();
+  await page.getByRole("button", { name: /Match/ }).click();
+  await page.getByRole("button", { name: /Create match room/i }).click();
+  await page.getByRole("button", { name: /Edit/ }).click();
+  const backdrop = page.locator(".ui-sheet-backdrop");
+  await expect(backdrop).toHaveAttribute("data-state", "open");
+  await page.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(backdrop).toHaveAttribute("data-state", "closing");
+  await expect(backdrop).toHaveCount(0);
+});
+
 test("shows the styled coffee return control outside Play and returns to the paused game", async ({
   page,
-}) => {
+}, testInfo) => {
   await expect(page.getByRole("button", { name: /Return to paused game/i })).toHaveCount(0);
-  await page.evaluate(() =>
-    window.localStorage.setItem("amath-lab-coffee-room-v1", "coffee-e2e-room"),
+  await page.goto("/#/public");
+  await page.getByRole("link", { name: /New game/ }).click();
+  await page.getByRole("button", { name: /^Public/ }).click();
+  await page.getByRole("button", { name: /^Match/ }).click();
+  await page.getByRole("button", { name: /Create match room/i }).click();
+  await page.getByRole("button", { name: "Start Lab" }).click();
+  await expect(page).toHaveURL(/#\/play\//);
+  const roomId = await page.evaluate(() =>
+    decodeURIComponent(window.location.hash.match(/^#\/play\/([^?]+)/)?.[1] ?? ""),
   );
-  await page.reload();
+  expect(roomId).not.toBe("");
+  if (testInfo.project.name !== "desktop") {
+    await page
+      .getByRole("dialog", { name: "Pick tiles from the bag" })
+      .getByRole("button", { name: /Close for now/ })
+      .click();
+  }
+  await page.getByRole("button", { name: "Break" }).click();
+  await expect(page).toHaveURL(/#\/public$/);
 
   const returnButton = page.getByRole("button", { name: /Return to paused game/i });
   await expect(returnButton).toBeVisible();
@@ -255,7 +326,7 @@ test("shows the styled coffee return control outside Play and returns to the pau
   }
 
   await returnButton.click();
-  await expect(page).toHaveURL(/#\/play\/coffee-e2e-room$/);
+  await expect(page).toHaveURL(new RegExp(`#\\/play\\/${roomId}\\?from=region$`));
   await expect(page.locator("body")).toHaveAttribute("data-route", "play");
   await expect(returnButton).toHaveCount(0);
 });

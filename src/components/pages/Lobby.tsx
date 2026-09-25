@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { History, KeyRound, Radio } from "lucide-react";
+import { ArrowUpRight, History, KeyRound, Radio, Trophy } from "lucide-react";
 import type { RoomMeta } from "../../rooms";
 import { AccountChip, useAuth } from "../../auth";
 import { AdminButton } from "../../admin";
@@ -18,6 +18,7 @@ export function Lobby({
   regionName,
   regionAvailable,
   loading = false,
+  busyMessage = null,
   rooms,
   archives = [],
   archivesTotal = 0,
@@ -39,6 +40,7 @@ export function Lobby({
   regionName: string | null;
   regionAvailable: boolean;
   loading?: boolean;
+  busyMessage?: string | null;
   rooms: RoomMeta[];
   archives?: ArchiveGame[];
   archivesTotal?: number;
@@ -62,9 +64,7 @@ export function Lobby({
   const scopeUnavailable = visibility === "region" && !regionAvailable;
   const scopeTitle = visibility === "public" ? "Public" : (regionName ?? "My Region");
   const scopeDescription =
-    visibility === "public"
-      ? "Live games and retained replays visible to every approved member."
-      : `Live games and retained replays for ${regionName ?? "your assigned region"}.`;
+    visibility === "public" ? "Games for approved members" : "Games in your region";
 
   return (
     <ApplicationShell
@@ -118,16 +118,51 @@ export function Lobby({
         </section>
       ) : activeSection === "live" ? (
         <div className="eq-live-layout">
+          <section className="eq-arena-hero" aria-label="Start a game">
+            <div className="eq-arena-hero-copy">
+              <span className="eq-arena-kicker">
+                <span aria-hidden="true" /> Arena is open
+              </span>
+              <strong>Ready for a match?</strong>
+              <div className="eq-arena-actions">
+                <a
+                  className="eq-button eq-button-primary"
+                  href={visibility === "region" ? "#/create?space=region" : "#/create"}
+                >
+                  New game <ArrowUpRight size={15} aria-hidden="true" />
+                </a>
+                <button
+                  className="eq-button eq-button-secondary"
+                  type="button"
+                  onClick={onJoinRoom}
+                >
+                  <KeyRound size={15} aria-hidden="true" /> Join with code
+                </button>
+                {visibility === "public" && <a className="eq-button eq-button-secondary" href="#/ranked"><Trophy size={15} aria-hidden="true" /> Ranked</a>}
+              </div>
+            </div>
+            <div className="eq-arena-board" aria-hidden="true">
+              <span>2</span>
+              <span>+</span>
+              <span>3</span>
+              <span>=</span>
+              <span>5</span>
+            </div>
+          </section>
           <section className="eq-section" aria-labelledby="live-games-heading">
             <div className="eq-section-heading eq-section-heading-actions">
               <div>
-                <span className="eq-eyebrow">Now playing</span>
+                <span className="eq-eyebrow">Match list</span>
                 <h2 id="live-games-heading">Live games</h2>
               </div>
-              <button className="eq-button eq-button-secondary" type="button" onClick={onJoinRoom}>
-                <KeyRound size={17} /> Join with code
-              </button>
+              <span className="eq-count">{rooms.length}</span>
             </div>
+            {busyMessage && (
+              <div className="eq-inline-activity" role="status" aria-live="polite">
+                <span className="eq-inline-spinner" aria-hidden="true" />
+                {busyMessage}
+              </div>
+            )}
             <RoomsView
               rooms={rooms}
               loading={loading}
@@ -152,9 +187,11 @@ export function Lobby({
           onSave={async (gameId) => {
             if (!userId) {
               setSignInSheetOpen(true);
-              return;
+              return false;
             }
-            await onSaveArchive?.(gameId);
+            if (!onSaveArchive) return false;
+            await onSaveArchive(gameId);
+            return true;
           }}
           onLoadMore={onLoadMoreArchives}
         />

@@ -30,6 +30,7 @@ export function startWaitingGame(game: GameState): GameState {
   const started: GameState = {
     ...game,
     roomStage: "playing",
+    lobbyLaunchAt: undefined,
     status: "playing",
     timers: { ...game.timers, paused: false },
     currentTurnStartedAt: now,
@@ -45,8 +46,12 @@ export function startWaitingGame(game: GameState): GameState {
 export function settingsFromWaitingGame(game: GameState): NewGameSettings {
   const initialSecondsBySide = game.timers.initialSecondsBySide;
   const timerMinutes: Record<Side, number | null> = {
-    A: game.timers.sideUntimed?.A ? null : secondsToMinutes(initialSecondsBySide?.A ?? game.timers.A),
-    B: game.timers.sideUntimed?.B ? null : secondsToMinutes(initialSecondsBySide?.B ?? game.timers.B),
+    A: game.timers.sideUntimed?.A
+      ? null
+      : secondsToMinutes(initialSecondsBySide?.A ?? game.timers.A),
+    B: game.timers.sideUntimed?.B
+      ? null
+      : secondsToMinutes(initialSecondsBySide?.B ?? game.timers.B),
   };
   return {
     name: game.name,
@@ -65,6 +70,7 @@ export function settingsFromWaitingGame(game: GameState): NewGameSettings {
     timerMinutes,
     startingSide: game.startingSide ?? "A",
     botSide: game.botSide,
+    botEngine: game.botEngine,
     botDifficulty: game.botDifficulty,
     tileDrawMode: getTileDrawMode(game),
     untimed: timerMinutes.A === null && timerMinutes.B === null,
@@ -76,7 +82,10 @@ export function formatRoomCode(roomId: string): string {
 }
 
 export function resolveRoomCode(roomCode: string, roomIds: string[]): string | null {
-  const normalized = roomCode.trim().replace(/^.*#\/room\//i, "").split(/[?#/]/)[0];
+  const normalized = roomCode
+    .trim()
+    .replace(/^.*#\/room\//i, "")
+    .split(/[?#/]/)[0];
   if (!normalized) return null;
   const exact = roomIds.find((id) => id.toLowerCase() === normalized.toLowerCase());
   if (exact) return exact;
@@ -112,6 +121,7 @@ function resetWaitingGame(game: GameState): GameState {
     ...game,
     roomStage: "waiting",
     lobbyReadyBySide: {},
+    lobbyLaunchAt: undefined,
     status: "draft",
     timers: { ...game.timers, paused: true },
   };

@@ -34,7 +34,7 @@ function answer(overrides: Record<string, unknown> = {}) {
   return {
     recordId: "study-1",
     saveError: null,
-    level: "max",
+    level: "stage5b64",
     position: {
       scoreSelf: 12,
       scoreOpponent: 0,
@@ -45,8 +45,9 @@ function answer(overrides: Record<string, unknown> = {}) {
     },
     summary: "ตาที่ดีที่สุดคือวาง 1+2=3",
     method: {
-      solver: "sim" as const,
-      samples: 160,
+      solver: "stage5b" as const,
+      samples: 0,
+      depth: 64,
       legalMoves: 84,
       candidatesEvaluated: 60,
       nodes: 1200,
@@ -115,15 +116,15 @@ describe("Study wizard", () => {
 
     // Review names the derived inventory, which the player never types.
     expect(screen.getByText("คู่แข่งถือ")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /ไปเลือกระดับบอท/ }));
+    await user.click(screen.getByRole("button", { name: /ไปดูเฉลย/ }));
 
-    await user.click(screen.getByRole("button", { name: /Unlimited/ }));
+    await user.click(screen.getByRole("button", { name: /Stage 5B/ }));
 
     await waitFor(() => expect(requestStudyAnalysis).toHaveBeenCalledTimes(1));
     const sent = requestStudyAnalysis.mock.calls[0]?.[0] as Record<string, unknown>;
     expect(sent.scoreSelf).toBe(12);
     expect(sent.rack).toEqual(["1", "+"]);
-    expect(sent.level).toBe("super");
+    expect(sent.level).toBe("stage5b64");
     // The client sends no inventory: deriving it is the server's job, and a
     // client that sent one could describe a bag that cannot exist.
     expect(sent).not.toHaveProperty("bagCount");
@@ -159,8 +160,8 @@ describe("Study wizard", () => {
     await user.click(screen.getByRole("button", { name: "ยืนยันกระดาน" }));
     await user.click(screen.getByRole("button", { name: /^1 เหลือ/ }));
     await user.click(screen.getByRole("button", { name: "ยืนยันเบี้ยในมือ" }));
-    await user.click(screen.getByRole("button", { name: /ไปเลือกระดับบอท/ }));
-    await user.click(screen.getByRole("button", { name: /Fast/ }));
+    await user.click(screen.getByRole("button", { name: /ไปดูเฉลย/ }));
+    await user.click(screen.getByRole("button", { name: /Stage 5B/ }));
 
     await waitFor(() => expect(requestStudyAnalysis).toHaveBeenCalledTimes(1));
     const sent = requestStudyAnalysis.mock.calls[0]?.[0] as Record<string, unknown>;
@@ -206,8 +207,8 @@ describe("Study wizard", () => {
     await user.click(screen.getByRole("button", { name: "ยืนยันกระดาน" }));
     await user.click(screen.getByRole("button", { name: /^1 เหลือ/ }));
     await user.click(screen.getByRole("button", { name: "ยืนยันเบี้ยในมือ" }));
-    await user.click(screen.getByRole("button", { name: /ไปเลือกระดับบอท/ }));
-    await user.click(screen.getByRole("button", { name: /Fast/ }));
+    await user.click(screen.getByRole("button", { name: /ไปดูเฉลย/ }));
+    await user.click(screen.getByRole("button", { name: /Stage 5B/ }));
 
     await waitFor(() => expect(requestStudyAnalysis).toHaveBeenCalledTimes(1));
     const sent = requestStudyAnalysis.mock.calls[0]?.[0] as Record<string, unknown>;
@@ -235,8 +236,8 @@ describe("Study wizard", () => {
     await user.click(screen.getByRole("button", { name: "ยืนยันกระดาน" }));
     await user.click(screen.getByRole("button", { name: /^1 เหลือ/ }));
     await user.click(screen.getByRole("button", { name: "ยืนยันเบี้ยในมือ" }));
-    await user.click(screen.getByRole("button", { name: /ไปเลือกระดับบอท/ }));
-    await user.click(screen.getByRole("button", { name: /Fast/ }));
+    await user.click(screen.getByRole("button", { name: /ไปดูเฉลย/ }));
+    await user.click(screen.getByRole("button", { name: /Stage 5B/ }));
 
     await waitFor(() => expect(requestStudyAnalysis).toHaveBeenCalledTimes(1));
     const sent = requestStudyAnalysis.mock.calls[0]?.[0] as Record<string, unknown>;
@@ -255,7 +256,7 @@ describe("Study wizard", () => {
 
     fireEvent.keyDown(window, { key: "9", code: "Digit9" });
     fireEvent.keyDown(window, { key: "Enter", code: "Enter" });
-    expect(screen.getByRole("button", { name: /ไปเลือกระดับบอท/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ไปดูเฉลย/ })).toBeInTheDocument();
   });
 
   it("types tiles straight onto the rack", async () => {
@@ -272,8 +273,8 @@ describe("Study wizard", () => {
     fireEvent.keyDown(window, { key: "b", code: "KeyB" });
 
     await user.click(screen.getByRole("button", { name: "ยืนยันเบี้ยในมือ" }));
-    await user.click(screen.getByRole("button", { name: /ไปเลือกระดับบอท/ }));
-    await user.click(screen.getByRole("button", { name: /Fast/ }));
+    await user.click(screen.getByRole("button", { name: /ไปดูเฉลย/ }));
+    await user.click(screen.getByRole("button", { name: /Stage 5B/ }));
 
     await waitFor(() => expect(requestStudyAnalysis).toHaveBeenCalledTimes(1));
     const sent = requestStudyAnalysis.mock.calls[0]?.[0] as Record<string, unknown>;
@@ -290,8 +291,8 @@ describe("Study wizard", () => {
     await user.click(screen.getByRole("button", { name: "ยืนยันกระดาน" }));
     await user.click(screen.getByRole("button", { name: /^1 เหลือ/ }));
     await user.click(screen.getByRole("button", { name: "ยืนยันเบี้ยในมือ" }));
-    await user.click(screen.getByRole("button", { name: /ไปเลือกระดับบอท/ }));
-    await user.click(screen.getByRole("button", { name: /Deep/ }));
+    await user.click(screen.getByRole("button", { name: /ไปดูเฉลย/ }));
+    await user.click(screen.getByRole("button", { name: /Stage 5B/ }));
 
     await waitFor(() => expect(screen.getByText(/บันทึกลงฐานข้อมูลไม่สำเร็จ/)).toBeInTheDocument());
     expect(screen.getByText("บอทเลือกตานี้")).toBeInTheDocument();

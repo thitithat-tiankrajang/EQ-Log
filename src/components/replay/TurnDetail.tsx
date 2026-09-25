@@ -56,7 +56,7 @@ export function TurnDetail({ game, log }: { game: GameState; log: TurnLog }) {
       <div className="td-head">
         <div className="td-head-main">
           <span className="td-turn">Turn {log.turnNumber}</span>
-          <span className="td-player">{game.players[log.side]}</span>
+          <span className="td-player">{log.playedByName ?? game.players[log.side]}</span>
           <span className={`td-action td-action-${log.action}`}>{ACTION_LABELS[log.action]}</span>
         </div>
         <div className="td-time">
@@ -136,7 +136,11 @@ function ExchangeBody({ log }: { log: TurnLog }) {
   const detail = log.actionDetail as ExchangeDetail;
   return (
     <>
-      <TileChips label="Returned" tiles={detail.outgoingTiles} />
+      <TileChips
+        label="Returned"
+        tiles={detail.outgoingTiles}
+        note={detail.concealedCount ? `${detail.concealedCount} tiles, not shown` : undefined}
+      />
       <TileChips
         label="Received"
         tiles={detail.incomingTiles}

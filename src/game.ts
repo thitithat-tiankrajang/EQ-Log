@@ -28,6 +28,8 @@ export type Side = "A" | "B";
 export type GameMode = "versus" | "solo";
 export type TileDrawMode = "manual" | "play";
 export type BotDifficulty = "medium" | "hard" | "max" | "super";
+/** The two opponents share room infrastructure, not a decision algorithm. */
+export type BotEngine = "aether" | "authur";
 export type EmailPlayMode = "hosted" | "direct";
 export type RoomStage = "waiting" | "playing";
 export type SideTimerMinutes = Record<Side, number | null>;
@@ -101,13 +103,20 @@ export type PlaceEquationDetail = {
 export type ExchangeDetail = {
   outgoingTiles: TileInstance[];
   incomingTiles: TileInstance[];
+  /**
+   * An exchange the viewer only knows the SIZE of — the opponent's, in a mode
+   * that keeps the opponent's rack hidden (Survival). `outgoingTiles` is then
+   * empty on purpose: the tiles were never shown to this viewer.
+   */
+  concealedCount?: number;
 };
 
 export type PassDetail = {
   reason?: string;
 };
 
-export type EndGameReason = "rack_out" | "no_score_streak" | "perfect_game" | "manual" | "surrender";
+export type EndGameReason =
+  "rack_out" | "no_score_streak" | "perfect_game" | "manual" | "surrender";
 
 export type EndGameDetail = {
   reason: EndGameReason;
@@ -169,9 +178,36 @@ export type TurnLog = {
   finalScore: number;
   note?: string;
   stars?: number; // self-review rating 0–5 (does not affect the game score)
+  /**
+   * Who made this move, when it was not the seat's own player: a Survival level
+   * starts from a game Authur played on both seats, so the player's seat has
+   * turns from before the takeover that the player never made. Absent on every
+   * ordinary turn.
+   */
+  playedByName?: string;
 };
 
-export function aggregatePendingExchangeReturns(pending: PendingExchangeReturnBySide | undefined): TileInstance[] {
+/**
+ * Which version of this game's PARKED LINES a position was committed with.
+ *
+ * A game can branch (see `src/gameplay/multiverse.ts`), but `logs` is always one straight line:
+ * the one being played. Every other line is parked in a document beside the game — in
+ * `game_timelines` for a live room — so that a move never has to carry the branches it is not
+ * on. This reference is all the position says about them: enough for another device to notice
+ * the parked lines changed and fetch them, and nothing that grows with them.
+ *
+ * Absent on every game that has never branched, which is almost all of them.
+ */
+export type TimelineRef = {
+  /** Version of the parked-lines document, bumped by every change to it. */
+  version: number;
+  /** How many lines are parked, so a view can say "3 lines" before fetching them. */
+  lines: number;
+};
+
+export function aggregatePendingExchangeReturns(
+  pending: PendingExchangeReturnBySide | undefined,
+): TileInstance[] {
   return [...(pending?.A ?? []), ...(pending?.B ?? [])];
 }
 
@@ -231,12 +267,26 @@ export type GameSnapshot = {
   roomStage?: RoomStage;
   /** Ready state belongs to the waiting room and does not affect game turns. */
   lobbyReadyBySide?: Partial<Record<Side, boolean>>;
+  /** Shared start deadline. The room stays waiting until this time has passed. */
+  lobbyLaunchAt?: string;
   /** The side that went first this game; used for "starting position" filters. */
   startingSide?: Side;
   /** Side controlled by the built-in AI engine, when this is a bot match. */
   botSide?: Side;
+  /** Missing on older rooms means Aether. */
+  botEngine?: BotEngine;
   /** Bot strength; maps to the engine's search budget. */
   botDifficulty?: BotDifficulty;
+  /**
+   * Rack slots a side holds but nobody has identified — see `src/gameplay/facedown.ts`.
+   *
+   * Absent in an ordinary game. Present when a real game is being TRANSCRIBED: the racks
+   * refill whether or not the person writing it down can see what arrived, so the rack is the
+   * right SIZE while the tiles themselves stay in the unseen pool until somebody names them.
+   */
+  faceDownCount?: Partial<Record<Side, number>>;
+  /** See `TimelineRef`. Absent until the game first branches. */
+  timelineRef?: TimelineRef;
   /**
    * The engine build and weights version this game's bot is PINNED to, written
    * the first time a Super turn is computed on the device.
@@ -311,8 +361,18 @@ export type NewGameSettings = {
   timerMinutes?: SideTimerMinutes;
   startingSide: Side;
   botSide?: Side;
+  botEngine?: BotEngine;
   botDifficulty?: BotDifficulty;
   tileDrawMode?: TileDrawMode;
+  /**
+   * Rack slots a side holds but nobody has identified — see `src/gameplay/facedown.ts`.
+   *
+   * Absent in an ordinary game, where every tile a side holds is known to the side holding it.
+   * Present when a real game is being TRANSCRIBED: the racks refill whether or not the person
+   * writing it down can see what arrived, so the rack is the right size while the tiles stay in
+   * the unseen pool until somebody names them.
+   */
+  faceDownCount?: Partial<Record<Side, number>>;
   untimed?: boolean;
 };
 
@@ -466,7 +526,7 @@ export function createNewGame(settings: NewGameSettings): GameState {
     hasRegisteredPlayers || rawEmailA || (!isSolo && rawEmailB)
       ? isSolo
         ? "hosted"
-        : settings.emailPlayMode ?? "hosted"
+        : (settings.emailPlayMode ?? "hosted")
       : undefined;
   const emailA = rawEmailA;
   const emailB = isSolo ? null : rawEmailB;
@@ -489,7 +549,7 @@ export function createNewGame(settings: NewGameSettings): GameState {
   const tileDrawMode: TileDrawMode =
     emailPlayMode === "direct" || (isSolo && !hasOnlinePlayers)
       ? "play"
-      : settings.tileDrawMode ?? "manual";
+      : (settings.tileDrawMode ?? "manual");
   const isPlayDraw = tileDrawMode === "play";
   const startSide: Side = isSolo ? "A" : settings.startingSide;
   const initialQueue = createInitialTilebag({ shuffleForPlay: isPlayDraw });
@@ -532,13 +592,13 @@ export function createNewGame(settings: NewGameSettings): GameState {
     playerUserIds: hasRegisteredPlayers ? playerUserIds : undefined,
     playerEmails: hasEmailPlayers ? playerEmails : undefined,
     emailPlayMode,
-    emailPlayersCanSeeOpponentRack: !isSolo && hasOnlinePlayers
-      ? settings.emailPlayersCanSeeOpponentRack ?? false
-      : undefined,
+    emailPlayersCanSeeOpponentRack:
+      !isSolo && hasOnlinePlayers ? (settings.emailPlayersCanSeeOpponentRack ?? false) : undefined,
     roomStage: "playing",
     lobbyReadyBySide: {},
     startingSide: isSolo ? "A" : settings.startingSide,
     botSide: isSolo ? undefined : settings.botSide,
+    botEngine: isSolo || !settings.botSide ? undefined : (settings.botEngine ?? "authur"),
     botDifficulty: isSolo ? undefined : settings.botDifficulty,
     tileDrawMode,
     turnNumber: 1,
@@ -584,7 +644,8 @@ function normalizeTimerMinutes(settings: NewGameSettings): SideTimerMinutes {
     };
   }
   if (settings.untimed) return { A: null, B: null };
-  const minutes = normalizeTimerMinute(settings.minutes ?? DEFAULT_TIMER_MINUTES) ?? DEFAULT_TIMER_MINUTES;
+  const minutes =
+    normalizeTimerMinute(settings.minutes ?? DEFAULT_TIMER_MINUTES) ?? DEFAULT_TIMER_MINUTES;
   return { A: minutes, B: minutes };
 }
 
@@ -611,9 +672,13 @@ export function normalizeUserId(value: string | null | undefined): string | null
   return trimmed || null;
 }
 
-export function makeSnapshot(game: Omit<GameState, "history" | "historyIndex" | "lastSavedAt">): GameSnapshot;
+export function makeSnapshot(
+  game: Omit<GameState, "history" | "historyIndex" | "lastSavedAt">,
+): GameSnapshot;
 export function makeSnapshot(game: GameState): GameSnapshot;
-export function makeSnapshot(game: GameState | Omit<GameState, "history" | "historyIndex" | "lastSavedAt">): GameSnapshot {
+export function makeSnapshot(
+  game: GameState | Omit<GameState, "history" | "historyIndex" | "lastSavedAt">,
+): GameSnapshot {
   return deepClone({
     commitId: crypto.randomUUID(),
     gameId: game.gameId,
@@ -629,8 +694,10 @@ export function makeSnapshot(game: GameState | Omit<GameState, "history" | "hist
     matchControl: game.matchControl,
     roomStage: game.roomStage,
     lobbyReadyBySide: game.lobbyReadyBySide,
+    lobbyLaunchAt: game.lobbyLaunchAt,
     startingSide: game.startingSide,
     botSide: game.botSide,
+    botEngine: game.botEngine,
     botDifficulty: game.botDifficulty,
     superEngineVersion: game.superEngineVersion,
     superWeightsVersion: game.superWeightsVersion,
@@ -686,11 +753,7 @@ export function calculateTotals(logs: TurnLog[]): Record<Side, number> {
   );
 }
 
-export function updateLogScore(
-  logs: TurnLog[],
-  logId: string,
-  manualScore?: number,
-): TurnLog[] {
+export function updateLogScore(logs: TurnLog[], logId: string, manualScore?: number): TurnLog[] {
   return logs.map((log) => {
     if (log.id !== logId) return log;
     const finalScore = manualScore ?? log.calculatedScore;
@@ -750,12 +813,7 @@ export function validateMove(
   const size = board.length;
   const pendingMap = new Map<string, PendingPlacement>();
   for (const placement of pendingPlacements) {
-    if (
-      placement.row < 0 ||
-      placement.row >= size ||
-      placement.col < 0 ||
-      placement.col >= size
-    ) {
+    if (placement.row < 0 || placement.row >= size || placement.col < 0 || placement.col >= size) {
       errors.push("A tile is outside the board.");
       continue;
     }
@@ -1144,9 +1202,12 @@ function conditionReason(seq: string[], display: string[]): string | null {
     if (EVALUATOR_MARKS.has(a) && EVALUATOR_MARKS.has(b) && !(a === "=" && b === "-")) {
       return `${text}: adjacent operators are not allowed.`;
     }
-    if (TENS_TOKENS.has(a) && TENS_TOKENS.has(b)) return `${text}: 10-20 tiles cannot touch each other.`;
-    if (UNIT_TOKENS.has(a) && TENS_TOKENS.has(b)) return `${text}: 10-20 tiles cannot touch single-digit tiles.`;
-    if (TENS_TOKENS.has(a) && UNIT_TOKENS.has(b)) return `${text}: 10-20 tiles cannot touch single-digit tiles.`;
+    if (TENS_TOKENS.has(a) && TENS_TOKENS.has(b))
+      return `${text}: 10-20 tiles cannot touch each other.`;
+    if (UNIT_TOKENS.has(a) && TENS_TOKENS.has(b))
+      return `${text}: 10-20 tiles cannot touch single-digit tiles.`;
+    if (TENS_TOKENS.has(a) && UNIT_TOKENS.has(b))
+      return `${text}: 10-20 tiles cannot touch single-digit tiles.`;
     if (a === "/" && b === "0") return `${text}: this position cannot divide by 0.`;
     if (a === "-" && b === "0" && (i === 0 || seq[i - 1] === "=")) {
       return `${text}: 0 cannot be marked as negative.`;
@@ -1259,7 +1320,9 @@ function scoreEquationCells(
 }
 
 function formatValue(value: number): string {
-  return Number.isInteger(value) ? String(value) : value.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
+  return Number.isInteger(value)
+    ? String(value)
+    : value.toFixed(4).replace(/0+$/, "").replace(/\.$/, "");
 }
 
 function tileAt(

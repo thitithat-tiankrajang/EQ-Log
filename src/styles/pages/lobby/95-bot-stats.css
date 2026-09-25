@@ -234,6 +234,17 @@
   gap: 10px;
   margin-bottom: 16px;
 }
+.bstat-engine-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.bstat-engine-filter .bstat-btn[aria-pressed="true"] {
+  background: var(--lobby-accent, #3f7a6b);
+  border-color: var(--lobby-accent, #3f7a6b);
+  color: #fff;
+}
 .bstat-tiles {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));

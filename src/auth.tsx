@@ -404,12 +404,14 @@ export function AccountChip() {
   const label = profile.display_name ?? "Account";
   return (
     <div className="eq-account-chip">
-      <span className="eq-account-avatar">{(label ?? "?").slice(0, 1).toUpperCase()}</span>
-      <span className="eq-account-name">
-        {label}
-        {profile.status !== "approved" && <em> · {profile.status}</em>}
-        {profile.is_admin && <em> · admin</em>}
-      </span>
+      <a className="eq-account-profile" href="#/profile" aria-label={`Open ${label}'s profile`}>
+        <span className="eq-account-avatar">{label.slice(0, 1).toUpperCase()}</span>
+        <span className="eq-account-name">
+          {label}
+          {profile.status !== "approved" && <em> · {profile.status}</em>}
+          {profile.is_admin && <em> · admin</em>}
+        </span>
+      </a>
       <button className="eq-account-signout" type="button" aria-label="Sign out" onClick={signOut}>
         <LogOut size={16} />
       </button>

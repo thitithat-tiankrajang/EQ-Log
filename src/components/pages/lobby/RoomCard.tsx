@@ -56,13 +56,15 @@ export function RoomCard({
       <GameTableRow
         primary={
           <>
-            <span className="eq-room-card-badges">
-              <span className={`eq-privacy-badge eq-privacy-${room.visibility ?? "public"}`}>
-                {room.visibility === "region" ? "Region" : "Public"}
+            <span className="eq-room-card-head">
+              <span className="eq-room-card-name">{room.name}</span>
+              <span className="eq-room-card-badges">
+                <span className={`eq-privacy-badge eq-privacy-${room.visibility ?? "public"}`}>
+                  {room.visibility === "region" ? "Region" : "Public"}
+                </span>
+                <span className={`eq-status eq-status-${room.status}`}>{statusLabel}</span>
               </span>
-              <span className={`eq-status eq-status-${room.status}`}>{statusLabel}</span>
             </span>
-            <span className="eq-room-card-name">{room.name}</span>
             <span className="eq-room-card-players">
               <em>
                 {room.playerA} <b>{room.scoreA}</b>
@@ -103,7 +105,7 @@ export function RoomCard({
         actions={
           <>
             <button
-              className="eq-button eq-button-secondary eq-game-row-action"
+              className="eq-record-action is-open"
               type="button"
               onClick={needsCode ? onJoinWithCode : onOpen}
             >

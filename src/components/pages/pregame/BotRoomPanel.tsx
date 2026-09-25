@@ -1,10 +1,10 @@
 import { Check, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "../../../auth";
-import type { BotDifficulty, NewGameSettings, Side } from "../../../game";
+import type { BotDifficulty, BotEngine, NewGameSettings, Side } from "../../../game";
 
 /** The AI opponent's display name, used for both sides of the match. */
-const BOT_NAME = "Aether";
+const BOT_NAMES: Record<BotEngine, string> = { aether: "Aether", authur: "Authur" };
 
 const DIFFICULTY_OPTIONS: Array<{
   value: BotDifficulty;
@@ -13,18 +13,18 @@ const DIFFICULTY_OPTIONS: Array<{
   /** Filled bars in the strength meter (1–4). */
   level: number;
 }> = [
-  { value: "medium", label: "Fast", desc: "Quick thinking, still solid play.", level: 1 },
-  { value: "hard", label: "Balanced", desc: "Searches deeper and plays sharply.", level: 2 },
+  { value: "medium", label: "Fast", desc: "Quick replies", level: 1 },
+  { value: "hard", label: "Balanced", desc: "More time to think", level: 2 },
   {
     value: "max",
     label: "Deep",
-    desc: "Full strength — explores every move and solves the endgame exactly.",
+    desc: "Full strength",
     level: 3,
   },
   {
     value: "super",
     label: "Unlimited",
-    desc: "No time limit — thinks until the search is 100% finished. Minutes a move.",
+    desc: "No time limit · may take minutes",
     level: 4,
   },
 ];
@@ -49,11 +49,14 @@ function StrengthMeter({ level }: { level: number }) {
  */
 export function BotRoomPanel({
   busy,
+  engine,
   onSubmit,
 }: {
   busy: boolean;
+  engine: BotEngine;
   onSubmit: (settings: NewGameSettings) => void;
 }) {
+  const botName = BOT_NAMES[engine];
   const { profile } = useAuth();
   const accountName = profile?.display_name?.trim() ?? "";
   const [playerName, setPlayerName] = useState(accountName);
@@ -81,13 +84,14 @@ export function BotRoomPanel({
         if (!trimmedPlayerName) return;
         const playerA = trimmedPlayerName;
         onSubmit({
-          name: `${playerA} vs ${BOT_NAME}`,
+          name: `${playerA} vs ${botName}`,
           gameMode: "versus",
           playerA,
-          playerB: BOT_NAME,
+          playerB: botName,
           startingSide,
           botSide: "B",
-          botDifficulty: difficulty,
+          botEngine: engine,
+          botDifficulty: engine === "authur" ? "super" : difficulty,
           // Always auto-draw, and no longer a choice.
           //
           // Hand-picking the draws meant the HUMAN drew tiles for the bot's
@@ -122,13 +126,13 @@ export function BotRoomPanel({
         </span>
         <span className="bot-hero-copy">
           <span className="bot-hero-eyebrow">Your opponent</span>
-          <strong className="bot-hero-name">{BOT_NAME}</strong>
+          <strong className="bot-hero-name">{botName}</strong>
           <span className="bot-hero-sub">
-            The built-in A-Math engine — it solves the endgame exactly.
+            {engine === "authur" ? "A new style of challenge" : "Your A-Math challenger"}
           </span>
         </span>
         <span className="bot-hero-pill">
-          <Sparkles size={13} /> {selectedDifficulty.label}
+          <Sparkles size={13} /> {engine === "authur" ? "STRONG" : selectedDifficulty.label}
         </span>
       </header>
 
@@ -137,7 +141,6 @@ export function BotRoomPanel({
           <span>1</span>
           <div>
             <h3 id="bot-player-heading">Player</h3>
-            <p>This name appears on the board and in game history.</p>
           </div>
         </header>
         <label className="create-field bot-field">
@@ -164,48 +167,48 @@ export function BotRoomPanel({
               ? "Player Name is required."
               : accountName
                 ? "Filled from your account. You can edit it for this game."
-                : "Enter the name you want to use for this game."}
+                : "Shown on the board"}
           </small>
         </label>
       </section>
 
-      <fieldset className="bot-config-section bot-section">
-        <legend className="bot-config-heading">
-          <span>2</span>
-          <span>
-            <strong>Difficulty</strong>
-            <small>Choose how deeply Aether searches for its move.</small>
-          </span>
-        </legend>
-        <div className="bot-difficulty-grid" role="radiogroup" aria-label="Difficulty">
-          {DIFFICULTY_OPTIONS.map((option) => (
-            <button
-              type="button"
-              role="radio"
-              aria-checked={difficulty === option.value}
-              key={option.value}
-              className={`bot-difficulty-option${difficulty === option.value ? " selected" : ""}`}
-              onClick={() => setDifficulty(option.value)}
-            >
-              <span className="bot-difficulty-top">
-                <span className="bot-difficulty-label">{option.label}</span>
-                <StrengthMeter level={option.level} />
-              </span>
-              <span className="bot-difficulty-desc">{option.desc}</span>
-              <span className="bot-option-check" aria-hidden="true">
-                {difficulty === option.value && <Check size={14} />}
-              </span>
-            </button>
-          ))}
-        </div>
-      </fieldset>
+      {engine === "aether" && (
+        <fieldset className="bot-config-section bot-section">
+          <legend className="bot-config-heading">
+            <span>2</span>
+            <span>
+              <strong>Difficulty</strong>
+            </span>
+          </legend>
+          <div className="bot-difficulty-grid" role="radiogroup" aria-label="Difficulty">
+            {DIFFICULTY_OPTIONS.map((option) => (
+              <button
+                type="button"
+                role="radio"
+                aria-checked={difficulty === option.value}
+                key={option.value}
+                className={`bot-difficulty-option${difficulty === option.value ? " selected" : ""}`}
+                onClick={() => setDifficulty(option.value)}
+              >
+                <span className="bot-difficulty-top">
+                  <span className="bot-difficulty-label">{option.label}</span>
+                  <StrengthMeter level={option.level} />
+                </span>
+                <span className="bot-difficulty-desc">{option.desc}</span>
+                <span className="bot-option-check" aria-hidden="true">
+                  {difficulty === option.value && <Check size={14} />}
+                </span>
+              </button>
+            ))}
+          </div>
+        </fieldset>
+      )}
 
       <section className="bot-config-section" aria-labelledby="bot-rules-heading">
         <header className="bot-config-heading">
           <span>3</span>
           <div>
             <h3 id="bot-rules-heading">Game setup</h3>
-            <p>Choose who opens. Aether rooms always draw tiles automatically.</p>
           </div>
         </header>
         <div className="bot-rule-group">
@@ -220,10 +223,7 @@ export function BotRoomPanel({
                 className={`bot-difficulty-option${startingSide === side ? " selected" : ""}`}
                 onClick={() => setStartingSide(side)}
               >
-                <span className="bot-difficulty-label">{side === "A" ? "You" : "Aether"}</span>
-                <span className="bot-difficulty-desc">
-                  {side === "A" ? "Take the first turn." : "Let Aether make the opening move."}
-                </span>
+                <span className="bot-difficulty-label">{side === "A" ? "You" : botName}</span>
               </button>
             ))}
           </div>
@@ -234,12 +234,12 @@ export function BotRoomPanel({
         <span>
           <strong>{trimmedPlayerName || "Player Name required"}</strong>
           <small>
-            vs Aether · {selectedDifficulty.label} ·{" "}
-            {startingSide === "A" ? "You start" : "Aether starts"}
+            vs {botName} · {engine === "authur" ? "STRONG" : selectedDifficulty.label} ·{" "}
+            {startingSide === "A" ? "You start" : `${botName} starts`}
           </small>
         </span>
         <button className="ui-button-primary" type="submit" disabled={busy || !trimmedPlayerName}>
-          {busy ? "Creating…" : "Start Aether match"}
+          {busy ? "Creating…" : `Start ${botName} match`}
         </button>
       </footer>
     </form>

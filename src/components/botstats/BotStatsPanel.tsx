@@ -333,6 +333,7 @@ function FolderDetail({
 }) {
   const [games, setGames] = useState<BotGameRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [engineFilter, setEngineFilter] = useState<"all" | "aether" | "authur">("all");
 
   useEffect(() => {
     let active = true;
@@ -348,9 +349,14 @@ function FolderDetail({
     };
   }, [folder.id]);
 
+  const visibleGames = useMemo(
+    () =>
+      games?.filter((game) => engineFilter === "all" || game.botEngine === engineFilter) ?? null,
+    [games, engineFilter],
+  );
   const stats: BotFolderStats | null = useMemo(
-    () => (games ? computeFolderStats(games) : null),
-    [games],
+    () => (visibleGames ? computeFolderStats(visibleGames) : null),
+    [visibleGames],
   );
 
   return (
@@ -373,9 +379,27 @@ function FolderDetail({
       {error && <p className="auth-error">{error}</p>}
       {games === null && <p className="empty-text">Loading games…</p>}
 
+      {games !== null && (
+        <div className="bstat-engine-filter" aria-label="Bot filter">
+          {(["all", "aether", "authur"] as const).map((engine) => (
+            <button
+              key={engine}
+              type="button"
+              className="bstat-btn"
+              aria-pressed={engineFilter === engine}
+              onClick={() => setEngineFilter(engine)}
+            >
+              {engine === "all" ? "All bots" : engine === "aether" ? "Aether" : "Authur"}
+            </button>
+          ))}
+        </div>
+      )}
+
       {stats && stats.games === 0 && (
         <p className="empty-text">
-          No games recorded here yet.{" "}
+          {engineFilter === "all"
+            ? "No games recorded here yet."
+            : `No ${engineFilter === "authur" ? "Authur" : "Aether"} games recorded here yet.`}{" "}
           {folder.isOpen
             ? "This folder is open — the next finished bot game will land here."
             : "Open this folder, then play the bot."}
@@ -436,7 +460,7 @@ function FolderDetail({
           )}
 
           <section className="bstat-section">
-            <h3 className="bstat-section-title">History · {games?.length ?? 0}</h3>
+            <h3 className="bstat-section-title">History · {visibleGames?.length ?? 0}</h3>
             <div className="bstat-table-wrap">
               <table className="bstat-table">
                 <thead>
@@ -451,11 +475,15 @@ function FolderDetail({
                   </tr>
                 </thead>
                 <tbody>
-                  {(games ?? []).map((g) => (
+                  {(visibleGames ?? []).map((g) => (
                     <tr key={g.id}>
                       <td>{fmtDate(g.finishedAt ?? g.createdAt)}</td>
                       <td>{g.playerName}</td>
-                      <td>{g.botDifficulty ?? "—"}</td>
+                      <td>
+                        {g.botEngine === "authur"
+                          ? "Authur · STRONG"
+                          : `Aether · ${g.botDifficulty ?? "—"}`}
+                      </td>
                       <td className="num">{g.botScore}</td>
                       <td className="num">{g.oppScore}</td>
                       <td>

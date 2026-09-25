@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Atom } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
 import type { RoomVisibility } from "../../roomScope";
 import { PrimaryNavigation } from "./PrimaryNavigation";
@@ -46,21 +46,11 @@ export function ApplicationShell({
 
       <header className="eq-app-header">
         <div className="eq-app-header-start">
-          {onBack && (
-            <button
-              className="eq-icon-button eq-back-button"
-              type="button"
-              aria-label={backLabel}
-              onClick={onBack}
-            >
-              <ArrowLeft aria-hidden="true" size={19} />
-            </button>
-          )}
           <a className="eq-brand" href="#/public" aria-label="EQ Lab home">
             <img src="/icons/eqlab-mark.svg" alt="" width="34" height="34" />
             <span>
               <strong>EQ Lab</strong>
-              <small>Equation game workspace</small>
+              <small>Play · Explore · Improve</small>
             </span>
           </a>
         </div>
@@ -75,16 +65,33 @@ export function ApplicationShell({
       <main ref={mainRef} className="eq-main" id="main-content" tabIndex={-1}>
         <header className="eq-page-header">
           <div className="eq-page-title-row">
+            {onBack && (
+              <button
+                className="eq-page-back"
+                type="button"
+                onClick={onBack}
+                aria-label={backLabel}
+              >
+                <ArrowLeft aria-hidden="true" size={17} />
+                <span>{backLabel}</span>
+              </button>
+            )}
             <div className="eq-page-heading">
               {eyebrow && <span className="eq-eyebrow">{eyebrow}</span>}
               <h1>{title}</h1>
               {description && <p>{description}</p>}
             </div>
           </div>
+          <div className="eq-page-header-mark" aria-hidden="true">
+            <span className="eq-page-header-orbit" />
+            <Atom size={39} strokeWidth={1.35} />
+          </div>
         </header>
 
         {secondaryNavigation}
-        <div className="eq-page-content">{children}</div>
+        <div className="eq-page-content" key={routeKey}>
+          {children}
+        </div>
       </main>
     </div>
   );

@@ -21,6 +21,25 @@ describe("remote live-game creation", () => {
     rpc.mockReset();
   });
 
+  it("refuses an Authur room before creation when the database still labels bots Aether", async () => {
+    const game = createNewGame({
+      ...DEFAULT_NEW_GAME_SETTINGS,
+      playerB: "Authur",
+      botSide: "B",
+      botEngine: "authur",
+      botDifficulty: "super",
+      tileDrawMode: "play",
+    });
+    rpc.mockResolvedValue({ data: "aether_super", error: null });
+    await expect(
+      createRoom(game, "11111111-1111-4111-8111-111111111111", emptyLiveSession(null), {
+        visibility: "public",
+        regionId: null,
+      }),
+    ).rejects.toThrow("authur_bot_migration.sql");
+    expect(rpc.mock.calls.map(([name]) => name)).toEqual(["mode_key_from_state"]);
+  });
+
   it("persists an Aether room's initial state and session atomically before reading it", async () => {
     const ownerId = "11111111-1111-4111-8111-111111111111";
     const roomId = "44444444-4444-4444-8444-444444444444";

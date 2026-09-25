@@ -1,5 +1,9 @@
 import { useId } from "react";
-import { ANALYSIS_LEVEL_SAMPLES, type AnalysisCandidate, type AnalysisResult } from "../../bot/engineApi";
+import {
+  ANALYSIS_LEVEL_SAMPLES,
+  type AnalysisCandidate,
+  type AnalysisResult,
+} from "../../bot/engineApi";
 import { useDialogBehavior } from "../ui/useDialogBehavior";
 
 // The player's own turn, analysed. Reuses the "why this move" panel's visual
@@ -11,9 +15,10 @@ import { useDialogBehavior } from "../ui/useDialogBehavior";
 // computed for presentation.
 
 const SOLVER_LABEL: Record<AnalysisResult["method"]["solver"], string> = {
-  sim: "จำลองตาต่อไป (Monte-Carlo 2 ply)",
-  endgame: "แก้ท้ายเกมแบบ exact (พิสูจน์ทุกเส้นทาง)",
-  greedy: "ประเมินแบบ static (greedy)",
+  sim: "ลองเดินเกมหลายแบบ",
+  endgame: "คำนวณจนจบเกม",
+  greedy: "เทียบทางเลือกที่เห็น",
+  stage5b: "Stage 5B + โมเดล Stage 5A",
 };
 
 const LEVEL_LABEL: Record<AnalysisResult["level"], string> = {
@@ -21,6 +26,7 @@ const LEVEL_LABEL: Record<AnalysisResult["level"], string> = {
   normal: "ปกติ",
   deep: "ลึก",
   max: "สูงสุด (Super)",
+  stage5b64: "Stage 5B · 64 ตา",
 };
 
 /**
@@ -34,13 +40,16 @@ const LEVEL_LABEL: Record<AnalysisResult["level"], string> = {
  */
 function provenanceLine(analysis: AnalysisResult): string {
   const { method, level } = analysis;
-  const samples = `${method.samples}/${ANALYSIS_LEVEL_SAMPLES[level]} samples`;
+  if (method.solver === "stage5b") {
+    return `คำนวณบนเซิร์ฟเวอร์ · ตรวจเชิงลึกสูงสุด ${method.depth ?? 64} ตา`;
+  }
+  const samples = `${method.samples}/${ANALYSIS_LEVEL_SAMPLES[level]} รอบ`;
   if (analysis.localEngine) {
-    return `คิดบนเครื่องนี้ · ${analysis.localEngine.threads} threads · ${samples}`;
+    return `คำนวณบนเครื่องนี้ · ${samples}`;
   }
   return method.complete
-    ? `คิดบนเซิร์ฟเวอร์ · ${samples}`
-    : `คิดบนเซิร์ฟเวอร์ · ${samples} · ถูกตัดจบด้วยเวลา`;
+    ? `คำนวณบนเซิร์ฟเวอร์ · ${samples}`
+    : `คำนวณบนเซิร์ฟเวอร์ · ${samples} · ครบเวลาที่กำหนด`;
 }
 
 /** Board coordinate as A-Math notation: column A–O, row 1–15 (center = H8). */
@@ -62,7 +71,7 @@ function moveLabel(candidate: AnalysisCandidate): string {
     cells.length > 1
       ? `${coordLabel(from.r, from.c)}–${coordLabel(to.r, to.c)}`
       : coordLabel(from.r, from.c);
-  return `วาง ${tokens}  @ ${where}`;
+  return `วาง ${tokens} ที่ ${where}`;
 }
 
 function fmt(value: number, digits = 1): string {
@@ -107,7 +116,6 @@ export function TurnAnalysisPanel({
               ตาที่ {analysis.turnNumber} · ระดับ {LEVEL_LABEL[analysis.level]} ·{" "}
               {SOLVER_LABEL[method.solver]}
             </div>
-            <div className="bot-reason-sub analysis-provenance">{provenanceLine(analysis)}</div>
           </div>
           <button className="bot-reason-close" onClick={onClose} aria-label="ปิด">
             ✕
@@ -132,9 +140,14 @@ export function TurnAnalysisPanel({
                 <b>+{recommendation.provenMargin}</b> แต้ม ไม่ว่าคู่ต่อสู้จะเล่นแบบไหน
               </>
             ) : (recommendation.provenMargin ?? 0) < 0 ? (
-              <>พิสูจน์แล้วว่าตกเป็นรอง (ผลต่างสุดท้าย {recommendation.provenMargin}) — ทางนี้เสียน้อยที่สุด</>
+              <>
+                พิสูจน์แล้วว่าตกเป็นรอง (ผลต่างสุดท้าย {recommendation.provenMargin}) —
+                ทางนี้เสียน้อยที่สุด
+              </>
             ) : (
-              <>พิสูจน์แล้วว่าผลลัพธ์ดีที่สุดคือ <b>เสมอ</b> (0)</>
+              <>
+                พิสูจน์แล้วว่าผลลัพธ์ดีที่สุดคือ <b>เสมอ</b> (0)
+              </>
             )}
           </div>
         )}
@@ -157,17 +170,23 @@ export function TurnAnalysisPanel({
 
         <p className="bot-reason-verdict">{analysis.summary}</p>
 
-        <div className="bot-reason-stats">
-          <Stat label="แต้มตานี้" value={String(recommendation.immediateScore)} />
-          <Stat
-            label={isEndgame ? "ผลต่างสุดท้าย" : "ค่าประเมิน"}
-            value={isEndgame ? fmt(recommendation.evaluation, 0) : fmt(recommendation.evaluation, 2)}
-          />
-          <Stat label="ตาที่ถูกกฎทั้งหมด" value={`${method.legalMoves} ทาง`} />
-          {method.solver === "sim" && <Stat label="สุ่มมือคู่ต่อสู้" value={`${method.samples} ครั้ง`} />}
-          <Stat label="Node ที่ค้น" value={method.nodes.toLocaleString()} />
-          <Stat label="เวลาคิด" value={`${(method.elapsedMs / 1000).toFixed(1)}s`} />
-        </div>
+        <details className="analysis-technical">
+          <summary>ดูรายละเอียดการคำนวณ</summary>
+          <div className="bot-reason-sub analysis-provenance">{provenanceLine(analysis)}</div>
+          <div className="bot-reason-stats">
+            <Stat label="แต้มตานี้" value={String(recommendation.immediateScore)} />
+            <Stat
+              label={isEndgame ? "ผลต่างสุดท้าย" : method.solver === "stage5b" ? "ค่าประเมิน" : "แต้มคาดการณ์"}
+              value={
+                isEndgame ? fmt(recommendation.evaluation, 0) : fmt(recommendation.evaluation, 2)
+              }
+            />
+            <Stat label="ทางเลือกที่ถูกกฎทั้งหมด" value={`${method.legalMoves} ทาง`} />
+            {method.solver === "sim" && <Stat label="รอบจำลอง" value={`${method.samples} ครั้ง`} />}
+            <Stat label="จุดที่คำนวณ" value={method.nodes.toLocaleString()} />
+            <Stat label="เวลาคิด" value={`${(method.elapsedMs / 1000).toFixed(1)}s`} />
+          </div>
+        </details>
 
         <div className="analysis-factors">
           <div className="analysis-factors-title">ทำไมถึงแนะนำทางนี้</div>
@@ -184,6 +203,7 @@ export function TurnAnalysisPanel({
         {alternatives.length > 0 && (
           <>
             <div className="analysis-alt-title">ทางเลือกอื่นที่พิจารณา</div>
+            <p className="bot-reason-scroll-hint">เลื่อนตารางเพื่อดูข้อมูลอีก →</p>
             <div className="bot-reason-tablewrap">
               <table className="bot-reason-table">
                 <thead>
@@ -220,9 +240,7 @@ export function TurnAnalysisPanel({
                       <td className="strong">
                         {isEndgame ? fmt(candidate.evaluation, 0) : fmt(candidate.evaluation, 2)}
                       </td>
-                      <td className="neg">
-                        {signed(-candidate.evaluationGap, isEndgame ? 0 : 2)}
-                      </td>
+                      <td className="neg">{signed(-candidate.evaluationGap, isEndgame ? 0 : 2)}</td>
                       <td className="al">{candidate.note}</td>
                     </tr>
                   ))}
@@ -232,21 +250,22 @@ export function TurnAnalysisPanel({
           </>
         )}
 
-        <div className="bot-reason-legend">
-          {isEndgame ? (
-            <>
-              <b>ผลต่างสุดท้าย</b> = แต้มรวมของเราลบแต้มรวมคู่ต่อสู้เมื่อเล่นจนจบเกมแบบดีที่สุดทั้งสองฝ่าย
-              (บวก = เราชนะ). ตัวเลขเหล่านี้เป็นค่าที่พิสูจน์ได้ ไม่ใช่การประมาณ.
-            </>
-          ) : (
-            <>
-              <b>ค่าประเมิน</b> = ค่าที่เอนจินใช้จัดอันดับจริง (mean − λ·risk).{" "}
-              <b>แต้มตานี้</b> = แต้มที่ได้ทันที. <b>คุณค่าไทล์ที่เหลือ</b> = leave.{" "}
-              <b>โอกาสทำแต้มตาถัดไป</b> = potential. <b>เปิดให้คู่ต่อสู้</b> = ค่าตาที่ดีที่สุดของอีกฝ่ายที่ถูกหักออก
-              (ยิ่งน้อยยิ่งดี). ทุกตัวเลขมาจากการค้นหาจริง ไม่ได้สร้างขึ้นภายหลัง.
-            </>
-          )}
-        </div>
+        <details className="bot-reason-technical">
+          <summary>วิธีอ่านตัวเลข</summary>
+          <div className="bot-reason-legend">
+            {isEndgame ? (
+              <>
+                <b>ผลต่างสุดท้าย</b> คือแต้มของเราลบแต้มคู่ต่อสู้เมื่อจบเกม
+                ตัวเลขนี้คำนวณจากการเดินที่ดีที่สุดของทั้งสองฝ่าย
+              </>
+            ) : (
+              <>
+                <b>ค่าประเมิน</b> ใช้เรียงทางเลือก โดยดูแต้มที่ได้ทันที ไทล์ที่เหลือ โอกาสในตาถัดไป
+                และทางสวนของคู่ต่อสู้ ตัวเลขบวกมากกว่าหมายถึงทางเลือกที่น่าเล่นกว่า
+              </>
+            )}
+          </div>
+        </details>
       </div>
     </div>
   );

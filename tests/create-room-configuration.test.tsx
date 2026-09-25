@@ -38,6 +38,7 @@ async function createRoom(destination: RegExp, mode: RegExp): Promise<Created> {
       submitting={false}
       onBack={vi.fn()}
       onCreate={(settings, policy) => created.push({ settings, policy })}
+      onCreateRanked={async () => undefined}
     />,
   );
 
@@ -51,6 +52,31 @@ async function createRoom(destination: RegExp, mode: RegExp): Promise<Created> {
 }
 
 describe("create flow configuration", () => {
+  it("ranked reuses room setup and offers only equal clock choices", async () => {
+    const user = userEvent.setup();
+    const createRanked = vi.fn(async (_minutes: number) => undefined);
+    const view = render(
+      <CreateRoomPage
+        canCreate
+        createDisabledReason={null}
+        visibility="public"
+        regionAvailable={false}
+        regionId={null}
+        regionName={null}
+        preset="ranked"
+        submitting={false}
+        onBack={vi.fn()}
+        onCreate={vi.fn()}
+        onCreateRanked={createRanked}
+      />,
+    );
+    expect(view.getAllByRole("radio")).toHaveLength(4);
+    expect(view.queryByText(/Join policy|Tile draw|Starting side/i)).toBeNull();
+    await user.click(view.getByRole("radio", { name: /20/ }));
+    await user.click(view.getByRole("button", { name: "สร้างห้องจัดอันดับ" }));
+    expect(createRanked).toHaveBeenCalledWith(20);
+  });
+
   it("public + match produces an open public versus room", async () => {
     const { settings, policy } = await createRoom(/^Public/, /^Match/);
     expect(settings.gameMode).toBe("versus");

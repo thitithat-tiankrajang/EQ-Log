@@ -47,6 +47,58 @@ describe("application routes", () => {
     expect(routeToHash({ kind: "admin", section: "regions" })).toBe("#/admin/regions");
   });
 
+  it("opens ranked lobby and shareable ranked matches", () => {
+    expect(parseHash("#/ranked")).toEqual({ kind: "ranked" });
+    expect(parseHash(routeToHash({ kind: "ranked", matchId: "abc-123" }))).toEqual({
+      kind: "ranked",
+      matchId: "abc-123",
+    });
+  });
+
+  it("opens ranked configuration inside the shared create-room flow", () => {
+    const route = {
+      kind: "create" as const,
+      visibility: "public" as const,
+      preset: "ranked" as const,
+    };
+    expect(parseHash(routeToHash(route))).toEqual(route);
+  });
+
+  it("keeps the exact History or private folder destination through room and play links", () => {
+    const destinations = [
+      { kind: "home" as const, visibility: "region" as const, section: "history" as const },
+      { kind: "private" as const, folderId: "folder/one", trash: false },
+      { kind: "private" as const, folderId: null, trash: true },
+    ];
+    for (const returnTo of destinations) {
+      for (const kind of ["room", "play"] as const) {
+        const route = { kind, roomId: "game/id", returnTo };
+        expect(parseHash(routeToHash(route))).toEqual(route);
+      }
+    }
+  });
+
+  it("keeps the source page when Create is opened from History or a private folder", () => {
+    for (const returnTo of [
+      { kind: "home" as const, visibility: "region" as const, section: "history" as const },
+      { kind: "private" as const, folderId: "folder/one", trash: false },
+    ]) {
+      const route = { kind: "create" as const, visibility: "public" as const, returnTo };
+      expect(parseHash(routeToHash(route))).toEqual(route);
+    }
+  });
+
+  it("ignores untrusted or unsupported return destinations in shared links", () => {
+    expect(parseHash("#/play/game-1?from=play%2Fother-game")).toEqual({
+      kind: "play",
+      roomId: "game-1",
+    });
+    expect(parseHash("#/play/game-1?from=https%3A%2F%2Fexample.com")).toEqual({
+      kind: "play",
+      roomId: "game-1",
+    });
+  });
+
   it("preserves a room code in a shareable join route", () => {
     expect(parseHash("#/region/join?code=AB12CD34EF56")).toEqual({
       kind: "join",

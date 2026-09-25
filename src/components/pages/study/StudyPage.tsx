@@ -11,7 +11,7 @@
 // finishes, not by this page, so closing the tab during a long `super` search
 // still leaves the result behind.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Bot, ChevronLeft, Loader2, Plus, Sparkles, Trash2, TriangleAlert } from "lucide-react";
 
 import { ApplicationShell } from "../../../app/shells/ApplicationShell";
@@ -46,14 +46,28 @@ import {
   listStudyRecords,
   type StudyRecord,
 } from "../../../features/study/repository";
+import {
+  boardFromStudyCells,
+  newStudyTile,
+  studyBoardCell,
+  toStudyBoardCells,
+} from "../../../features/study/position";
 // The board and the tiles bring their own stylesheet. `play-styles.css` ships
 // only with the lazily loaded Play chunk (see AppRoot.tsx), so a <Board> on any
 // other route renders as unstyled markup — a vertical stack of 225 buttons and
 // transparent tiles — unless the page asks for these itself.
-import "../../../board-styles.css";
+import { useBoardStyles } from "./useBoardStyles";
 import { StudyRanking } from "./StudyRanking";
 import { KEY_LEGEND, resolveStudyKey, type TileStroke } from "../../../gameplay/tileKeys";
 import { TOKEN_LIST, countUsage, hiddenInventory, remainingOf } from "./tileSupply";
+import type { BoardEvidence } from "../../../features/boardVision/types";
+import { BOARD_EVIDENCE_SOURCES, type StudyEvidenceSource } from "./boardEvidenceSources";
+import type { ImportContext } from "../../../features/boardVision/annotation";
+import { BoardImportEntries } from "./BoardImportEntries";
+
+// Verification is only ever needed after an import, so it — and the
+// reconstruction code behind it — is fetched then, not with the page.
+const BoardVerification = lazy(() => import("./BoardVerification"));
 
 const RACK_LIMIT = 8;
 
@@ -97,24 +111,17 @@ function retreatCursor(cursor: Cursor): Cursor | null {
 type Step = "board" | "rack" | "review" | "level" | "running" | "result";
 
 const LEVELS: Array<{ value: string; label: string; desc: string; meter: number }> = [
-  { value: "medium", label: "Fast", desc: "คิดเร็ว ตอบไวที่สุด", meter: 1 },
-  { value: "hard", label: "Balanced", desc: "ค้นลึกขึ้น เล่นคมขึ้น", meter: 2 },
-  { value: "max", label: "Deep", desc: "เต็มกำลังภายใต้เพดานเวลาของเอนจิน", meter: 3 },
   {
-    value: "super",
-    label: "Unlimited",
-    desc: "ไม่จำกัดเวลา คิดจนครบ 100% — ตาละหลายนาที",
+    value: "stage5b64",
+    label: "Stage 5B + Stage 5A",
+    desc: "หาแต้มที่มีค่าดีที่สุด · ตรวจเชิงลึกสูงสุด 64 ตา",
     meter: 4,
   },
 ];
 
-function newTile(token: AmathToken, assignedToken?: string): TileInstance {
-  return assignedToken
-    ? { id: crypto.randomUUID(), token, assignedToken }
-    : { id: crypto.randomUUID(), token };
-}
-
 export function StudyPage() {
+  // Board and tile styling for this page only — see useBoardStyles for why it is not global.
+  useBoardStyles();
   const { configured, userId } = useAuth();
 
   const [step, setStep] = useState<Step>("board");
@@ -129,14 +136,24 @@ export function StudyPage() {
    *  where a modifier for each would need combinations no platform leaves
    *  free. It is shown on screen so it can never be silently armed. */
   const [blankArmed, setBlankArmed] = useState(false);
+  /** Evidence for an imported board that is still being verified. While it is
+   *  set, the board step shows the verification view instead of the editor,
+   *  and `board` is untouched until the person confirms. */
+  const [importEvidence, setImportEvidence] = useState<BoardEvidence | null>(null);
+  /** What the photo import knows about where that evidence came from (vision
+   *  world only: never reaches the board). */
+  const [importContext, setImportContext] = useState<ImportContext | null>(null);
+  /** An import that needs its own screens (the photo import) while it runs. */
+  const [importFlow, setImportFlow] = useState<StudyEvidenceSource | null>(null);
 
-  const [level, setLevel] = useState<string>("max");
+  const [level, setLevel] = useState<string>("stage5b64");
   const [result, setResult] = useState<StudyAnalysisResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<EngineProgress | null>(null);
   const [queued, setQueued] = useState<EngineQueueState | null>(null);
 
   const [records, setRecords] = useState<StudyRecord[]>([]);
+  const [recordsLoading, setRecordsLoading] = useState(true);
   const [recordsError, setRecordsError] = useState<string | null>(null);
   const [openRecord, setOpenRecord] = useState<StudyRecord | null>(null);
 
@@ -146,6 +163,8 @@ export function StudyPage() {
 
   const refreshRecords = useCallback(() => {
     if (!userId) return;
+    setRecordsLoading(true);
+    setRecordsError(null);
     listStudyRecords()
       .then((rows) => {
         setRecords(rows);
@@ -153,7 +172,8 @@ export function StudyPage() {
       })
       .catch((cause: unknown) =>
         setRecordsError(cause instanceof Error ? cause.message : "โหลดรายการไม่สำเร็จ"),
-      );
+      )
+      .finally(() => setRecordsLoading(false));
   }, [userId]);
 
   useEffect(refreshRecords, [refreshRecords]);
@@ -191,7 +211,7 @@ export function StudyPage() {
       setRack((current) => {
         if (current.length >= RACK_LIMIT) return current;
         if (remainingOf(countUsage(board, current), token) <= 0) return current;
-        return [...current, newTile(token)];
+        return [...current, newStudyTile(token)];
       });
     },
     [board],
@@ -215,11 +235,7 @@ export function StudyPage() {
         stroke.assignedToken ??
         (tileNeedsAssignment(stroke.token) ? getAssignmentOptions(stroke.token)[0] : undefined);
       const next = board.map((line) => [...line]);
-      next[cursor.row]![cursor.col] = {
-        tile: newTile(stroke.token, face),
-        placedTurn: 0,
-        side: "A",
-      };
+      next[cursor.row]![cursor.col] = studyBoardCell(newStudyTile(stroke.token, face));
       setBoard(next);
       setCursor(advanceCursor(cursor, next));
     },
@@ -301,6 +317,9 @@ export function StudyPage() {
   // would make the first keystroke after any click do nothing.
   useEffect(() => {
     if (step !== "board" && step !== "rack" && step !== "review") return;
+    // Verifying an import is done by tapping squares, not by typing: a stray
+    // keystroke must not edit the board hidden behind the verification view.
+    if (importEvidence || importFlow) return;
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       // The score fields are text inputs. Typing `5` into one must mean five,
@@ -357,6 +376,8 @@ export function StudyPage() {
     confirmStep,
     eraseBack,
     eraseHere,
+    importEvidence,
+    importFlow,
     moveCursor,
     placeStroke,
     step,
@@ -389,6 +410,20 @@ export function StudyPage() {
     setCursor(null);
     setActiveToken(null);
     setBlankArmed(false);
+    setImportEvidence(null);
+    setImportContext(null);
+    setImportFlow(null);
+  };
+
+  /** The boundary. What arrives here is a plain board built by the same helpers
+   *  the editor uses; from now on it is simply the board being edited. */
+  const acceptImportedBoard = (imported: BoardSnapshot) => {
+    setBoard(imported);
+    setCursor(null);
+    setActiveToken(null);
+    setBlankArmed(false);
+    setImportEvidence(null);
+    setImportContext(null);
   };
 
   const analyse = async (chosen: string) => {
@@ -401,11 +436,7 @@ export function StudyPage() {
       const answer = await requestStudyAnalysis({
         scoreSelf,
         scoreOpponent,
-        board: board.flatMap((line, r) =>
-          line.flatMap((cell, c) =>
-            cell ? [{ r, c, kind: cell.tile.token, token: displayTokenFor(cell.tile) }] : [],
-          ),
-        ),
+        board: toStudyBoardCells(board),
         rack: rack.map((tile) => tile.token),
         level: chosen,
         onQueued: setQueued,
@@ -455,7 +486,7 @@ export function StudyPage() {
   return (
     <ApplicationShell
       title="Study"
-      description="ตั้งโจทย์เอง แล้วให้บอทวิเคราะห์ — ไม่มีห้อง ไม่มีเทิร์น ไม่มี log"
+      description="ตั้งกระดาน เลือกเบี้ย แล้วดูตาที่ดีที่สุด"
       actions={<AccountChip />}
       routeKey="study"
     >
@@ -468,16 +499,48 @@ export function StudyPage() {
 
       <StepTrail step={step} />
 
-      {step === "board" && (
+      {step === "board" && importEvidence && (
+        <Suspense fallback={<Loader2 className="study-spinner" size={28} aria-hidden />}>
+          <BoardVerification
+            evidence={importEvidence}
+            context={importContext}
+            onConfirm={acceptImportedBoard}
+            onCancel={() => {
+              setImportEvidence(null);
+              setImportContext(null);
+            }}
+          />
+        </Suspense>
+      )}
+
+      {step === "board" && !importEvidence && importFlow?.flow && (
+        <Suspense fallback={<Loader2 className="study-spinner" size={28} aria-hidden />}>
+          <importFlow.flow
+            onEvidence={(evidence, context) => {
+              setImportEvidence(evidence);
+              setImportContext(context ?? null);
+              setImportFlow(null);
+            }}
+            onCancel={() => setImportFlow(null)}
+          />
+        </Suspense>
+      )}
+
+      {step === "board" && !importEvidence && !importFlow && (
         <section className="study-step" aria-label="ตั้งกระดานและแต้ม">
           <div className="study-scores">
             <ScoreField label="แต้มของคุณ" value={scoreSelf} onChange={setScoreSelf} />
             <ScoreField label="แต้มคู่แข่ง" value={scoreOpponent} onChange={setScoreOpponent} />
           </div>
 
+          <BoardImportEntries
+            sources={BOARD_EVIDENCE_SOURCES}
+            onEvidence={setImportEvidence}
+            onStartFlow={setImportFlow}
+          />
+
           <p className="study-hint">
-            แตะช่องว่างเพื่อวางเคอร์เซอร์ แล้ว<b>พิมพ์ได้เลย</b> · <kbd>Space</kbd> สลับทิศ → ↔ ↓ ·{" "}
-            <kbd>⌫</kbd> ลบถอยหลัง · <kbd>Enter</kbd> ไปขั้นถัดไป · แตะเบี้ยที่วางแล้วเพื่อเอาออก
+            แตะช่อง แล้ว<b>พิมพ์หรือเลือกเบี้ย</b> · <kbd>Space</kbd> สลับทิศ · <kbd>⌫</kbd> ลบ
           </p>
 
           <div className="study-board">
@@ -604,15 +667,15 @@ export function StudyPage() {
               แก้เบี้ยในมือ
             </button>
             <button type="button" className="primary-button" onClick={() => setStep("level")}>
-              โจทย์ถูกต้อง ไปเลือกระดับบอท
+              โจทย์ถูกต้อง ไปดูเฉลย
             </button>
           </div>
         </section>
       )}
 
       {step === "level" && (
-        <section className="study-step" aria-label="เลือกระดับบอท">
-          <h2 className="study-heading">ให้บอทระดับไหนคิด</h2>
+        <section className="study-step" aria-label="ดูเฉลย">
+          <h2 className="study-heading">ดูเฉลยด้วย Stage 5B</h2>
           <div className="study-levels">
             {LEVELS.map((option) => (
               <button
@@ -717,7 +780,14 @@ export function StudyPage() {
       <section className="study-history" aria-labelledby="study-history-heading">
         <h2 id="study-history-heading">โจทย์ที่วิเคราะห์ไว้</h2>
         {recordsError && <p className="sync-banner">{recordsError}</p>}
-        {records.length === 0 && !recordsError && <p className="study-empty">ยังไม่มีรายการ</p>}
+        {recordsLoading && records.length === 0 ? (
+          <div className="eq-skeleton-list" role="status" aria-label="กำลังโหลดโจทย์ที่บันทึกไว้">
+            <span />
+            <span />
+          </div>
+        ) : records.length === 0 && !recordsError ? (
+          <p className="study-empty">ยังไม่มีรายการ</p>
+        ) : null}
         <ul className="study-history-list">
           {records.map((record) => (
             <li key={record.id}>
@@ -747,11 +817,6 @@ export function StudyPage() {
       </section>
     </ApplicationShell>
   );
-}
-
-/** The face a tile is played as, for the engine's `token` field. */
-function displayTokenFor(tile: TileInstance): string {
-  return tile.assignedToken ?? tile.token;
 }
 
 function StepTrail({ step }: { step: Step }) {
@@ -951,23 +1016,7 @@ function PositionSummary({
 }
 
 function SavedRecordView({ record }: { record: StudyRecord }) {
-  const board = useMemo(() => {
-    const snapshot = createBoard();
-    for (const cell of record.board) {
-      const token = cell.kind as AmathToken;
-      const row = snapshot[cell.r];
-      if (!row) continue;
-      row[cell.c] = {
-        tile:
-          cell.token && cell.token !== cell.kind
-            ? { id: `${cell.r}:${cell.c}`, token, assignedToken: cell.token }
-            : { id: `${cell.r}:${cell.c}`, token },
-        placedTurn: 0,
-        side: "A",
-      };
-    }
-    return snapshot;
-  }, [record]);
+  const board = useMemo(() => boardFromStudyCells(record.board), [record]);
 
   return (
     <>

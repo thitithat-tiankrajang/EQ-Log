@@ -28,11 +28,14 @@ test("a committed turn survives a reload", async ({ page }, testInfo) => {
   await page.evaluate(() => document.querySelectorAll("details").forEach((d) => (d.open = true)));
   await page.locator('[data-choice-value="play"]').click();
   await page.getByRole("button", { name: /Create match room/i }).click();
-  await page.getByRole("button", { name: /^Start game$/ }).click();
+  await page.getByRole("button", { name: /^Start Lab$/ }).click();
   await expect(page).toHaveURL(/#\/play\//);
   await page.locator("button.board-cell").first().waitFor();
 
-  const roomId = await page.evaluate(() => location.hash.split("/").pop()!);
+  const roomId = await page.evaluate(() =>
+    decodeURIComponent(window.location.hash.match(/^#\/play\/([^?]+)/)?.[1] ?? ""),
+  );
+  expect(roomId).not.toBe("");
 
   // Deal side A a rack that can actually play something: 1 + 2 = 3, laid across
   // the centre star, which is where a first move has to go.

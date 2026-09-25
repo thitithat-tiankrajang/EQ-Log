@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { FolderKanban } from "lucide-react";
+import { ChartNoAxesCombined } from "lucide-react";
 import { useAuth } from "../../auth";
 import { BotStatsPanel } from "./BotStatsPanel";
 
@@ -14,12 +14,14 @@ export function BotStatsButton() {
   return (
     <>
       <button
-        className="eq-utility-button"
+        className="eq-utility-button eq-utility-botstats"
         type="button"
         aria-label="Open bot statistics"
         onClick={() => setOpen(true)}
       >
-        <FolderKanban size={16} />
+        <span className="eq-utility-icon">
+          <ChartNoAxesCombined size={16} />
+        </span>
         <span className="eq-utility-label">Bot stats</span>
       </button>
       {open && <BotStatsPanel onClose={() => setOpen(false)} />}

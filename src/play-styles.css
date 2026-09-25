@@ -13,3 +13,5 @@
 @import "./styles/95-material-ai.css" layer(legacy);
 @import "./styles/components/97-ui-kit.css" layer(legacy);
 @import "./styles/99-mobile-play.css" layer(legacy);
+@import "./styles/components/72-turn-log-branches.css" layer(legacy);
+@import "./styles/98-play-stability.css" layer(legacy);

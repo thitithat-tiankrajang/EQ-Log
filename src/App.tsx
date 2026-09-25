@@ -2,8 +2,12 @@ import {
   Ban,
   Clock3,
   Coffee,
+  BrainCircuit,
+  ChevronRight,
   Download,
   Flag,
+  FlaskConical,
+  GitBranch,
   List,
   LogOut,
   Play,
@@ -25,6 +29,13 @@ import {
   useSyncExternalStore,
 } from "react";
 import { ActionPanel } from "./components/actions/ActionPanel";
+import {
+  cachedPlayTools,
+  defaultPlayTools,
+  loadPlayTools,
+  playModeKey,
+  type PlayTool,
+} from "./playModeTools";
 import { Board, type BoardScoreAnchor } from "./components/board/Board";
 import { GlobalActivity, LoadingScreen } from "./components/feedback/LoadingActivity";
 import { Lobby } from "./components/pages/Lobby";
@@ -32,7 +43,19 @@ import { CreateRoomPage } from "./components/pages/pregame/CreateRoomPage";
 import { JoinRoomPage } from "./components/pages/pregame/JoinRoomPage";
 import { WaitingRoomPage } from "./components/pages/pregame/WaitingRoomPage";
 import { LogModal } from "./components/logs/LogModal";
-import { LogPanel } from "./components/logs/LogPanel";
+import {
+  LogPanel,
+  type BranchControl,
+  type LineView,
+  type TurnStep,
+} from "./components/logs/LogPanel";
+import { TurnLogMap } from "./components/logs/TurnLogMap";
+import {
+  buildForkIndex,
+  divergence,
+  NO_FORKS,
+  type BranchOption,
+} from "./components/logs/branchView";
 import { PlayRail } from "./components/rail/PlayRail";
 import { RailDivider } from "./components/rail/RailDivider";
 import { Rack } from "./components/board/Rack";
@@ -45,6 +68,24 @@ import { ResultModal } from "./components/modals/ResultModal";
 import { ConfirmSheet, Sheet } from "./components/ui/Sheet";
 import { useAuth } from "./auth";
 import { AdminPage } from "./admin";
+import { recordSurvivalPracticeResult } from "./features/survival/repository";
+import { rankedClient } from "./features/ranked/client";
+import { survivalPlaytestSource, type SurvivalView } from "./features/survivalPlay/api";
+import { parseSurvivalRoomId, survivalAttemptRoomId } from "./features/survivalPlay/route";
+import {
+  survivalGameFromView,
+  survivalMoveFromLog,
+  survivalTilebagView,
+  type SurvivalGame,
+} from "./features/survivalPlay/projection";
+import { studyPuzzleSource, type PlayerPuzzle } from "./features/studyPuzzles/api";
+import {
+  parseStudyPuzzleRoomId,
+  studyPlacementsFromLog,
+  studyPuzzleGame,
+  studyTilebagView,
+  type StudyPuzzleGame,
+} from "./features/studyPuzzles/play";
 import {
   ActionType,
   BoardSnapshot,
@@ -91,7 +132,8 @@ import { navigate, useRoute } from "./router";
 import { getRoomActorCapabilities } from "./roomAccess";
 import { isRemoteGameAhead, isRemoteGameStale, revisionOf, withRevision } from "./gameSync";
 import * as playSnapshotCache from "./playSnapshotCache";
-import { applyCanonicalToSnapshot, decodeCanonical, inventoryFrom } from "./domain/projection";
+import { decodeCanonical, inventoryFrom } from "./domain/projection";
+import { spectatorPreview } from "./spectatorPreview";
 import {
   createWaitingGame,
   getRoomStage,
@@ -126,7 +168,21 @@ import {
 import { STORAGE_KEYS } from "./constants/storage";
 import { createAutomaticEndGameLog, createSurrenderEndGameLog } from "./gameplay/endGame";
 import { getExchangeRule, getTilebagView, refillRackFromQueue } from "./gameplay/tilebag";
+import { typeKey, type Slot } from "./gameplay/rackTyping";
 import { advanceRunningClock } from "./gameplay/timer";
+import {
+  buildTree,
+  continueFrom,
+  equivalentParkedChild,
+  lineCount,
+  lineTipOf,
+  pathTo,
+  pruneLine,
+  type ContinueTarget,
+  type Multiverse,
+} from "./gameplay/multiverse";
+import { encodeMultiverse } from "./gameplay/multiverseCodec";
+import * as timelineStore from "./timelineStore";
 import { clearTileAssignment } from "./gameplay/tiles";
 import {
   isDesyncBotFailure,
@@ -173,7 +229,6 @@ type ActionMode = "none" | ActionType;
  * service that is genuinely down.
  */
 
-
 /**
  * What to tell the player about an engine problem, in one line.
  *
@@ -189,18 +244,18 @@ function botNoticeFor(error: unknown): string {
       case "offline":
         return "ติดต่อเซิร์ฟเวอร์บอทไม่ได้ กำลังลองใหม่ให้อัตโนมัติ";
       case "engine_timeout":
-        return "การคำนวณของบอทใช้เวลานานเกินกำหนดและถูกหยุดไว้ — บอทจึงผ่านตานี้";
+        return "การคำนวณของบอทใช้เวลานานเกินกำหนด — ยังไม่เดินหมาก กำลังลองใหม่";
       case "budget_exhausted":
-        return "ใช้โควตาการคำนวณครบแล้ว — บอทจึงผ่านตานี้";
+        return "ใช้โควตาการคำนวณครบแล้ว — ยังไม่เดินหมาก กำลังลองใหม่";
       case "unauthenticated":
         return "เซสชันหมดอายุ — กรุณาเข้าสู่ระบบใหม่";
       case "unconfigured":
         return "ระบบบอทยังไม่ได้เปิดใช้งานในเซิร์ฟเวอร์นี้";
       default:
-        return "บอทคำนวณตานี้ไม่สำเร็จ — บอทจึงผ่านตานี้";
+        return "บอทคำนวณตานี้ไม่สำเร็จ — ยังไม่เดินหมาก กำลังลองใหม่";
     }
   }
-  return "บอทคำนวณตานี้ไม่สำเร็จ — บอทจึงผ่านตานี้";
+  return "บอทคำนวณตานี้ไม่สำเร็จ — ยังไม่เดินหมาก กำลังลองใหม่";
 }
 
 type ActionStart = {
@@ -361,6 +416,30 @@ function normalizeFinishedGame(game: GameState): GameState {
   };
 }
 
+const NO_LOGS: TurnLog[] = [];
+
+/** A Study puzzle is answered with one placement. */
+const STUDY_PLACEMENT_ONLY = "โจทย์นี้ตอบได้ด้วยการลงเบี้ยเท่านั้น (แลกหรือผ่านไม่ได้)";
+
+/**
+ * Where a room's parked lines are read from: `game_timelines` for a live room, the room's own
+ * local-storage entry without Supabase. A finished game's lines arrive inside its archive
+ * payload instead and are adopted there, never loaded through this.
+ */
+function timelineLoaderFor(remote: boolean): timelineStore.TimelineLoader {
+  if (remote) return (roomId) => remoteRooms.readTimeline(roomId);
+  return async (roomId) => {
+    const doc = roomStore.readTimelineDoc(roomId) as { version?: number } | null;
+    return doc ? { version: Number(doc.version ?? 0), doc } : null;
+  };
+}
+
+/** Take a finished game's parked lines from its archive payload, if it carried any. */
+function adoptArchivedTimeline(roomId: string, payload: remoteRooms.RemoteRoomPayload | null) {
+  if (payload?.archivedTimeline)
+    timelineStore.adoptStoredTimeline(roomId, payload.archivedTimeline);
+}
+
 function CoffeeReturnButton({ roomName, onReturn }: { roomName: string; onReturn: () => void }) {
   return (
     <button
@@ -383,7 +462,9 @@ function App() {
   const initialLobbyVisibility =
     route.kind === "home" || route.kind === "create" || route.kind === "join"
       ? route.visibility
-      : "public";
+      : route.kind === "play" && route.returnTo?.kind === "home"
+        ? route.returnTo.visibility
+        : "public";
   const [lobbyVisibility, setLobbyVisibility] = useState<RoomVisibility>(initialLobbyVisibility);
   const [rooms, setRooms] = useState<RoomMeta[]>(() =>
     remoteEnabled ? [] : roomStore.listRooms({ visibility: "public", regionId: null }),
@@ -391,6 +472,16 @@ function App() {
   const [roomsLoading, setRoomsLoading] = useState(remoteEnabled);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [blankArmed, setBlankArmed] = useState(false);
+  /**
+   * Which rack slot the keyboard is filling, or null when typing mode is off.
+   *
+   * Only meaningful while refilling by hand. The rack shows it in yellow, because typing takes
+   * over keys that mean other things on this page and a mode you cannot see is a mode that
+   * surprises you.
+   */
+  const [rackTypingFocus, setRackTypingFocus] = useState<number | null>(null);
+  const rackTypingFocusRef = useRef<number | null>(null);
+  rackTypingFocusRef.current = rackTypingFocus;
   /** One line about what the last keystroke did, when it did something the
    *  player would not otherwise see — spending a blank, or finding nothing in
    *  hand that could play the face they asked for. Clears itself. */
@@ -398,7 +489,17 @@ function App() {
   const [foregroundLoading, setForegroundLoading] = useState<string | null>(null);
   const [backgroundSyncCount, setBackgroundSyncCount] = useState(0);
   const [joinError, setJoinError] = useState<string | null>(null);
-  const routeRoomId = route.kind === "room" || route.kind === "play" ? route.roomId : null;
+  // A Survival level on the Play page is addressed like a room but is not one:
+  // its game lives on the Survival server (src/features/survivalPlay), so the
+  // room machinery below — open, subscribe, persist — must never see its id.
+  const survivalRoute = route.kind === "play" ? parseSurvivalRoomId(route.roomId) : null;
+  // A Study puzzle preview is the same kind of guest: one position from the Study
+  // puzzle server (src/features/studyPuzzles), no room behind it.
+  const studyPuzzleRoute = route.kind === "play" ? parseStudyPuzzleRoomId(route.roomId) : null;
+  const routeRoomId =
+    (route.kind === "room" || route.kind === "play") && !survivalRoute && !studyPuzzleRoute
+      ? route.roomId
+      : null;
   // On a remount for the Play route, seed the board from the last authoritative
   // snapshot this session held for the room, so returning renders the game at
   // once instead of a blank loader. The seed is revalidated in the background
@@ -406,6 +507,7 @@ function App() {
   const seededRemoteGame =
     remoteEnabled && routeRoomId ? (playSnapshotCache.get(routeRoomId) ?? null) : null;
   const [game, setGame] = useState<GameState | null>(() => {
+    if (survivalRoute || studyPuzzleRoute) return null;
     if (remoteEnabled) return seededRemoteGame;
     const id = routeRoomId ?? roomStore.getActiveRoomId();
     if (!id) return null;
@@ -418,12 +520,42 @@ function App() {
   // kick a single background revalidation. Cleared once fired.
   const seededFromCacheRef = useRef(seededRemoteGame !== null);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(() => {
+    if (survivalRoute || studyPuzzleRoute) return null;
     if (routeRoomId) return routeRoomId;
     if (remoteEnabled) return null;
     const id = roomStore.getActiveRoomId();
     return id && roomStore.readRoom(id) ? id : null;
   });
   const view: "lobby" | "game" = route.kind === "play" ? "game" : "lobby";
+  // ── Survival session (see src/features/survivalPlay) ───────────────────────
+  // The real game is on the Survival server. `survival.game` is the player's view
+  // of it in Play-page form; every move goes to the server and comes back as a new
+  // view. Nothing on this side ever holds the bag order or Authur's rack.
+  const [survival, setSurvival] = useState<SurvivalGame | null>(null);
+  const survivalRef = useRef<SurvivalGame | null>(null);
+  survivalRef.current = survival;
+  const [survivalBusy, setSurvivalBusy] = useState<"loading" | "move" | "authur" | null>(null);
+  const survivalBusyRef = useRef<"loading" | "move" | "authur" | null>(null);
+  survivalBusyRef.current = survivalBusy;
+  const [survivalError, setSurvivalError] = useState<string | null>(null);
+  const [survivalRetry, setSurvivalRetry] = useState(0);
+  const survivalLoadRef = useRef<{ key: string; promise: Promise<SurvivalView> } | null>(null);
+  // ── Study puzzle preview (see src/features/studyPuzzles) ───────────────────
+  // One position, one placement. The server holds the answer; this side only
+  // ever holds the player projection, and a submission comes back as the
+  // player's own score — never the engine's answer. Nothing replies to it.
+  const [studyPuzzle, setStudyPuzzle] = useState<StudyPuzzleGame | null>(null);
+  const studyPuzzleRef = useRef<StudyPuzzleGame | null>(null);
+  studyPuzzleRef.current = studyPuzzle;
+  const [studyPuzzleBusy, setStudyPuzzleBusy] = useState<"loading" | "submit" | null>(null);
+  const studyPuzzleBusyRef = useRef<"loading" | "submit" | null>(null);
+  studyPuzzleBusyRef.current = studyPuzzleBusy;
+  const [studyPuzzleError, setStudyPuzzleError] = useState<string | null>(null);
+  const [studyPuzzleRetry, setStudyPuzzleRetry] = useState(0);
+  const [studyPuzzleSubmitted, setStudyPuzzleSubmitted] = useState<{
+    score: number;
+    equations: { text: string; score: number }[];
+  } | null>(null);
   const [actionMode, setActionMode] = useState<ActionMode>("none");
   const [actionStart, setActionStart] = useState<ActionStart | null>(null);
   const [selectedRackTileId, setSelectedRackTileId] = useState<string | null>(null);
@@ -464,6 +596,16 @@ function App() {
   //   step 2i   → "rack ready, waiting for action" (log[i].boardBefore, rackBefore)
   //   step 2i+1 → "action applied"                 (log[i].boardAfter,  rackAfter)
   const [replayCursor, setReplayCursor] = useState<number | null>(null);
+  // The line on the board while reviewing one that is not being played, named by its last turn.
+  // Only means anything while `replayCursor` is set: every way out of the replay is also a way
+  // back to the live line, without each of them having to say so.
+  const [viewTipId, setViewTipId] = useState<string | null>(null);
+  // The room whose Turn Log Map is open. A room id rather than a flag, so a map can never stay
+  // open over a different room.
+  const [mapRoomId, setMapRoomId] = useState<string | null>(null);
+  const [branchBusy, setBranchBusy] = useState(false);
+  const branchBusyRef = useRef(false);
+  branchBusyRef.current = branchBusy;
   const [logModalOpen, setLogModalOpen] = useState(false);
   const [showResult, setShowResult] = useState(false);
   // In-app confirmations for lifecycle actions (never window.confirm — native
@@ -473,6 +615,19 @@ function App() {
   const [seenStopResponseId, setSeenStopResponseId] = useState<string | null>(null);
   const [assignmentRequest, setAssignmentRequest] = useState<AssignmentRequest | null>(null);
   const [boardCell, setBoardCell] = useState(34);
+  const [isMobilePlay, setIsMobilePlay] = useState(() =>
+    typeof window.matchMedia === "function"
+      ? window.matchMedia("(max-width: 759px)").matches
+      : false,
+  );
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const query = window.matchMedia("(max-width: 759px)");
+    const update = () => setIsMobilePlay(query.matches);
+    query.addEventListener("change", update);
+    update();
+    return () => query.removeEventListener("change", update);
+  }, []);
   // Mobile tile-pick bottom sheet (manual draw mode). Auto-opens once per
   // turn when the active player needs to refill; see the effect below.
   const [mobileBagOpen, setMobileBagOpen] = useState(false);
@@ -482,7 +637,11 @@ function App() {
   const [lifecycleNow, setLifecycleNow] = useState(() => Date.now());
   const bagAutoOpenKeyRef = useRef<string>("");
   const refillBaselineRef = useRef<RefillBaseline | null>(null);
-  const boardZoneRef = useRef<HTMLElement | null>(null);
+  // State, not a ref: the sizing effect must run when the board MOUNTS. Opening a room from the
+  // lobby sets the game while the lobby is still on screen, so an effect keyed only on the game
+  // ran against no board, returned, and never ran again — the board stayed at the default cell
+  // size (shrunk) until a reload.
+  const [boardZone, setBoardZone] = useState<HTMLElement | null>(null);
   const rightRailRef = useRef<HTMLElement | null>(null);
   // Fast-path refs for rapid keyboard placement. Updated synchronously inside
   // handlers so back-to-back keystrokes always read fresh state instead of
@@ -507,6 +666,10 @@ function App() {
    *  to submit: preventing the default there would eat the keystroke of
    *  whatever button happens to hold focus. */
   const submitReadyRef = useRef(false);
+  /** The `confirmPlace` of the latest render, for Enter. The key handler is not
+   *  re-created as tiles go down, so its own copy of `confirmPlace` still sees
+   *  the turn before any were placed and returns without submitting. */
+  const confirmPlaceRef = useRef<() => void>(() => {});
   const gameRef = useRef<GameState | null>(game);
   const actionModeRef = useRef(actionMode);
   const rackLayoutRef = useRef(rackLayout);
@@ -535,10 +698,34 @@ function App() {
   const boardCellClickRef = useRef<(row: number, col: number) => void>(() => {});
   const pendingAssignmentEditRef = useRef<(tileId: string) => boolean | void>(() => {});
   const rackTileClickRef = useRef<(tile: TileInstance, side: Side) => void>(() => {});
+  const exchangeSelectTilesRef = useRef<(ids: string[], additive: boolean) => void>(() => {});
+  const selectLogRef = useRef<(id: string | null) => void>(() => {});
+  const updateLogStarsRef = useRef<(id: string, stars: number) => void>(() => {});
+  const updateLogNoteRef = useRef<(id: string, note: string) => void>(() => {});
   const emptyRackSlotClickRef = useRef<(index: number, side: Side) => void>(() => {});
+  const stepTurnRef = useRef<(step: TurnStep) => void>(() => {});
+  const setReplayPhaseRef = useRef<(phase: "before" | "after") => void>(() => {});
+  const viewOptionRef = useRef<(option: BranchOption) => void>(() => {});
+  const continueFromViewRef = useRef<() => void>(() => {});
+  const mapViewRef = useRef<(nodeId: string | null) => void>(() => {});
+  const mapContinueRef = useRef<(target: ContinueTarget) => void>(() => {});
+  const mapPruneRef = useRef<(lineId: string) => void>(() => {});
+  const retryTimelineRef = useRef<() => void>(() => {});
+  stepTurnRef.current = stepTurn;
+  setReplayPhaseRef.current = setReplayPhase;
+  viewOptionRef.current = (option) => viewTurn(option.id, "after");
+  continueFromViewRef.current = continueFromView;
+  mapViewRef.current = viewFromMap;
+  mapContinueRef.current = continueFromMap;
+  mapPruneRef.current = (lineId) => void pruneTimelineLine(lineId);
+  retryTimelineRef.current = retryTimeline;
   boardCellClickRef.current = handleBoardCellClick;
   pendingAssignmentEditRef.current = openPendingAssignmentEditor;
   rackTileClickRef.current = handleRackTileClick;
+  exchangeSelectTilesRef.current = selectExchangeTiles;
+  selectLogRef.current = selectLog;
+  updateLogStarsRef.current = updateLogStars;
+  updateLogNoteRef.current = updateNote;
   emptyRackSlotClickRef.current = handleEmptyRackSlotClick;
   const onBoardCellClick = useCallback(
     (row: number, col: number) => boardCellClickRef.current(row, col),
@@ -551,10 +738,38 @@ function App() {
     (tile: TileInstance, side: Side) => rackTileClickRef.current(tile, side),
     [],
   );
+  const onExchangeSelectTiles = useCallback(
+    (ids: string[], additive: boolean) => exchangeSelectTilesRef.current(ids, additive),
+    [],
+  );
+  const onSelectLog = useCallback((id: string | null) => selectLogRef.current(id), []);
+  const onUpdateLogStars = useCallback(
+    (id: string, stars: number) => updateLogStarsRef.current(id, stars),
+    [],
+  );
+  const onUpdateLogNote = useCallback(
+    (id: string, note: string) => updateLogNoteRef.current(id, note),
+    [],
+  );
   const onEmptyRackSlotClick = useCallback(
     (index: number, side: Side) => emptyRackSlotClickRef.current(index, side),
     [],
   );
+  /** Aim the typing caret. Stable, because `Rack` compares its callbacks by identity. */
+  const onRackSlotFocus = useCallback((index: number) => setRackTypingFocus(index), []);
+  const onStepTurn = useCallback((step: TurnStep) => stepTurnRef.current(step), []);
+  const onSetReplayPhase = useCallback(
+    (phase: "before" | "after") => setReplayPhaseRef.current(phase),
+    [],
+  );
+  const onViewOption = useCallback((option: BranchOption) => viewOptionRef.current(option), []);
+  const onContinueFromView = useCallback(() => continueFromViewRef.current(), []);
+  const onMapView = useCallback((nodeId: string | null) => mapViewRef.current(nodeId), []);
+  const onMapContinue = useCallback((target: ContinueTarget) => mapContinueRef.current(target), []);
+  const onMapPrune = useCallback((lineId: string) => mapPruneRef.current(lineId), []);
+  const onRetryTimeline = useCallback(() => retryTimelineRef.current(), []);
+  const onCloseMap = useCallback(() => setMapRoomId(null), []);
+  const openMap = useCallback(() => setMapRoomId(activeRoomIdRef.current), []);
 
   const readOnlyRef = useRef(false);
   const activeRoomIdRef = useRef<string | null>(activeRoomId);
@@ -584,6 +799,10 @@ function App() {
   // Command id per outgoing position, so a retry of the same intent reuses its
   // id and the server can recognize and ignore the duplicate.
   const commandIdsByStateKeyRef = useRef(new Map<string, string>());
+  // This tab's own position write, while the server has not answered it: which room, and the
+  // revision it was composed on. A read at that revision or older can only undo it — the server
+  // has not applied it yet — so `applyRemotePayload` leaves such reads alone until it settles.
+  const inFlightCommitRef = useRef<{ roomId: string; revision: number } | null>(null);
   const foregroundOperationRef = useRef(0);
   const liveSessionSyncTimerRef = useRef<number | null>(null);
   const compactedRoomIdsRef = useRef(new Set<string>());
@@ -598,6 +817,49 @@ function App() {
   const activeRoomMeta = activeRoomId
     ? (rooms.find((room) => room.id === activeRoomId) ?? null)
     : null;
+  const modeKey = game ? playModeKey(game, activeRoomMeta?.modeKey) : null;
+  const [modeToolState, setModeToolState] = useState<{
+    key: string | null;
+    tools: ReadonlySet<PlayTool>;
+    loading: boolean;
+  }>(() => ({
+    key: !remoteEnabled ? modeKey : null,
+    tools: !remoteEnabled && modeKey ? defaultPlayTools(modeKey) : new Set(),
+    loading: remoteEnabled,
+  }));
+  useEffect(() => {
+    if (!modeKey) return;
+    if (!remoteEnabled) {
+      setModeToolState({ key: modeKey, tools: defaultPlayTools(modeKey), loading: false });
+      return;
+    }
+    const cached = cachedPlayTools(modeKey);
+    setModeToolState({ key: modeKey, tools: cached ?? new Set(), loading: !cached });
+    if (cached) return;
+    let active = true;
+    void loadPlayTools(modeKey).then((tools) => {
+      if (active) setModeToolState({ key: modeKey, tools, loading: false });
+    });
+    return () => {
+      active = false;
+    };
+  }, [modeKey, remoteEnabled]);
+  // A Survival session's tools are fixed here and never read from the catalog.
+  const playTools = survival
+    ? defaultPlayTools("survival_playtest")
+    : studyPuzzle
+      ? defaultPlayTools("study_puzzle")
+      : modeToolState.key === modeKey
+      ? modeToolState.tools
+      : defaultPlayTools("");
+  const modeToolsLoading = Boolean(
+    !survival &&
+    !studyPuzzle &&
+    remoteEnabled &&
+    modeKey &&
+    (modeToolState.key !== modeKey || modeToolState.loading),
+  );
+  const canUseTool = (tool: PlayTool) => playTools.has(tool);
   const regionId = profile?.region_id ?? null;
   const regionName = profile?.region_name ?? null;
   const requestedLobbyVisibility =
@@ -637,16 +899,22 @@ function App() {
   const isDirectEmailRoom = emailPlayMode === "direct";
   // Direct email matches keep database ownership for persistence, but have no
   // host/admin gameplay controller. Both accounts are ordinary side players.
-  const canControlActiveGame = canManageActiveRoom && !isDirectEmailRoom;
+  // A Survival level has no host: nobody undoes, branches or edits its log.
+  const canControlActiveGame =
+    !survival && !studyPuzzle && canManageActiveRoom && !isDirectEmailRoom;
   const isSelfDirectedSolo = Boolean(game && getGameMode(game) === "solo" && !isEmailRoom);
   const hasGameplayHost = Boolean(game && !isDirectEmailRoom && !isSelfDirectedSolo);
   const canHostLifecycleControl = hasGameplayHost && canManageActiveRoom;
   const canSoloLifecycleControl = isSelfDirectedSolo && canManageActiveRoom;
   const canDirectLifecycleControl = isDirectEmailRoom && accountPlayerSide !== null;
   const canStopLifecycle =
-    canHostLifecycleControl || canSoloLifecycleControl || canDirectLifecycleControl;
+    !survival &&
+    !studyPuzzle &&
+    (canHostLifecycleControl || canSoloLifecycleControl || canDirectLifecycleControl);
   const canEndLifecycle =
-    canHostLifecycleControl || canSoloLifecycleControl || canDirectLifecycleControl;
+    !survival &&
+    !studyPuzzle &&
+    (canHostLifecycleControl || canSoloLifecycleControl || canDirectLifecycleControl);
   const canConfigureWaitingRoom = canManageActiveRoom && (!isDirectEmailRoom || isActiveRoomOwner);
   // Existing rooms showed the active rack, so undefined remains backward-compatible.
   const emailPlayersCanSeeOpponentRack = game?.emailPlayersCanSeeOpponentRack ?? true;
@@ -658,20 +926,45 @@ function App() {
         ? invitedSides.length > 0
         : canManageActiveRoom || invitedSides.length > 0),
     );
-  const actorCapabilities = getRoomActorCapabilities({
-    game,
-    emailPlayMode,
-    invitedSides,
-    isAdmin: hasAdminAccess,
-    isOwner: isActiveRoomOwner,
-    remoteEnabled,
-  });
+  // In Survival the player acts on their own turn only, and never while a move is in flight.
+  const survivalCanAct = Boolean(
+    survival &&
+    game?.status === "playing" &&
+    game.activeSide === survival.humanSide &&
+    survivalBusy === null,
+  );
+  // A Study puzzle takes exactly one placement; nothing is played after it is submitted.
+  const studyPuzzleCanAct = Boolean(
+    studyPuzzle && !studyPuzzleSubmitted && studyPuzzleBusy === null,
+  );
+  const actorCapabilities = survival
+    ? { canAct: survivalCanAct, canInteract: survivalCanAct, canRefill: false }
+    : studyPuzzle
+      ? { canAct: studyPuzzleCanAct, canInteract: studyPuzzleCanAct, canRefill: false }
+      : getRoomActorCapabilities({
+        game,
+        emailPlayMode,
+        invitedSides,
+        isAdmin: hasAdminAccess,
+        isOwner: isActiveRoomOwner,
+        remoteEnabled,
+      });
   const canActActiveSide = actorCapabilities.canAct;
   const canRefillActiveRack = actorCapabilities.canRefill;
+  const canRefillActiveRackRef = useRef(false);
+  canRefillActiveRackRef.current = canRefillActiveRack;
   const canPlayActiveRoom = actorCapabilities.canInteract;
-  const readOnly = remoteEnabled && !canPlayActiveRoom;
+  const readOnly =
+    survival || studyPuzzle ? !canPlayActiveRoom : remoteEnabled && !canPlayActiveRoom;
   readOnlyRef.current = readOnly;
   const roleLabel = (() => {
+    if (survival) {
+      if (game?.status === "finished") return "Survival · Finished";
+      return survivalBusy === "authur" ? "Survival · Authur thinking" : "Survival · Your turn";
+    }
+    if (studyPuzzle) {
+      return studyPuzzleSubmitted ? "Study puzzle · Submitted" : "Study puzzle · Your move";
+    }
     if (!remoteEnabled) return "Local Control";
     if (isDirectEmailRoom) {
       if (invitedSides.length === 0) return "Spectator Live";
@@ -842,6 +1135,7 @@ function App() {
   // realtime channel, and (3) re-reads the authoritative room row.
   const [subscriptionEpoch, setSubscriptionEpoch] = useState(0);
   const reconcilingRef = useRef(false);
+  const lastFullReconcileRef = useRef<{ roomId: string; at: number } | null>(null);
   const resubscribeTimerRef = useRef<number | null>(null);
   const lastWakeAtRef = useRef(0);
   const routeRef = useRef(route);
@@ -922,9 +1216,9 @@ function App() {
     if (!routeRoomId) return;
     if (routeRoomId === activeRoomId && game) {
       if (route.kind === "room" && getRoomStage(game) === "playing") {
-        navigate({ kind: "play", roomId: routeRoomId }, true);
+        navigate({ kind: "play", roomId: routeRoomId, returnTo: route.returnTo }, true);
       } else if (route.kind === "play" && getRoomStage(game) === "waiting") {
-        navigate({ kind: "room", roomId: routeRoomId }, true);
+        navigate({ kind: "room", roomId: routeRoomId, returnTo: route.returnTo }, true);
       }
       return;
     }
@@ -933,6 +1227,7 @@ function App() {
     (async () => {
       try {
         const remotePayload = remoteEnabled ? await remoteRooms.readRoom(routeRoomId) : null;
+        adoptArchivedTimeline(routeRoomId, remotePayload);
         const storedGame = remotePayload?.game ?? roomStore.readRoom(routeRoomId);
         if (cancelled) return;
         if (!storedGame || hasDuplicateTileIds(storedGame)) {
@@ -959,9 +1254,9 @@ function App() {
         }
         setShowResult(isFinishedGame(saved));
         if (route.kind === "room" && getRoomStage(saved) === "playing") {
-          navigate({ kind: "play", roomId: routeRoomId }, true);
+          navigate({ kind: "play", roomId: routeRoomId, returnTo: route.returnTo }, true);
         } else if (route.kind === "play" && getRoomStage(saved) === "waiting") {
-          navigate({ kind: "room", roomId: routeRoomId }, true);
+          navigate({ kind: "room", roomId: routeRoomId, returnTo: route.returnTo }, true);
         }
       } catch (error) {
         if (!cancelled)
@@ -976,6 +1271,138 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeRoomId]);
 
+  // Open a Survival level (a fresh attempt) or an attempt already under way.
+  const survivalKey = survivalRoute
+    ? survivalRoute.kind === "level"
+      ? `level:${survivalRoute.levelId}`
+      : `attempt:${survivalRoute.attemptId}`
+    : null;
+  useEffect(() => {
+    if (!survivalRoute || !survivalKey) {
+      if (survivalRef.current) {
+        survivalRef.current = null;
+        setSurvival(null);
+        setSurvivalBusy(null);
+        setSurvivalError(null);
+      }
+      return;
+    }
+    // A level link is replaced by its attempt's id once the attempt exists.
+    if (
+      survivalRoute.kind === "attempt" &&
+      survivalRef.current?.attemptId === survivalRoute.attemptId
+    ) {
+      return;
+    }
+    let cancelled = false;
+    setActiveRoomId(null);
+    setGame(null);
+    setShowResult(false);
+    setSurvivalError(null);
+    setSurvivalBusy("loading");
+    // One request per link, even when React runs this effect twice.
+    if (survivalLoadRef.current?.key !== survivalKey) {
+      survivalLoadRef.current = {
+        key: survivalKey,
+        promise:
+          survivalRoute.kind === "level"
+            ? survivalPlaytestSource.start(survivalRoute.levelId)
+            : survivalPlaytestSource.read(survivalRoute.attemptId),
+      };
+    }
+    const load = survivalLoadRef.current.promise;
+    load
+      .then((next) => {
+        if (cancelled) return;
+        adoptSurvivalView(next);
+        // Cleared here, not in `finally`: replacing a level link with its attempt's
+        // id re-runs this effect, and the cleanup would leave "loading" set forever.
+        setSurvivalBusy(null);
+        if (survivalRoute.kind === "level") {
+          navigate({ kind: "play", roomId: survivalAttemptRoomId(next.attemptId) }, true);
+        }
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setSurvivalError(error instanceof Error ? error.message : String(error));
+        setSurvivalBusy(null);
+      })
+      .finally(() => {
+        if (survivalLoadRef.current?.promise === load) survivalLoadRef.current = null;
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [survivalKey, survivalRetry]);
+
+  // Authur moves whenever it is Authur's turn — on the server, never on this side.
+  useEffect(() => {
+    const session = survivalRef.current;
+    if (!session || session.status !== "authur-to-move") return;
+    let cancelled = false;
+    setSurvivalBusy("authur");
+    setSurvivalError(null);
+    survivalPlaytestSource
+      .authur(session.attemptId)
+      .then((next) => {
+        if (!cancelled) adoptSurvivalView(next);
+      })
+      .catch((error: unknown) => {
+        if (!cancelled) setSurvivalError(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => {
+        if (!cancelled) setSurvivalBusy(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [survival?.attemptId, survival?.status, survival?.game.revision, survivalRetry]);
+
+  // Open a Study puzzle: the player projection, nothing more.
+  const studyPuzzleKey = studyPuzzleRoute
+    ? `${studyPuzzleRoute.setId}:${studyPuzzleRoute.puzzleId}`
+    : null;
+  useEffect(() => {
+    if (!studyPuzzleRoute || !studyPuzzleKey) {
+      if (studyPuzzleRef.current) {
+        studyPuzzleRef.current = null;
+        setStudyPuzzle(null);
+        setStudyPuzzleBusy(null);
+        setStudyPuzzleError(null);
+        setStudyPuzzleSubmitted(null);
+        setGame(null);
+      }
+      return;
+    }
+    let cancelled = false;
+    setStudyPuzzleError(null);
+    setStudyPuzzleSubmitted(null);
+    setStudyPuzzleBusy("loading");
+    studyPuzzleSource
+      .play(studyPuzzleRoute.setId, studyPuzzleRoute.puzzleId)
+      .then((projection: PlayerPuzzle) => {
+        if (cancelled) return;
+        const projected = studyPuzzleGame(projection, {
+          playerName: profile?.display_name?.trim() || "คุณ",
+        });
+        studyPuzzleRef.current = projected;
+        setStudyPuzzle(projected);
+        setGame(projected.game);
+        setStudyPuzzleBusy(null);
+      })
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        setStudyPuzzleError(error instanceof Error ? error.message : String(error));
+        setStudyPuzzleBusy(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [studyPuzzleKey, studyPuzzleRetry]);
+
   // A mount that rendered a cached snapshot shows the board immediately, then
   // revalidates once against the authoritative room row — silently, without the
   // full-screen loader. The revision-guarded reconcile adopts newer state and
@@ -988,11 +1415,10 @@ function App() {
   }, []);
 
   useEffect(() => {
-    // AppRoot mounts this application for the Play route only. Loading lobby
-    // summaries here can replace the active room's full metadata (including
-    // owner/player ids) with the privacy-safe listing projection and turn the
-    // owner into a read-only spectator while a game is open.
-    if (!remoteEnabled || view !== "lobby") return;
+    // Waiting rooms also need the full room metadata loaded above. Lobby
+    // summaries omit ownership and invitation fields, so fetching them here
+    // can replace the waiting room's metadata before its host can start.
+    if (!remoteEnabled || view !== "lobby" || route.kind === "room") return;
     if (!requestedLobbyScope) {
       setRooms([]);
       setRoomsLoading(false);
@@ -1017,15 +1443,29 @@ function App() {
     return () => {
       active = false;
     };
-  }, [remoteEnabled, view, requestedLobbyScope?.visibility, requestedLobbyScope?.regionId, userId]);
+  }, [
+    remoteEnabled,
+    view,
+    route.kind,
+    requestedLobbyScope?.visibility,
+    requestedLobbyScope?.regionId,
+    userId,
+  ]);
 
   // Spectators follow the broadcast topic instead of the room row: one publish
   // per move, a payload bounded by the size of the physical set rather than by
   // the length of the game, and no per-observer work on the authoritative side.
   // A read-only observer never writes, so this is the whole of its sync path
   // apart from the snapshot it fetched when it opened the room.
+  //
+  // "Spectator" means somebody who cannot write this room — not a player who cannot act right
+  // now. `readOnly` also turns on for the owner the moment a game finishes or pauses, and using
+  // it here subscribed the owner as a spectator exactly then: the subscription's first reconcile
+  // read the room before the server had archived it, found the pre-finish row, and put the
+  // finished game back into play — the end-of-game screen flickered and the finish replayed.
+  const isSpectator = remoteEnabled && !canWriteActiveRoom;
   useEffect(() => {
-    if (!remoteEnabled || view !== "game" || !activeRoomId || !readOnly) return;
+    if (!remoteEnabled || view !== "game" || !activeRoomId || !isSpectator) return;
     let disposed = false;
     const unsubscribe = remoteRooms.subscribeToGameCommits(
       activeRoomId,
@@ -1037,16 +1477,11 @@ function App() {
         if (commit.revision <= revisionOf(local)) return;
         try {
           const canonical = decodeCanonical(commit.canonical);
-          const nextGame = withRevision(
-            applyCanonicalToSnapshot(local, canonical),
-            commit.revision,
-          ) as GameState;
-          setGame(nextGame);
-          // Broadcast of a committed canonical position: authoritative, so the
-          // adopted content is confirmed.
-          setConfirmedStateKey(makeRemoteStateKey(nextGame));
-          if (activeRoomIdRef.current)
-            playSnapshotCache.remember(activeRoomIdRef.current, nextGame);
+          setGame((current) =>
+            current ? spectatorPreview(current, canonical, commit.revision) : current,
+          );
+          // This fast picture has no new turn log or clock. The room-row listener
+          // still adopts the complete revision; a missed row is caught by probe.
           setSyncError(null);
         } catch (error) {
           // The broadcast did not describe the physical set. Say so and fall
@@ -1068,7 +1503,7 @@ function App() {
       unsubscribe();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remoteEnabled, view, activeRoomId, readOnly, subscriptionEpoch]);
+  }, [remoteEnabled, view, activeRoomId, isSpectator, subscriptionEpoch]);
 
   useEffect(() => {
     if (!remoteEnabled || view !== "game" || !activeRoomId) return;
@@ -1083,10 +1518,14 @@ function App() {
         if (payload.eventType === "DELETE") {
           // Finalization atomically replaces room_live with an archive snapshot.
           // Re-read through the room adapter before treating DELETE as a cancel.
+          // Whether this tab already showed the game ending. It usually did — the finishing
+          // move is played here and opens the result at once — and a player who has since
+          // closed the result must not have it thrown back at them when the archive lands.
+          const alreadyFinished = gameRef.current ? isFinishedGame(gameRef.current) : false;
           void remoteRooms.readRoom(changedId).then((archived) => {
             if (archived) {
               applyRemotePayload(archived, { allowRollback: true });
-              setShowResult(true);
+              if (!alreadyFinished) setShowResult(true);
               return;
             }
             playSnapshotCache.forget(changedId);
@@ -1120,13 +1559,14 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remoteEnabled, view, activeRoomId, userId, subscriptionEpoch]);
 
-  // Realtime is the fast path, while this authoritative read heals a change
-  // dropped by a socket that still appears connected after a device wake.
+  // Realtime is the fast path. Poll the small canonical head to detect a missed
+  // commit; read the full room only when it changed. A slower full read also
+  // heals session-only changes that a socket missed.
   useEffect(() => {
     if (!remoteEnabled || view !== "game" || !activeRoomId) return;
     const intervalId = window.setInterval(() => {
       if (document.visibilityState === "visible" && navigator.onLine !== false) {
-        void reconcileActiveRoom();
+        void probeActiveRoom();
       }
     }, LIVE_RECONCILE_INTERVAL_MS);
     return () => window.clearInterval(intervalId);
@@ -1152,11 +1592,16 @@ function App() {
         if (!record) return;
         try {
           const next = remoteRooms.payloadFromRow(record);
-          setRooms((current) => upsertRoomMeta(current, next.meta));
-          setGame(next.game);
-          lastAppliedStateKeyRef.current = makeRemoteStateKey(next.game);
-          if (getRoomStage(next.game) === "playing") {
-            navigate({ kind: "play", roomId: activeRoomId }, true);
+          const adopted = applyRemotePayload(next);
+          if (adopted && getRoomStage(adopted) === "playing") {
+            navigate(
+              {
+                kind: "play",
+                roomId: activeRoomId,
+                returnTo: routeRef.current.kind === "room" ? routeRef.current.returnTo : undefined,
+              },
+              true,
+            );
           }
         } catch (error) {
           setSyncError(
@@ -1254,6 +1699,11 @@ function App() {
     const commitTraceKey = `commit:${activeRoomId}:${expectedRevision}`;
     engineTrace.begin(commitTraceKey, `commit r${expectedRevision}`);
     setBackgroundSyncCount((count) => count + 1);
+    const inFlight = { roomId: activeRoomId, revision: expectedRevision };
+    inFlightCommitRef.current = inFlight;
+    const settled = () => {
+      if (inFlightCommitRef.current === inFlight) inFlightCommitRef.current = null;
+    };
     void remoteRooms
       .commitRoomState({
         id: activeRoomId,
@@ -1266,6 +1716,9 @@ function App() {
       })
       .then((result) => {
         engineTrace.end(commitTraceKey, result.outcome);
+        // Before anything below reads the room again: a conflict's reconcile must be allowed
+        // to adopt what the server has.
+        settled();
         if (result.outcome === "conflict") {
           // Someone else committed against this revision first. This client's
           // change was not applied and must not be retried on top of a position
@@ -1326,6 +1779,7 @@ function App() {
       })
       .catch(async (error: Error) => {
         engineTrace.end(commitTraceKey, "failed");
+        settled();
         setSyncError(error.message);
         try {
           const authoritative = await remoteRooms.readRoom(activeRoomId);
@@ -1346,8 +1800,38 @@ function App() {
     pendingPlacements.length,
   ]);
 
+  // Practice telemetry only. Official survival results will require a server
+  // reducer so the client cannot report its own win or see Authur's hidden rack.
+  useEffect(() => {
+    if (
+      !remoteEnabled ||
+      !userId ||
+      !activeRoomId ||
+      game?.status !== "finished" ||
+      !game.name.startsWith("Survival test · seed ")
+    )
+      return;
+    void recordSurvivalPracticeResult(activeRoomId, game.scores.A, game.scores.B).catch(
+      (error: Error) => console.error("Survival practice result was not recorded", error),
+    );
+  }, [
+    activeRoomId,
+    game?.name,
+    game?.status,
+    game?.scores.A,
+    game?.scores.B,
+    remoteEnabled,
+    userId,
+  ]);
+
   // Supabase live draft sync: lets spectators see pending placement/exchange state.
   useEffect(() => {
+    // Finalization removes room_live. A trailing empty draft would be queued
+    // behind that delete and fail against a room that no longer exists.
+    if (game?.status === "finished") {
+      shouldFlushEmptyLiveSessionRef.current = false;
+      return;
+    }
     const sessionIsEmpty = isEmptyLiveSession(liveSession);
     const canPublishLiveSession =
       canPlayActiveRoom || (sessionIsEmpty && shouldFlushEmptyLiveSessionRef.current);
@@ -1379,7 +1863,7 @@ function App() {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, remoteEnabled, activeRoomId, canPlayActiveRoom, liveSessionKey]);
+  }, [view, remoteEnabled, activeRoomId, canPlayActiveRoom, liveSessionKey, game?.status]);
 
   // Refresh the lobby summary only when meaningful fields change (not per second).
   useEffect(() => {
@@ -1457,7 +1941,7 @@ function App() {
   // same viewport while the board remains as large as the available height allows.
   useEffect(() => {
     if (view !== "game") return;
-    const el = boardZoneRef.current;
+    const el = boardZone;
     if (!el) return;
     const measure = () => {
       const w = el.clientWidth;
@@ -1513,7 +1997,7 @@ function App() {
       window.visualViewport?.removeEventListener("resize", measure);
       window.cancelAnimationFrame(rafId);
     };
-  }, [view, game?.gameId]);
+  }, [view, game?.gameId, boardZone]);
 
   // Keyboard 1–8 acts like clicking that rack slot (live play OR replay
   // practice). Backspace removes the most-recently placed pending tile AND
@@ -1572,6 +2056,36 @@ function App() {
         }
         const handled = undoLastLivePlacement();
         if (handled || actionModeRef.current === "place_equation") consumed();
+        return;
+      }
+
+      // ── typing a rack ──────────────────────────────────────────────────────
+      //
+      // F2 toggles it, the way F2 has meant "edit this in place" for thirty years, and the one
+      // key here that nothing else on the page claims. While it is on the rack owns the
+      // keyboard: `1` then `8` is the tile 18, and `p` is the plus tile rather than whatever
+      // `p` means elsewhere. Esc leaves, and so does F2.
+      if (event.key === "F2") {
+        if (rackTypingFocusRef.current !== null) {
+          setRackTypingFocus(null);
+          showKeyNotice("ออกจากโหมดพิมพ์");
+        } else if (canRefillActiveRackRef.current) {
+          setRackTypingFocus(0);
+          showKeyNotice("โหมดพิมพ์ · 1 แล้ว 8 = 18 · Space ข้าม · ⌫ ลบ · F2 หรือ Esc ออก");
+        } else {
+          showKeyNotice("โหมดพิมพ์ใช้ได้ตอนเติมเบี้ยเข้ามือเท่านั้น");
+        }
+        consumed();
+        return;
+      }
+      if (rackTypingFocusRef.current !== null) {
+        if (event.key === "Escape") {
+          setRackTypingFocus(null);
+          consumed();
+          return;
+        }
+        const outcome = handleRackTypingKey(event);
+        if (outcome) consumed();
         return;
       }
 
@@ -1645,7 +2159,7 @@ function App() {
         // gate is what keeps a stray Enter from spending a turn.
         if (!submitReadyRef.current) return;
         consumed();
-        confirmPlace();
+        confirmPlaceRef.current();
         return;
       }
       if (keyAction.kind !== "tile" && keyAction.kind !== "bareBlank") return;
@@ -1893,13 +2407,80 @@ function App() {
 
   const activeRack = game ? getRack(game, game.activeSide) : [];
 
+  // ── Branches ────────────────────────────────────────────────────────────────
+  //
+  // `game.logs` is always the line being played; every other line is parked beside the game
+  // (see `gameplay/multiverse.ts`). They are loaded only once the game says it has some, after
+  // the board is already on screen, and nothing about a move depends on them.
+  useSyncExternalStore(timelineStore.subscribe, timelineStore.getVersion, timelineStore.getVersion);
+  const timelineEntry = timelineStore.getTimeline(activeRoomId);
+  const multiverse = timelineEntry.multiverse;
+  const timelineWanted = game?.timelineRef?.version ?? 0;
+  useEffect(() => {
+    if (!activeRoomId || timelineWanted === 0 || !canUseTool("multiverse")) return;
+    void timelineStore.ensureTimeline(
+      activeRoomId,
+      timelineWanted,
+      timelineLoaderFor(remoteEnabled),
+    );
+  }, [activeRoomId, timelineWanted, remoteEnabled, playTools]);
+
+  const gameLogs = game?.logs ?? NO_LOGS;
+  const multiverseTree = useMemo(() => buildTree(gameLogs, multiverse), [gameLogs, multiverse]);
+  // The line on the board: the one being played, unless a parked line is being reviewed.
+  const viewLineTip =
+    replayCursor !== null && viewTipId !== null && multiverseTree.nodes.has(viewTipId)
+      ? viewTipId
+      : null;
+  const viewLogs = useMemo(
+    () => (viewLineTip ? pathTo(multiverseTree, viewLineTip) : gameLogs),
+    [viewLineTip, multiverseTree, gameLogs],
+  );
+  const viewGame = useMemo(
+    () => (game && viewLogs !== game.logs ? { ...game, logs: viewLogs } : game),
+    [game, viewLogs],
+  );
+  const forks = useMemo(
+    () => (playTools.has("multiverse") ? buildForkIndex(multiverseTree, viewLogs) : NO_FORKS),
+    [multiverseTree, viewLogs, playTools],
+  );
+  const lineView = useMemo<LineView | null>(
+    () => (viewLineTip ? { forkTurn: divergence(multiverseTree, viewLogs).forkTurn } : null),
+    [viewLineTip, multiverseTree, viewLogs],
+  );
+  const lineTotal = lineCount(multiverseTree);
+
+  // Who may play on from another position: whoever may undo — a room's host, never a
+  // spectator, and not the two players of a direct match, who share no host to agree on it.
+  const branchAvailable = Boolean(
+    game &&
+    playTools.has("multiverse") &&
+    hasGameplayHost &&
+    canControlActiveGame &&
+    !isFinishedGame(game),
+  );
+  const branchBlockedReason = !branchAvailable
+    ? null
+    : game?.status !== "playing"
+      ? "เกมหยุดอยู่ — กด Resume ก่อนเล่นต่อจากตาอื่น"
+      : actionMode !== "none" || pendingPlacements.length > 0
+        ? "ยกเลิกการวางเบี้ยที่ค้างอยู่ก่อน"
+        : timelineWanted > 0 && timelineEntry.status === "error"
+          ? "โหลดเส้นทางที่เก็บไว้ไม่สำเร็จ — เปิด Map แล้วกดลองใหม่"
+          : null;
+  const branchControl = useMemo<BranchControl>(
+    () => ({ available: branchAvailable, blockedReason: branchBlockedReason, busy: branchBusy }),
+    [branchAvailable, branchBlockedReason, branchBusy],
+  );
+
+  const liveBoard = game?.board;
   const validation = useMemo(() => {
-    if (!game) return { isValid: false, errors: [], equations: [], score: 0, bingoBonus: 0 };
+    if (!liveBoard) return { isValid: false, errors: [], equations: [], score: 0, bingoBonus: 0 };
     // Replay practice (before-phase) validates against the log's boardBefore
     // using the draft placements. Live play validates against the live board.
     if (replayCursor !== null) {
       const idx = Math.floor(replayCursor / 2);
-      const log = game.logs[idx];
+      const log = viewLogs[idx];
       if (replayCursor % 2 === 0 && log && replayDraft && replayDraft.placements.length > 0) {
         return validateMove(log.boardBefore, replayDraft.placements);
       }
@@ -1908,10 +2489,11 @@ function App() {
     if (actionMode !== "place_equation") {
       return { isValid: false, errors: [], equations: [], score: 0, bingoBonus: 0 };
     }
-    return validateMove(game.board, pendingPlacements);
-  }, [actionMode, game, pendingPlacements, replayCursor, replayDraft]);
+    return validateMove(liveBoard, pendingPlacements);
+  }, [actionMode, liveBoard, pendingPlacements, replayCursor, replayDraft, viewLogs]);
   submitReadyRef.current =
     !readOnly && Boolean(game) && actionMode === "place_equation" && validation.isValid;
+  confirmPlaceRef.current = confirmPlace;
 
   // Derived replay state from the cursor.
   const replayPhase: "before" | "after" =
@@ -1919,8 +2501,8 @@ function App() {
   const selectedLog = useMemo(() => {
     if (!game || replayCursor === null) return null;
     const idx = Math.floor(replayCursor / 2);
-    return game.logs[idx] ?? null;
-  }, [game, replayCursor]);
+    return viewLogs[idx] ?? null;
+  }, [game, replayCursor, viewLogs]);
   const selectedLogId = selectedLog?.id ?? null;
   const reviewing = Boolean(selectedLog);
 
@@ -1928,18 +2510,18 @@ function App() {
   // lobby/loading return so App calls the same hooks in every render.
   const replayOverrides = useMemo(() => {
     if (!game || !selectedLog) return null;
-    const logIdx = game.logs.findIndex((log) => log.id === selectedLog.id);
+    const logIdx = viewLogs.findIndex((log) => log.id === selectedLog.id);
     if (logIdx < 0) return null;
     // "before" phase: state right after refill, BEFORE the action.
     // Equivalent to the AFTER state of the previous log (or initial if none).
     // "after" phase: state right after the action (this log's after).
     const useThis = replayPhase === "after";
-    const ref = useThis ? selectedLog : (game.logs[logIdx - 1] ?? null);
+    const ref = useThis ? selectedLog : (viewLogs[logIdx - 1] ?? null);
     // Sum finalScore per side over all logs whose state is "included" at this point.
     const upTo = useThis ? logIdx : logIdx - 1;
     const scores: Record<Side, number> = { A: 0, B: 0 };
     for (let i = 0; i <= upTo; i += 1) {
-      const entry = game.logs[i];
+      const entry = viewLogs[i];
       if (!entry) break;
       scores[entry.side] += entry.finalScore;
     }
@@ -1954,7 +2536,7 @@ function App() {
       ? selectedLog.timerAfter
       : (ref?.timerAfter ?? initialTimers);
     return { scores, timers };
-  }, [game, selectedLog, replayPhase]);
+  }, [game, selectedLog, replayPhase, viewLogs]);
 
   // Sync the per-side display layout with the underlying game.rackA / rackB.
   // Rules:
@@ -1982,7 +2564,7 @@ function App() {
       return;
     }
     const idx = Math.floor(replayCursor / 2);
-    const log = game?.logs[idx];
+    const log = viewLogs[idx];
     if (!log) {
       setReplayDraft(null);
       return;
@@ -1995,7 +2577,10 @@ function App() {
       setReplayDraft(null);
     }
     setPlacementCursor(null);
-  }, [replayCursor, game?.gameId, game?.logs.length]);
+    // Length and line, not the array: a note or a star replaces `logs` without changing any
+    // position, and must not wipe a practice move laid out on the board.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [replayCursor, game?.gameId, viewLogs.length, viewLineTip]);
 
   // ── Bot match: the engine plays its side automatically ─────────────────────
   //
@@ -2130,7 +2715,13 @@ function App() {
   const [clientSuper, setClientSuper] = useState<ClientSuperReadiness | null>(null);
   useEffect(() => {
     setClientSuper(null);
-    if (!game?.botSide || game.botDifficulty !== "super" || !isEngineApiConfigured) return;
+    if (
+      !game?.botSide ||
+      game.botEngine === "authur" ||
+      game.botDifficulty !== "super" ||
+      !isEngineApiConfigured
+    )
+      return;
     let alive = true;
     // Read through the ref rather than from the render's `game`, so this effect
     // does not have to depend on the pin. It must not: the pin is WRITTEN by
@@ -2162,7 +2753,7 @@ function App() {
       cancelSuperEngine();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [game?.gameId, game?.botSide, game?.botDifficulty]);
+  }, [game?.gameId, game?.botSide, game?.botEngine, game?.botDifficulty]);
   // Ask the server what is already running for this position, as soon as the
   // position is one the server agrees exists.
   //
@@ -2172,13 +2763,17 @@ function App() {
   // disturbs an observation already under way.
   useEffect(() => {
     if (!remoteEnabled || !activeRoomId) return;
+    // A finished game has no live row — finalizing moves it into the archive — so the engine
+    // cannot find it and answers 404, and nothing can be running for it: there is no one left
+    // on move. Neither rejoin old work nor ask about new work.
+    const finished = game ? isFinishedGame(game) : false;
     // Deliberately ahead of the confirmation guard below. Rejoining work this tab
     // was ALREADY watching is read out of storage: it needs no revision and no
     // room row, so making it wait for one leaves the bar blank through the very
     // round trip it exists to cover. The bot's bar felt this worst — its only
     // discovery call is this one, so a refresh mid-search showed nothing at all
     // until the room row came back.
-    engineSessions.adoptHints(activeRoomId);
+    if (!finished) engineSessions.adoptHints(activeRoomId);
     engineDebug.note("shell_effect", {
       positionIsConfirmed,
       gameRevision: game?.revision ?? null,
@@ -2195,9 +2790,20 @@ function App() {
     //
     // Dropped, never cancelled: another observer may still want the answer.
     engineSessions.dropStale(activeRoomId, revision);
-    void engineSessions.discover({ roomId: activeRoomId, revision });
+    if (finished) return;
+    void engineSessions.discover({
+      roomId: activeRoomId,
+      revision,
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [remoteEnabled, activeRoomId, positionIsConfirmed, game?.revision, subscriptionEpoch]);
+  }, [
+    remoteEnabled,
+    activeRoomId,
+    positionIsConfirmed,
+    game?.revision,
+    game?.status,
+    subscriptionEpoch,
+  ]);
 
   // ── Turn analysis availability ─────────────────────────────────────────────
   //
@@ -2212,6 +2818,7 @@ function App() {
   const analysisTurnIsBot = Boolean(game?.botSide && game.activeSide === game.botSide);
   const analysisAvailable = Boolean(
     game &&
+    playTools.has("analysis") &&
     isEngineApiConfigured &&
     remoteEnabled &&
     game.status === "playing" &&
@@ -2288,7 +2895,9 @@ function App() {
           // from the same ref the revision check above used — so the engine is
           // asked about exactly the position this attempt is for, and a later
           // render cannot change the question mid-search.
-          ...(clientSuper?.available && current.botDifficulty === "super"
+          ...(current.botEngine !== "authur" &&
+          clientSuper?.available &&
+          current.botDifficulty === "super"
             ? {
                 local: {
                   game: current,
@@ -2308,8 +2917,26 @@ function App() {
           if (!alive) return;
           if (session.status.kind === "completed" && session.result) {
             setBotNotice(null);
-            applyBotResult(toBotResponse(session.result as BotMoveResult), revision);
-            engineTrace.end(`apply:${roomId}:${revision}`, "applied");
+            const outcome = applyBotResult(
+              toBotResponse(session.result as BotMoveResult),
+              revision,
+            );
+            if (outcome === "applied") {
+              engineTrace.end(`apply:${roomId}:${revision}`, "applied");
+              return;
+            }
+            if (outcome === "stale") {
+              engineTrace.end(`apply:${roomId}:${revision}`, "stale");
+              return;
+            }
+            // A legal-looking answer can still fail the final rack/board map.
+            // A completed session caches that answer, so it must be dropped
+            // before a retry or every attempt would replay the same failure.
+            engineSessions.drop(session.key);
+            setBotFailures((count) => count + 1);
+            const error = new EngineApiError("engine_failed", "Bot move could not be applied");
+            retryTimer = setTimeout(() => attempt(tries + 1), botRetryDelay(error, tries));
+            engineTrace.end(`apply:${roomId}:${revision}`, "rejected");
             return;
           }
           if (session.status.kind !== "failed") return;
@@ -2361,12 +2988,293 @@ function App() {
       setReplayCursor(null);
       return;
     }
-    const idx = game.logs.findIndex((log) => log.id === logId);
-    if (idx < 0) {
+    if (!canUseTool("replay")) return;
+    const idx = viewLogs.findIndex((log) => log.id === logId);
+    if (idx >= 0) {
+      setReplayCursor(idx * 2 + 1);
+      return;
+    }
+    if (multiverseTree.nodes.has(logId)) {
+      viewTurn(logId, "after");
+      return;
+    }
+    setReplayCursor(null);
+  }
+
+  // ── Moving through the lines ─────────────────────────────────────────────────
+
+  /**
+   * Show a turn on the board, on whichever line it belongs to: the line being played, or a parked
+   * one — which the log then lists instead, end to end, so it can be stepped through like any
+   * other. `null` is the start of the game.
+   */
+  function viewTurn(nodeId: string | null, phase: "before" | "after" = "after") {
+    if (!game || !canUseTool("replay")) return;
+    if (nodeId === null) {
+      setViewTipId(null);
+      setReplayCursor(game.logs.length > 0 ? 0 : null);
+      return;
+    }
+    const node = multiverseTree.nodes.get(nodeId);
+    if (!node) return;
+    const onLiveLine = node.lineId === null;
+    const tip = onLiveLine ? null : lineTipOf(multiverseTree, nodeId);
+    const line = tip ? pathTo(multiverseTree, tip) : game.logs;
+    const index = line.findIndex((log) => log.id === nodeId);
+    if (index < 0) return;
+    setViewTipId(tip);
+    setReplayCursor(index * 2 + (phase === "after" ? 1 : 0));
+  }
+
+  /** The log's navigator: whole turns along the line on the board, and back to live. */
+  function stepTurn(step: TurnStep) {
+    if (!game) return;
+    if (step === "live") {
+      setViewTipId(null);
       setReplayCursor(null);
       return;
     }
-    setReplayCursor(idx * 2 + 1);
+    const total = viewLogs.length;
+    if (total === 0) return;
+    const current = replayCursor === null ? total : Math.floor(replayCursor / 2);
+    const next =
+      step === "first"
+        ? 0
+        : step === "last"
+          ? total - 1
+          : step === "prev"
+            ? Math.max(0, current - 1)
+            : current + 1;
+    if (next >= total) {
+      // Past the last turn of the line being played is the live position itself.
+      if (!viewLineTip) setReplayCursor(null);
+      return;
+    }
+    setReplayCursor(next * 2 + 1);
+  }
+
+  function setReplayPhase(phase: "before" | "after") {
+    if (replayCursor === null) return;
+    setReplayCursor(Math.floor(replayCursor / 2) * 2 + (phase === "after" ? 1 : 0));
+  }
+
+  /** "Continue from here" in the log: from exactly what the board is showing. */
+  function continueFromView() {
+    if (!selectedLog) return;
+    void continueFromTarget({ nodeId: selectedLog.id, phase: replayPhase });
+  }
+
+  function viewFromMap(nodeId: string | null) {
+    setMapRoomId(null);
+    viewTurn(nodeId, "after");
+  }
+
+  function continueFromMap(target: ContinueTarget) {
+    void continueFromTarget(target).then((moved) => {
+      if (moved) setMapRoomId(null);
+    });
+  }
+
+  function retryTimeline() {
+    if (!activeRoomId) return;
+    void timelineStore.ensureTimeline(
+      activeRoomId,
+      Math.max(timelineWanted, 1),
+      timelineLoaderFor(remoteEnabled),
+      { force: true },
+    );
+  }
+
+  /** Make `target` the live position, parking whatever stops being live. */
+  async function continueFromTarget(target: ContinueTarget): Promise<boolean> {
+    const current = gameRef.current;
+    const roomId = activeRoomIdRef.current;
+    if (!current || !roomId || branchBusyRef.current || !branchAvailable) return false;
+    if (branchBlockedReason) {
+      showKeyNotice(branchBlockedReason);
+      return false;
+    }
+    // Whatever is parked must be known before anything is parked beside it.
+    const wanted = current.timelineRef?.version ?? 0;
+    let entry = timelineStore.getTimeline(roomId);
+    if (wanted > 0 && (entry.status !== "ready" || entry.multiverse.version < wanted)) {
+      await timelineStore.ensureTimeline(roomId, wanted, timelineLoaderFor(remoteEnabled), {
+        force: true,
+      });
+      entry = timelineStore.getTimeline(roomId);
+      if (entry.status !== "ready" || entry.multiverse.version < wanted) {
+        setSyncError(entry.error ?? "โหลดเส้นทางที่เก็บไว้ไม่สำเร็จ");
+        return false;
+      }
+    }
+    // Loading may have taken a moment; plan from the position as it is now, not as it was.
+    const latest = gameRef.current;
+    if (!latest || latest.gameId !== current.gameId) return false;
+    const result = continueFrom(latest, entry.multiverse, target);
+    if (!result.ok) {
+      showKeyNotice(result.reason);
+      return false;
+    }
+    if (!result.changed) {
+      setViewTipId(null);
+      setReplayCursor(null);
+      return true;
+    }
+    return applyTimelineChange(roomId, latest, result.game, entry.multiverse, result.multiverse);
+  }
+
+  /**
+   * Land a new live position together with the parked lines it was built with.
+   *
+   * Shown at once, like every move; written as ONE conditional commit, so the server either takes
+   * both or neither. If anything moved first the change is dropped and the authority's state
+   * adopted — the player tries again from what is really there.
+   */
+  async function applyTimelineChange(
+    roomId: string,
+    base: GameState,
+    next: GameState,
+    previous: Multiverse,
+    parked: Multiverse,
+  ): Promise<boolean> {
+    // A different position now: leave the replay, any draft, and an undo history that belongs
+    // to the line just parked.
+    cancelDraftOnly();
+    setViewTipId(null);
+    setReplayCursor(null);
+    setShowResult(false);
+    resetUndoHistory();
+    const nextKey = makeRemoteStateKey(next);
+    // The ordinary sync effect must not write this position on its own: it goes out with its
+    // lines, below, or not at all.
+    lastAppliedStateKeyRef.current = nextKey;
+    pendingSessionEventRef.current = null;
+    setGame(next);
+    timelineStore.adoptTimeline(roomId, parked);
+    if (!remoteEnabled) {
+      // The position and its lines on disk together, now: a tab closed in between must not keep
+      // lines that park turns its saved game still plays.
+      roomStore.writeTimelineDoc(roomId, encodeMultiverse(parked));
+      roomStore.saveRoomState(roomId, next);
+      roomStore.flushRoomWrites();
+      return true;
+    }
+
+    setBranchBusy(true);
+    setBackgroundSyncCount((count) => count + 1);
+    try {
+      const result = await remoteRooms.commitTimelineChange({
+        id: roomId,
+        game: next,
+        session: liveSession,
+        event: "timeline",
+        expectedRevision: revisionOf(base),
+        commandId: crypto.randomUUID(),
+        issuedBy: invitedSides.length === 1 ? invitedSides[0] : "host",
+        timeline: encodeMultiverse(parked),
+        expectedTimelineVersion: previous.version,
+      });
+      if (result.outcome === "committed" || result.outcome === "duplicate") {
+        setGame((current) =>
+          current && current.gameId === next.gameId && revisionOf(current) < result.revision
+            ? withRevision(current, result.revision)
+            : current,
+        );
+        setConfirmedStateKey(nextKey);
+        selfAdmittedRevisionRef.current = result.revision;
+        playSnapshotCache.remember(roomId, withRevision(next, result.revision));
+        timelineStore.adoptTimeline(roomId, { ...parked, version: result.timelineVersion });
+        setSyncError(null);
+        return true;
+      }
+      showKeyNotice(
+        result.outcome === "timeline_conflict"
+          ? "เส้นทางถูกเปลี่ยนจากอีกเครื่อง — ลองอีกครั้ง"
+          : "เกมเดินต่อไปแล้วจากอีกเครื่อง — ลองอีกครั้ง",
+      );
+      await rollBackTimelineChange(roomId, previous);
+      return false;
+    } catch (error) {
+      setSyncError(error instanceof Error ? error.message : "แตกกิ่งไม่สำเร็จ");
+      await rollBackTimelineChange(roomId, previous);
+      return false;
+    } finally {
+      setBranchBusy(false);
+      setBackgroundSyncCount((count) => Math.max(0, count - 1));
+    }
+  }
+
+  /** Nothing was written: put back the lines this tab showed, then take the authority's. */
+  async function rollBackTimelineChange(roomId: string, previous: Multiverse) {
+    timelineStore.adoptTimeline(roomId, previous);
+    lastAppliedStateKeyRef.current = "";
+    try {
+      const authoritative = await remoteRooms.readRoom(roomId);
+      if (authoritative) applyRemotePayload(authoritative, { allowRollback: true });
+    } catch {
+      // The write error already on screen is the one worth reading.
+    }
+    await timelineStore.ensureTimeline(
+      roomId,
+      Math.max(previous.version, 1),
+      timelineLoaderFor(remoteEnabled),
+      { force: true },
+    );
+  }
+
+  /** Forget a parked line (and what continues from it). Never moves the live position. */
+  async function pruneTimelineLine(lineId: string) {
+    const roomId = activeRoomIdRef.current;
+    if (!roomId || !branchAvailable || branchBusyRef.current) return;
+    const entry = timelineStore.getTimeline(roomId);
+    if (entry.status !== "ready") return;
+    const previous = entry.multiverse;
+    const pruned = pruneLine(previous, lineId);
+    timelineStore.adoptTimeline(roomId, pruned);
+    if (!remoteEnabled) {
+      roomStore.writeTimelineDoc(roomId, encodeMultiverse(pruned));
+      return;
+    }
+    setBranchBusy(true);
+    try {
+      const result = await remoteRooms.pruneTimeline(
+        roomId,
+        encodeMultiverse(pruned),
+        previous.version,
+      );
+      if (result.outcome === "committed") {
+        timelineStore.adoptTimeline(roomId, { ...pruned, version: result.timelineVersion });
+        return;
+      }
+      timelineStore.adoptTimeline(roomId, previous);
+      showKeyNotice("เส้นทางถูกเปลี่ยนจากอีกเครื่อง — ลองอีกครั้ง");
+      await timelineStore.ensureTimeline(
+        roomId,
+        result.timelineVersion,
+        timelineLoaderFor(remoteEnabled),
+        {
+          force: true,
+        },
+      );
+    } catch (error) {
+      timelineStore.adoptTimeline(roomId, previous);
+      setSyncError(error instanceof Error ? error.message : "ลบเส้นทางไม่สำเร็จ");
+    } finally {
+      setBranchBusy(false);
+    }
+  }
+
+  /**
+   * The parked continuation of the live position that is the same move as `log`, if any.
+   *
+   * Replaying a line walks back into it instead of copying it: the map keeps one branch per idea,
+   * however many times the idea is played.
+   */
+  function findParkedTwin(log: TurnLog): string | null {
+    if (!game || !branchAvailable || branchBusyRef.current) return null;
+    if (timelineEntry.status !== "ready" || multiverse.version < timelineWanted) return null;
+    if (multiverse.lines.length === 0) return null;
+    return equivalentParkedChild(multiverseTree, game.logs.at(-1)?.id ?? null, log);
   }
 
   const coffeeReturn =
@@ -2426,6 +3334,10 @@ function App() {
           submitting={Boolean(foregroundLoading)}
           onBack={() => navigate({ kind: "home", visibility: route.visibility })}
           onCreate={createAndOpenRoom}
+          onCreateRanked={async (minutes) => {
+            const { match } = await rankedClient.create(minutes, minutes);
+            navigate({ kind: "ranked", matchId: match.id });
+          }}
         />
         <GlobalActivity foreground={foregroundLoading} syncing={backgroundSyncCount > 0} />
         {coffeeReturn}
@@ -2477,8 +3389,59 @@ function App() {
     );
   }
 
+  if (survivalRoute && !game && survivalError) {
+    return (
+      <div className="eq-alert eq-alert-error" role="alert" style={{ margin: 24 }}>
+        <p>เปิดด่าน Survival ไม่ได้: {survivalError}</p>
+        <button
+          type="button"
+          className="eq-button eq-button-primary"
+          onClick={() => setSurvivalRetry((count) => count + 1)}
+        >
+          ลองอีกครั้ง
+        </button>{" "}
+        <button type="button" className="eq-button" onClick={() => navigate({ kind: "survival" })}>
+          กลับหน้า Survival
+        </button>
+      </div>
+    );
+  }
+
+  if (studyPuzzleRoute && !game && studyPuzzleError) {
+    return (
+      <div className="eq-alert eq-alert-error" role="alert" style={{ margin: 24 }}>
+        <p>เปิดโจทย์ไม่ได้: {studyPuzzleError}</p>
+        <button
+          type="button"
+          className="eq-button eq-button-primary"
+          onClick={() => setStudyPuzzleRetry((count) => count + 1)}
+        >
+          ลองอีกครั้ง
+        </button>{" "}
+        <button
+          type="button"
+          className="eq-button"
+          onClick={() => navigate({ kind: "admin", section: "study" })}
+        >
+          กลับหน้าโจทย์ Study
+        </button>
+      </div>
+    );
+  }
+
   if (view !== "game" || !game) {
-    return <LoadingScreen message={foregroundLoading ?? "Opening room..."} />;
+    return (
+      <LoadingScreen
+        message={
+          foregroundLoading ??
+          (survivalRoute
+            ? "Opening Survival level..."
+            : studyPuzzleRoute
+              ? "Opening puzzle..."
+              : "Opening room...")
+        }
+      />
+    );
   }
 
   function startForegroundLoading(message: string): () => void {
@@ -2501,6 +3464,7 @@ function App() {
     const finishLoading = startForegroundLoading("Opening room...");
     try {
       const remotePayload = remoteEnabled ? await remoteRooms.readRoom(id) : null;
+      adoptArchivedTimeline(id, remotePayload);
       const storedGame = remotePayload?.game ?? roomStore.readRoom(id);
       if (!storedGame || hasDuplicateTileIds(storedGame)) {
         setSyncError("This room cannot be opened because its data is damaged.");
@@ -2540,6 +3504,14 @@ function App() {
     newSettings: NewGameSettings,
     policy?: remoteRooms.CreateRoomPolicy,
   ) {
+    if (
+      newSettings.botSide &&
+      (newSettings.botEngine ?? "authur") === "authur" &&
+      (!remoteEnabled || !isEngineApiConfigured)
+    ) {
+      setSyncError("Authur ต้องใช้เซิร์ฟเวอร์เกมที่เชื่อมต่ออยู่");
+      return;
+    }
     const visibility =
       policy?.accessScope === "region"
         ? "region"
@@ -2780,18 +3752,28 @@ function App() {
 
   async function persistWaitingGame(next: GameState) {
     if (!activeRoomId) return;
+    let admitted = next;
     if (remoteEnabled) {
-      await remoteRooms.commitRoomState({
+      const result = await remoteRooms.commitRoomState({
         id: activeRoomId,
         game: next,
         session: remoteRooms.emptyLiveSession(userId),
         event: "state",
       });
+      if (result.outcome === "conflict") {
+        const authoritative = await remoteRooms.readRoom(activeRoomId);
+        if (authoritative) applyRemotePayload(authoritative, { allowRollback: true });
+        throw new Error("This room changed. Review its latest state and try again.");
+      }
+      admitted = withRevision(next, result.revision);
       lastAppliedStateKeyRef.current = makeRemoteStateKey(next);
+      setConfirmedStateKey(lastAppliedStateKeyRef.current);
+      selfAdmittedRevisionRef.current = result.revision;
+      playSnapshotCache.remember(activeRoomId, admitted);
     } else {
       setRooms(roomStore.writeRoom(activeRoomId, next));
     }
-    setGame(next);
+    setGame(admitted);
     setRooms((current) =>
       current.map((room) =>
         room.id === activeRoomId
@@ -2817,16 +3799,36 @@ function App() {
     cancelDraftOnly();
     setReplayCursor(null);
     setShowResult(false);
+    if (survivalRef.current || survivalRoute) {
+      navigate({ kind: "survival" });
+      return;
+    }
+    if (studyPuzzleRef.current || studyPuzzleRoute) {
+      navigate({ kind: "admin", section: "study" });
+      return;
+    }
+    const destination =
+      route.kind === "play"
+        ? (route.returnTo ?? {
+            kind: "home" as const,
+            visibility: lobbyVisibility,
+            section: "live" as const,
+          })
+        : { kind: "home" as const, visibility: lobbyVisibility, section: "live" as const };
+    if (destination.kind === "private") {
+      navigate(destination);
+      return;
+    }
     if (remoteEnabled) {
       // Keep the already-rendered lobby list in place while refreshing it.
       // Replacing the whole list with a loading state on every exit makes
       // navigation feel like a reload even though usable data is available.
       if (rooms.length === 0) setRoomsLoading(true);
-      const scope = makeRoomScope(lobbyVisibility, regionId);
+      const scope = makeRoomScope(destination.visibility, regionId);
       if (!scope) {
         setRooms([]);
         setRoomsLoading(false);
-        navigate({ kind: "home", visibility: lobbyVisibility });
+        navigate(destination);
         return;
       }
       void remoteRooms
@@ -2835,10 +3837,10 @@ function App() {
         .catch((error: Error) => setSyncError(error.message))
         .finally(() => setRoomsLoading(false));
     } else {
-      const scope = makeRoomScope(lobbyVisibility, regionId);
+      const scope = makeRoomScope(destination.visibility, regionId);
       setRooms(scope ? roomStore.listRooms(scope) : []);
     }
-    navigate({ kind: "home", visibility: lobbyVisibility });
+    navigate(destination);
   }
 
   function rememberCoffeeRoom(roomId: string | null) {
@@ -2848,6 +3850,12 @@ function App() {
   }
 
   async function takeCoffeeBreak() {
+    // A Survival attempt is held by its server, not by a room: stepping away leaves it as it is.
+    // So is a Study puzzle.
+    if (survivalRef.current || studyPuzzleRef.current) {
+      goToLobby();
+      return;
+    }
     if (!activeRoomId || !game || game.status !== "playing") return;
     if (remoteEnabled && canPlayActiveRoom && !isEmptyLiveSession(liveSession)) {
       const session = remoteRooms.emptyLiveSession(userId);
@@ -3131,6 +4139,7 @@ function App() {
     try {
       const payload = await remoteRooms.readRoom(id);
       if (payload && activeRoomIdRef.current === id) {
+        lastFullReconcileRef.current = { roomId: id, at: Date.now() };
         const reconciledGame = applyRemotePayload(payload);
         if (reconciledGame) {
           applyIncomingRemoteSession(payload.session, reconciledGame);
@@ -3138,19 +4147,38 @@ function App() {
         const stage = getRoomStage(payload.game);
         const currentRoute = routeRef.current;
         if (currentRoute.kind === "room" && currentRoute.roomId === id && stage === "playing") {
-          navigate({ kind: "play", roomId: id }, true);
+          navigate({ kind: "play", roomId: id, returnTo: currentRoute.returnTo }, true);
         } else if (
           currentRoute.kind === "play" &&
           currentRoute.roomId === id &&
           stage === "waiting"
         ) {
-          navigate({ kind: "room", roomId: id }, true);
+          navigate({ kind: "room", roomId: id, returnTo: currentRoute.returnTo }, true);
         }
       }
     } catch (error) {
       setSyncError(error instanceof Error ? error.message : "Unable to refresh this room.");
     } finally {
       reconcilingRef.current = false;
+    }
+  }
+
+  async function probeActiveRoom() {
+    const id = activeRoomIdRef.current;
+    if (!remoteEnabled || !id || reconcilingRef.current) return;
+    const last = lastFullReconcileRef.current;
+    if (!last || last.roomId !== id || Date.now() - last.at >= 30_000) {
+      await reconcileActiveRoom();
+      return;
+    }
+    try {
+      const head = await remoteRooms.readGameSnapshot(id);
+      if (activeRoomIdRef.current !== id) return;
+      if (!head || !gameRef.current || head.revision > revisionOf(gameRef.current)) {
+        await reconcileActiveRoom();
+      }
+    } catch {
+      await reconcileActiveRoom();
     }
   }
 
@@ -3167,14 +4195,31 @@ function App() {
     options: { allowRollback?: boolean } = {},
   ): GameState | null {
     const remoteGame = advanceRunningClock(normalizeFinishedGame(payload.game));
+    adoptArchivedTimeline(payload.meta.id, payload);
     const key = makeRemoteStateKey(remoteGame);
     // Whatever this payload turns out to say about the board, the room row has
     // now been read — ownership is known rather than merely absent.
     roomMetaReadRef.current = true;
+    setLobbyVisibility(payload.meta.visibility ?? "public");
     setRooms((current) => upsertRoomMeta(current, payload.meta));
     const localGame = gameRef.current;
     const sameGame = Boolean(localGame && localGame.gameId === remoteGame.gameId);
 
+    const inFlight = inFlightCommitRef.current;
+    if (
+      !options.allowRollback &&
+      localGame &&
+      sameGame &&
+      inFlight &&
+      inFlight.roomId === payload.meta.id &&
+      revisionOf(remoteGame) <= inFlight.revision
+    ) {
+      // This tab has written a change on top of this revision and the server has not answered
+      // yet. The payload is the position BEFORE that change; adopting it would put the board
+      // back a move (at the end of a game: un-finish it) until the answer arrives. The answer
+      // settles it either way — confirmed, or a conflict that reads the room again.
+      return null;
+    }
     if (!options.allowRollback && localGame && isRemoteGameStale(localGame, remoteGame)) {
       // A lower revision carries nothing this client has not already applied.
       // Delayed delivery, duplicate delivery and a slow read racing a fast one
@@ -3232,10 +4277,12 @@ function App() {
       // A position this client has not reached — adopt it wholesale. Session-only
       // updates (tile selection, drafts) never get here, so the spectator's
       // locally-ticking clock keeps running between moves (live countdown).
+      const wasFinished = localGame ? isFinishedGame(localGame) : false;
       lastAppliedStateKeyRef.current = key;
       setGame(remoteGame);
       cancelDraftOnly();
-      if (isFinishedGame(remoteGame)) setShowResult(true);
+      // Only on the way INTO the finished state: a finished game read again is not news.
+      if (isFinishedGame(remoteGame) && !wasFinished) setShowResult(true);
       applyDeferredRemoteSession(remoteGame);
     }
     setSyncError(null);
@@ -3449,7 +4496,13 @@ function App() {
    * `botManualRevision` is the one way through, and only after the engine has
    * failed three times on this turn.
    */
-  const botTurn = Boolean(game.botSide && game.activeSide === game.botSide && !reviewing);
+  // Only while the game is being played. A game-ending move is never handed over — a finished
+  // game has nobody to hand it to — so after the BOT ends a game it is still `activeSide`, and
+  // without this the board sat on "thinking" over a game that was already over. A paused game
+  // has nobody thinking either.
+  const botTurn = Boolean(
+    game.botSide && game.activeSide === game.botSide && game.status === "playing" && !reviewing,
+  );
   const botTurnLocked = botTurn && botManualRevision !== (game.revision ?? 0);
 
   const canChooseAction =
@@ -3460,7 +4513,7 @@ function App() {
     actionMode === "none" &&
     (game.phase === "choose_action" || isRackReady(game));
   const exchangeRule = getExchangeRule(game);
-  const canStartExchange = canChooseAction && exchangeRule.allowed;
+  const canStartExchange = canChooseAction && exchangeRule.allowed && !studyPuzzle;
   const refillBaseline = refillBaselineRef.current;
   /**
    * The top analysis level, run here rather than on the service.
@@ -3499,7 +4552,9 @@ function App() {
     };
   };
 
-  const botName = game.botSide ? game.players[game.botSide] || "Aether" : "Aether";
+  const botName = game.botSide
+    ? game.players[game.botSide] || (game.botEngine === "authur" ? "Authur" : "Aether")
+    : "Aether";
   /** Hand the turn back: the loop restarts, and any half-built draft the player
    *  had started on the bot's behalf is dropped so two moves cannot collide. */
   const returnTurnToBot = () => {
@@ -3550,11 +4605,7 @@ function App() {
     }
     if (analysisRunning && activeRoomId) {
       return (
-        <TurnAnalysisBar
-          roomId={activeRoomId}
-          revision={game.revision ?? 0}
-          variant={variant}
-        />
+        <TurnAnalysisBar roomId={activeRoomId} revision={game.revision ?? 0} variant={variant} />
       );
     }
     return undefined;
@@ -3577,6 +4628,11 @@ function App() {
   function startAction(action: ActionType) {
     if (!game || !canChooseAction || readOnly) return;
     if (action === "end_game") return;
+    // A Study puzzle is answered with one placement: no exchange, no pass.
+    if (studyPuzzleRef.current && action !== "place_equation") {
+      setStudyPuzzleError(STUDY_PLACEMENT_ONLY);
+      return;
+    }
     if (action === "exchange" && !exchangeRule.allowed) return;
     pendingSessionEventRef.current = "state";
     setActionMode(action);
@@ -3656,6 +4712,50 @@ function App() {
     setPendingPlacements([]);
     setExchangeDraft({ outgoingIds: [], incomingTiles: [] });
     setPlacementCursor(null);
+  }
+
+  /**
+   * One keystroke in typing mode.
+   *
+   * Typing does not get its own way into the rack. It resolves a keystroke to a TOKEN and then
+   * takes a tile of that token out of the bag through `refillFromBag` — the same function the
+   * tile bag\'s own buttons call. So every rule about what may be drawn, when a rack is full,
+   * and what a completed refill does is written once and obeyed by both.
+   *
+   * Returns true when the key belonged to the rack, so the caller can stop the page acting on
+   * it as well.
+   */
+  function handleRackTypingKey(event: KeyboardEvent): boolean {
+    const at = rackTypingFocusRef.current;
+    if (at === null || !game) return false;
+    // Slot-indexed, not packed: a rack being typed has holes in it, and slot 3 must stay slot 3
+    // while slots 1 and 2 are still empty.
+    const bySlot = rackSlotsFrom(game, game.activeSide);
+    const slots: Slot[] = Array.from(
+      { length: RACK_SIZE },
+      (_, index) => bySlot[index]?.token ?? null,
+    );
+    const outcome = typeKey({ slots, focus: at }, event);
+    if (!outcome.handled) return false;
+
+    setRackTypingFocus(outcome.state.focus);
+    const wanted = outcome.state.slots[at];
+    const had = slots[at];
+    if (wanted === had) return true;
+
+    // Whatever is being replaced goes back to the bag FIRST. Growing `1` into `18` is a return
+    // and a draw, and doing them the other way round would put nine tiles in a rack of eight.
+    const occupant = bySlot[at];
+    if (occupant) returnRackTileToBag(occupant);
+    if (wanted === null) return true;
+
+    const fromBag = game.tilebag.find((candidate) => candidate.token === wanted);
+    if (!fromBag) {
+      showKeyNotice(`ไม่มีเบี้ย ${wanted} เหลือในกอง`);
+      return true;
+    }
+    refillFromBag(fromBag);
+    return true;
   }
 
   function refillFromBag(tile: TileInstance) {
@@ -4337,6 +5437,22 @@ function App() {
     returnRackTileToBag(tile);
   }
 
+  function selectExchangeTiles(ids: string[], additive: boolean) {
+    if (!game || readOnly || actionMode !== "exchange") return;
+    const rackIds = new Set(getRack(game, game.activeSide).map((tile) => tile.id));
+    const picked = ids.filter((id) => rackIds.has(id) && !carriedOverTileIds.has(id));
+    if (picked.length === 0) return;
+    setExchangeDraft((current) => {
+      const outgoingIds = additive
+        ? [...new Set([...current.outgoingIds, ...picked])]
+        : [...new Set(picked)];
+      return {
+        outgoingIds,
+        incomingTiles: current.incomingTiles.slice(0, outgoingIds.length),
+      };
+    });
+  }
+
   // Advance the directional cursor one cell, skipping cells already filled
   // (board) or already pending. Returns null if the cursor falls off the board.
   function advanceCursor(
@@ -4589,6 +5705,95 @@ function App() {
     setAssignmentRequest(null);
   }
 
+  /** Take a view from the Survival server as the game on screen. */
+  function adoptSurvivalView(next: SurvivalView) {
+    const wasFinished = survivalRef.current?.status === "finished";
+    const projected = survivalGameFromView(next, {
+      playerName: profile?.display_name?.trim() || "คุณ",
+    });
+    survivalRef.current = projected;
+    setSurvival(projected);
+    setGame(projected.game);
+    if (projected.status === "finished" && !wasFinished) setShowResult(true);
+  }
+
+  /** A Survival move goes to the server; the board changes when the server answers. */
+  function submitSurvivalMove(log: TurnLog) {
+    const session = survivalRef.current;
+    const move = survivalMoveFromLog(log);
+    if (!session || !move || survivalBusyRef.current) return;
+    survivalBusyRef.current = "move";
+    setSurvivalBusy("move");
+    setSurvivalError(null);
+    survivalPlaytestSource
+      .move(session.attemptId, move)
+      .then((next) => {
+        setActionMode("none");
+        setActionStart(null);
+        setPendingPlacements([]);
+        setExchangeDraft({ outgoingIds: [], incomingTiles: [] });
+        setSelectedRackTileId(null);
+        setSelectedPendingTileId(null);
+        setAssignmentRequest(null);
+        adoptSurvivalView(next);
+      })
+      .catch((error: unknown) => {
+        // The move stays composed on the board, so the player sees what was refused.
+        setSurvivalError(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => {
+        survivalBusyRef.current = null;
+        setSurvivalBusy(null);
+      });
+  }
+
+  /** A Study puzzle's one placement goes to the server; the puzzle ends there. */
+  function submitStudyPuzzleMove(log: TurnLog, boardAfter: BoardSnapshot, rackAfter: TileInstance[]) {
+    const session = studyPuzzleRef.current;
+    const placements = studyPlacementsFromLog(log);
+    if (!session || studyPuzzleBusyRef.current) return;
+    if (!placements) {
+      setStudyPuzzleError(STUDY_PLACEMENT_ONLY);
+      return;
+    }
+    studyPuzzleBusyRef.current = "submit";
+    setStudyPuzzleBusy("submit");
+    setStudyPuzzleError(null);
+    studyPuzzleSource
+      .submit(session.setId, session.puzzleId, placements)
+      .then((result) => {
+        setActionMode("none");
+        setActionStart(null);
+        setPendingPlacements([]);
+        setExchangeDraft({ outgoingIds: [], incomingTiles: [] });
+        setSelectedRackTileId(null);
+        setSelectedPendingTileId(null);
+        setAssignmentRequest(null);
+        // The player's own move stays on the board, with the player's own score.
+        const next: GameState = {
+          ...session.game,
+          board: boardAfter,
+          rackA: rackAfter,
+          scores: { ...session.game.scores, A: session.game.scores.A + result.score },
+          revision: (session.game.revision ?? 0) + 1,
+          lastSavedAt: new Date().toISOString(),
+        };
+        const updated = { ...session, game: next };
+        studyPuzzleRef.current = updated;
+        setStudyPuzzle(updated);
+        setGame(next);
+        setStudyPuzzleSubmitted({ score: result.score, equations: result.yourEquations });
+      })
+      .catch((error: unknown) => {
+        // The move stays composed on the board, so the player sees what was refused.
+        setStudyPuzzleError(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => {
+        studyPuzzleBusyRef.current = null;
+        setStudyPuzzleBusy(null);
+      });
+  }
+
   function commitLog(
     log: TurnLog,
     boardAfter: BoardSnapshot,
@@ -4607,6 +5812,14 @@ function App() {
     extra?: Partial<GameState>,
   ) {
     if (!game || readOnly) return;
+    if (survivalRef.current) {
+      submitSurvivalMove(log);
+      return;
+    }
+    if (studyPuzzleRef.current) {
+      submitStudyPuzzleMove(log, boardAfter, rackAfter);
+      return;
+    }
     pendingSessionEventRef.current = "submit_action";
     shouldFlushEmptyLiveSessionRef.current = true;
     const normalLogs = [...game.logs, log];
@@ -4618,6 +5831,18 @@ function App() {
       tilebagAfter,
       logs: normalLogs,
     });
+    // The same move already exists here, parked: walk back into that line rather than copy it.
+    // Decided now, from the pure model, so that if following it is not possible the move is
+    // simply played as a new one below — a submitted move is never swallowed.
+    const twin = endGameLog ? null : findParkedTwin(log);
+    const roomForTwin = activeRoomIdRef.current;
+    if (twin && roomForTwin) {
+      const followed = continueFrom(game, multiverse, { nodeId: twin, phase: "after" });
+      if (followed.ok && followed.changed) {
+        void applyTimelineChange(roomForTwin, game, followed.game, multiverse, followed.multiverse);
+        return;
+      }
+    }
     const logs = endGameLog ? [...normalLogs, endGameLog] : normalLogs;
     const pendingBySide = getPendingExchangeReturnBySide(game);
     const nextPendingBySide = floatingTiles
@@ -4790,12 +6015,15 @@ function App() {
    * the caller is told, because a bot that has not moved yet can still move,
    * and a bot that has passed cannot take it back.
    */
-  function applyBotResult(response: BotResponse, forRevision: number): void {
+  function applyBotResult(
+    response: BotResponse,
+    forRevision: number,
+  ): "applied" | "rejected" | "stale" {
     const g = gameRef.current;
-    if (!g || !g.botSide || g.status !== "playing" || g.activeSide !== g.botSide) return;
+    if (!g || !g.botSide || g.status !== "playing" || g.activeSide !== g.botSide) return "stale";
     if ((g.revision ?? 0) !== forRevision || response.revision !== forRevision) {
       // Computed for a different position than the one on the board.
-      return;
+      return "stale";
     }
     const now = new Date().toISOString();
     const botActionStart: ActionStart = {
@@ -4824,7 +6052,7 @@ function App() {
         setBotReasoning({
           logId,
           turnNumber: g.turnNumber,
-          playerName: g.players[g.botSide] || "Aether",
+          playerName: g.players[g.botSide] || (g.botEngine === "authur" ? "Authur" : "Aether"),
           response,
         });
       }
@@ -4852,14 +6080,14 @@ function App() {
         });
         commitLog(log, boardAfter, rackAfter, g.tilebag, undefined, pin);
         recordReasoning(log.id);
-        return;
+        return "applied";
       }
       // The engine named a placement the rules reject. That is a bug worth
       // shouting about, but it is not a reason to spend the bot's turn: leave
       // the board alone and let the retry ask again.
       console.error("Bot move rejected by the official validator:", validation.errors);
       setBotNotice("คำตอบของบอทไม่ผ่านการตรวจกติกา — กำลังคำนวณใหม่");
-      return;
+      return "rejected";
     }
 
     if (mapped?.kind === "exchange") {
@@ -4867,7 +6095,7 @@ function App() {
         // The engine chose an exchange the position no longer permits. Same rule
         // as above: report it, do not convert it into a pass.
         setBotNotice("คำตอบของบอทไม่ผ่านการตรวจกติกา — กำลังคำนวณใหม่");
-        return;
+        return "rejected";
       }
       const outgoingSet = new Set(mapped.outgoingIds);
       const outgoingTiles = getRack(g, g.activeSide).filter((tile) => outgoingSet.has(tile.id));
@@ -4887,7 +6115,7 @@ function App() {
       });
       commitLog(log, g.board, rackAfter, g.tilebag, returnedTiles, pin);
       recordReasoning(log.id);
-      return;
+      return "applied";
     }
 
     if (mapped?.kind !== "pass") {
@@ -4895,7 +6123,7 @@ function App() {
       // — the two disagree about what the bot is holding. Never guess, and never
       // spend the turn guessing.
       setBotNotice("คำตอบของบอทไม่ตรงกับเบี้ยในมือ — กำลังคำนวณใหม่");
-      return;
+      return "rejected";
     }
 
     // The engine chose to pass. This is the ONLY path that plays one.
@@ -4914,6 +6142,7 @@ function App() {
     });
     commitLog(log, g.board, rackAfter, g.tilebag, undefined, pin);
     recordReasoning(log.id);
+    return "applied";
   }
 
   function applyUndoSnap(snap: UndoSnap) {
@@ -5315,9 +6544,10 @@ function App() {
   }
 
   function startReplay() {
-    if (!game || game.logs.length === 0) return;
+    if (!game || game.logs.length === 0 || !canUseTool("replay")) return;
     setShowResult(false);
-    // Start at the very first step: turn 1, rack ready, before action.
+    // Start at the very first step: turn 1, rack ready, before action — on the line played.
+    setViewTipId(null);
     setReplayCursor(0);
   }
 
@@ -5326,13 +6556,13 @@ function App() {
   // viewing it.
   function replayStep(delta: number) {
     if (!game || replayCursor === null) return;
-    const total = game.logs.length * 2;
+    const total = viewLogs.length * 2;
     if (total === 0) return;
     const next = Math.max(0, Math.min(total - 1, replayCursor + delta));
     setReplayCursor(next);
   }
 
-  const replayTotalSteps = game.logs.length * 2;
+  const replayTotalSteps = viewLogs.length * 2;
   const replayIndex = replayCursor ?? -1;
   const latestLog = game.logs.at(-1) ?? null;
   const showViewPanel = reviewing || (readOnly && !canEditRefill);
@@ -5352,14 +6582,19 @@ function App() {
     return new Set(latestActiveSideLog?.rackAfter.map((tile) => tile.id) ?? []);
   })();
   const concealDirectOpponentRack = isDirectEmailRoom && !emailPlayersCanSeeOpponentRack;
-  const tilebagView = getTilebagView({
-    game,
-    refillNeeded,
-    reviewing,
-    selectedLog,
-    concealOpponentRack: concealDirectOpponentRack,
-    viewerSide: accountPlayerSide,
-  });
+  // Survival: always the unseen pool, never the bag alone (that would reveal Authur's rack).
+  const tilebagView = survival
+    ? survivalTilebagView(viewGame ?? game, survival.authurSide, reviewing ? selectedLog : null)
+    : studyPuzzle
+      ? studyTilebagView(viewGame ?? game)
+      : getTilebagView({
+        game: viewGame ?? game,
+        refillNeeded,
+        reviewing,
+        selectedLog,
+        concealOpponentRack: concealDirectOpponentRack,
+        viewerSide: accountPlayerSide,
+      });
   const exchangeReady = actionMode === "exchange" && exchangeDraft.outgoingIds.length > 0;
   const canPickFromTilebag =
     getTileDrawMode(game) !== "play" &&
@@ -5375,14 +6610,17 @@ function App() {
   const selectedRackTile =
     activeRack.find((tile) => tile.id === selectedRackTileId) ??
     pendingPlacements.find((placement) => placement.tile.id === selectedPendingTileId)?.tile;
-  const currentTurnLogRack = actionStart?.rackBefore ?? activeRack;
+  const currentTurnLogRack =
+    actionStart?.rackBefore ?? (survival ? getRack(game, survival.humanSide) : activeRack);
   // Email players either follow the active rack (sharing on) or keep their own
   // rack visible while waiting (sharing off). Direct matches never grant an
   // owner/admin exception because they have no gameplay host.
   const rackSide: Side =
     reviewing && selectedLog
       ? selectedLog.side
-      : isEmailRoom &&
+      : survival
+        ? survival.humanSide
+        : isEmailRoom &&
           !emailPlayersCanSeeOpponentRack &&
           accountPlayerSide &&
           (isDirectEmailRoom || !hasAdminAccess)
@@ -5473,6 +6711,28 @@ function App() {
   const endIsSurrender = !hasGameplayHost && getGameMode(game) !== "solo";
   const canResumeLifecycle =
     canHostLifecycleControl || canSoloLifecycleControl || canDirectLifecycleControl;
+  const topbarPhase = gameFinished
+    ? "จบเกม"
+    : reviewing
+      ? "ดูย้อนหลัง"
+      : game.status === "draft"
+        ? "พักเกม"
+        : game.phase === "refill"
+          ? "จั่วเบี้ย"
+          : actionMode === "exchange"
+            ? "เลือกเบี้ยแลก"
+            : actionMode === "place_equation"
+              ? "วางสมการ"
+              : actionMode === "pass"
+                ? "ผ่านตา"
+                : botTurnLocked
+                  ? "บอทกำลังเดิน"
+                  : "พร้อมเล่น";
+  const topbarStatus = syncError
+    ? "ซิงก์มีปัญหา"
+    : backgroundSyncCount > 0
+      ? "กำลังบันทึก…"
+      : topbarPhase;
 
   return (
     <main className="app-shell">
@@ -5484,6 +6744,10 @@ function App() {
       <header className="top-bar">
         <div className="title-block">
           <h1>{game.name}</h1>
+          <span className={`topbar-status${syncError ? " has-error" : ""}`} aria-live="polite">
+            {gameFinished ? "" : `ตา ${game.turnNumber} · ${game.players[game.activeSide]} · `}
+            {topbarStatus}
+          </span>
         </div>
         <div className="top-actions">
           <span
@@ -5550,16 +6814,23 @@ function App() {
               <span className="top-action-label">{gameFinished ? "Exit" : "Exit & Save"}</span>
             </button>
           )}
-          <button
-            aria-label="Turn log"
-            className="icon-button"
-            title="Turn log"
-            type="button"
-            onClick={() => setLogModalOpen(true)}
-          >
-            <List size={18} />
-            <span className="top-action-label">Log</span>
-          </button>
+          {modeToolsLoading && (
+            <span className="play-tool-loading" role="status" aria-label="กำลังเตรียมเครื่องมือ">
+              <span className="play-tool-loading-dot" aria-hidden="true" />
+            </span>
+          )}
+          {canUseTool("turn_log") && (
+            <button
+              aria-label="ประวัติตา"
+              className="icon-button"
+              title="ดูตาที่ผ่านมา"
+              type="button"
+              onClick={() => setLogModalOpen(true)}
+            >
+              <List size={18} />
+              <span className="top-action-label">ประวัติ</span>
+            </button>
+          )}
           {!gameFinished && game.status === "playing" && canStopLifecycle && (
             <button
               aria-label={
@@ -5652,21 +6923,23 @@ function App() {
                 <Trophy size={18} />
                 <span className="top-action-label">Result</span>
               </button>
-              <button
-                aria-label="Replay"
-                className="resume-button top-end-game"
-                type="button"
-                disabled={game.logs.length === 0}
-                title={
-                  game.logs.length === 0
-                    ? "Nothing to replay — this game has no recorded turns."
-                    : "Step through every move from the beginning."
-                }
-                onClick={startReplay}
-              >
-                <Play size={18} />
-                <span className="top-action-label">Replay</span>
-              </button>
+              {canUseTool("replay") && (
+                <button
+                  aria-label="Replay"
+                  className="resume-button top-end-game"
+                  type="button"
+                  disabled={game.logs.length === 0}
+                  title={
+                    game.logs.length === 0
+                      ? "Nothing to replay — this game has no recorded turns."
+                      : "Step through every move from the beginning."
+                  }
+                  onClick={startReplay}
+                >
+                  <Play size={18} />
+                  <span className="top-action-label">Replay</span>
+                </button>
+              )}
             </>
           )}
         </div>
@@ -5686,20 +6959,34 @@ function App() {
             remainingCount={tilebagView.remainingCount}
             tiles={tilebagView.tiles}
           />
-          <LogPanel
-            game={game}
-            selectedLogId={selectedLogId}
-            onSelectLog={selectLog}
-            onStarsChange={updateLogStars}
-            onNoteChange={updateNote}
-            currentTurnRack={currentTurnLogRack}
-            readOnly={!canControlActiveGame}
-          />
+          {canUseTool("turn_log") && (
+            <LogPanel
+              game={game}
+              logs={viewLogs}
+              selectedLogId={selectedLogId}
+              replayPhase={replayPhase}
+              forks={forks}
+              lineView={lineView}
+              lineCount={lineTotal}
+              timelineStatus={timelineEntry.status}
+              branch={branchControl}
+              onSelectLog={onSelectLog}
+              onStarsChange={onUpdateLogStars}
+              onNoteChange={onUpdateLogNote}
+              onStep={onStepTurn}
+              onSetPhase={onSetReplayPhase}
+              onOpenMap={canUseTool("multiverse") ? openMap : undefined}
+              onViewOption={onViewOption}
+              onContinue={onContinueFromView}
+              currentTurnRack={currentTurnLogRack}
+              readOnly={!canControlActiveGame}
+            />
+          )}
         </aside>
 
         <section
           className="board-zone"
-          ref={boardZoneRef}
+          ref={setBoardZone}
           style={{ ["--cell"]: `${boardCell}px` } as CSSProperties}
         >
           <div className="board-stage">
@@ -5771,7 +7058,7 @@ function App() {
               </span>
               {reviewing ? (
                 <span className="pc-hint">
-                  Replay {replayIndex + 1}/{game.logs.length}
+                  Replay {Math.floor(replayIndex / 2) + 1}/{viewLogs.length}
                 </span>
               ) : gameFinished ? (
                 <span className="pc-hint">Finished · use the top bar for Result / Replay</span>
@@ -5794,6 +7081,7 @@ function App() {
               canChooseAction={canChooseAction}
               canEditRefill={canEditRefill}
               canExchange={canStartExchange}
+              canPass={!studyPuzzle}
               canPickFromTilebag={canPickFromTilebag}
               canUndoPlacement={pendingPlacements.length > 0}
               exchangeCount={exchangeDraft.outgoingIds.length}
@@ -5830,11 +7118,92 @@ function App() {
               rack={rackConfigs[0].rack}
               selectedRackTileId={selectedRackTileId}
               side={rackConfigs[0].side}
+              typing={
+                rackTypingFocus !== null && rackConfigs[0].side === game.activeSide
+                  ? { focus: rackTypingFocus }
+                  : null
+              }
               onEmptySlotClick={onEmptyRackSlotClick}
+              onSlotFocus={onRackSlotFocus}
               onTileClick={onRackTileClick}
+              onExchangeSelectTiles={onExchangeSelectTiles}
             />
           </div>
         </section>
+
+        {isMobilePlay &&
+          (canUseTool("multiverse") ||
+            analysisAvailable ||
+            (botNotice && game.botSide && !reviewing) ||
+            (!botStatus &&
+              canUseTool("bot_insight") &&
+              botReasoning &&
+              activeRoomId &&
+              game.logs.at(-1)?.id === botReasoning.logId)) && (
+            <section className="mobile-play-tools" aria-label="เครื่องมือระหว่างเล่น">
+              <div className="mobile-play-tools-head">
+                <span className="mobile-play-tools-title">
+                  <FlaskConical size={15} aria-hidden /> เครื่องมือ
+                </span>
+                <span className="mobile-play-tools-context">สำหรับโหมดนี้</span>
+              </div>
+              <div className="mobile-play-tool-list">
+                {canUseTool("multiverse") && (
+                  <button type="button" className="mobile-tool-button" onClick={openMap}>
+                    <span className="mobile-tool-icon">
+                      <GitBranch size={17} aria-hidden />
+                    </span>
+                    <span className="mobile-tool-copy">
+                      <strong>เส้นทางเกม</strong>
+                      <small>ดูตาที่ผ่านมา</small>
+                    </span>
+                    <ChevronRight className="mobile-tool-arrow" size={15} aria-hidden />
+                  </button>
+                )}
+                {!botStatus &&
+                  canUseTool("bot_insight") &&
+                  botReasoning &&
+                  activeRoomId &&
+                  game.logs.at(-1)?.id === botReasoning.logId && (
+                    <button
+                      type="button"
+                      className="mobile-tool-button"
+                      onClick={() => setReasoningOpen(true)}
+                    >
+                      <span className="mobile-tool-icon">
+                        <BrainCircuit size={17} aria-hidden />
+                      </span>
+                      <span className="mobile-tool-copy">
+                        <strong>เหตุผลของบอท</strong>
+                        <small>ทำไมเลือกตานี้</small>
+                      </span>
+                      <ChevronRight className="mobile-tool-arrow" size={15} aria-hidden />
+                    </button>
+                  )}
+                {analysisAvailable && activeRoomId && (
+                  <div className="mobile-analysis-tool">
+                    <TurnAnalysisLauncher
+                      roomId={activeRoomId}
+                      authur={game.botEngine === "authur"}
+                      revision={game.revision ?? 0}
+                      reconnectEpoch={subscriptionEpoch}
+                      playerName={game.players[game.activeSide] || game.activeSide}
+                      disabled={!canAnalyzeTurn}
+                      disabledReason={analysisDisabledReason}
+                      makeLocal={makeLocalAnalysis}
+                      localHint={localAnalysisHint}
+                      mobileTool
+                    />
+                  </div>
+                )}
+              </div>
+              {botNotice && game.botSide && !reviewing && (
+                <div className="bot-notice" role="status">
+                  {botNotice}
+                </div>
+              )}
+            </section>
+          )}
 
         {/* A toast, not a row. `position: fixed` keeps it out of the layout
             entirely — `.board-zone` is a two-row grid whose board is sized from
@@ -5867,7 +7236,29 @@ function App() {
             // below. Watching a bot think is the one thing a spectator came for.
             engineActivity={showViewPanel ? undefined : engineActivityFor("panel")}
             detailOverride={
-              botTurnLocked ? `${botName} thinking` : botTurn ? `Manual · ${botName}` : undefined
+              survival
+                ? survivalBusy === "authur"
+                  ? "Authur thinking"
+                  : undefined
+                : studyPuzzle
+                  ? studyPuzzleSubmitted
+                    ? "ส่งคำตอบแล้ว"
+                    : undefined
+                  : botTurnLocked
+                  ? `${botName} thinking`
+                  : botTurn
+                    ? `Manual · ${botName}`
+                    : undefined
+            }
+            // A submitted Study puzzle is over: say so, rather than "analysis tools go here".
+            viewOnlyMessage={
+              studyPuzzle && studyPuzzleSubmitted ? (
+                <div className="analysis-panel is-empty">
+                  <p className="analysis-empty">
+                    ส่งคำตอบแล้ว · โจทย์นี้ตอบได้ตาเดียว และคำตอบของคุณถูกบันทึกไว้แล้ว
+                  </p>
+                </div>
+              ) : undefined
             }
             // Rendered by the control panel rather than under the board: see
             // `insights` in ActionPanel for why the board zone cannot hold them.
@@ -5891,6 +7282,46 @@ function App() {
                   </button>
                 )}
 
+                {survival && survivalBusy === "authur" && (
+                  <div className="bot-notice" role="status" aria-live="polite">
+                    Authur กำลังคิด…
+                  </div>
+                )}
+                {survival && survivalError && (
+                  <div className="bot-notice" role="alert">
+                    {survivalError}
+                    {game.status === "playing" &&
+                      game.activeSide === survival.authurSide &&
+                      survivalBusy === null && (
+                        <button
+                          type="button"
+                          className="bot-why-btn"
+                          onClick={() => setSurvivalRetry((count) => count + 1)}
+                        >
+                          ให้ Authur ลองอีกครั้ง
+                        </button>
+                      )}
+                  </div>
+                )}
+
+                {studyPuzzle && studyPuzzleBusy === "submit" && (
+                  <div className="bot-notice" role="status" aria-live="polite">
+                    กำลังส่งคำตอบ…
+                  </div>
+                )}
+                {studyPuzzle && studyPuzzleSubmitted && (
+                  <div className="bot-notice" role="status" aria-live="polite">
+                    ส่งคำตอบแล้ว · ตานี้ได้ {studyPuzzleSubmitted.score} แต้ม (
+                    {studyPuzzleSubmitted.equations.map((equation) => equation.text).join(" · ")}) ·
+                    โจทย์นี้จบแล้ว
+                  </div>
+                )}
+                {studyPuzzle && studyPuzzleError && (
+                  <div className="bot-notice" role="alert">
+                    {studyPuzzleError}
+                  </div>
+                )}
+
                 {/* Why the bot has not moved. Shown while a retry is pending and
                     after a failure that ended in a pass, so the board never simply
                     sits there with no explanation. */}
@@ -5900,15 +7331,21 @@ function App() {
                   </div>
                 )}
 
-                {!botStatus &&
+                {!isMobilePlay &&
+                  !botStatus &&
                   !reviewing &&
                   game.botSide &&
                   botReasoning &&
+                  canUseTool("bot_insight") &&
                   // The report is read back from the engine service by room id, so a
                   // button with no room behind it could only open an empty panel.
                   activeRoomId &&
                   game.logs[game.logs.length - 1]?.id === botReasoning.logId && (
-                    <button type="button" className="bot-why-btn" onClick={() => setReasoningOpen(true)}>
+                    <button
+                      type="button"
+                      className="bot-why-btn"
+                      onClick={() => setReasoningOpen(true)}
+                    >
                       🧠 ทำไม {botReasoning.playerName} เลือกตานี้?
                     </button>
                   )}
@@ -5922,9 +7359,10 @@ function App() {
                     This is a convenience gate. The backend enforces the same rule and
                     refuses regardless of what is rendered here, which is why hiding
                     the button is not relied on for anything. */}
-                {analysisAvailable && activeRoomId && (
+                {!isMobilePlay && analysisAvailable && activeRoomId && (
                   <TurnAnalysisLauncher
                     roomId={activeRoomId}
+                    authur={game.botEngine === "authur"}
                     revision={game.revision ?? 0}
                     reconnectEpoch={subscriptionEpoch}
                     playerName={game.players[game.activeSide] || game.activeSide}
@@ -5936,15 +7374,17 @@ function App() {
                 )}
               </>
             }
-            activeRack={activeRack}
+            activeRack={survival ? getRack(game, survival.humanSide) : activeRack}
             actionMode={actionMode}
             canChooseAction={canChooseAction}
             canEditRefill={canEditRefill}
             canExchange={canStartExchange}
-            exchangeDisabledReason={exchangeRule.reason}
+            canPass={!studyPuzzle}
+            exchangeDisabledReason={studyPuzzle ? STUDY_PLACEMENT_ONLY : exchangeRule.reason}
             exchangeDraft={exchangeDraft}
             exchangeReady={exchangeReady}
-            game={game}
+            // While reviewing another line, its replay reads that line's turns, not the live ones.
+            game={reviewing ? (viewGame ?? game) : game}
             pendingPlacements={pendingPlacements}
             readOnly={readOnly}
             refillNeeded={refillNeeded}
@@ -5969,17 +7409,61 @@ function App() {
         </aside>
       </div>
 
-      <LogModal
+      <TurnLogMap
+        open={canUseTool("multiverse") && mapRoomId !== null && mapRoomId === activeRoomId}
         game={game}
-        open={logModalOpen}
-        selectedLogId={selectedLogId}
-        onClose={() => setLogModalOpen(false)}
-        onStarsChange={updateLogStars}
-        currentTurnRack={currentTurnLogRack}
-        onNoteChange={updateNote}
-        readOnly={!canControlActiveGame}
-        onSelectLog={selectLog}
+        tree={multiverseTree}
+        status={timelineEntry.status}
+        error={timelineEntry.error}
+        viewedId={selectedLogId}
+        canBranch={branchAvailable}
+        branchBlockedReason={branchBlockedReason}
+        busy={branchBusy}
+        onClose={onCloseMap}
+        onView={onMapView}
+        onContinue={onMapContinue}
+        onPrune={onMapPrune}
+        onRetry={onRetryTimeline}
       />
+
+      {canUseTool("turn_log") && (
+        <LogModal
+          game={game}
+          logs={viewLogs}
+          open={logModalOpen}
+          selectedLogId={selectedLogId}
+          replayPhase={replayPhase}
+          forks={forks}
+          lineCount={lineTotal}
+          branch={branchControl}
+          onClose={() => setLogModalOpen(false)}
+          onStarsChange={onUpdateLogStars}
+          currentTurnRack={currentTurnLogRack}
+          onNoteChange={onUpdateLogNote}
+          onSetPhase={onSetReplayPhase}
+          onOpenMap={
+            canUseTool("multiverse")
+              ? () => {
+                  // One dialog at a time: the map replaces the log rather than stacking on it.
+                  setLogModalOpen(false);
+                  openMap();
+                }
+              : undefined
+          }
+          onViewOption={onViewOption}
+          onContinue={() => {
+            if (!selectedLog) return;
+            void continueFromTarget({ nodeId: selectedLog.id, phase: replayPhase }).then(
+              (moved) => {
+                // The board is the answer now, and on a phone the log is covering it.
+                if (moved) setLogModalOpen(false);
+              },
+            );
+          }}
+          readOnly={!canControlActiveGame}
+          onSelectLog={onSelectLog}
+        />
+      )}
 
       {assignmentRequest && (
         <AssignmentModal
@@ -5989,7 +7473,7 @@ function App() {
         />
       )}
 
-      {reasoningOpen && botReasoning && activeRoomId && (
+      {reasoningOpen && canUseTool("bot_insight") && botReasoning && activeRoomId && (
         <BotReasoningPanel
           gameId={activeRoomId}
           playerName={botReasoning.playerName}

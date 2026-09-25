@@ -1,5 +1,5 @@
 import { FolderLock, Globe2, MapPin, Plus, UserRound } from "lucide-react";
-import { useRoute } from "../../router";
+import { routeToHash, useRoute } from "../../router";
 
 /**
  * The five application destinations. One element serves both layouts: a fixed
@@ -19,6 +19,20 @@ export function PrimaryNavigation() {
       : route.kind === "private" || route.kind === "profile" || route.kind === "create"
         ? route.kind
         : null;
+  const createHref =
+    route.kind === "private"
+      ? routeToHash({ kind: "create", visibility: "public", returnTo: route })
+      : route.kind === "home" && route.section === "history"
+        ? routeToHash({
+            kind: "create",
+            visibility: route.visibility,
+            returnTo: { kind: "home", visibility: route.visibility, section: "history" },
+          })
+        : route.kind === "create"
+          ? routeToHash(route)
+          : active === "region"
+            ? "#/create?space=region"
+            : "#/create";
 
   return (
     <nav className="eq-primary-nav" aria-label="Primary navigation">
@@ -30,7 +44,7 @@ export function PrimaryNavigation() {
       </NavItem>
       <a
         className={`eq-primary-nav-create${active === "create" ? " is-active" : ""}`}
-        href="#/create"
+        href={createHref}
         aria-current={active === "create" ? "page" : undefined}
         aria-label="Create game"
       >

@@ -35,6 +35,14 @@ describe("game record domain", () => {
     expect(
       deriveModeKey({ gameMode: "versus", botSide: "B", botDifficulty: "hard" } as never),
     ).toBe("aether_hard");
+    expect(
+      deriveModeKey({
+        gameMode: "versus",
+        botSide: "B",
+        botEngine: "authur",
+        botDifficulty: "super",
+      } as never),
+    ).toBe("authur_strong");
     expect(deriveModeKey({ gameMode: "solo" } as never)).toBe("solo_practice");
     expect(deriveModeKey({ gameMode: "versus", emailPlayMode: "direct" } as never)).toBe(
       "online_versus",

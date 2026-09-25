@@ -1,5 +1,5 @@
 import { X } from "lucide-react";
-import { useEffect, useId, useRef, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 const FOCUSABLE_SELECTOR = [
@@ -35,6 +35,21 @@ export function Sheet({
   const dialogRef = useRef<HTMLDivElement | null>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
+  const [present, setPresent] = useState(open);
+
+  useEffect(() => {
+    if (open) {
+      setPresent(true);
+      return;
+    }
+    if (!present) return;
+    if (document.body.dataset.route === "play") {
+      setPresent(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setPresent(false), 170);
+    return () => window.clearTimeout(timer);
+  }, [open, present]);
 
   useEffect(() => {
     if (!open) return;
@@ -87,9 +102,9 @@ export function Sheet({
     };
   }, [dismissible, open, onClose]);
 
-  if (!open) return null;
+  if ((!open && !present) || (!open && document.body.dataset.route === "play")) return null;
   return createPortal(
-    <div className="ui-sheet-backdrop">
+    <div className="ui-sheet-backdrop" data-state={open ? "open" : "closing"} inert={!open}>
       {dismissible && (
         <button
           className="ui-sheet-dismiss"
@@ -103,6 +118,7 @@ export function Sheet({
         className="ui-sheet"
         role="dialog"
         aria-modal="true"
+        aria-hidden={!open}
         aria-labelledby={titleId}
         tabIndex={-1}
       >
@@ -175,7 +191,6 @@ export function TextPromptSheet({
   onCancel: () => void;
   onSubmit: (value: string) => void;
 }) {
-  if (!open) return null;
   return (
     <Sheet open={open} title={title} onClose={onCancel}>
       <form

@@ -127,9 +127,11 @@ export function MembersView({
       )}
 
       {loading ? (
-        <p className="empty-state" role="status">
-          Loading your members…
-        </p>
+        <div className="eq-skeleton-list" role="status" aria-label="Loading members">
+          <span />
+          <span />
+          <span />
+        </div>
       ) : members.length === 0 ? (
         <p className="empty-state">
           {canManage
@@ -319,7 +321,12 @@ function MemberForm({
           <X size={14} />
           Cancel
         </button>
-        <button type="submit" className="eq-button eq-button-primary" disabled={busy}>
+        <button
+          type="submit"
+          className="eq-button eq-button-primary"
+          disabled={busy}
+          aria-busy={busy}
+        >
           <Check size={14} />
           {submitLabel}
         </button>

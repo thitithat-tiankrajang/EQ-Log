@@ -8,6 +8,8 @@ const migrationPaths = [
   "supabase/live_game_sync_repair_migration.sql",
   "supabase/canonical_revision_migration.sql",
   "supabase/waiting_room_ready_repair.sql",
+  "supabase/multiverse_timeline_migration.sql",
+  "supabase/play_mode_tools_migration.sql",
 ];
 
 describe("documented migration sequence", () => {

@@ -4,4 +4,9 @@
 @import "./styles/components/98-bot-thinking.css" layer(legacy);
 @import "./styles/pages/lobby/95-bot-stats.css" layer(application);
 @import "./styles/pages/study.css" layer(application);
+@import "./styles/pages/survival.css" layer(application);
+@import "./styles/pages/ranked.css" layer(application);
 @import "./styles/application.css" layer(application);
+@import "./styles/non-play-refresh.css";
+@import "./styles/file-browser.css";
+@import "./styles/waiting-room.css";

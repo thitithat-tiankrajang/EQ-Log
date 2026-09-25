@@ -7,7 +7,7 @@
 
 import { GameState, GameStatus, Side, deepClone, getGameMode, type GameMode } from "./game";
 import { serializeGame, deserializeGame } from "./codec";
-import { ROOM_STORAGE_PREFIX, STORAGE_KEYS } from "./constants/storage";
+import { ROOM_STORAGE_PREFIX, STORAGE_KEYS, TIMELINE_STORAGE_PREFIX } from "./constants/storage";
 import { roomBelongsToScope, type RoomScope, type RoomVisibility } from "./roomScope";
 
 export type RoomMeta = {
@@ -214,10 +214,33 @@ export function createRoom(
   return { id, index };
 }
 
+// ── Parked lines ────────────────────────────────────────────────────────────────
+//
+// A local room's branches, stored beside its game under their own key so a move — which
+// rewrites the game on every change — never re-serializes them. Written only when a line is
+// parked, restored or pruned. The stored value is the multiverse codec's document, verbatim.
+
+function timelineKey(id: string): string {
+  return `${TIMELINE_STORAGE_PREFIX}${id}`;
+}
+
+export function readTimelineDoc(id: string): unknown | null {
+  return readJSON<unknown>(timelineKey(id));
+}
+
+export function writeTimelineDoc(id: string, doc: unknown): void {
+  try {
+    localStorage.setItem(timelineKey(id), JSON.stringify(doc));
+  } catch {
+    // Quota or private browsing: the in-memory copy still serves this session.
+  }
+}
+
 export function deleteRoom(id: string): RoomMeta[] {
   // Drop the pending write first: flushing it later would resurrect the room.
   pendingStates.delete(id);
   localStorage.removeItem(roomKey(id));
+  localStorage.removeItem(timelineKey(id));
   const index = rawIndex().filter((meta) => meta.id !== id);
   persistIndex(index);
   if (getActiveRoomId() === id) setActiveRoomId(null);
@@ -247,7 +270,11 @@ export function duplicateRoom(id: string): { id: string; index: RoomMeta[] } | n
   const copy = deepClone(game);
   copy.gameId = crypto.randomUUID();
   copy.name = `${game.name} (Copy)`;
-  return createRoom(copy, scope);
+  const created = createRoom(copy, scope);
+  // The copy names the same parked-lines version, so it needs the same lines to name.
+  const timeline = readTimelineDoc(id);
+  if (timeline) writeTimelineDoc(created.id, timeline);
+  return created;
 }
 
 /** Add an imported game as a new room (fresh ids to avoid collisions). */

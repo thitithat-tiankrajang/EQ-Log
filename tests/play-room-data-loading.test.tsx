@@ -1,7 +1,8 @@
-import { render, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_NEW_GAME_SETTINGS } from "../src/constants/roomDefaults";
 import { createNewGame } from "../src/game";
+import { createWaitingGame } from "../src/pregame";
 
 const {
   listRooms,
@@ -10,6 +11,8 @@ const {
   subscribeToGameCommits,
   subscribeToRoom,
   commitRoomState,
+  updateRoomSession,
+  readGameSnapshot,
 } = vi.hoisted(() => {
   const harness = {
     listRooms: vi.fn(),
@@ -32,6 +35,8 @@ const {
       return () => undefined;
     }),
     commitRoomState: vi.fn(),
+    updateRoomSession: vi.fn(),
+    readGameSnapshot: vi.fn(),
   };
   return {
     listRooms: harness.listRooms,
@@ -40,6 +45,8 @@ const {
     subscribeToGameCommits: harness.subscribeToGameCommits,
     subscribeToRoom: harness.subscribeToRoom,
     commitRoomState: harness.commitRoomState,
+    updateRoomSession: harness.updateRoomSession,
+    readGameSnapshot: harness.readGameSnapshot,
   };
 });
 
@@ -50,6 +57,8 @@ const { requestBotMove, attachBotMove, listJobs } = vi.hoisted(() => ({
 }));
 
 vi.mock("../src/auth", () => ({
+  AccountChip: () => null,
+  AdminButton: () => null,
   useAuth: () => ({
     configured: true,
     isApproved: true,
@@ -80,6 +89,8 @@ vi.mock("../src/remoteRooms", async (importOriginal) => {
     subscribeToGameCommits,
     subscribeToRoom,
     commitRoomState,
+    updateRoomSession,
+    readGameSnapshot,
   };
 });
 
@@ -95,6 +106,7 @@ import App from "../src/App";
 import { EngineApiError } from "../src/bot/engineApi";
 import * as engineSessions from "../src/engineSessions";
 import * as playSnapshotCache from "../src/playSnapshotCache";
+import { routeToHash } from "../src/router";
 
 const ROOM_ID = "22222222-2222-4222-8222-222222222222";
 
@@ -117,6 +129,8 @@ describe("play route data loading", () => {
     subscribeToRoom.mockClear();
     subscribeToGameCommits.mockClear();
     commitRoomState.mockReset().mockResolvedValue({ outcome: "committed", revision: 1 });
+    updateRoomSession.mockReset().mockResolvedValue(undefined);
+    readGameSnapshot.mockReset();
     // A search that never settles, unless a test says otherwise.
     requestBotMove.mockReset().mockImplementation(() => new Promise<never>(() => undefined));
     attachBotMove.mockReset().mockResolvedValue({ kind: "idle" });
@@ -126,6 +140,63 @@ describe("play route data loading", () => {
     playSnapshotCache.forget(ROOM_ID);
     realtimeHarness.statusHandler = undefined;
     window.location.hash = `#/play/${ROOM_ID}`;
+  });
+
+  it("returns to Region after exiting a cached Region game", async () => {
+    const initial = createNewGame({
+      ...DEFAULT_NEW_GAME_SETTINGS,
+      name: "Region match",
+      playerA: "Owner",
+      playerB: "Player B",
+      tileDrawMode: "play",
+    });
+    const game = {
+      ...initial,
+      status: "finished" as const,
+      timers: { ...initial.timers, paused: true },
+    };
+    playSnapshotCache.remember(ROOM_ID, game);
+    const payload = botPayload(game, OWNER_ID);
+    readRoom.mockResolvedValue({
+      ...payload,
+      meta: { ...payload.meta, visibility: "region", regionId: "region-1", status: "finished" },
+    });
+
+    const view = render(<App />);
+    await waitFor(() => expect(readRoom).toHaveBeenCalled());
+    await act(async () => {
+      await readRoom.mock.results[0]?.value;
+      await Promise.resolve();
+    });
+    fireEvent.click(view.getByRole("button", { name: "Exit" }));
+    expect(window.location.hash).toBe("#/region");
+    view.unmount();
+  });
+
+  it("exits immediately to the originating Region History before room data resolves", async () => {
+    const initial = createNewGame({
+      ...DEFAULT_NEW_GAME_SETTINGS,
+      name: "Region replay",
+      playerA: "Owner",
+      playerB: "Player B",
+      tileDrawMode: "play",
+    });
+    playSnapshotCache.remember(ROOM_ID, {
+      ...initial,
+      status: "finished",
+      timers: { ...initial.timers, paused: true },
+    });
+    readRoom.mockImplementation(() => new Promise<never>(() => undefined));
+    window.location.hash = routeToHash({
+      kind: "play",
+      roomId: ROOM_ID,
+      returnTo: { kind: "home", visibility: "region", section: "history" },
+    });
+
+    const view = render(<App />);
+    fireEvent.click(view.getByRole("button", { name: "Exit" }));
+    expect(window.location.hash).toBe("#/region/history");
+    view.unmount();
   });
 
   it("does not replace the opened room's full metadata with a lobby summary", async () => {
@@ -322,6 +393,58 @@ describe("play route data loading", () => {
     return { ...initial, playerUserIds: { A: OWNER_ID }, revision };
   }
 
+  it("does not send an empty draft after the game has been finalized", async () => {
+    const game = humanTurnGame(5);
+    readRoom.mockResolvedValue(payloadForHumanTurn(game));
+    const view = render(<App />);
+    await waitFor(() => expect(readRoom).toHaveBeenCalled());
+    await waitFor(() => expect(updateRoomSession).toHaveBeenCalled());
+    updateRoomSession.mockClear();
+
+    fireEvent.click(view.container.querySelector(".action-buttons button")!);
+    fireEvent.click(view.container.querySelector(".top-end-game")!);
+    fireEvent.click(view.getByRole("button", { name: "End game", exact: true }));
+    await waitFor(() =>
+      expect(commitRoomState).toHaveBeenCalledWith(
+        expect.objectContaining({
+          game: expect.objectContaining({ status: "finished" }),
+        }),
+      ),
+    );
+    await new Promise((resolve) => setTimeout(resolve, 150));
+    expect(updateRoomSession).not.toHaveBeenCalled();
+    view.unmount();
+  });
+
+  it("checks the small revision head before reloading the full live game", async () => {
+    vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+    try {
+      const game = humanTurnGame(5);
+      readRoom.mockResolvedValue(payloadForHumanTurn(game));
+      readGameSnapshot.mockResolvedValue({ revision: 5, canonical: {}, digest: null });
+      const view = render(<App />);
+      await waitFor(() => expect(realtimeHarness.statusHandler).toBeTypeOf("function"));
+      realtimeHarness.statusHandler?.("SUBSCRIBED");
+      await waitFor(() => expect(readRoom.mock.calls.length).toBeGreaterThanOrEqual(2));
+      readRoom.mockClear();
+
+      await act(async () => {
+        vi.advanceTimersByTime(5_000);
+      });
+      await waitFor(() => expect(readGameSnapshot).toHaveBeenCalledTimes(1));
+      expect(readRoom).not.toHaveBeenCalled();
+
+      readGameSnapshot.mockResolvedValue({ revision: 6, canonical: {}, digest: null });
+      await act(async () => {
+        vi.advanceTimersByTime(5_000);
+      });
+      await waitFor(() => expect(readRoom).toHaveBeenCalledTimes(1));
+      view.unmount();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   function payloadForHumanTurn(game: ReturnType<typeof humanTurnGame>) {
     return botPayload(game as unknown as ReturnType<typeof botGame>, OWNER_ID);
   }
@@ -338,6 +461,36 @@ describe("play route data loading", () => {
     });
     return { ...initial, playerUserIds: { A: OWNER_ID }, revision };
   }
+
+  it("starts the bot from the revision confirmed when the room starts", async () => {
+    window.location.hash = `#/room/${ROOM_ID}`;
+    const waiting = {
+      ...createWaitingGame({
+        ...DEFAULT_NEW_GAME_SETTINGS,
+        name: "Owner vs Aether",
+        playerA: "Owner",
+        playerB: "Aether",
+        botSide: "B" as const,
+        startingSide: "B" as const,
+        tileDrawMode: "play" as const,
+      }),
+      playerUserIds: { A: OWNER_ID },
+      lobbyReadyBySide: { A: true },
+      revision: 5,
+    };
+    readRoom.mockResolvedValue(botPayload(waiting, OWNER_ID));
+    commitRoomState.mockResolvedValue({ outcome: "committed", revision: 6 });
+
+    const view = render(<App />);
+    await waitFor(() => expect(readRoom).toHaveBeenCalledWith(ROOM_ID));
+    await waitFor(() => expect(view.getByRole("button", { name: "Start game" })).toBeEnabled());
+    fireEvent.click(view.getByRole("button", { name: "Start game" }));
+    await waitFor(() => expect(commitRoomState).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(requestBotMove).toHaveBeenCalledWith(expect.objectContaining({ expectedRevision: 6 })),
+    );
+    view.unmount();
+  });
 
   it("starts Aether when the reserved human side is linked to the room owner", async () => {
     const game = botGame(0);

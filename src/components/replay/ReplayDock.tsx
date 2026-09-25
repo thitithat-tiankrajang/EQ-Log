@@ -89,7 +89,9 @@ function meta({
   phase: "before" | "after";
 }): string {
   if (total === 0) return "No turns";
-  const turnLabel = log ? `T${log.turnNumber} · ${game.players[log.side]}` : `Step ${index + 1}`;
+  const turnLabel = log
+    ? `T${log.turnNumber} · ${log.playedByName ?? game.players[log.side]}`
+    : `Step ${index + 1}`;
   const phaseLabel = phase === "before" ? "Rack ready" : "Action";
   return `${index + 1}/${total} · ${turnLabel} · ${phaseLabel}`;
 }
@@ -114,7 +116,7 @@ function ReplayBody({
       <div className="replay-before">
         <div className="rb-head">
           <span className="rb-eyebrow">Turn {log.turnNumber}</span>
-          <strong className="rb-player">{game.players[log.side]}</strong>
+          <strong className="rb-player">{log.playedByName ?? game.players[log.side]}</strong>
           <span className="rb-status">Rack ready · waiting for action</span>
         </div>
         <div className="rb-rack">

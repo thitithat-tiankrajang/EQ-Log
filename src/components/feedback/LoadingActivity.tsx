@@ -21,11 +21,10 @@ export function GlobalActivity({
   foreground: string | null;
   syncing: boolean;
 }) {
-  // Fast background writes are the normal case. Showing a toast for every
-  // tap makes the interface flash and feel slower than it is, so routine
-  // activity stays silent and only genuinely slow work becomes visible.
+  // Routine background work should not interrupt the page. Only show a
+  // neutral status when it lasts long enough to look stalled.
   const foregroundVisible = useDelayedVisibility(Boolean(foreground), 220);
-  const syncingVisible = useDelayedVisibility(syncing, 1_000);
+  const syncingVisible = useDelayedVisibility(syncing, 6_000);
 
   if (foreground) {
     if (!foregroundVisible) return null;
@@ -50,7 +49,7 @@ export function GlobalActivity({
   if (!syncing || !syncingVisible) return null;
   return (
     <div className="network-activity" role="status" aria-live="polite">
-      <strong>Saving changes...</strong>
+      <strong>Syncing…</strong>
       <LoadingTrack />
     </div>
   );

@@ -426,6 +426,27 @@
 /* ============================================================================
    Selection visuals — exchange = faded, place = pressed
    ============================================================================ */
+.rack-tiles-marquee {
+  position: relative;
+  touch-action: none;
+  user-select: none;
+}
+
+.rack-marquee {
+  position: absolute;
+  z-index: 5;
+  pointer-events: none;
+  border: 2px solid var(--accent);
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.exchange-drag-hint {
+  margin: 0 0 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .rack-tile.selected .tile,
 .rack-tile.place-select .tile {
   outline: none !important;
@@ -955,5 +976,53 @@
       clamp(182px, 26dvh, 236px)
       clamp(94px, 12dvh, 116px)
       minmax(220px, 1fr) !important;
+  }
+}
+
+/* ── Typing a rack ───────────────────────────────────────────────────────────
+   The rack turns yellow while the keyboard is entering tiles into it.
+
+   Not a subtle accent: typing mode takes over keys that mean other things
+   everywhere else on this page, so a transcriber has to be able to tell at a
+   glance which meaning is live. The colour is the mode indicator, and the caret
+   is where the next keystroke lands. Both are drawn with the tokens the rest of
+   the app already uses — this is a state of the rack, not a new component. */
+.rack.is-typing {
+  --rack-typing: #f2c200;
+  border-color: var(--rack-typing);
+  box-shadow: inset 0 0 0 1px var(--rack-typing);
+  background-color: color-mix(in srgb, var(--rack-typing) 8%, transparent);
+}
+
+.rack.is-typing .rack-label strong::after {
+  content: " · พิมพ์";
+  color: var(--rack-typing);
+  font-weight: 600;
+}
+
+/* The caret sits on the CELL rather than the tile, so an empty slot shows it
+   exactly as a filled one does — the run of eight has to read as one field. */
+.rack.is-typing .rack-cell.is-caret {
+  position: relative;
+}
+
+.rack.is-typing .rack-cell.is-caret::after {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  border: 2px solid var(--rack-typing);
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rack.is-typing .rack-cell.is-caret::after {
+    animation: rack-caret-pulse 1.1s ease-in-out infinite;
+  }
+}
+
+@keyframes rack-caret-pulse {
+  50% {
+    opacity: 0.45;
   }
 }

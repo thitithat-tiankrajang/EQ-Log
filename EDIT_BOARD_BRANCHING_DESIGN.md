@@ -1,5 +1,10 @@
 # Edit Board and Branching Timeline Design
 
+> **Superseded (2026-09-23)** by `docs/adr/0003-branching-parked-lines.md`: branching shipped
+> with the played line kept in `game.logs` and every other line parked in one document per game
+> (`game_timelines`), not as one row per turn. Kept for the reasoning; do not implement the
+> schema below.
+
 ## Scope
 
 This document is design-only. The current `Live | Last turn` behavior remains

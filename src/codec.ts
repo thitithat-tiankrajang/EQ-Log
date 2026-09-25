@@ -56,9 +56,35 @@ export const STORAGE_PREFIX = "c1:";
 /** Face table used by the legacy (v1/v2) tile codes. Frozen forever: changing
  *  it would re-interpret every stored game. */
 const LEGACY_TOKENS: AmathToken[] = [
-  "0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
-  "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20",
-  "+", "-", "x", "/", "+/-", "x//", "=", "?",
+  "0",
+  "1",
+  "2",
+  "3",
+  "4",
+  "5",
+  "6",
+  "7",
+  "8",
+  "9",
+  "10",
+  "11",
+  "12",
+  "13",
+  "14",
+  "15",
+  "16",
+  "17",
+  "18",
+  "19",
+  "20",
+  "+",
+  "-",
+  "x",
+  "/",
+  "+/-",
+  "x//",
+  "=",
+  "?",
 ];
 
 const BOARD_DIM = BOARD_SIZE;
@@ -241,9 +267,15 @@ function encodeSnapshot(snapshot: GameSnapshot): EncodedSnapshot {
     matchControl: snapshot.matchControl,
     roomStage: snapshot.roomStage,
     lobbyReadyBySide: snapshot.lobbyReadyBySide,
+    lobbyLaunchAt: snapshot.lobbyLaunchAt,
     startingSide: snapshot.startingSide,
     botSide: snapshot.botSide,
+    botEngine: snapshot.botEngine,
     botDifficulty: snapshot.botDifficulty,
+    faceDownCount: snapshot.faceDownCount,
+    // Which version of the parked lines this position was committed with. Tiny
+    // on purpose: the lines themselves live beside the game, not in it.
+    timelineRef: snapshot.timelineRef,
     // The versions this game's client-side bot is pinned to. Persisted with the
     // game so the pin survives a reload and reaches a SECOND DEVICE — which is
     // the only way it can stop one match being played by two evaluators.
@@ -302,9 +334,13 @@ function decodeSnapshot(
     matchControl: snapshot.matchControl,
     roomStage: snapshot.roomStage,
     lobbyReadyBySide: snapshot.lobbyReadyBySide,
+    lobbyLaunchAt: snapshot.lobbyLaunchAt,
     startingSide: snapshot.startingSide ?? (snapshot.activeSide as Side),
     botSide: snapshot.botSide,
+    botEngine: snapshot.botEngine,
     botDifficulty: snapshot.botDifficulty,
+    faceDownCount: snapshot.faceDownCount,
+    timelineRef: snapshot.timelineRef,
     // Absent on every game saved before pinning existed, and on every game that
     // never computed a Super move locally. Left absent rather than defaulted:
     // claiming a game was pinned to the current version when it was not is the
@@ -464,7 +500,9 @@ export function decodeGame(payload: EncodedGame): GameState {
       // History snapshots are past positions kept for undo. Each recovers
       // identity on its own; only the live position is authoritative.
       const historyRead: TileReader =
-        version === 3 ? readOrdinalTile : makeLegacyReader(createIdentityAllocator({ strict: false }));
+        version === 3
+          ? readOrdinalTile
+          : makeLegacyReader(createIdentityAllocator({ strict: false }));
       return decodeSnapshot({ ...encoded, logs: [] }, historyRead, historyLogs.slice(0, logCount));
     }),
     historyIndex: versioned.historyIndex,
@@ -482,6 +520,39 @@ function assertPhysicalSet(snapshot: GameSnapshot): void {
     pendingReturnA: snapshot.pendingExchangeReturnBySide?.A ?? [],
     pendingReturnB: snapshot.pendingExchangeReturnBySide?.B ?? [],
   });
+}
+
+// ── Building blocks for other stores ─────────────────────────────────────────
+//
+// The multiverse document (`gameplay/multiverseCodec.ts`) stores turn logs and
+// positions that are not part of the live game. It writes them with THIS codec's
+// v3 forms rather than a second one, so a tile means the same ordinal in both
+// places and nothing about identity has to be argued twice.
+
+export type { CellCode, EncodedLog, TileCode };
+
+export function encodeTileCodes(tiles: readonly TileInstance[]): TileCode[] {
+  return tiles.map(encodeTile);
+}
+
+export function decodeTileCodes(codes: readonly TileCode[]): TileInstance[] {
+  return codes.map(readOrdinalTile);
+}
+
+export function encodeBoardCells(board: BoardSnapshot): CellCode[] {
+  return encodeBoard(board);
+}
+
+export function decodeBoardCells(cells: readonly CellCode[]): BoardSnapshot {
+  return decodeBoard(cells as CellCode[], readOrdinalTile);
+}
+
+export function encodeTurnLog(log: TurnLog): EncodedLog {
+  return encodeLog(log);
+}
+
+export function decodeTurnLog(log: EncodedLog): TurnLog {
+  return decodeLog(log, 3);
 }
 
 /** Faces, in the order the legacy codes indexed them. Exported for tests that

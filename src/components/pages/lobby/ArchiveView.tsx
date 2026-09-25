@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Archive, Bot, FolderInput, PlayCircle, Save } from "lucide-react";
+import { Archive, ArrowUpRight, Bot, Check, FileClock, FolderInput, Save } from "lucide-react";
 import { useAuth } from "../../../auth";
 import type { RoomVisibility } from "../../../roomScope";
+import { routeToHash } from "../../../router";
 import {
   getPublicArchiveMoveContext,
   movePublicArchivesToRegion,
@@ -28,7 +29,7 @@ export function ArchiveView({
   loading: boolean;
   loadingMore: boolean;
   scope: RoomVisibility;
-  onSave: (gameId: string) => Promise<void>;
+  onSave: (gameId: string) => Promise<boolean>;
   onChanged?: () => void;
   onLoadMore?: () => void;
 }) {
@@ -40,6 +41,7 @@ export function ArchiveView({
   const [targetRegionId, setTargetRegionId] = useState("");
   const [moving, setMoving] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [savedIds, setSavedIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -121,6 +123,7 @@ export function ArchiveView({
       <GameTable
         label="Game history"
         emptyMessage="No retained games yet."
+        className="eq-archive-file-table"
         selectable={canMove}
         allSelected={allSelected}
         someSelected={selectedLoadedIds.length > 0}
@@ -145,8 +148,8 @@ export function ArchiveView({
               }
               primary={
                 <>
-                  <span className={`eq-completion-badge is-${game.completionKind}`}>
-                    {game.completionKind === "natural" ? "Natural finish" : "Terminated"}
+                  <span className="eq-record-file-icon" aria-hidden="true">
+                    <FileClock size={21} />
                   </span>
                   <strong className="eq-game-row-name">{game.name}</strong>
                   <span className="eq-archive-score">
@@ -162,9 +165,14 @@ export function ArchiveView({
               }
               secondary={
                 <>
+                  <span className={`eq-completion-badge is-${game.completionKind}`}>
+                    {game.completionKind === "natural" ? "Finished" : "Terminated"}
+                  </span>
                   <time dateTime={game.finishedAt}>{formatDate(game.finishedAt)}</time>
                   <span>
-                    {game.modeKey.startsWith("aether_") && <Bot size={14} />}
+                    {(game.modeKey.startsWith("aether_") || game.modeKey.startsWith("authur_")) && (
+                      <Bot size={14} />
+                    )}
                     {modeLabel(game.modeKey)}
                   </span>
                   <span>Turn {game.turnNumber}</span>
@@ -172,23 +180,35 @@ export function ArchiveView({
                 </>
               }
               creator={game.creatorName ?? "Unknown account"}
+              contentHref={routeToHash({
+                kind: "play",
+                roomId: game.gameId,
+                returnTo: { kind: "home", visibility: scope, section: "history" },
+              })}
+              contentLabel={`Open replay ${game.name}`}
               actions={
                 <>
                   <a
-                    className="eq-button eq-button-secondary eq-game-row-action"
-                    href={`#/play/${encodeURIComponent(game.gameId)}`}
+                    className="eq-record-action is-open"
+                    href={routeToHash({
+                      kind: "play",
+                      roomId: game.gameId,
+                      returnTo: { kind: "home", visibility: scope, section: "history" },
+                    })}
                   >
-                    <PlayCircle size={16} /> View replay
+                    View replay <ArrowUpRight size={15} />
                   </a>
                   <button
-                    className="eq-button eq-button-secondary eq-game-row-action"
+                    className={`eq-record-action is-save${savedIds.includes(game.gameId) ? " is-saved" : ""}`}
                     type="button"
-                    disabled={busyId === game.gameId}
+                    disabled={busyId === game.gameId || savedIds.includes(game.gameId)}
+                    aria-busy={busyId === game.gameId}
                     onClick={async () => {
                       setBusyId(game.gameId);
                       setError(null);
                       try {
-                        await onSave(game.gameId);
+                        const saved = await onSave(game.gameId);
+                        if (saved) setSavedIds((current) => [...current, game.gameId]);
                       } catch (cause) {
                         setError(cause instanceof Error ? cause.message : "Unable to save game.");
                       } finally {
@@ -196,7 +216,12 @@ export function ArchiveView({
                       }
                     }}
                   >
-                    <Save size={16} /> {busyId === game.gameId ? "Saving…" : "Save"}
+                    {savedIds.includes(game.gameId) ? <Check size={16} /> : <Save size={16} />}
+                    {busyId === game.gameId
+                      ? "Saving…"
+                      : savedIds.includes(game.gameId)
+                        ? "Saved"
+                        : "Save copy"}
                   </button>
                 </>
               }
@@ -211,6 +236,7 @@ export function ArchiveView({
             className="eq-button eq-button-secondary"
             type="button"
             disabled={loadingMore}
+            aria-busy={loadingMore}
             onClick={onLoadMore}
           >
             {loadingMore ? "Loading…" : `Load more (${games.length} of ${total})`}
@@ -286,6 +312,7 @@ function formatDate(value: string): string {
 }
 
 function modeLabel(value: string): string {
+  if (value.startsWith("authur_")) return "Authur · STRONG";
   if (value.startsWith("aether_")) {
     const difficulty = value.slice("aether_".length);
     return `Aether · ${difficulty[0]?.toUpperCase()}${difficulty.slice(1)}`;

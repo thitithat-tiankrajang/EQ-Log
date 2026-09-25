@@ -96,6 +96,7 @@ function keyedFields(game: GameState) {
     matchControl: game.matchControl,
     roomStage: game.roomStage,
     lobbyReadyBySide: game.lobbyReadyBySide,
+    lobbyLaunchAt: game.lobbyLaunchAt,
     players: game.players,
     pendingExchangeReturn: aggregatePendingExchangeReturns(getPendingExchangeReturnBySide(game)),
     pendingExchangeReturnBySide: getPendingExchangeReturnBySide(game),
@@ -105,6 +106,11 @@ function keyedFields(game: GameState) {
     status: game.status,
     tileDrawMode: getTileDrawMode(game),
     tilebag: game.tilebag,
+    // A branch can land on a position whose board, racks and logs another device
+    // has already seen — returning to a line it parked, say. The reference is what
+    // makes that a DIFFERENT state, so the change is written and, on the other
+    // side, adopted instead of being mistaken for this client's own echo.
+    timelineRef: game.timelineRef,
     timers: {
       initialSeconds: game.timers.initialSeconds,
       initialSecondsBySide: game.timers.initialSecondsBySide,
@@ -167,6 +173,7 @@ export function remoteStateIdentity(game: GameState): readonly unknown[] {
     fields.matchControl,
     fields.roomStage,
     fields.lobbyReadyBySide,
+    fields.lobbyLaunchAt,
     fields.players,
     // Rebuilt arrays: compare their contents' identities, not the wrapper's.
     ...fields.pendingExchangeReturn,
@@ -179,6 +186,7 @@ export function remoteStateIdentity(game: GameState): readonly unknown[] {
     fields.status,
     fields.tileDrawMode,
     fields.tilebag,
+    fields.timelineRef,
     fields.timers.initialSeconds,
     fields.timers.initialSecondsBySide,
     fields.timers.sideUntimed,

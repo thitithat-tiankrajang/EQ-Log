@@ -24,12 +24,23 @@ export type BoardScoreAnchor = {
   isValid: boolean;
 };
 
+/**
+ * Something a page wants a square to call attention to. Presentation only: the
+ * board neither knows nor cares why — `label` says it, for the tooltip.
+ */
+export type BoardCellMark = {
+  tone: "caution" | "danger" | "selected";
+  label: string;
+};
+
 type BoardProps = {
   board: BoardSnapshot;
   pendingPlacements: PendingPlacement[];
   placementCursor?: PlacementCursor;
   scoreAnchor?: BoardScoreAnchor | null;
   scoringKeys?: Set<string>;
+  /** Keyed `"row:col"`, like `scoringKeys`. */
+  cellMarks?: ReadonlyMap<string, BoardCellMark>;
   selectedRackTileId: string | null;
   selectedPendingTileId: string | null;
   /** Must be stable across renders — see `sameBoardPicture`. */
@@ -91,6 +102,18 @@ function sameBoardPicture(a: BoardProps, b: BoardProps): boolean {
     if (ak && bk) for (const key of ak) if (!bk.has(key)) return false;
   }
 
+  const am = a.cellMarks;
+  const bm = b.cellMarks;
+  if (am !== bm) {
+    if ((am?.size ?? 0) !== (bm?.size ?? 0)) return false;
+    if (am && bm) {
+      for (const [key, mark] of am) {
+        const other = bm.get(key);
+        if (!other || other.tone !== mark.tone || other.label !== mark.label) return false;
+      }
+    }
+  }
+
   const ap = a.pendingPlacements;
   const bp = b.pendingPlacements;
   if (ap !== bp) {
@@ -127,6 +150,7 @@ export const Board = memo(function Board({
   placementCursor = null,
   scoreAnchor = null,
   scoringKeys,
+  cellMarks,
   selectedRackTileId,
   selectedPendingTileId,
   onCellClick,
@@ -193,16 +217,19 @@ export const Board = memo(function Board({
               const isCursor = placementCursor && placementCursor.row === rowIndex && placementCursor.col === colIndex;
               const isScoring = scoringKeys?.has(key) ?? false;
               const isAssignablePending = Boolean(pending && tileNeedsAssignment(pending.tile.token));
+              const mark = cellMarks?.get(key);
               return (
                 <button
                   className={`board-cell slot-${slot} ${cell ? "filled" : ""} ${pending ? "pending" : ""} ${
                     pending?.tile.id === selectedPendingTileId ? "pending-selected" : ""
                   } ${isCursor ? `cursor cursor-${placementCursor!.dir}` : ""} ${isScoring ? "scoring" : ""} ${
                     isAssignablePending ? "assignable-pending" : ""
-                  }`}
+                  } ${mark ? `marked mark-${mark.tone}` : ""}`}
                   key={key}
                   type="button"
-                  title={isAssignablePending ? "Hold to change this tile value. Press E when selected." : undefined}
+                  title={
+                    isAssignablePending ? "Hold to change this tile value. Press E when selected." : mark?.label
+                  }
                   onClick={() => handleCellClick(rowIndex, colIndex, key)}
                   onDoubleClick={() => openAssignmentEditor(pending, key)}
                   onPointerCancel={clearEditPress}

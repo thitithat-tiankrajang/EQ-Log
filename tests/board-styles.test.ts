@@ -5,6 +5,7 @@
 // on any other route renders perfect markup with no styling at all — 225
 // buttons in a vertical stack and transparent tiles. jsdom applies no CSS, so
 // the component tests pass either way.
+import { execSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
@@ -19,7 +20,6 @@ function importedSheets(css: string): string[] {
 
 describe("board-styles.css", () => {
   const boardStyles = read("board-styles.css");
-  const playStyles = read("play-styles.css");
 
   it("puts every import in the legacy layer", () => {
     // An unlayered stylesheet outranks every named layer. Drop `layer(legacy)`
@@ -29,22 +29,6 @@ describe("board-styles.css", () => {
     expect(imports.length).toBeGreaterThan(0);
     for (const [, modifiers] of imports) {
       expect(modifiers).toContain("layer(legacy)");
-    }
-  });
-
-  it("imports in an order that is a subsequence of play-styles.css", () => {
-    // Visiting Play and then Study leaves BOTH sheets in the document. Keeping
-    // the shared files in the same relative order is what makes whichever loads
-    // second a no-op instead of a re-cascade with a different answer.
-    const board = importedSheets(boardStyles);
-    const play = importedSheets(playStyles);
-    expect(board.length).toBeGreaterThan(0);
-
-    let cursor = 0;
-    for (const sheet of board) {
-      const found = play.indexOf(sheet, cursor);
-      expect(found, `${sheet} is missing from play-styles.css or out of order`).toBeGreaterThan(-1);
-      cursor = found + 1;
     }
   });
 
@@ -71,8 +55,17 @@ describe("board-styles.css", () => {
     expect(board).toContain("./styles/95-material-ai.css");
   });
 
-  it("is imported by the Study page, which renders a board off the Play route", () => {
-    const page = read("components/pages/study/StudyPage.tsx");
-    expect(page).toContain("board-styles.css");
+  it("is mounted by the Study page only while it is on screen, never loaded globally", () => {
+    // Loaded as a global stylesheet it outlived the Study page — the lobby imports it — and on
+    // entering Play its `!important` copies of the base sheets overrode Play's own.
+    const hook = read("components/pages/study/useBoardStyles.ts");
+    expect(hook).toContain('from "../../../board-styles.css?inline"');
+    expect(hook).toContain(".remove()");
+    expect(read("components/pages/study/StudyPage.tsx")).toContain("useBoardStyles()");
+    const globalImports = execSync(`grep -rlE 'import\\s+"[^"]*board-styles\\.css"' src || true`, {
+      cwd: process.cwd(),
+      encoding: "utf8",
+    }).trim();
+    expect(globalImports).toBe("");
   });
 });

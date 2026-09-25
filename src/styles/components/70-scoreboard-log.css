@@ -315,6 +315,20 @@ button.turn-record-summary:hover {
    ============================================================================ */
 
 /* Top bar: utility buttons clustered right; End Game is rightmost. */
+.topbar-status {
+  display: block;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-status.has-error {
+  color: var(--danger);
+}
+
 @media (min-width: 760px) {
   .app-shell {
     grid-template-columns: 1fr !important;

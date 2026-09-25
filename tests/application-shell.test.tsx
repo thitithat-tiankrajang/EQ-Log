@@ -24,7 +24,7 @@ describe("ApplicationShell", () => {
     expect(navigation.querySelectorAll(":scope > a")).toHaveLength(5);
     expect(screen.getByRole("main")).toHaveAttribute("id", "main-content");
     expect(screen.getByRole("button", { name: "Back" }).closest("header")).toHaveClass(
-      "eq-app-header",
+      "eq-page-header",
     );
     expect(document.querySelector(".eq-page-header .eq-back-button")).toBeNull();
   });

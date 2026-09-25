@@ -17,6 +17,7 @@ import { ACTION_LABELS } from "../../uiText";
 import { DraftTiles } from "../game/DraftTiles";
 import { EquationPreview } from "../game/EquationPreview";
 import { PanelHeading } from "../layout/PanelHeading";
+import { AnalysisPanel } from "../game/AnalysisPanel";
 import { ReplayDock } from "../replay/ReplayDock";
 import { Tile } from "../board/Tile";
 import { SelectControl } from "../ui/SelectControl";
@@ -43,6 +44,7 @@ type ActionPanelProps = {
    * without moving the board at all.
    */
   insights?: ReactNode;
+  viewOnlyMessage?: ReactNode;
   /**
    * Engine work in progress, drawn IN PLACE OF the action picker.
    *
@@ -66,6 +68,8 @@ type ActionPanelProps = {
   canChooseAction: boolean;
   canEditRefill: boolean;
   canExchange: boolean;
+  /** False where the turn must be a placement (a Study puzzle). Default true. */
+  canPass?: boolean;
   exchangeDisabledReason?: string;
   exchangeDraft: ExchangeDraft;
   exchangeReady: boolean;
@@ -94,6 +98,7 @@ type ActionPanelProps = {
 
 export function ActionPanel({
   insights,
+  viewOnlyMessage,
   engineActivity,
   detailOverride,
   activeRack,
@@ -101,6 +106,7 @@ export function ActionPanel({
   canChooseAction,
   canEditRefill,
   canExchange,
+  canPass = true,
   exchangeDisabledReason,
   exchangeDraft,
   exchangeReady,
@@ -130,7 +136,7 @@ export function ActionPanel({
     <section className="control-panel">
       {insights && <div className="control-insights">{insights}</div>}
       <PanelHeading
-        title={showViewPanel ? (reviewing ? "Replay" : "Live View") : "Actions"}
+        title={showViewPanel ? (reviewing ? "Replay" : "วิเคราะห์") : "Actions"}
         detail={
           detailOverride && !showViewPanel && actionMode === "none"
             ? detailOverride
@@ -148,17 +154,24 @@ export function ActionPanel({
         }
       />
       {showViewPanel ? (
-        <ReplayDock
-          game={game}
-          index={reviewing ? replayIndex : Math.max(0, replayTotalSteps - 1)}
-          log={viewPanelLog}
-          mode={reviewing ? "replay" : "live"}
-          phase={replayPhase}
-          total={replayTotalSteps}
-          onPrev={onReplayPrev}
-          onNext={onReplayNext}
-          onExit={onReplayExit}
-        />
+        reviewing ? (
+          <ReplayDock
+            game={game}
+            index={replayIndex}
+            log={viewPanelLog}
+            mode="replay"
+            phase={replayPhase}
+            total={replayTotalSteps}
+            onPrev={onReplayPrev}
+            onNext={onReplayNext}
+            onExit={onReplayExit}
+          />
+        ) : (
+          // Not a live dock. The log panel's `Live | Last turn` tag already says which position
+          // is on the board, so redrawing it here spent the tallest slot in the layout on a
+          // second copy of what the board shows. Analysis tools go here instead.
+          (viewOnlyMessage ?? <AnalysisPanel />)
+        )
       ) : actionMode === "none" ? (
         (engineActivity ?? (
           <ActionPicker
@@ -166,6 +179,7 @@ export function ActionPanel({
             canChooseAction={canChooseAction}
             canEditRefill={canEditRefill}
             canExchange={canExchange}
+            canPass={canPass}
             exchangeDisabledReason={exchangeDisabledReason}
             refillNeeded={refillNeeded}
             tileDrawMode={getTileDrawMode(game)}
@@ -231,6 +245,7 @@ function ActionPicker({
   canChooseAction,
   canEditRefill,
   canExchange,
+  canPass,
   exchangeDisabledReason,
   refillNeeded,
   tileDrawMode,
@@ -241,6 +256,7 @@ function ActionPicker({
   canChooseAction: boolean;
   canEditRefill: boolean;
   canExchange: boolean;
+  canPass: boolean;
   exchangeDisabledReason?: string;
   refillNeeded: boolean;
   tileDrawMode: TileDrawMode;
@@ -283,7 +299,11 @@ function ActionPicker({
         >
           Exchange
         </button>
-        <button disabled={!canChooseAction} type="button" onClick={() => onStartAction("pass")}>
+        <button
+          disabled={!canChooseAction || !canPass}
+          type="button"
+          onClick={() => onStartAction("pass")}
+        >
           Pass
         </button>
       </div>
@@ -515,6 +535,7 @@ function ExchangeActionDetails({
         </div>
       </div>
       <div className="exchange-workspace">
+        <p className="exchange-drag-hint">ลากครอบเบี้ยบนแร็กเพื่อเลือกหลายตัว หรือคลิกทีละตัว</p>
         <DraftTiles
           title="Outgoing Tiles"
           tiles={activeRack.filter((tile) => exchangeDraft.outgoingIds.includes(tile.id))}

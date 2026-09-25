@@ -32,6 +32,16 @@ test.describe.configure({ mode: "serial", timeout: 600_000 });
 
 test("tile placement latency vs history and CPU", async ({ page }) => {
   await page.addInitScript(HARNESS);
+  // Install a seeded room before the app reads storage. A previous page's
+  // pagehide flush can otherwise overwrite a fixture written just before reload.
+  await page.addInitScript(() => {
+    const raw = window.sessionStorage.getItem("__eq_perf_next_game");
+    if (!raw) return;
+    window.sessionStorage.removeItem("__eq_perf_next_game");
+    const { roomId, game } = JSON.parse(raw) as { roomId: string; game: unknown };
+    window.localStorage.setItem(`amath-lab-room-${roomId}`, JSON.stringify(game));
+    window.localStorage.setItem("amath-lab-active-room-v1", roomId);
+  });
   await page.goto("/#/public");
   await page.evaluate(() => window.localStorage.clear());
 
@@ -44,11 +54,14 @@ test("tile placement latency vs history and CPU", async ({ page }) => {
   await page.locator('[data-choice-value="play"]').click();
   await page.getByRole("button", { name: /Create match room/i }).click();
   await expect(page).toHaveURL(/#\/room\//);
-  await page.getByRole("button", { name: /^Start game$/ }).click();
+  await page.getByRole("button", { name: /^Start Lab$/ }).click();
   await expect(page).toHaveURL(/#\/play\//);
   await page.locator("button.board-cell").first().waitFor();
 
-  const roomId = await page.evaluate(() => location.hash.split("/").pop()!);
+  const roomId = await page.evaluate(() =>
+    decodeURIComponent(window.location.hash.match(/^#\/play\/([^?]+)/)?.[1] ?? ""),
+  );
+  expect(roomId).not.toBe("");
   const readGame = () =>
     page.evaluate(() => {
       const el = document.querySelector(".board")!;
@@ -77,8 +90,7 @@ test("tile placement latency vs history and CPU", async ({ page }) => {
         ({ roomId, base, turns, seedFn }) => {
           const seed = eval(`${seedFn}; seedGame`);
           const game = seed(base, turns, 80);
-          window.localStorage.setItem(`amath-lab-room-${roomId}`, JSON.stringify(game));
-          window.localStorage.setItem("amath-lab-active-room-v1", roomId);
+          window.sessionStorage.setItem("__eq_perf_next_game", JSON.stringify({ roomId, game }));
         },
         { roomId, base, turns, seedFn: SEED_FN },
       );
@@ -89,6 +101,12 @@ test("tile placement latency vs history and CPU", async ({ page }) => {
 
       const loaded = await readGame();
       expect(loaded.logs.length, `history seeded (${turns})`).toBe(turns);
+
+      let idleBefore = null;
+      if (turns === 40) {
+        await cdp.send("Emulation.setCPUThrottlingRate", { rate: 20 });
+        idleBefore = await page.evaluate(() => (window as any).__EQPERF.idle(3));
+      }
 
       // Throttle only around the measurement, so seeding and boot stay quick.
       await cdp.send("Emulation.setCPUThrottlingRate", { rate: cpu });
@@ -174,6 +192,9 @@ test("tile placement latency vs history and CPU", async ({ page }) => {
               `blocking=${idle.loafBlocking}ms worst=${idle.loafWorst}ms ` +
               `frameGap p95=${idle.frameGapP95}ms max=${idle.frameGapMax}ms` +
               (idle.worstScripts ? `\n        worst frame scripts: ${idle.worstScripts}` : "")
+            : "") +
+          (idleBefore
+            ? `\n      IDLE BEFORE PLACEMENT 3s: commits=${idleBefore.commits} LoAF=${idleBefore.loafFrames} blocking=${idleBefore.loafBlocking}ms`
             : "") +
           (loaf.byFn.length
             ? `\n      scripts: ${loaf.byFn.map(([f, d]: any) => `${f}=${d}ms`).join(", ")}`

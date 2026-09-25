@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import {
   Ban,
+  BookOpen,
   Check,
   MapPin,
   Pencil,
   Plus,
   RefreshCw,
+  ScanLine,
   Search,
-  Shield,
   ShieldCheck,
+  Trophy,
   Trash2,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
@@ -17,6 +19,15 @@ import { navigate, type AdminSection } from "./router";
 import { ApplicationShell } from "./app/shells/ApplicationShell";
 import { ConfirmSheet, TextPromptSheet } from "./components/ui/Sheet";
 import { SelectControl } from "./components/ui/SelectControl";
+import { SurvivalAdminPanel } from "./components/admin/SurvivalAdminPanel";
+
+// Admin-only development tools; loaded only when an administrator opens them.
+const BoardLabeler = lazy(() => import("./components/admin/BoardLabeler"));
+const StudyPuzzleAdminPanel = lazy(() =>
+  import("./components/admin/StudyPuzzleAdminPanel").then((module) => ({
+    default: module.StudyPuzzleAdminPanel,
+  })),
+);
 
 type Region = { id: string; name: string };
 
@@ -41,8 +52,10 @@ export function AdminButton() {
 
   if (!profile?.is_admin) return null;
   return (
-    <a className="eq-utility-link" href="#/admin/users">
-      <Shield aria-hidden size={16} />
+    <a className="eq-utility-link eq-utility-admin" href="#/admin/users">
+      <span className="eq-utility-icon">
+        <ShieldCheck aria-hidden size={16} />
+      </span>
       <span>Admin</span>
       {pendingCount > 0 && <span className="eq-notification-badge">{pendingCount}</span>}
     </a>
@@ -144,11 +157,27 @@ export function AdminPage({ section }: { section: AdminSection }) {
   return (
     <ApplicationShell
       eyebrow="Administration"
-      title={section === "users" ? "People & access" : "Regions"}
+      title={
+        section === "users"
+          ? "People & access"
+          : section === "regions"
+            ? "Regions"
+            : section === "survival"
+              ? "Survival levels"
+              : section === "study"
+                ? "Study puzzles"
+                : "Vision dataset"
+      }
       description={
         section === "users"
           ? "Approve accounts, assign regions, and manage administrator access."
-          : "Create and maintain the private workspaces available to your community."
+          : section === "regions"
+            ? "Create and maintain the private workspaces available to your community."
+            : section === "survival"
+              ? "ทดสอบ วัดผล และอนุมัติด่านก่อนเปิดให้เล่น"
+              : section === "study"
+                ? "สร้างโจทย์ Find Best Play จากกระดานจริง แล้วเก็บทุกชุดไว้ในคลัง"
+                : "Board Labeler: hand-label real board photos (tile / empty / unsure) for board-vision evaluation. Stays in this browser until exported."
       }
       actions={<AccountChip />}
       onBack={() => navigate({ kind: "home", visibility: "public", section: "rooms" })}
@@ -167,7 +196,29 @@ export function AdminPage({ section }: { section: AdminSection }) {
         </div>
       )}
 
-      {section === "users" ? (
+      {section === "survival" ? (
+        <SurvivalAdminPanel />
+      ) : section === "study" ? (
+        <Suspense
+          fallback={
+            <div className="eq-state">
+              <p>Loading Study puzzles…</p>
+            </div>
+          }
+        >
+          <StudyPuzzleAdminPanel />
+        </Suspense>
+      ) : section === "vision" ? (
+        <Suspense
+          fallback={
+            <div className="eq-state">
+              <p>Loading the Board Labeler…</p>
+            </div>
+          }
+        >
+          <BoardLabeler />
+        </Suspense>
+      ) : section === "users" ? (
         <section className="eq-section eq-feature-section" aria-labelledby="admin-users-title">
           <div className="eq-section-heading eq-section-heading-actions">
             <div>
@@ -218,7 +269,13 @@ export function AdminPage({ section }: { section: AdminSection }) {
           )}
         </section>
       ) : (
-        <RegionsPage regions={regions} userId={userId} onError={setError} onReload={load} />
+        <RegionsPage
+          regions={regions}
+          loading={rows === null}
+          userId={userId}
+          onError={setError}
+          onReload={load}
+        />
       )}
     </ApplicationShell>
   );
@@ -240,6 +297,27 @@ function AdminNavigation({ active }: { active: AdminSection }) {
         aria-current={active === "regions" ? "page" : undefined}
       >
         <MapPin size={17} /> Regions
+      </a>
+      <a
+        className={active === "vision" ? "is-active" : ""}
+        href="#/admin/vision"
+        aria-current={active === "vision" ? "page" : undefined}
+      >
+        <ScanLine size={17} /> Vision dataset
+      </a>
+      <a
+        className={active === "survival" ? "is-active" : ""}
+        href="#/admin/survival"
+        aria-current={active === "survival" ? "page" : undefined}
+      >
+        <Trophy size={17} /> Survival
+      </a>
+      <a
+        className={active === "study" ? "is-active" : ""}
+        href="#/admin/study"
+        aria-current={active === "study" ? "page" : undefined}
+      >
+        <BookOpen size={17} /> Study puzzles
       </a>
     </nav>
   );
@@ -325,11 +403,13 @@ function AdminUserRow({
 
 function RegionsPage({
   regions,
+  loading,
   userId,
   onError,
   onReload,
 }: {
   regions: Region[];
+  loading: boolean;
   userId: string | null;
   onError: (message: string | null) => void;
   onReload: () => Promise<void>;
@@ -421,7 +501,12 @@ function RegionsPage({
           </div>
           <span className="eq-count">{regions.length}</span>
         </div>
-        {sortedRegions.length === 0 ? (
+        {loading ? (
+          <div className="eq-skeleton-list" role="status" aria-label="Loading regions">
+            <span />
+            <span />
+          </div>
+        ) : sortedRegions.length === 0 ? (
           <div className="eq-state">
             <h3>No regions yet</h3>
             <p>Create the first private workspace above.</p>
@@ -439,20 +524,20 @@ function RegionsPage({
                 </div>
                 <div className="eq-region-actions">
                   <button
-                    className="eq-icon-button"
+                    className="eq-button eq-button-secondary"
                     type="button"
                     aria-label={`Rename ${region.name}`}
                     onClick={() => setRenaming(region)}
                   >
-                    <Pencil size={16} />
+                    <Pencil size={15} /> Rename
                   </button>
                   <button
-                    className="eq-icon-button is-danger"
+                    className="eq-button eq-button-danger"
                     type="button"
                     aria-label={`Delete ${region.name}`}
                     onClick={() => setDeleting(region)}
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={15} /> Delete
                   </button>
                 </div>
               </article>

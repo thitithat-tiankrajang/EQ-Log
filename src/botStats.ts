@@ -6,7 +6,7 @@
 // supabase/bot_stats_migration.sql, plus pure aggregation used by the UI.
 
 import { supabase } from "./supabaseClient";
-import type { BotDifficulty, GameState, Side } from "./game";
+import type { BotDifficulty, BotEngine, GameState, Side } from "./game";
 import { otherSide } from "./game";
 
 export type BotFolder = {
@@ -29,6 +29,7 @@ export type BotGameRow = {
   playerName: string;
   playerMemberId: string | null;
   botSide: Side;
+  botEngine: BotEngine;
   botDifficulty: BotDifficulty | null;
   botScore: number;
   oppScore: number;
@@ -45,6 +46,7 @@ export type BotGameRecord = {
   playerName: string;
   playerMemberId: string | null;
   botSide: Side;
+  botEngine: BotEngine;
   botDifficulty: BotDifficulty | null;
   botScore: number;
   oppScore: number;
@@ -85,6 +87,7 @@ type GameRow = {
   player_name: string;
   player_member_id: string | null;
   bot_side: Side;
+  bot_engine?: BotEngine;
   bot_difficulty: BotDifficulty | null;
   bot_score: number;
   opp_score: number;
@@ -103,6 +106,7 @@ function mapGame(row: GameRow): BotGameRow {
     playerName: row.player_name,
     playerMemberId: row.player_member_id,
     botSide: row.bot_side,
+    botEngine: row.bot_engine ?? "aether",
     botDifficulty: row.bot_difficulty,
     botScore: row.bot_score,
     oppScore: row.opp_score,
@@ -178,12 +182,13 @@ export async function loadFolderGames(folderId: string): Promise<BotGameRow[]> {
  */
 export async function recordBotGame(record: BotGameRecord): Promise<string | null> {
   if (!supabase) return null;
-  const { data, error } = await supabase.rpc("record_bot_game", {
+  const { data, error } = await supabase.rpc(record.botEngine === "authur" ? "record_bot_game_v2" : "record_bot_game", {
     p_game_id: record.gameId,
     p_room_id: record.roomId,
     p_player_name: record.playerName,
     p_player_member_id: record.playerMemberId,
     p_bot_side: record.botSide,
+    ...(record.botEngine === "authur" ? { p_bot_engine: record.botEngine } : {}),
     p_bot_difficulty: record.botDifficulty,
     p_bot_score: record.botScore,
     p_opp_score: record.oppScore,
@@ -213,6 +218,7 @@ export function botRecordFromGame(game: GameState, roomId: string | null): BotGa
     playerName: game.players[human] || "Player",
     playerMemberId: game.playerMembers?.[human] ?? null,
     botSide: bot,
+    botEngine: game.botEngine ?? "aether",
     botDifficulty: game.botDifficulty ?? null,
     botScore,
     oppScore,

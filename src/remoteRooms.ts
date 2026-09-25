@@ -156,6 +156,12 @@ export type RemoteRoomPayload = {
   session: LiveRoomSession;
   needsCompaction: boolean;
   needsInviteRepair: boolean;
+  /**
+   * A FINISHED game's parked lines, as the archive stored them (`snapshot.timeline`). Live games
+   * never carry them here: theirs are fetched from `game_timelines` on demand — see
+   * `readTimeline` — so opening a live room costs nothing extra.
+   */
+  archivedTimeline?: unknown;
 };
 
 export type RoomSessionEvent =
@@ -175,7 +181,8 @@ export type RoomSessionEvent =
   | "note"
   | "rename"
   | "import"
-  | "delete";
+  | "delete"
+  | "timeline";
 
 const LIVE_SUMMARY_FIELDS =
   "room_id,owner_id,name,player_a,player_b,status,access_scope,archive_policy,join_policy,region_id,game_mode,mode_key,member_a_id,member_b_id,player_a_user_id,player_b_user_id,starting_side,creator_side,turn_number,score_a,score_b,created_at,updated_at,profiles:owner_id(display_name)";
@@ -208,8 +215,11 @@ const LIVE_REALTIME_COLUMNS = [
   "created_at",
   "updated_at",
 ];
+// `source_owner_id` is what keeps a finished game its owner's. Without it the archive read had
+// no owner at all, so the moment a game was archived the player who had just finished it was
+// shown the spectator's board instead — every control and panel swapping under them at once.
 const ARCHIVE_READ_FIELDS =
-  "game_id,name,player_a,player_b,game_mode,mode_key,turn_number,score_a,score_b,snapshot,created_at,finished_at";
+  "game_id,source_owner_id,name,player_a,player_b,game_mode,mode_key,turn_number,score_a,score_b,snapshot,created_at,finished_at";
 
 const latestLiveSessions = new Map<string, LiveRoomSession>();
 const liveWriteDrains = new Map<string, Promise<void>>();
@@ -311,7 +321,7 @@ export async function readRoom(id: string): Promise<RemoteRoomPayload | null> {
   const privateResult = await supabase
     .from("private_library_items")
     .select(
-      "game_id,name,game_mode,mode_key,turn_number,score_a,score_b,snapshot,created_at,updated_at",
+      "game_id,owner_id,name,game_mode,mode_key,turn_number,score_a,score_b,snapshot,created_at,updated_at",
     )
     .eq("item_type", "game")
     .eq("game_id", id)
@@ -322,6 +332,7 @@ export async function readRoom(id: string): Promise<RemoteRoomPayload | null> {
   if (!privateResult.data) return null;
   const privateRow = privateResult.data as unknown as {
     game_id: string;
+    owner_id: string;
     name: string;
     game_mode: GameMode;
     mode_key: string;
@@ -336,6 +347,7 @@ export async function readRoom(id: string): Promise<RemoteRoomPayload | null> {
   return payloadFromArchive(
     {
       ...privateRow,
+      source_owner_id: privateRow.owner_id,
       player_a: decoded.players.A,
       player_b: decoded.players.B,
       finished_at: privateRow.updated_at,
@@ -343,6 +355,128 @@ export async function readRoom(id: string): Promise<RemoteRoomPayload | null> {
     "public",
     "private",
   );
+}
+
+// ── Parked lines (branches) ─────────────────────────────────────────────────────
+//
+// A live game's lines that are not being played live in `game_timelines`, one row per game, and
+// are read and written here and nowhere else. None of this is on the per-move path: a move goes
+// through `commitRoomState` exactly as before and never touches this table. See
+// `src/gameplay/multiverse.ts` for the model and supabase/multiverse_timeline_migration.sql for
+// the guarantees.
+
+export type StoredTimeline = { version: number; doc: unknown };
+
+/** The parked lines of a live game, or `null` when it has never branched. */
+export async function readTimeline(id: string): Promise<StoredTimeline | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("game_timelines")
+    .select("version,doc")
+    .eq("game_id", id)
+    .maybeSingle();
+  if (error) throw timelineError(error.message);
+  if (!data) return null;
+  const row = data as { version: number | string; doc: unknown };
+  return { version: Number(row.version), doc: row.doc };
+}
+
+export type TimelineCommitOutcome =
+  | { outcome: "committed" | "duplicate"; revision: number; timelineVersion: number }
+  | { outcome: "conflict"; revision: number; timelineVersion: number }
+  | { outcome: "timeline_conflict"; revision: number; timelineVersion: number };
+
+/**
+ * Move the live position and rewrite the parked lines in one transaction.
+ *
+ * The same conditional commit as `commitRoomState` — expected revision, stable command id,
+ * canonical placement — plus the document and the version it was built on. `conflict` means the
+ * game moved; `timeline_conflict` means the parked lines did. Neither wrote anything.
+ */
+export function commitTimelineChange(
+  args: CommitStateArgs & { timeline: unknown; expectedTimelineVersion: number },
+): Promise<TimelineCommitOutcome> {
+  const expectedRevision = args.expectedRevision ?? revisionOf(args.game);
+  const commandId = args.commandId ?? crypto.randomUUID();
+  return enqueueRoomWrite(args.id, async () => {
+    if (!supabase) {
+      return {
+        outcome: "committed" as const,
+        revision: expectedRevision,
+        timelineVersion: args.expectedTimelineVersion + 1,
+      };
+    }
+    const nextRevision = expectedRevision + 1;
+    const canonical = encodeCanonical(canonicalFromSnapshot(args.game, nextRevision));
+    const { data, error } = await supabase.rpc("commit_live_game_timeline", {
+      target_game_id: args.id,
+      target_expected_revision: expectedRevision,
+      target_command_id: commandId,
+      target_issued_by: args.issuedBy ?? "host",
+      target_command: { kind: args.event ?? "timeline" },
+      target_canonical: canonical,
+      target_canonical_digest: canonicalDigest(canonical),
+      target_state: encodeGame(withRevision(args.game, nextRevision)),
+      target_session: args.session,
+      target_timeline: args.timeline,
+      target_timeline_expected_version: args.expectedTimelineVersion,
+    });
+    if (error) throw timelineError(describeDatabaseError(error).message);
+    const row = (Array.isArray(data) ? data[0] : data) as {
+      outcome?: string;
+      revision?: number;
+      timeline_version?: number;
+    } | null;
+    const outcome = row?.outcome;
+    const revision = Number(row?.revision ?? expectedRevision);
+    const timelineVersion = Number(row?.timeline_version ?? args.expectedTimelineVersion);
+    if (
+      outcome === "committed" ||
+      outcome === "duplicate" ||
+      outcome === "conflict" ||
+      outcome === "timeline_conflict"
+    ) {
+      return { outcome, revision, timelineVersion };
+    }
+    throw new Error(`Unexpected branch outcome: ${String(outcome)}`);
+  });
+}
+
+/** Forget parked lines. Never moves the live position; the server refuses anything but removal. */
+export function pruneTimeline(
+  id: string,
+  timeline: unknown,
+  expectedTimelineVersion: number,
+): Promise<{ outcome: "committed" | "timeline_conflict"; timelineVersion: number }> {
+  return enqueueRoomWrite(id, async () => {
+    if (!supabase) return { outcome: "committed", timelineVersion: expectedTimelineVersion + 1 };
+    const { data, error } = await supabase.rpc("update_live_game_timeline", {
+      target_game_id: id,
+      target_timeline: timeline,
+      target_timeline_expected_version: expectedTimelineVersion,
+    });
+    if (error) throw timelineError(describeDatabaseError(error).message);
+    const row = (Array.isArray(data) ? data[0] : data) as {
+      outcome?: string;
+      timeline_version?: number;
+    } | null;
+    return {
+      outcome: row?.outcome === "committed" ? "committed" : "timeline_conflict",
+      timelineVersion: Number(row?.timeline_version ?? expectedTimelineVersion),
+    };
+  });
+}
+
+function timelineError(message: string): Error {
+  if (
+    /game_timelines|commit_live_game_timeline|update_live_game_timeline/i.test(message) &&
+    /does not exist|schema cache|PGRST20|42883|42P01/i.test(message)
+  ) {
+    return new Error(
+      "Branching needs an upgrade. Run supabase/multiverse_timeline_migration.sql in Supabase.",
+    );
+  }
+  return schemaError(message);
 }
 
 export async function createRoom(
@@ -354,6 +488,18 @@ export async function createRoom(
 ): Promise<{ id: string; meta: RoomMeta; game: GameState }> {
   if (!supabase) throw new Error("Supabase is not configured.");
   const initialGame = assignOwnerToReservedSide(game, ownerId);
+  if (initialGame.botEngine === "authur") {
+    // An older database derives aether_super from every bot room. Refuse to
+    // create a mislabeled Authur game before any room is written.
+    const { data: modeKey, error: modeError } = await supabase.rpc("mode_key_from_state", {
+      target_state: encodeGame(initialGame),
+    });
+    if (modeError || modeKey !== "authur_strong") {
+      throw new Error(
+        "Authur is not enabled in this database. Run supabase/authur_bot_migration.sql.",
+      );
+    }
+  }
   const resolvedPolicy: CreateRoomPolicy =
     policy ??
     (scope.visibility === "region"
@@ -725,12 +871,14 @@ function payloadFromArchive(
     accessScope,
     archivePolicy: accessScope === "private" ? "private" : visibility,
   };
+  const archivedTimeline = (row.snapshot as { timeline?: unknown } | null)?.timeline;
   return {
     game,
     meta,
     session: emptyLiveSession(),
     needsCompaction: false,
     needsInviteRepair: false,
+    ...(archivedTimeline ? { archivedTimeline } : {}),
   };
 }
 

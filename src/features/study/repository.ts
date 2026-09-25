@@ -10,11 +10,12 @@
 
 import type { AnalysisCandidate } from "../../bot/engineApi";
 import { supabase } from "../../supabaseClient";
+import type { StudyBoardCell } from "./position";
 
-export type StudyBoardCell = { r: number; c: number; kind: string; token: string };
+export type { StudyBoardCell };
 
 export type StudyMethod = {
-  solver: "greedy" | "sim" | "endgame";
+  solver: "greedy" | "sim" | "endgame" | "stage5b";
   samples: number;
   legalMoves: number;
   candidatesEvaluated: number;
@@ -22,6 +23,7 @@ export type StudyMethod = {
   elapsedMs: number;
   proven: boolean;
   complete: boolean;
+  depth?: number;
 };
 
 export type StudyRecord = {

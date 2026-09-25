@@ -167,12 +167,16 @@ describe("the application module graph", () => {
     expect(worker).toMatch(/threads: plan\.threads/);
   });
 
-  it("constructs the engine worker in exactly one place", () => {
+  it("constructs one worker per distinct bot engine", () => {
     const offenders = sourceFiles.filter((path) =>
       /new\s+Worker\s*\(/.test(readFileSync(path, "utf8")),
     );
     expect(offenders.map((path) => path.replace(`${root}/`, ""))).toEqual([
+      "src/bot/authur/client.ts",
       "src/bot/superEngine.ts",
+      // Not a bot engine: Board Vision's recognition worker (ONNX Runtime).
+      // Its own leash is tests/board-vision-bundle.test.ts.
+      "src/features/boardVision/recognizerClient.ts",
     ]);
   });
 

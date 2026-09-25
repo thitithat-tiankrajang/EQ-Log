@@ -23,7 +23,7 @@
 import * as engineTrace from "../engineTrace";
 import { supabase } from "../supabaseClient";
 
-export const ANALYSIS_LEVELS = ["quick", "normal", "deep", "max"] as const;
+export const ANALYSIS_LEVELS = ["quick", "normal", "deep", "max", "stage5b64"] as const;
 export type AnalysisLevel = (typeof ANALYSIS_LEVELS)[number];
 
 /**
@@ -37,6 +37,7 @@ export const ANALYSIS_LEVEL_SAMPLES: Record<AnalysisLevel, number> = {
   normal: 12,
   deep: 40,
   max: 160,
+  stage5b64: 0,
 };
 
 export type EngineErrorCode =
@@ -341,7 +342,7 @@ export type BotMoveResult = {
     exchange: string[];
     score: number;
   };
-  solver: "greedy" | "sim" | "endgame";
+  solver: "greedy" | "sim" | "endgame" | "strong";
   endgameSolved: boolean;
   stats: { elapsedMs: number; nodes: number; samples: number };
   /**
@@ -427,6 +428,8 @@ export type BotReasoningCandidate = {
   value: number;
   chosen: boolean;
   proven?: boolean;
+  /** STRONG's evidence tier; absent for Aether reports. */
+  tier?: number;
 };
 
 /**
@@ -441,7 +444,7 @@ export type BotReasoningPage = {
   revision: number;
   side: "A" | "B";
   difficulty: string;
-  solver: "greedy" | "sim" | "endgame";
+  solver: "greedy" | "sim" | "endgame" | "strong";
   endgameSolved: boolean;
   expectedFinalDiff?: number;
   score: number;
@@ -585,7 +588,7 @@ export async function fetchBotReasoning(options: {
 // ── analysis ─────────────────────────────────────────────────────────────────
 
 export type AnalysisFactor = {
-  key: "score" | "leave" | "potential" | "oppReply" | "risk" | "margin";
+  key: string;
   label: string;
   value: number;
   delta?: number;
@@ -622,7 +625,7 @@ export type AnalysisResult = {
    */
   localEngine?: { engineVersion: string; weightsVersion: string; threads: number };
   method: {
-    solver: "greedy" | "sim" | "endgame";
+    solver: "greedy" | "sim" | "endgame" | "stage5b";
     samples: number;
     legalMoves: number;
     candidatesEvaluated: number;
@@ -630,6 +633,7 @@ export type AnalysisResult = {
     elapsedMs: number;
     proven: boolean;
     complete: boolean;
+    depth?: number;
   };
 };
 
@@ -690,7 +694,9 @@ export function attachAnalysis(
 // derives everything that is not theirs to state — how many tiles the opponent
 // holds, how many are left in the bag — from the physical set.
 
-export type StudyBoardCell = { r: number; c: number; kind: string; token: string };
+// One declaration of the cell shape, shared with the editor and the archive.
+export type { StudyBoardCell } from "../features/study/position";
+import type { StudyBoardCell } from "../features/study/position";
 
 export type StudyPositionInput = {
   scoreSelf: number;

@@ -70,7 +70,7 @@ export function JoinRoomPage({
               placeholder="AB12CD34EF56"
               onChange={(event) => setValue(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === "Enter" && value.trim()) onJoin(value);
+                if (event.key === "Enter" && value.trim() && !busy) onJoin(value);
               }}
             />
             {canPaste && (
@@ -92,6 +92,7 @@ export function JoinRoomPage({
           className="ui-button-primary"
           type="button"
           disabled={busy || !value.trim()}
+          aria-busy={busy}
           onClick={() => onJoin(value)}
         >
           <LogIn size={17} />

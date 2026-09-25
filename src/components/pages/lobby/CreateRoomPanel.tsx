@@ -379,94 +379,96 @@ export function CreateRoomPanel({
           <span aria-hidden="true">2</span>
           {CREATE_TEXT.playersHeading}
         </h3>
-        <SidePlayerCard
-          side="A"
-          heading={isHostedSolo ? "Solo player" : "Side A"}
-          members={members}
-          name={settings.playerA}
-          selectedId={settings.playerAMemberId ?? null}
-          accountId={playerAUserId}
-          accountOptions={playerOptionsFor("A")}
-          showRegisteredAccount={usesOnlinePlay}
-          accountInvalid={playerAInvalid || playerDuplicate || playerAIsHost}
-          accountError={
-            playerDuplicate
-              ? "Side A and Side B must use different registered accounts."
-              : playerAIsHost
-                ? isHostedSolo
-                  ? "The host account cannot also be the solo player."
-                  : "The host account cannot also be Side A."
-                : !playerAUserId
-                  ? isHostedSolo
-                    ? "Choose the registered user who will play solo."
-                    : "Choose the registered user for this side."
-                  : undefined
-          }
-          accountLocked={isDirectOnline && creatorSide === "A"}
-          accountLabel={
-            isDirectOnline
-              ? creatorSide === "A"
-                ? "Your account"
-                : "Opponent username"
-              : isHostedSolo
-                ? "Solo player username"
-                : "Player username"
-          }
-          isYou={isDirectOnline && creatorSide === "A"}
-          playsFirst={!isSolo && startingSide === "A"}
-          onNameChange={(value) => onChange({ ...settings, playerA: value })}
-          onMemberChange={(id) => {
-            const member = members.find((entry) => entry.id === id);
-            onChange({
-              ...settings,
-              playerAMemberId: id,
-              playerA: member ? member.name : settings.playerA,
-            });
-          }}
-          onAccountChange={(id) => assignRegisteredPlayer("A", id)}
-        />
-        {!isSolo && (
+        <div className="create-side-grid">
           <SidePlayerCard
-            side="B"
-            heading="Side B"
+            side="A"
+            heading={isHostedSolo ? "Solo player" : "Side A"}
             members={members}
-            name={settings.playerB}
-            selectedId={settings.playerBMemberId ?? null}
-            accountId={playerBUserId}
-            accountOptions={playerOptionsFor("B")}
+            name={settings.playerA}
+            selectedId={settings.playerAMemberId ?? null}
+            accountId={playerAUserId}
+            accountOptions={playerOptionsFor("A")}
             showRegisteredAccount={usesOnlinePlay}
-            accountInvalid={playerBInvalid || playerDuplicate || playerBIsHost}
+            accountInvalid={playerAInvalid || playerDuplicate || playerAIsHost}
             accountError={
               playerDuplicate
                 ? "Side A and Side B must use different registered accounts."
-                : playerBIsHost
-                  ? "The host account cannot also be Side B."
-                  : !playerBUserId
-                    ? "Choose the registered user for this side."
+                : playerAIsHost
+                  ? isHostedSolo
+                    ? "The host account cannot also be the solo player."
+                    : "The host account cannot also be Side A."
+                  : !playerAUserId
+                    ? isHostedSolo
+                      ? "Choose the registered user who will play solo."
+                      : "Choose the registered user for this side."
                     : undefined
             }
-            accountLocked={isDirectOnline && creatorSide === "B"}
+            accountLocked={isDirectOnline && creatorSide === "A"}
             accountLabel={
               isDirectOnline
-                ? creatorSide === "B"
+                ? creatorSide === "A"
                   ? "Your account"
                   : "Opponent username"
-                : "Player username"
+                : isHostedSolo
+                  ? "Solo player username"
+                  : "Player username"
             }
-            isYou={isDirectOnline && creatorSide === "B"}
-            playsFirst={startingSide === "B"}
-            onNameChange={(value) => onChange({ ...settings, playerB: value })}
+            isYou={isDirectOnline && creatorSide === "A"}
+            playsFirst={!isSolo && startingSide === "A"}
+            onNameChange={(value) => onChange({ ...settings, playerA: value })}
             onMemberChange={(id) => {
               const member = members.find((entry) => entry.id === id);
               onChange({
                 ...settings,
-                playerBMemberId: id,
-                playerB: member ? member.name : settings.playerB,
+                playerAMemberId: id,
+                playerA: member ? member.name : settings.playerA,
               });
             }}
-            onAccountChange={(id) => assignRegisteredPlayer("B", id)}
+            onAccountChange={(id) => assignRegisteredPlayer("A", id)}
           />
-        )}
+          {!isSolo && (
+            <SidePlayerCard
+              side="B"
+              heading="Side B"
+              members={members}
+              name={settings.playerB}
+              selectedId={settings.playerBMemberId ?? null}
+              accountId={playerBUserId}
+              accountOptions={playerOptionsFor("B")}
+              showRegisteredAccount={usesOnlinePlay}
+              accountInvalid={playerBInvalid || playerDuplicate || playerBIsHost}
+              accountError={
+                playerDuplicate
+                  ? "Side A and Side B must use different registered accounts."
+                  : playerBIsHost
+                    ? "The host account cannot also be Side B."
+                    : !playerBUserId
+                      ? "Choose the registered user for this side."
+                      : undefined
+              }
+              accountLocked={isDirectOnline && creatorSide === "B"}
+              accountLabel={
+                isDirectOnline
+                  ? creatorSide === "B"
+                    ? "Your account"
+                    : "Opponent username"
+                  : "Player username"
+              }
+              isYou={isDirectOnline && creatorSide === "B"}
+              playsFirst={startingSide === "B"}
+              onNameChange={(value) => onChange({ ...settings, playerB: value })}
+              onMemberChange={(id) => {
+                const member = members.find((entry) => entry.id === id);
+                onChange({
+                  ...settings,
+                  playerBMemberId: id,
+                  playerB: member ? member.name : settings.playerB,
+                });
+              }}
+              onAccountChange={(id) => assignRegisteredPlayer("B", id)}
+            />
+          )}
+        </div>
         {!isSolo && (
           <button
             type="button"
@@ -613,6 +615,7 @@ export function CreateRoomPanel({
           className="ui-button-primary"
           type="button"
           disabled={submitBlocked || busy}
+          aria-busy={busy}
           onClick={onSubmit}
         >
           <Play size={16} />
@@ -636,16 +639,18 @@ function buildDefaultRoomName(settings: NewGameSettings, isSolo: boolean): strin
   return `${a} vs ${b}`;
 }
 
-function TimerChips({
+export function TimerChips({
   value,
   onSelect,
+  options = TIMER_MINUTE_OPTIONS,
 }: {
   value: number | null;
   onSelect: (minutes: number | null) => void;
+  options?: readonly (number | null)[];
 }) {
   return (
     <div className="timer-chips" role="radiogroup" aria-label={TIMER_TEXT.label}>
-      {TIMER_MINUTE_OPTIONS.map((option) => {
+      {options.map((option) => {
         const active = value === option;
         return (
           <button

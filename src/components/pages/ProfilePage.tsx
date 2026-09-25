@@ -68,7 +68,7 @@ export function ProfilePage() {
   const favorite = [...groupedStats].sort(
     (a, b) => b.gamesPlayed - a.gamesPlayed || b.lastPlayedAt.localeCompare(a.lastPlayedAt),
   )[0];
-  const favoriteLabel = favorite?.gamesPlayed ? favorite.mode.label : "Not played yet";
+  const favoriteLabel = favorite?.gamesPlayed ? favorite.mode.label : "None yet";
   const versusFinished = totals.wins + totals.losses + totals.draws;
   const winRate = versusFinished ? Math.round((totals.wins / versusFinished) * 100) : 0;
   const overviewRows = [
@@ -76,31 +76,31 @@ export function ProfilePage() {
       icon: <Gamepad2 aria-hidden size={19} />,
       label: "Games created",
       value: totals.created.toLocaleString(),
-      detail: "Games you have started across every mode.",
+      detail: "Rooms started",
     },
     {
       icon: <BarChart3 aria-hidden size={19} />,
       label: "Games played",
       value: totals.played.toLocaleString(),
-      detail: "Games recorded on this profile across every mode.",
+      detail: "Across all modes",
     },
     {
       icon: <Sparkles aria-hidden size={19} />,
       label: "Favorite mode",
       value: favoriteLabel,
-      detail: "The mode with your highest number of games played.",
+      detail: "Most played",
     },
     {
       icon: <Trophy aria-hidden size={19} />,
       label: "Versus win rate",
       value: `${winRate}%`,
-      detail: `Wins ${totals.wins} · Losses ${totals.losses} · Draws ${totals.draws}`,
+      detail: `${totals.wins} wins · ${totals.losses} losses · ${totals.draws} draws`,
     },
     {
       icon: <Medal aria-hidden size={19} />,
       label: "Solo score",
       value: totals.soloScore.toLocaleString(),
-      detail: "Combined score from Solo Practice games.",
+      detail: "Lifetime practice total",
     },
   ];
 
@@ -119,9 +119,7 @@ export function ProfilePage() {
   return (
     <ApplicationShell
       title={profile?.display_name ?? "Profile"}
-      description={
-        profile?.region_name ? `Member of ${profile.region_name}` : "Your lifetime EQ Lab activity"
-      }
+      description={profile?.region_name ? `Member of ${profile.region_name}` : "Your game record"}
       routeKey="profile"
       actions={
         <>
@@ -143,138 +141,109 @@ export function ProfilePage() {
         </div>
       ) : (
         <>
-          <section className="eq-section" aria-labelledby="profile-overview-heading">
+          <section className="eq-profile-overview" aria-labelledby="profile-overview-heading">
             <div className="eq-section-heading">
               <div>
-                <span className="eq-eyebrow">Account summary</span>
-                <h2 id="profile-overview-heading">Profile overview</h2>
+                <span className="eq-eyebrow">Player card</span>
+                <h2 id="profile-overview-heading">At a glance</h2>
               </div>
             </div>
-            <div className="eq-game-table-wrap">
-              <table
-                className="eq-game-table eq-profile-table eq-profile-overview-table"
-                aria-label="Profile overview"
-              >
-                <thead>
-                  <tr>
-                    <th scope="col">Content</th>
-                    <th scope="col">Value</th>
-                    <th scope="col">Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {overviewRows.map((row) => (
-                    <tr key={row.label}>
-                      <th className="eq-profile-table-label" scope="row">
-                        <span className="eq-profile-table-title">
-                          <span className="eq-profile-table-icon">{row.icon}</span>
-                          <strong>{row.label}</strong>
-                        </span>
-                      </th>
-                      <td className="eq-profile-table-value" data-label="Value">
-                        {row.value}
-                      </td>
-                      <td className="eq-profile-table-detail" data-label="Details">
-                        {row.detail}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <ul className="eq-player-stat-grid">
+              {overviewRows.map((row) => (
+                <li key={row.label} className="eq-player-stat">
+                  <span className="eq-player-stat-icon">{row.icon}</span>
+                  <span className="eq-player-stat-label">{row.label}</span>
+                  <strong>{row.value}</strong>
+                  <small>{row.detail}</small>
+                </li>
+              ))}
+            </ul>
           </section>
-          <section className="eq-section" aria-labelledby="mode-breakdown-heading">
+          <section className="eq-mode-section" aria-labelledby="mode-breakdown-heading">
             <div className="eq-section-heading">
               <div>
-                <span className="eq-eyebrow">Lifetime analytics</span>
-                <h2 id="mode-breakdown-heading">Mode breakdown</h2>
+                <span className="eq-eyebrow">Game record</span>
+                <h2 id="mode-breakdown-heading">By mode</h2>
               </div>
             </div>
-            <div className="eq-game-table-wrap">
-              <table
-                className="eq-game-table eq-profile-table eq-profile-mode-table"
-                aria-label="Mode breakdown"
-              >
-                <thead>
-                  <tr>
-                    <th scope="col">Mode</th>
-                    <th scope="col">Activity</th>
-                    <th scope="col">Performance</th>
-                    <th scope="col">Details</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {groupedStats.map(({ mode, ...row }) => {
-                    const finished = row.wins + row.losses + row.draws;
-                    const rate = finished ? Math.round((row.wins / finished) * 100) : 0;
-                    return (
-                      <tr className={row.gamesPlayed ? undefined : "is-unplayed"} key={mode.key}>
-                        <th className="eq-profile-table-label" scope="row">
-                          <span className="eq-profile-table-title">
-                            <span className="eq-profile-table-icon">
-                              {mode.key === "aether" ? (
-                                <Bot aria-hidden size={19} />
-                              ) : (
-                                <Gamepad2 aria-hidden size={19} />
-                              )}
-                            </span>
-                            <span className="eq-profile-table-copy">
-                              <strong>{mode.label}</strong>
-                              <small>{mode.family === "solo" ? "Solo" : "Versus"}</small>
-                            </span>
+            {totals.played === 0 ? (
+              <div className="eq-mode-empty">
+                <span className="eq-mode-empty-icon">
+                  <Gamepad2 aria-hidden size={22} />
+                </span>
+                <strong>Your game record starts here</strong>
+                <a className="eq-button eq-button-primary" href="#/create">
+                  Start a game
+                </a>
+              </div>
+            ) : (
+              <ul className="eq-mode-grid">
+                {groupedStats.map(({ mode, ...row }) => {
+                  const finished = row.wins + row.losses + row.draws;
+                  const rate = finished ? Math.round((row.wins / finished) * 100) : 0;
+                  return (
+                    <li
+                      className={`eq-mode-card${row.gamesPlayed ? "" : " is-unplayed"}`}
+                      key={mode.key}
+                    >
+                      <div className="eq-mode-card-head">
+                        <span className="eq-mode-card-icon">
+                          {mode.key === "aether" ? (
+                            <Bot aria-hidden size={19} />
+                          ) : (
+                            <Gamepad2 aria-hidden size={19} />
+                          )}
+                        </span>
+                        <span className="eq-mode-card-name">
+                          <strong>{mode.label}</strong>
+                          <small>{mode.family === "solo" ? "Solo" : "Versus"}</small>
+                        </span>
+                        <span className="eq-mode-card-count">
+                          {row.gamesPlayed.toLocaleString()} games
+                        </span>
+                      </div>
+                      <div className="eq-mode-card-result">
+                        <strong>
+                          {mode.family === "solo" ? row.soloScore.toLocaleString() : `${rate}%`}
+                        </strong>
+                        <span>{mode.family === "solo" ? "Total score" : "Win rate"}</span>
+                      </div>
+                      {mode.family !== "solo" && (
+                        <div className="eq-mode-meter" aria-hidden="true">
+                          <span style={{ width: `${rate}%` }} />
+                        </div>
+                      )}
+                      <div className="eq-mode-card-meta">
+                        <span>{row.gamesCreated.toLocaleString()} created</span>
+                        {mode.family !== "solo" && (
+                          <span>
+                            {row.wins}W · {row.losses}L · {row.draws}D
                           </span>
-                        </th>
-                        <td data-label="Activity">
-                          <span className="eq-profile-table-cell-stack">
-                            <strong>{row.gamesPlayed.toLocaleString()} played</strong>
-                            <small>{row.gamesCreated.toLocaleString()} created</small>
-                          </span>
-                        </td>
-                        <td data-label="Performance">
-                          <span className="eq-profile-table-cell-stack">
-                            {mode.family === "solo" ? (
-                              <>
-                                <strong>{row.soloScore.toLocaleString()} total score</strong>
-                                <small>Across all Solo Practice games</small>
-                              </>
-                            ) : (
-                              <>
-                                <strong>{rate}% win rate</strong>
-                                <small>
-                                  Wins {row.wins} · Losses {row.losses} · Draws {row.draws}
-                                </small>
-                              </>
-                            )}
-                          </span>
-                        </td>
-                        <td className="eq-profile-table-detail" data-label="Details">
-                          <span className="eq-profile-table-cell-stack">
-                            {mode.key === "aether" && (
-                              <span className="eq-aether-variants">
-                                {[
-                                  ...RETIRED_AETHER_DIFFICULTIES.filter(
-                                    (difficulty) =>
-                                      (stats.find((item) => item.modeKey === `aether_${difficulty}`)
-                                        ?.gamesPlayed ?? 0) > 0,
-                                  ),
-                                  ...AETHER_DIFFICULTIES,
-                                ]
-                                  .map(
-                                    (difficulty) =>
-                                      `${difficulty} ${stats.find((item) => item.modeKey === `aether_${difficulty}`)?.gamesPlayed ?? 0}`,
-                                  )
-                                  .join(" · ")}
-                              </span>
-                            )}
-                            <span>{formatLastPlayed(row.lastPlayedAt)}</span>
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        )}
+                        <span>{formatLastPlayed(row.lastPlayedAt)}</span>
+                      </div>
+                      {mode.key === "aether" && (
+                        <p className="eq-mode-card-tiers">
+                          {[
+                            ...RETIRED_AETHER_DIFFICULTIES.filter(
+                              (difficulty) =>
+                                (stats.find((item) => item.modeKey === `aether_${difficulty}`)
+                                  ?.gamesPlayed ?? 0) > 0,
+                            ),
+                            ...AETHER_DIFFICULTIES,
+                          ]
+                            .map(
+                              (difficulty) =>
+                                `${difficulty} ${stats.find((item) => item.modeKey === `aether_${difficulty}`)?.gamesPlayed ?? 0}`,
+                            )
+                            .join(" · ")}
+                        </p>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </section>
         </>
       )}

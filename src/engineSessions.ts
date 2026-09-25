@@ -286,7 +286,7 @@ export function restoreHints(roomId: string): EngineSession[] {
  * Idempotent, because `restoreHints` skips keys already live and `drop` rewrites
  * storage — so a session that has been retired is never adopted twice.
  */
-export function adoptHints(roomId: string): void {
+export function adoptHints(roomId: string, skipBot = false): void {
   for (const hint of restoreHints(roomId)) {
     if (hint.kind === "analysis" && hint.level) {
       void observeAnalysis({
@@ -295,7 +295,7 @@ export function adoptHints(roomId: string): void {
         level: hint.level,
         hint: hint.progress,
       });
-    } else if (hint.kind === "bot") {
+    } else if (hint.kind === "bot" && !skipBot) {
       void observeBot({
         roomId,
         revision: hint.revision,
@@ -331,17 +331,20 @@ function update(key: string, patch: Partial<EngineSession>): void {
  *  rejoined reports exactly as one it launched. */
 function lifecycleFor(key: string) {
   return {
-    onQueued: (state: EngineQueueState) =>
-      (engineTrace.mark(key, "queued"),
+    onQueued: (state: EngineQueueState) => (
+      engineTrace.mark(key, "queued"),
       update(key, {
         status: { kind: "queued", position: state.position > 0 ? state.position : null },
-      })),
+      })
+    ),
     onRunning: () =>
       // Keep the last percentage rather than dropping to nothing: `running` with
       // no report yet is not the same as `running` at zero, and the server will
       // replay a real number in a moment.
-      (engineTrace.mark(key, "engine_start"),
-      update(key, { status: { kind: "running", progress: get(key)?.progress ?? null } })),
+      (
+        engineTrace.mark(key, "engine_start"),
+        update(key, { status: { kind: "running", progress: get(key)?.progress ?? null } })
+      ),
     onProgress: (progress: EngineProgress) => {
       if (!get(key)?.progress) engineTrace.mark(key, "first_progress");
       update(key, { status: { kind: "running", progress }, progress });
@@ -793,7 +796,11 @@ async function runDiscovery(options: { roomId: string; revision: number }): Prom
         freshlyAdmitted: false,
       });
       void session;
-      if (job.progress) update(key, { progress: job.progress, status: { kind: "running", progress: job.progress } });
+      if (job.progress)
+        update(key, {
+          progress: job.progress,
+          status: { kind: "running", progress: job.progress },
+        });
     }
   }
 }

@@ -79,6 +79,20 @@ beforeEach(() => {
 });
 
 describe("a session refresh while the game is on screen", () => {
+  it("keeps a new member out until an admin approves the account", async () => {
+    rpc.mockResolvedValue({ data: { ...PROFILE, status: "pending" }, error: null });
+    render(
+      <AuthProvider>
+        <AuthGate>
+          <MountWitness onMount={() => undefined} />
+        </AuthGate>
+      </AuthProvider>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Approval pending" })).toBeVisible();
+    expect(screen.queryByTestId("witness")).not.toBeInTheDocument();
+  });
+
   it("keeps the same mount alive through TOKEN_REFRESHED", async () => {
     const mounts = vi.fn();
     render(

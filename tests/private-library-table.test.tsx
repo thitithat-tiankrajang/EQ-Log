@@ -1,8 +1,9 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { listPrivateLibrary } = vi.hoisted(() => ({
+const { listPrivateLibrary, movePrivateItems } = vi.hoisted(() => ({
   listPrivateLibrary: vi.fn(),
+  movePrivateItems: vi.fn(),
 }));
 
 vi.mock("../src/auth", () => ({
@@ -26,7 +27,7 @@ vi.mock("../src/features/gameRecords/repository", () => ({
     regionArchive: 1_000,
   }),
   listPrivateLibrary,
-  movePrivateItems: vi.fn(),
+  movePrivateItems,
   updatePrivateItem: vi.fn(),
 }));
 
@@ -36,6 +37,7 @@ describe("Private Library table", () => {
   afterEach(cleanup);
 
   beforeEach(() => {
+    movePrivateItems.mockResolvedValue(undefined);
     window.location.hash = "#/private";
     listPrivateLibrary.mockResolvedValue([
       {
@@ -81,60 +83,99 @@ describe("Private Library table", () => {
     ]);
   });
 
-  it("renders folders and games as rows, then opens a folder on the second click", async () => {
+  it("opens files directly and keeps selection in the file browser", async () => {
     render(<PrivateLibraryPage folderId={null} />);
 
-    const table = await screen.findByRole("table", { name: "Private files" });
+    const list = await screen.findByRole("list", { name: "Private files" });
     const toolbar = screen.getByRole("toolbar", { name: "Private file selection" });
-    expect(table).toBeVisible();
-    expect(toolbar.closest(".eq-game-table-wrap")).toContainElement(table);
-    expect(within(table).queryByRole("checkbox")).not.toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: "Name" })).toBeVisible();
+    expect(list).toBeVisible();
+    expect(toolbar.closest(".eq-file-browser")).toContainElement(list);
+    expect(within(list).getAllByRole("checkbox")).toHaveLength(2);
     expect(
       screen.getByRole("link", {
-        name: "Select Practice board; activate again to open",
+        name: "Open Practice board",
       }),
     ).toBeVisible();
+    expect(screen.getByRole("link", { name: "Open Practice board" })).toHaveAttribute(
+      "href",
+      "#/play/game-1?from=private",
+    );
 
     const folderLink = screen.getByRole("link", {
-      name: "Select Algebra drills; activate again to open",
+      name: "Open Algebra drills",
     });
     fireEvent.click(folderLink);
+    await waitFor(() => expect(window.location.hash).toBe("#/private/folder-1"));
+    expect(within(toolbar).getByText("Choose files to move or manage")).toBeVisible();
+  });
 
-    expect(window.location.hash).toBe("#/private");
-    expect(folderLink.closest("tr")).toHaveClass("is-selected");
-    expect(folderLink.closest("tr")).not.toHaveClass("is-selectable");
+  it("supports click, shift range, checkbox, and select all", async () => {
+    render(<PrivateLibraryPage folderId={null} />);
+
+    await screen.findByRole("list", { name: "Private files" });
+    const toolbar = screen.getByRole("toolbar", { name: "Private file selection" });
+    fireEvent.click(screen.getByRole("button", { name: "Select Algebra drills" }));
     expect(within(toolbar).getByText("1 selected")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Select Practice board" }), {
+      shiftKey: true,
+    });
+    expect(within(toolbar).getByText("2 selected")).toBeVisible();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select Algebra drills" }));
+    expect(within(toolbar).getByText("1 selected")).toBeVisible();
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select all visible files" }));
+    expect(within(toolbar).getByText("2 selected")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Clear selection" }));
+    expect(within(toolbar).getByText("Choose files to move or manage")).toBeVisible();
+    const file = screen.getByRole("button", { name: "Select Practice board" });
+    fireEvent.keyDown(file, { key: "a", ctrlKey: true });
+    expect(within(toolbar).getByText("2 selected")).toBeVisible();
+    fireEvent.keyDown(file, { key: "Escape" });
+    expect(within(toolbar).getByText("Choose files to move or manage")).toBeVisible();
+  });
 
-    fireEvent.click(folderLink);
+  it("moves a selected file into a chosen folder", async () => {
+    render(<PrivateLibraryPage folderId={null} />);
+    await screen.findByRole("list", { name: "Private files" });
+    fireEvent.click(screen.getByRole("button", { name: "Select Practice board" }));
+    fireEvent.click(screen.getByRole("button", { name: "Move to…" }));
+    const dialog = screen.getByRole("dialog", { name: "Move item" });
+    expect(within(dialog).getByRole("button", { name: "Move here" })).toBeDisabled();
+    expect(within(dialog).getByRole("radio", { name: "Private — Already here" })).toBeDisabled();
+    fireEvent.click(within(dialog).getByRole("radio", { name: /Algebra drills/ }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "Move here" }));
+    await waitFor(() => expect(movePrivateItems).toHaveBeenCalledWith(["game-item-1"], "folder-1"));
+  });
+
+  it("opens a file with a desktop double click or Enter", async () => {
+    render(<PrivateLibraryPage folderId={null} />);
+    await screen.findByRole("list", { name: "Private files" });
+    fireEvent.doubleClick(screen.getByRole("button", { name: "Select Practice board" }));
+    await waitFor(() => expect(window.location.hash).toBe("#/play/game-1?from=private"));
+    fireEvent.keyDown(screen.getByRole("button", { name: "Select Algebra drills" }), {
+      key: "Enter",
+    });
     await waitFor(() => expect(window.location.hash).toBe("#/private/folder-1"));
   });
 
-  it("clears selection outside the table and supports modifier or explicit multi-select", async () => {
+  it("moves files by dropping them on a folder", async () => {
     render(<PrivateLibraryPage folderId={null} />);
-
-    await screen.findByRole("table", { name: "Private files" });
-    const toolbar = screen.getByRole("toolbar", { name: "Private file selection" });
-    const folderLink = screen.getByRole("link", {
-      name: "Select Algebra drills; activate again to open",
-    });
-    fireEvent.click(folderLink);
-
-    const gameLink = screen.getByRole("link", {
-      name: "Select Practice board; activate again to open",
-    });
-    fireEvent.click(gameLink, { metaKey: true });
-    expect(within(toolbar).getByText("2 selected")).toBeVisible();
-
-    fireEvent.pointerDown(screen.getByRole("heading", { level: 1, name: "Private" }));
-    expect(within(toolbar).getByText("Select an item")).toBeVisible();
-
-    fireEvent.click(within(toolbar).getByRole("button", { name: "Select multiple items" }));
-    expect(
-      within(toolbar).getByRole("button", { name: "Finish selecting multiple items" }),
-    ).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(screen.getByRole("link", { name: "Add Algebra drills to selection" }));
-    fireEvent.click(screen.getByRole("link", { name: "Add Practice board to selection" }));
-    expect(within(toolbar).getByText("2 selected")).toBeVisible();
+    await screen.findByRole("list", { name: "Private files" });
+    const source = screen
+      .getByRole("button", { name: "Select Practice board" })
+      .closest("[role='listitem']")!;
+    const destination = screen
+      .getByRole("button", { name: "Select Algebra drills" })
+      .closest("[role='listitem']")!;
+    const transfer = new Map<string, string>();
+    const dataTransfer = {
+      effectAllowed: "move",
+      dropEffect: "move",
+      setData: (type: string, value: string) => transfer.set(type, value),
+      getData: (type: string) => transfer.get(type) ?? "",
+    };
+    fireEvent.dragStart(source, { dataTransfer });
+    fireEvent.dragOver(destination, { dataTransfer });
+    fireEvent.drop(destination, { dataTransfer });
+    await waitFor(() => expect(movePrivateItems).toHaveBeenCalledWith(["game-item-1"], "folder-1"));
   });
 });

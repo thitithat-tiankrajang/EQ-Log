@@ -42,20 +42,13 @@ export function RoomsView({
         <EmptyState
           icon={<Swords size={26} />}
           title="No live games yet"
-          description="Start a match against a person or the Aether bot, or join a game someone shared with you."
-          /* "Join with code" already sits in the section header directly
-             above, so the empty state offers the one action it does not. */
-          action={
-            <a className="eq-button eq-button-primary" href="#/create">
-              Create a game
-            </a>
-          }
+          description="Start a game above and it will appear here."
         />
       ) : (
         <div className="eq-live-tables">
           <LiveTable
             title="Waiting for an opponent"
-            description="Open games that still have a player seat available."
+            description="Take an open seat"
             rooms={openSeats}
             emptyMessage="No games are waiting for an opponent."
             getRoomRole={getRoomRole}
@@ -67,7 +60,7 @@ export function RoomsView({
           />
           <LiveTable
             title="Matched & in progress"
-            description="Games with both sides assigned, including waiting and active matches."
+            description="Ready or underway"
             rooms={matched}
             emptyMessage="No matched or active games right now."
             getRoomRole={getRoomRole}
@@ -146,7 +139,12 @@ export function partitionLiveRooms(rooms: RoomMeta[]): {
 }
 
 function roomHasOpponent(room: RoomMeta): boolean {
-  if (room.gameMode === "solo" || room.modeKey?.startsWith("aether_")) return true;
+  if (
+    room.gameMode === "solo" ||
+    room.modeKey?.startsWith("aether_") ||
+    room.modeKey?.startsWith("authur_")
+  )
+    return true;
   if (typeof room.hasOpponent === "boolean") return room.hasOpponent;
   const participants = new Set(
     [room.inviteUserAId, room.inviteUserBId].filter((id): id is string => Boolean(id)),
