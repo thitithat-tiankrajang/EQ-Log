@@ -1,0 +1,1584 @@
+{
+ "attemptId": "att-2026-09-25T05-41-41-132Z-bc44df",
+ "level": {
+  "id": "cand-c26e7b0ea6f7091a",
+  "number": 4,
+  "deficit": 143,
+  "bagRemaining": 21,
+  "turnNumber": 12,
+  "scores": {
+   "player": 212,
+   "authur": 355
+  }
+ },
+ "status": "finished",
+ "seats": {
+  "player": "B",
+  "authur": "A"
+ },
+ "turnNumber": 16,
+ "board": [
+  {
+   "cell": 0,
+   "kind": "2",
+   "face": "2",
+   "owner": "player",
+   "turn": 6
+  },
+  {
+   "cell": 1,
+   "kind": "+",
+   "face": "+",
+   "owner": "authur",
+   "turn": 11
+  },
+  {
+   "cell": 2,
+   "kind": "1",
+   "face": "1",
+   "owner": "authur",
+   "turn": 11
+  },
+  {
+   "cell": 3,
+   "kind": "=",
+   "face": "=",
+   "owner": "authur",
+   "turn": 11
+  },
+  {
+   "cell": 4,
+   "kind": "6",
+   "face": "6",
+   "owner": "authur",
+   "turn": 7
+  },
+  {
+   "cell": 5,
+   "kind": "/",
+   "face": "÷",
+   "owner": "authur",
+   "turn": 11
+  },
+  {
+   "cell": 6,
+   "kind": "2",
+   "face": "2",
+   "owner": "authur",
+   "turn": 11
+  },
+  {
+   "cell": 7,
+   "kind": "=",
+   "face": "=",
+   "owner": "authur",
+   "turn": 11
+  },
+  {
+   "cell": 8,
+   "kind": "3",
+   "face": "3",
+   "owner": "authur",
+   "turn": 11
+  },
+  {
+   "cell": 15,
+   "kind": "1",
+   "face": "1",
+   "owner": "player",
+   "turn": 6
+  },
+  {
+   "cell": 19,
+   "kind": "+",
+   "face": "+",
+   "owner": "authur",
+   "turn": 7
+  },
+  {
+   "cell": 26,
+   "kind": "15",
+   "face": "15",
+   "owner": "player",
+   "turn": 16
+  },
+  {
+   "cell": 28,
+   "kind": "8",
+   "face": "8",
+   "owner": "player",
+   "turn": 10
+  },
+  {
+   "cell": 30,
+   "kind": "8",
+   "face": "8",
+   "owner": "player",
+   "turn": 6
+  },
+  {
+   "cell": 34,
+   "kind": "0",
+   "face": "0",
+   "owner": "authur",
+   "turn": 7
+  },
+  {
+   "cell": 41,
+   "kind": "x",
+   "face": "×",
+   "owner": "player",
+   "turn": 16
+  },
+  {
+   "cell": 43,
+   "kind": "4",
+   "face": "4",
+   "owner": "player",
+   "turn": 10
+  },
+  {
+   "cell": 45,
+   "kind": "=",
+   "face": "=",
+   "owner": "player",
+   "turn": 6
+  },
+  {
+   "cell": 48,
+   "kind": "5",
+   "face": "5",
+   "owner": "player",
+   "turn": 12
+  },
+  {
+   "cell": 49,
+   "kind": "=",
+   "face": "=",
+   "owner": "authur",
+   "turn": 7
+  },
+  {
+   "cell": 50,
+   "kind": "5",
+   "face": "5",
+   "owner": "player",
+   "turn": 12
+  },
+  {
+   "cell": 51,
+   "kind": "?",
+   "face": "=",
+   "owner": "player",
+   "turn": 12
+  },
+  {
+   "cell": 52,
+   "kind": "18",
+   "face": "18",
+   "owner": "player",
+   "turn": 12
+  },
+  {
+   "cell": 53,
+   "kind": "x//",
+   "face": "÷",
+   "owner": "player",
+   "turn": 12
+  },
+  {
+   "cell": 54,
+   "kind": "9",
+   "face": "9",
+   "owner": "player",
+   "turn": 12
+  },
+  {
+   "cell": 55,
+   "kind": "+/-",
+   "face": "+",
+   "owner": "player",
+   "turn": 12
+  },
+  {
+   "cell": 56,
+   "kind": "3",
+   "face": "3",
+   "owner": "player",
+   "turn": 12
+  },
+  {
+   "cell": 58,
+   "kind": "=",
+   "face": "=",
+   "owner": "player",
+   "turn": 10
+  },
+  {
+   "cell": 60,
+   "kind": "2",
+   "face": "2",
+   "owner": "player",
+   "turn": 6
+  },
+  {
+   "cell": 64,
+   "kind": "7",
+   "face": "7",
+   "owner": "authur",
+   "turn": 7
+  },
+  {
+   "cell": 71,
+   "kind": "9",
+   "face": "9",
+   "owner": "player",
+   "turn": 16
+  },
+  {
+   "cell": 73,
+   "kind": "7",
+   "face": "7",
+   "owner": "player",
+   "turn": 10
+  },
+  {
+   "cell": 75,
+   "kind": "3",
+   "face": "3",
+   "owner": "player",
+   "turn": 6
+  },
+  {
+   "cell": 79,
+   "kind": "-",
+   "face": "-",
+   "owner": "authur",
+   "turn": 7
+  },
+  {
+   "cell": 83,
+   "kind": "12",
+   "face": "12",
+   "owner": "authur",
+   "turn": 13
+  },
+  {
+   "cell": 84,
+   "kind": "+/-",
+   "face": "+",
+   "owner": "authur",
+   "turn": 13
+  },
+  {
+   "cell": 85,
+   "kind": "13",
+   "face": "13",
+   "owner": "authur",
+   "turn": 13
+  },
+  {
+   "cell": 86,
+   "kind": "=",
+   "face": "=",
+   "owner": "authur",
+   "turn": 13
+  },
+  {
+   "cell": 87,
+   "kind": "2",
+   "face": "2",
+   "owner": "authur",
+   "turn": 13
+  },
+  {
+   "cell": 88,
+   "kind": "5",
+   "face": "5",
+   "owner": "player",
+   "turn": 10
+  },
+  {
+   "cell": 90,
+   "kind": "0",
+   "face": "0",
+   "owner": "player",
+   "turn": 6
+  },
+  {
+   "cell": 94,
+   "kind": "1",
+   "face": "1",
+   "owner": "player",
+   "turn": 2
+  },
+  {
+   "cell": 101,
+   "kind": "3",
+   "face": "3",
+   "owner": "player",
+   "turn": 16
+  },
+  {
+   "cell": 103,
+   "kind": "6",
+   "face": "6",
+   "owner": "player",
+   "turn": 10
+  },
+  {
+   "cell": 105,
+   "kind": "+/-",
+   "face": "-",
+   "owner": "authur",
+   "turn": 3
+  },
+  {
+   "cell": 106,
+   "kind": "20",
+   "face": "20",
+   "owner": "authur",
+   "turn": 3
+  },
+  {
+   "cell": 107,
+   "kind": "x//",
+   "face": "×",
+   "owner": "authur",
+   "turn": 3
+  },
+  {
+   "cell": 108,
+   "kind": "0",
+   "face": "0",
+   "owner": "authur",
+   "turn": 1
+  },
+  {
+   "cell": 109,
+   "kind": "=",
+   "face": "=",
+   "owner": "authur",
+   "turn": 1
+  },
+  {
+   "cell": 110,
+   "kind": "+/-",
+   "face": "-",
+   "owner": "authur",
+   "turn": 1
+  },
+  {
+   "cell": 111,
+   "kind": "3",
+   "face": "3",
+   "owner": "authur",
+   "turn": 1
+  },
+  {
+   "cell": 112,
+   "kind": "x",
+   "face": "×",
+   "owner": "authur",
+   "turn": 1
+  },
+  {
+   "cell": 113,
+   "kind": "0",
+   "face": "0",
+   "owner": "authur",
+   "turn": 1
+  },
+  {
+   "cell": 114,
+   "kind": "x//",
+   "face": "÷",
+   "owner": "authur",
+   "turn": 3
+  },
+  {
+   "cell": 115,
+   "kind": "4",
+   "face": "4",
+   "owner": "authur",
+   "turn": 3
+  },
+  {
+   "cell": 116,
+   "kind": "7",
+   "face": "7",
+   "owner": "player",
+   "turn": 4
+  },
+  {
+   "cell": 117,
+   "kind": "1",
+   "face": "1",
+   "owner": "player",
+   "turn": 4
+  },
+  {
+   "cell": 118,
+   "kind": "/",
+   "face": "÷",
+   "owner": "authur",
+   "turn": 5
+  },
+  {
+   "cell": 119,
+   "kind": "16",
+   "face": "16",
+   "owner": "authur",
+   "turn": 5
+  },
+  {
+   "cell": 120,
+   "kind": "12",
+   "face": "12",
+   "owner": "player",
+   "turn": 6
+  },
+  {
+   "cell": 124,
+   "kind": "1",
+   "face": "1",
+   "owner": "player",
+   "turn": 2
+  },
+  {
+   "cell": 131,
+   "kind": "+",
+   "face": "+",
+   "owner": "player",
+   "turn": 16
+  },
+  {
+   "cell": 133,
+   "kind": "9",
+   "face": "9",
+   "owner": "player",
+   "turn": 10
+  },
+  {
+   "cell": 139,
+   "kind": "+/-",
+   "face": "-",
+   "owner": "player",
+   "turn": 2
+  },
+  {
+   "cell": 146,
+   "kind": "2",
+   "face": "2",
+   "owner": "player",
+   "turn": 16
+  },
+  {
+   "cell": 154,
+   "kind": "17",
+   "face": "17",
+   "owner": "player",
+   "turn": 2
+  },
+  {
+   "cell": 161,
+   "kind": "7",
+   "face": "7",
+   "owner": "player",
+   "turn": 16
+  },
+  {
+   "cell": 168,
+   "kind": "1",
+   "face": "1",
+   "owner": "player",
+   "turn": 14
+  },
+  {
+   "cell": 169,
+   "kind": "x",
+   "face": "×",
+   "owner": "player",
+   "turn": 2
+  },
+  {
+   "cell": 170,
+   "kind": "10",
+   "face": "10",
+   "owner": "player",
+   "turn": 14
+  },
+  {
+   "cell": 171,
+   "kind": "?",
+   "face": "=",
+   "owner": "player",
+   "turn": 14
+  },
+  {
+   "cell": 172,
+   "kind": "10",
+   "face": "10",
+   "owner": "player",
+   "turn": 14
+  },
+  {
+   "cell": 173,
+   "kind": "=",
+   "face": "=",
+   "owner": "authur",
+   "turn": 15
+  },
+  {
+   "cell": 174,
+   "kind": "14",
+   "face": "14",
+   "owner": "authur",
+   "turn": 15
+  },
+  {
+   "cell": 175,
+   "kind": "-",
+   "face": "-",
+   "owner": "authur",
+   "turn": 15
+  },
+  {
+   "cell": 176,
+   "kind": "4",
+   "face": "4",
+   "owner": "authur",
+   "turn": 15
+  },
+  {
+   "cell": 184,
+   "kind": "0",
+   "face": "0",
+   "owner": "player",
+   "turn": 2
+  },
+  {
+   "cell": 191,
+   "kind": "?",
+   "face": "×",
+   "owner": "player",
+   "turn": 16
+  },
+  {
+   "cell": 196,
+   "kind": "19",
+   "face": "19",
+   "owner": "player",
+   "turn": 8
+  },
+  {
+   "cell": 197,
+   "kind": "=",
+   "face": "=",
+   "owner": "player",
+   "turn": 8
+  },
+  {
+   "cell": 198,
+   "kind": "8",
+   "face": "8",
+   "owner": "player",
+   "turn": 8
+  },
+  {
+   "cell": 199,
+   "kind": "+",
+   "face": "+",
+   "owner": "authur",
+   "turn": 7
+  },
+  {
+   "cell": 200,
+   "kind": "11",
+   "face": "11",
+   "owner": "player",
+   "turn": 8
+  },
+  {
+   "cell": 201,
+   "kind": "/",
+   "face": "÷",
+   "owner": "authur",
+   "turn": 9
+  },
+  {
+   "cell": 202,
+   "kind": "2",
+   "face": "2",
+   "owner": "authur",
+   "turn": 9
+  },
+  {
+   "cell": 203,
+   "kind": "x//",
+   "face": "×",
+   "owner": "authur",
+   "turn": 9
+  },
+  {
+   "cell": 204,
+   "kind": "4",
+   "face": "4",
+   "owner": "authur",
+   "turn": 9
+  },
+  {
+   "cell": 205,
+   "kind": "-",
+   "face": "-",
+   "owner": "authur",
+   "turn": 9
+  },
+  {
+   "cell": 206,
+   "kind": "?",
+   "face": "2",
+   "owner": "authur",
+   "turn": 9
+  },
+  {
+   "cell": 207,
+   "kind": "-",
+   "face": "-",
+   "owner": "authur",
+   "turn": 9
+  },
+  {
+   "cell": 208,
+   "kind": "9",
+   "face": "9",
+   "owner": "authur",
+   "turn": 9
+  },
+  {
+   "cell": 214,
+   "kind": "5",
+   "face": "5",
+   "owner": "authur",
+   "turn": 7
+  }
+ ],
+ "rack": [],
+ "authurRackCount": 8,
+ "bagCount": 0,
+ "scores": {
+  "player": 436,
+  "authur": 407
+ },
+ "scorelessStreak": 0,
+ "exchangeAllowed": false,
+ "sourceLog": {
+  "format": "survival-source-log-v1/player",
+  "publicHash": "survival-public-hash-v1",
+  "seats": {
+   "player": "B",
+   "authur": "A"
+  },
+  "start": {
+   "turn": 1,
+   "seat": "authur",
+   "scores": {
+    "player": 0,
+    "authur": 0
+   },
+   "rackCounts": {
+    "player": 8,
+    "authur": 8
+   },
+   "bagCount": 84,
+   "publicHash": "c0699afa488ea964d951cd6db7606db34860132ec465281c8d94e608d7817d81"
+  },
+  "turns": [
+   {
+    "turn": 1,
+    "seat": "authur",
+    "playedBy": "authur",
+    "type": "place",
+    "placements": [
+     {
+      "cell": 108,
+      "kind": "0",
+      "face": "0"
+     },
+     {
+      "cell": 109,
+      "kind": "=",
+      "face": "="
+     },
+     {
+      "cell": 110,
+      "kind": "+/-",
+      "face": "-"
+     },
+     {
+      "cell": 111,
+      "kind": "3",
+      "face": "3"
+     },
+     {
+      "cell": 112,
+      "kind": "x",
+      "face": "×"
+     },
+     {
+      "cell": 113,
+      "kind": "0",
+      "face": "0"
+     }
+    ],
+    "scoreGained": 12,
+    "scoresAfter": {
+     "player": 0,
+     "authur": 12
+    },
+    "tilesDrawn": 6,
+    "bagCountAfter": 78,
+    "scorelessStreakAfter": 0,
+    "publicHashAfter": "a29bf176f39f44da95c5dc18fb500cff64e52b6b3d4544b6a38d140bfc18365c"
+   },
+   {
+    "turn": 2,
+    "seat": "player",
+    "playedBy": "authur",
+    "type": "place",
+    "placements": [
+     {
+      "cell": 94,
+      "kind": "1",
+      "face": "1"
+     },
+     {
+      "cell": 124,
+      "kind": "1",
+      "face": "1"
+     },
+     {
+      "cell": 139,
+      "kind": "+/-",
+      "face": "-"
+     },
+     {
+      "cell": 154,
+      "kind": "17",
+      "face": "17"
+     },
+     {
+      "cell": 169,
+      "kind": "x",
+      "face": "×"
+     },
+     {
+      "cell": 184,
+      "kind": "0",
+      "face": "0"
+     }
+    ],
+    "scoreGained": 25,
+    "scoresAfter": {
+     "player": 25,
+     "authur": 12
+    },
+    "tilesDrawn": 6,
+    "bagCountAfter": 72,
+    "scorelessStreakAfter": 0,
+    "publicHashAfter": "1d7516c1fa9005a99e80887082561fd42baaa1248bfa2b621b0bd02c46d9991e"
+   },
+   {
+    "turn": 3,
+    "seat": "authur",
+    "playedBy": "authur",
+    "type": "place",
+    "placements": [
+     {
+      "cell": 105,
+      "kind": "+/-",
+      "face": "-"
+     },
+     {
+      "cell": 106,
+      "kind": "20",
+      "face": "20"
+     },
+     {
+      "cell": 107,
+      "kind": "x//",
+      "face": "×"
+     },
+     {
+      "cell": 114,
+      "kind": "x//",
+      "face": "÷"
+     },
+     {
+      "cell": 115,
+      "kind": "4",
+      "face": "4"
+     }
+    ],
+    "scoreGained": 51,
+    "scoresAfter": {
+     "player": 25,
+     "authur": 63
+    },
+    "tilesDrawn": 5,
+    "bagCountAfter": 67,
+    "scorelessStreakAfter": 0,
+    "publicHashAfter": "280e3966c0075f20945c98be59e330c6bf4a0226637f3c1de3421675cca6bad6"
+   },
+   {
+    "turn": 4,
+    "seat": "player",
+    "playedBy": "authur",
+    "type": "place",
+    "placements": [
+     {
+      "cell": 116,
+      "kind": "7",
+      "face": "7"
+     },
+     {
+      "cell": 117,
+      "kind": "1",
+      "face": "1"
+     }
+    ],
+    "scoreGained": 22,
+    "scoresAfter": {
+     "player": 47,
+     "authur": 63
+    },
+    "tilesDrawn": 2,
+    "bagCountAfter": 65,
+    "scorelessStreakAfter": 0,
+    "publicHashAfter": "47d0568205b9f37d995d3c4be620ebc19629c2ca9380a1b7519aa2d0452d6f1a"
+   },
+   {
+    "turn": 5,
+    "seat": "authur",
+    "playedBy": "authur",
+    "type": "place",
+    "placements": [
+     {
+      "cell": 118,
+      "kind": "/",
+      "face": "÷"
+     },
+     {
+      "cell": 119,
+      "kind": "16",
+      "face": "16"
+     }
+    ],
+    "scoreGained": 78,
+    "scoresAfter": {
+     "player": 47,
+     "authur": 141
+    },
+    "tilesDrawn": 2,
+    "bagCountAfter": 63,
+    "scorelessStreakAfter": 0,
+    "publicHashAfter": "f75be80874ee0e9b9e88e38a5ecbd12ab6f92e9c1a73523e5ff1a7f6181c9b57"
+   },
+   {
+    "turn": 6,
+    "seat": "player",
+    "playedBy": "authur",
+    "type": "place",
+    "placements": [
+     {
+      "cell": 0,
+      "kind": "2",
+      "face": "2"
+     },
+     {
+      "cell": 15,
+      "kind": "1",
+      "face": "1"
+     },
+     {
+      "cell": 30,
+      "kind": "8",
+      "face": "8"
+     },
+     {
+      "cell": 45,
+      "kind": "=",
+      "face": "="
+     },
+     {
+      "cell": 60,
+      "kind": "2",
+      "face": "2"
+     },
+     {
+      "cell": 75,
+      "kind": "3",
+      "face": "3"
+     },
+     {
+      "cell": 90,
+      "kind": "0",
+      "face": "0"
+     },
+     {
+      "cell": 120,
+      "kind": "12",
+      "face": "12"
+     }
+    ],
+    "scoreGained": 79,
+    "scoresAfter": {
+     "player": 126,
+     "authur": 141
+    },
+    "tilesDrawn": 8,
+    "bagCountAfter": 55,
+    "scorelessStreakAfter": 0,
+    "publicHashAfter": "f2c55631abc869db835987ccbb317c63211e78bda131f699d96972e4f175b2f1"
+   },
+   {
+    "turn": 7,
+    "seat": "authur",
+    "playedBy": "authur",
+    "type": "place",
+    "placements": [
+     {
+      "cell": 4,
+      "kind": "6",
+      "face": "6"
+     },
+     {
+      "cell": 19,
+      "kind": "+",
+      "face": "+"
+     },
+     {
+      "cell": 34,
+      "kind": "0",
+      "face": "0"
+     },
+     {
+      "cell": 49,
+      "kind": "=",
+      "face": "="
+     },
+     {
+      "cell": 64,
+      "kind": "7",
+      "face": "7"
+     },
+     {
+      "cell": 79,
+      "kind": "-",
+      "face": "-"
+     },
+     {
+      "cell": 199,
+      "kind": "+",
+      "face": "+"
+     },
+     {
+      "cell": 214,
+      "kind": "5",
+      "face": "5"
+     }
+    ],
+    "scoreGained": 71,
+    "scoresAfter": {
+     "player": 126,
+     "authur": 212
+    },
+    "tilesDrawn": 8,
+    "bagCountAfter": 47,
+    "scorelessStreakAfter": 0,
+    "publicHashAfter": "13b384f0cbf85c4b4ed7e35cc1e6c344506dbbe79b07222a92ea21bc660a4e6a"
+   },
+   {
+    "turn": 8,
+    "seat": "player",
+    "playedBy": "authur",
+    "type": "place",
+    "placements": [
+     {
+      "cell": 196,
+      "kind": "19",
+      "face": "19"
+     },
+     {
+      "cell": 197,
+      "kind": "=",
+      "face": "="
+     },
+     {
+      "cell": 198,
+      "kind": "8",
+      "face": "8"
+     },
+     {
+      "cell": 200,
+      "kind": "11",
+      "face": "11"
+     }
+    ],
+    "scoreGained": 48,
+    "scoresAfter": {
+     "player": 174,
+     "authur": 212
+    },
+    "tilesDrawn": 4,
+    "bagCountAfter": 43,
+    "scorelessStreakAfter": 0,
+    "publicHashAfter": "b44e98c1a73ddbb1a4cd6df86c756e1eff52ee87b4b5636f54c43d19ab619b1b"
+   },
+   {
+    "turn": 9,
+    "seat": "authur",
+    "playedBy": "authur",
+    "type": "place",
+    "placements": [
+     {
+      "cell": 201,
+      "kind": "/",
+      "face": "÷"
+     },
+     {
+      "cell": 202,
+      "kind": "2",
+      "face": "2"
+     },
+     {
+      "cell": 203,
+      "kind": "x//",
+      "face": "×"
+     },
+     {
+      "cell": 204,
+      "kind": "4",
+      "face": "4"
+     },
+     {
+      "cell": 205,
+      "kind": "-",
+      "face": "-"
+     },
+     {
+      "cell": 206,
+      "kind": "?",
+      "face": "2"
+     },
+     {
+      "cell": 207,
+      "kind": "-",
+      "face": "-"
+     },
+     {
+      "cell": 208,
+      "kind": "9",
+      "face": "9"
+     }
+    ],
+    "scoreGained": 104,
+    "scoresAfter": {
+     "player": 174,
+     "authur": 316
+    },
+    "tilesDrawn": 8,
+    "bagCountAfter": 35,
+    "scorelessStreakAfter": 0,
+    "publicHashAfter": "ab66b75945c3ac3db2b302087d42278037c44e014700f7075f865301c315c786"
+   },
+   {
+    "turn": 10,
+    "seat": "player",
+    "playedBy": "authur",
+    "type": "place",
+    "placements": [
+     {
+      "cell": 28,
+      "kind": "8",
+      "face": "8"
+     },
+     {
+      "cell": 43,
+      "kind": "4",
+      "face": "4"
+     },
+     {
+      "cell": 58,
+      "kind": "=",
+      "face": "="
+     },
+     {
+      "cell": 73,
+      "kind": "7",
+      "face": "7"
+     },
+     {
+      "cell": 88,
+      "kind": "5",
+      "face": "5"
+     },
+     {
+      "cell": 103,
+      "kind": "6",
+      "face": "6"
+     },
+     {
+      "cell": 133,
+      "kind": "9",
+      "face": "9"
+     }
+    ],
+    "scoreGained": 38,
+    "scoresAfter": {
+     "player": 212,
+     "authur": 316
+    },
+    "tilesDrawn": 7,
+    "bagCountAfter": 28,
+    "scorelessStreakAfter": 0,
+    "publicHashAfter": "8eadf227452ccc27f4daa0f1997e26256fcd1bd8b9cda226d308cb1d2b0e93f1"
+   },
+   {
+    "turn": 11,
+    "seat": "authur",
+    "playedBy": "authur",
+    "type": "place",
+    "placements": [
+     {
+      "cell": 1,
+      "kind": "+",
+      "face": "+"
+     },
+     {
+      "cell": 2,
+      "kind": "1",
+      "face": "1"
+     },
+     {
+      "cell": 3,
+      "kind": "=",
+      "face": "="
+     },
+     {
+      "cell": 5,
+      "kind": "/",
+      "face": "÷"
+     },
+     {
+      "cell": 6,
+      "kind": "2",
+      "face": "2"
+     },
+     {
+      "cell": 7,
+      "kind": "=",
+      "face": "="
+     },
+     {
+      "cell": 8,
+      "kind": "3",
+      "face": "3"
+     }
+    ],
+    "scoreGained": 39,
+    "scoresAfter": {
+     "player": 212,
+     "authur": 355
+    },
+    "tilesDrawn": 7,
+    "bagCountAfter": 21,
+    "scorelessStreakAfter": 0,
+    "publicHashAfter": "e68e7de40a14103ee55f81b8f34a2673232a8ff646ac94c8c708c8d2432fe909"
+   }
+  ],
+  "takeover": {
+   "turn": 12,
+   "seat": "player",
+   "publicHash": "e68e7de40a14103ee55f81b8f34a2673232a8ff646ac94c8c708c8d2432fe909"
+  }
+ },
+ "log": [
+  {
+   "turn": 12,
+   "seat": "player",
+   "playedBy": "human",
+   "type": "place",
+   "placements": [
+    {
+     "cell": 48,
+     "kind": "5",
+     "face": "5"
+    },
+    {
+     "cell": 50,
+     "kind": "5",
+     "face": "5"
+    },
+    {
+     "cell": 51,
+     "kind": "?",
+     "face": "="
+    },
+    {
+     "cell": 52,
+     "kind": "18",
+     "face": "18"
+    },
+    {
+     "cell": 53,
+     "kind": "x//",
+     "face": "÷"
+    },
+    {
+     "cell": 54,
+     "kind": "9",
+     "face": "9"
+    },
+    {
+     "cell": 55,
+     "kind": "+/-",
+     "face": "+"
+    },
+    {
+     "cell": 56,
+     "kind": "3",
+     "face": "3"
+    }
+   ],
+   "yourRackBefore": [
+    {
+     "kind": "3"
+    },
+    {
+     "kind": "5"
+    },
+    {
+     "kind": "5"
+    },
+    {
+     "kind": "9"
+    },
+    {
+     "kind": "18"
+    },
+    {
+     "kind": "+/-"
+    },
+    {
+     "kind": "x//"
+    },
+    {
+     "kind": "?"
+    }
+   ],
+   "yourRackAfter": [
+    {
+     "kind": "10"
+    },
+    {
+     "kind": "10"
+    },
+    {
+     "kind": "3"
+    },
+    {
+     "kind": "?"
+    },
+    {
+     "kind": "1"
+    },
+    {
+     "kind": "2"
+    },
+    {
+     "kind": "15"
+    },
+    {
+     "kind": "9"
+    }
+   ],
+   "scoreGained": 112,
+   "scoresAfter": {
+    "player": 324,
+    "authur": 355
+   },
+   "tilesDrawn": 8,
+   "bagCountAfter": 13,
+   "scorelessStreakAfter": 0
+  },
+  {
+   "turn": 13,
+   "seat": "authur",
+   "playedBy": "authur",
+   "type": "place",
+   "placements": [
+    {
+     "cell": 83,
+     "kind": "12",
+     "face": "12"
+    },
+    {
+     "cell": 84,
+     "kind": "+/-",
+     "face": "+"
+    },
+    {
+     "cell": 85,
+     "kind": "13",
+     "face": "13"
+    },
+    {
+     "cell": 86,
+     "kind": "=",
+     "face": "="
+    },
+    {
+     "cell": 87,
+     "kind": "2",
+     "face": "2"
+    }
+   ],
+   "scoreGained": 16,
+   "scoresAfter": {
+    "player": 324,
+    "authur": 371
+   },
+   "tilesDrawn": 5,
+   "bagCountAfter": 8,
+   "scorelessStreakAfter": 0
+  },
+  {
+   "turn": 14,
+   "seat": "player",
+   "playedBy": "human",
+   "type": "place",
+   "placements": [
+    {
+     "cell": 168,
+     "kind": "1",
+     "face": "1"
+    },
+    {
+     "cell": 170,
+     "kind": "10",
+     "face": "10"
+    },
+    {
+     "cell": 171,
+     "kind": "?",
+     "face": "="
+    },
+    {
+     "cell": 172,
+     "kind": "10",
+     "face": "10"
+    }
+   ],
+   "yourRackBefore": [
+    {
+     "kind": "1"
+    },
+    {
+     "kind": "2"
+    },
+    {
+     "kind": "3"
+    },
+    {
+     "kind": "9"
+    },
+    {
+     "kind": "10"
+    },
+    {
+     "kind": "10"
+    },
+    {
+     "kind": "15"
+    },
+    {
+     "kind": "?"
+    }
+   ],
+   "yourRackAfter": [
+    {
+     "kind": "2"
+    },
+    {
+     "kind": "3"
+    },
+    {
+     "kind": "9"
+    },
+    {
+     "kind": "15"
+    },
+    {
+     "kind": "7"
+    },
+    {
+     "kind": "x"
+    },
+    {
+     "kind": "?"
+    },
+    {
+     "kind": "+"
+    }
+   ],
+   "scoreGained": 24,
+   "scoresAfter": {
+    "player": 348,
+    "authur": 371
+   },
+   "tilesDrawn": 4,
+   "bagCountAfter": 4,
+   "scorelessStreakAfter": 0
+  },
+  {
+   "turn": 15,
+   "seat": "authur",
+   "playedBy": "authur",
+   "type": "place",
+   "placements": [
+    {
+     "cell": 173,
+     "kind": "=",
+     "face": "="
+    },
+    {
+     "cell": 174,
+     "kind": "14",
+     "face": "14"
+    },
+    {
+     "cell": 175,
+     "kind": "-",
+     "face": "-"
+    },
+    {
+     "cell": 176,
+     "kind": "4",
+     "face": "4"
+    }
+   ],
+   "scoreGained": 36,
+   "scoresAfter": {
+    "player": 348,
+    "authur": 407
+   },
+   "tilesDrawn": 4,
+   "bagCountAfter": 0,
+   "scorelessStreakAfter": 0
+  },
+  {
+   "turn": 16,
+   "seat": "player",
+   "playedBy": "human",
+   "type": "place",
+   "placements": [
+    {
+     "cell": 26,
+     "kind": "15",
+     "face": "15"
+    },
+    {
+     "cell": 41,
+     "kind": "x",
+     "face": "×"
+    },
+    {
+     "cell": 71,
+     "kind": "9",
+     "face": "9"
+    },
+    {
+     "cell": 101,
+     "kind": "3",
+     "face": "3"
+    },
+    {
+     "cell": 131,
+     "kind": "+",
+     "face": "+"
+    },
+    {
+     "cell": 146,
+     "kind": "2",
+     "face": "2"
+    },
+    {
+     "cell": 161,
+     "kind": "7",
+     "face": "7"
+    },
+    {
+     "cell": 191,
+     "kind": "?",
+     "face": "×"
+    }
+   ],
+   "yourRackBefore": [
+    {
+     "kind": "2"
+    },
+    {
+     "kind": "3"
+    },
+    {
+     "kind": "7"
+    },
+    {
+     "kind": "9"
+    },
+    {
+     "kind": "15"
+    },
+    {
+     "kind": "+"
+    },
+    {
+     "kind": "x"
+    },
+    {
+     "kind": "?"
+    }
+   ],
+   "yourRackAfter": [],
+   "scoreGained": 60,
+   "scoresAfter": {
+    "player": 436,
+    "authur": 407
+   },
+   "tilesDrawn": 0,
+   "bagCountAfter": 0,
+   "scorelessStreakAfter": 0,
+   "ended": {
+    "reason": "rack_out",
+    "bonusTo": "player",
+    "bonusPoints": 28
+   }
+  }
+ ],
+ "result": {
+  "outcome": "win",
+  "scores": {
+   "player": 436,
+   "authur": 407
+  },
+  "margin": 29,
+  "reason": "rack_out",
+  "bonusTo": "player",
+  "bonusPoints": 28,
+  "turns": 5,
+  "yourTurns": 3,
+  "authurTurns": 2,
+  "savedAs": null
+ }
+}

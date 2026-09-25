@@ -1,0 +1,127 @@
+/* Survival: the player's level list and the admin's level review.
+ *
+ * Both screens live in the application shell, so they use its tokens. They
+ * used to borrow `.pregame-card`, which is only styled inside `.eq-flow-page`,
+ * and rendered as bare text — keep Survival's own classes here instead. */
+
+.eq-survival-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 14px;
+  min-width: 0;
+}
+
+.eq-survival-card {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  min-width: 0;
+  border: 1px solid var(--eq-line);
+  border-radius: var(--eq-radius-lg);
+  background: var(--eq-surface);
+  padding: clamp(14px, 2vw, 18px);
+  box-shadow: var(--eq-shadow-sm);
+}
+
+.eq-survival-card h2,
+.eq-survival-card h3 {
+  margin: 0;
+  color: var(--eq-text);
+  font-size: 16px;
+}
+
+.eq-survival-card p {
+  margin: 0;
+  color: var(--eq-text-soft);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.eq-survival-card.is-approved {
+  border-color: color-mix(in srgb, var(--eq-success) 35%, var(--eq-line));
+}
+
+.eq-survival-card > .eq-button {
+  justify-self: start;
+  margin-block-start: 4px;
+}
+
+.eq-survival-card .eq-field textarea {
+  width: 100%;
+  min-height: 64px;
+  border: 1px solid var(--eq-line-strong);
+  border-radius: var(--eq-radius-sm);
+  background: var(--eq-surface);
+  color: var(--eq-text);
+  padding: 9px 11px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  resize: vertical;
+}
+
+.eq-survival-card .eq-field textarea:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}
+
+.eq-survival-replays {
+  border: 1px solid var(--eq-line);
+  border-radius: var(--eq-radius-md);
+  background: var(--eq-surface-subtle);
+}
+
+.eq-survival-replays > summary {
+  padding: 9px 12px;
+  color: var(--eq-primary);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.eq-survival-replays[open] > summary {
+  border-bottom: 1px solid var(--eq-line);
+}
+
+.eq-survival-replay {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.eq-survival-replay + .eq-survival-replay {
+  border-top: 1px solid var(--eq-line);
+}
+
+.eq-survival-replay-step {
+  color: var(--eq-text-soft);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.eq-survival-board {
+  display: grid;
+  grid-template-columns: repeat(15, minmax(0, 1fr));
+  gap: 1px;
+  width: 100%;
+  max-width: 420px;
+  border: 1px solid var(--eq-line-strong);
+  background: var(--eq-line-strong);
+}
+
+.eq-survival-cell {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--eq-surface);
+  color: var(--eq-text);
+  font-size: clamp(8px, 1.4vw, 11px);
+  font-weight: 700;
+}
+
+.eq-survival-cell.is-new {
+  background: var(--eq-warning-soft);
+  box-shadow: inset 0 0 0 2px var(--eq-warning);
+}

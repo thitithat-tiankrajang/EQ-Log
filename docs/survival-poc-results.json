@@ -1,0 +1,5378 @@
+{
+  "measuredAt": "2026-09-24T12:47:53.505Z",
+  "serverBenchmark": [
+    {
+      "name": "endgame",
+      "wallMs": 89,
+      "engineMs": 43,
+      "nodes": 0,
+      "candidates": 1
+    },
+    {
+      "name": "midgame",
+      "wallMs": 2619,
+      "engineMs": 2467,
+      "nodes": 3142183,
+      "candidates": 4
+    }
+  ],
+  "levels": [
+    {
+      "level": 1,
+      "seed": 5117,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 20,
+      "distinctWinningPaths": 4,
+      "immediateWinningMoves": 0,
+      "minimumSurvivalTurns": 5,
+      "observedWinRate": 1,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 5
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 5
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 55,
+        "p95": 112,
+        "count": 80
+      },
+      "status": "awaiting_admin_approval",
+      "winningReplays": [
+        {
+          "policy": "strong",
+          "trial": 4,
+          "scores": {
+            "A": 509,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "eabb179e07929262",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 82,
+                    "tileId": "12#0",
+                    "kind": "12",
+                    "face": "12"
+                  },
+                  {
+                    "cell": 97,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "9cd4325f13beabbe",
+              "type": "place",
+              "score": 9,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 79,
+                    "tileId": "=#3",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 80,
+                    "tileId": "4#1",
+                    "kind": "4",
+                    "face": "4"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        },
+        {
+          "policy": "greedy",
+          "trial": 4,
+          "scores": {
+            "A": 509,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "eabb179e07929262",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 82,
+                    "tileId": "12#0",
+                    "kind": "12",
+                    "face": "12"
+                  },
+                  {
+                    "cell": 97,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "9cd4325f13beabbe",
+              "type": "place",
+              "score": 9,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 79,
+                    "tileId": "=#3",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 80,
+                    "tileId": "4#1",
+                    "kind": "4",
+                    "face": "4"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        },
+        {
+          "policy": "top20",
+          "trial": 4,
+          "scores": {
+            "A": 505,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "37f1f3d6c7f0c3f7",
+              "type": "place",
+              "score": 5,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 17,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 18,
+                    "tileId": "4#1",
+                    "kind": "4",
+                    "face": "4"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "eabb179e07929262",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 82,
+                    "tileId": "12#0",
+                    "kind": "12",
+                    "face": "12"
+                  },
+                  {
+                    "cell": 97,
+                    "tileId": "=#3",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 2,
+      "seed": 5125,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 20,
+      "distinctWinningPaths": 5,
+      "immediateWinningMoves": 0,
+      "minimumSurvivalTurns": 5,
+      "observedWinRate": 1,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 5
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 5
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 53,
+        "p95": 89,
+        "count": 80
+      },
+      "status": "awaiting_admin_approval",
+      "winningReplays": [
+        {
+          "policy": "strong",
+          "trial": 4,
+          "scores": {
+            "A": 509,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "eabb179e07929262",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 82,
+                    "tileId": "12#0",
+                    "kind": "12",
+                    "face": "12"
+                  },
+                  {
+                    "cell": 97,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "9cd4325f13beabbe",
+              "type": "place",
+              "score": 9,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 79,
+                    "tileId": "=#3",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 80,
+                    "tileId": "4#4",
+                    "kind": "4",
+                    "face": "4"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        },
+        {
+          "policy": "greedy",
+          "trial": 4,
+          "scores": {
+            "A": 509,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "eabb179e07929262",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 82,
+                    "tileId": "12#0",
+                    "kind": "12",
+                    "face": "12"
+                  },
+                  {
+                    "cell": 97,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "9cd4325f13beabbe",
+              "type": "place",
+              "score": 9,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 79,
+                    "tileId": "=#3",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 80,
+                    "tileId": "4#4",
+                    "kind": "4",
+                    "face": "4"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        },
+        {
+          "policy": "top20",
+          "trial": 4,
+          "scores": {
+            "A": 509,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "9cd4325f13beabbe",
+              "type": "place",
+              "score": 9,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 79,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 80,
+                    "tileId": "4#4",
+                    "kind": "4",
+                    "face": "4"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "eabb179e07929262",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 82,
+                    "tileId": "12#0",
+                    "kind": "12",
+                    "face": "12"
+                  },
+                  {
+                    "cell": 97,
+                    "tileId": "=#3",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 3,
+      "seed": 5129,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 20,
+      "distinctWinningPaths": 4,
+      "immediateWinningMoves": 0,
+      "minimumSurvivalTurns": 5,
+      "observedWinRate": 1,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 5
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 5
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 53,
+        "p95": 92,
+        "count": 80
+      },
+      "status": "awaiting_admin_approval",
+      "winningReplays": [
+        {
+          "policy": "strong",
+          "trial": 4,
+          "scores": {
+            "A": 509,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "eabb179e07929262",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 82,
+                    "tileId": "12#0",
+                    "kind": "12",
+                    "face": "12"
+                  },
+                  {
+                    "cell": 97,
+                    "tileId": "=#3",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "9cd4325f13beabbe",
+              "type": "place",
+              "score": 9,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 79,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 80,
+                    "tileId": "4#1",
+                    "kind": "4",
+                    "face": "4"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        },
+        {
+          "policy": "top20",
+          "trial": 0,
+          "scores": {
+            "A": 509,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "eabb179e07929262",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 82,
+                    "tileId": "12#0",
+                    "kind": "12",
+                    "face": "12"
+                  },
+                  {
+                    "cell": 97,
+                    "tileId": "=#3",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "9cd4325f13beabbe",
+              "type": "place",
+              "score": 9,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 79,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 80,
+                    "tileId": "4#1",
+                    "kind": "4",
+                    "face": "4"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        },
+        {
+          "policy": "top20",
+          "trial": 1,
+          "scores": {
+            "A": 505,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "37f1f3d6c7f0c3f7",
+              "type": "place",
+              "score": 5,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 17,
+                    "tileId": "=#3",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 18,
+                    "tileId": "4#1",
+                    "kind": "4",
+                    "face": "4"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "eabb179e07929262",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 82,
+                    "tileId": "12#0",
+                    "kind": "12",
+                    "face": "12"
+                  },
+                  {
+                    "cell": 97,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 4,
+      "seed": 5131,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 20,
+      "distinctWinningPaths": 6,
+      "immediateWinningMoves": 0,
+      "minimumSurvivalTurns": 5,
+      "observedWinRate": 1,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 5
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 5
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 56,
+        "p95": 92,
+        "count": 61
+      },
+      "status": "awaiting_admin_approval",
+      "winningReplays": [
+        {
+          "policy": "strong",
+          "trial": 4,
+          "scores": {
+            "A": 507,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "2ef38fd18ba851c2",
+              "type": "place",
+              "score": 19,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 52,
+                    "tileId": "4#1",
+                    "kind": "4",
+                    "face": "4"
+                  },
+                  {
+                    "cell": 67,
+                    "tileId": "+#1",
+                    "kind": "+",
+                    "face": "+"
+                  },
+                  {
+                    "cell": 82,
+                    "tileId": "8#0",
+                    "kind": "8",
+                    "face": "8"
+                  },
+                  {
+                    "cell": 97,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        },
+        {
+          "policy": "top20",
+          "trial": 3,
+          "scores": {
+            "A": 507,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "2ef38fd18ba851c2",
+              "type": "place",
+              "score": 19,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 52,
+                    "tileId": "4#1",
+                    "kind": "4",
+                    "face": "4"
+                  },
+                  {
+                    "cell": 67,
+                    "tileId": "+#1",
+                    "kind": "+",
+                    "face": "+"
+                  },
+                  {
+                    "cell": 82,
+                    "tileId": "8#0",
+                    "kind": "8",
+                    "face": "8"
+                  },
+                  {
+                    "cell": 97,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        },
+        {
+          "policy": "top5",
+          "trial": 4,
+          "scores": {
+            "A": 507,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "71fa34dde75a6b8a",
+              "type": "place",
+              "score": 19,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 52,
+                    "tileId": "8#0",
+                    "kind": "8",
+                    "face": "8"
+                  },
+                  {
+                    "cell": 67,
+                    "tileId": "+#1",
+                    "kind": "+",
+                    "face": "+"
+                  },
+                  {
+                    "cell": 82,
+                    "tileId": "4#1",
+                    "kind": "4",
+                    "face": "4"
+                  },
+                  {
+                    "cell": 97,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 5,
+      "seed": 5139,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 20,
+      "distinctWinningPaths": 3,
+      "immediateWinningMoves": 0,
+      "minimumSurvivalTurns": 5,
+      "observedWinRate": 1,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 5
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 5
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 52,
+        "p95": 89,
+        "count": 80
+      },
+      "status": "awaiting_admin_approval",
+      "winningReplays": [
+        {
+          "policy": "strong",
+          "trial": 4,
+          "scores": {
+            "A": 509,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "eabb179e07929262",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 82,
+                    "tileId": "12#0",
+                    "kind": "12",
+                    "face": "12"
+                  },
+                  {
+                    "cell": 97,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "79c8bb1048edad7e",
+              "type": "place",
+              "score": 9,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 139,
+                    "tileId": "=#3",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 140,
+                    "tileId": "8#0",
+                    "kind": "8",
+                    "face": "8"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        },
+        {
+          "policy": "top20",
+          "trial": 3,
+          "scores": {
+            "A": 509,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "eabb179e07929262",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 82,
+                    "tileId": "12#0",
+                    "kind": "12",
+                    "face": "12"
+                  },
+                  {
+                    "cell": 97,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "79c8bb1048edad7e",
+              "type": "place",
+              "score": 9,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 139,
+                    "tileId": "=#3",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 140,
+                    "tileId": "8#0",
+                    "kind": "8",
+                    "face": "8"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        },
+        {
+          "policy": "top20",
+          "trial": 4,
+          "scores": {
+            "A": 509,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "79c8bb1048edad7e",
+              "type": "place",
+              "score": 9,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 139,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 140,
+                    "tileId": "8#0",
+                    "kind": "8",
+                    "face": "8"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "eabb179e07929262",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 82,
+                    "tileId": "12#0",
+                    "kind": "12",
+                    "face": "12"
+                  },
+                  {
+                    "cell": 97,
+                    "tileId": "=#3",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 6,
+      "seed": 5093,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 14,
+      "distinctWinningPaths": 2,
+      "immediateWinningMoves": 0,
+      "minimumSurvivalTurns": 5,
+      "observedWinRate": 0.7,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 5
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 2
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 2
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 53,
+        "p95": 89,
+        "count": 54
+      },
+      "status": "awaiting_admin_approval",
+      "winningReplays": [
+        {
+          "policy": "strong",
+          "trial": 4,
+          "scores": {
+            "A": 512,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "a419da34d11383a7",
+              "type": "place",
+              "score": 24,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 53,
+                    "tileId": "4#1",
+                    "kind": "4",
+                    "face": "4"
+                  },
+                  {
+                    "cell": 54,
+                    "tileId": "7#1",
+                    "kind": "7",
+                    "face": "7"
+                  },
+                  {
+                    "cell": 56,
+                    "tileId": "4#4",
+                    "kind": "4",
+                    "face": "4"
+                  },
+                  {
+                    "cell": 58,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        },
+        {
+          "policy": "top20",
+          "trial": 3,
+          "scores": {
+            "A": 512,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "a419da34d11383a7",
+              "type": "place",
+              "score": 24,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 53,
+                    "tileId": "4#1",
+                    "kind": "4",
+                    "face": "4"
+                  },
+                  {
+                    "cell": 54,
+                    "tileId": "7#1",
+                    "kind": "7",
+                    "face": "7"
+                  },
+                  {
+                    "cell": 56,
+                    "tileId": "4#4",
+                    "kind": "4",
+                    "face": "4"
+                  },
+                  {
+                    "cell": 58,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        },
+        {
+          "policy": "strong",
+          "trial": 0,
+          "scores": {
+            "A": 512,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "a419da34d11383a7",
+              "type": "place",
+              "score": 24,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 53,
+                    "tileId": "4#1",
+                    "kind": "4",
+                    "face": "4"
+                  },
+                  {
+                    "cell": 54,
+                    "tileId": "7#1",
+                    "kind": "7",
+                    "face": "7"
+                  },
+                  {
+                    "cell": 56,
+                    "tileId": "4#4",
+                    "kind": "4",
+                    "face": "4"
+                  },
+                  {
+                    "cell": 58,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 7,
+      "seed": 5134,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 14,
+      "distinctWinningPaths": 2,
+      "immediateWinningMoves": 0,
+      "minimumSurvivalTurns": 5,
+      "observedWinRate": 0.7,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 5
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 4
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 5
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 34,
+        "p95": 137,
+        "count": 41
+      },
+      "status": "awaiting_admin_approval",
+      "winningReplays": [
+        {
+          "policy": "top20",
+          "trial": 4,
+          "scores": {
+            "A": 507,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "9cd4325f13beabbe",
+              "type": "place",
+              "score": 9,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 79,
+                    "tileId": "=#3",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 80,
+                    "tileId": "4#1",
+                    "kind": "4",
+                    "face": "4"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "79c8bb1048edad7e",
+              "type": "place",
+              "score": 9,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 139,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 140,
+                    "tileId": "8#0",
+                    "kind": "8",
+                    "face": "8"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        },
+        {
+          "policy": "top20",
+          "trial": 2,
+          "scores": {
+            "A": 503,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "37f1f3d6c7f0c3f7",
+              "type": "place",
+              "score": 5,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 17,
+                    "tileId": "=#3",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 18,
+                    "tileId": "4#1",
+                    "kind": "4",
+                    "face": "4"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "79c8bb1048edad7e",
+              "type": "place",
+              "score": 9,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 139,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 140,
+                    "tileId": "8#0",
+                    "kind": "8",
+                    "face": "8"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        },
+        {
+          "policy": "top5",
+          "trial": 3,
+          "scores": {
+            "A": 507,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "9cd4325f13beabbe",
+              "type": "place",
+              "score": 9,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 79,
+                    "tileId": "=#3",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 80,
+                    "tileId": "4#1",
+                    "kind": "4",
+                    "face": "4"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "79c8bb1048edad7e",
+              "type": "place",
+              "score": 9,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 139,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 140,
+                    "tileId": "8#0",
+                    "kind": "8",
+                    "face": "8"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 8,
+      "seed": 5109,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 12,
+      "distinctWinningPaths": 2,
+      "immediateWinningMoves": 0,
+      "minimumSurvivalTurns": 5,
+      "observedWinRate": 0.6,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 5
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 1
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 1
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 50,
+        "p95": 95,
+        "count": 68
+      },
+      "status": "awaiting_admin_approval",
+      "winningReplays": [
+        {
+          "policy": "strong",
+          "trial": 4,
+          "scores": {
+            "A": 512,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "a419da34d11383a7",
+              "type": "place",
+              "score": 24,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 53,
+                    "tileId": "4#4",
+                    "kind": "4",
+                    "face": "4"
+                  },
+                  {
+                    "cell": 54,
+                    "tileId": "7#1",
+                    "kind": "7",
+                    "face": "7"
+                  },
+                  {
+                    "cell": 56,
+                    "tileId": "4#1",
+                    "kind": "4",
+                    "face": "4"
+                  },
+                  {
+                    "cell": 58,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        },
+        {
+          "policy": "top20",
+          "trial": 1,
+          "scores": {
+            "A": 512,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "a419da34d11383a7",
+              "type": "place",
+              "score": 24,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 53,
+                    "tileId": "4#4",
+                    "kind": "4",
+                    "face": "4"
+                  },
+                  {
+                    "cell": 54,
+                    "tileId": "7#1",
+                    "kind": "7",
+                    "face": "7"
+                  },
+                  {
+                    "cell": 56,
+                    "tileId": "4#1",
+                    "kind": "4",
+                    "face": "4"
+                  },
+                  {
+                    "cell": 58,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        },
+        {
+          "policy": "strong",
+          "trial": 0,
+          "scores": {
+            "A": 512,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "a419da34d11383a7",
+              "type": "place",
+              "score": 24,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 53,
+                    "tileId": "4#4",
+                    "kind": "4",
+                    "face": "4"
+                  },
+                  {
+                    "cell": 54,
+                    "tileId": "7#1",
+                    "kind": "7",
+                    "face": "7"
+                  },
+                  {
+                    "cell": 56,
+                    "tileId": "4#1",
+                    "kind": "4",
+                    "face": "4"
+                  },
+                  {
+                    "cell": 58,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 9,
+      "seed": 5126,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 11,
+      "distinctWinningPaths": 3,
+      "immediateWinningMoves": 0,
+      "minimumSurvivalTurns": 5,
+      "observedWinRate": 0.55,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 5
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 3
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 3
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 59,
+        "p95": 123,
+        "count": 87
+      },
+      "status": "awaiting_admin_approval",
+      "winningReplays": [
+        {
+          "policy": "strong",
+          "trial": 4,
+          "scores": {
+            "A": 523,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "14a657829050ffff",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 79,
+                    "tileId": "+#1",
+                    "kind": "+",
+                    "face": "+"
+                  },
+                  {
+                    "cell": 80,
+                    "tileId": "8#0",
+                    "kind": "8",
+                    "face": "8"
+                  },
+                  {
+                    "cell": 81,
+                    "tileId": "=#3",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 82,
+                    "tileId": "12#0",
+                    "kind": "12",
+                    "face": "12"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "6caa6f57ef3d6b46",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 97,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "policy": "top20",
+          "trial": 1,
+          "scores": {
+            "A": 509,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "eabb179e07929262",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 82,
+                    "tileId": "12#0",
+                    "kind": "12",
+                    "face": "12"
+                  },
+                  {
+                    "cell": 97,
+                    "tileId": "=#3",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "79c8bb1048edad7e",
+              "type": "place",
+              "score": 9,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 139,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 140,
+                    "tileId": "8#0",
+                    "kind": "8",
+                    "face": "8"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        },
+        {
+          "policy": "top20",
+          "trial": 4,
+          "scores": {
+            "A": 509,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "79c8bb1048edad7e",
+              "type": "place",
+              "score": 9,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 139,
+                    "tileId": "=#3",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 140,
+                    "tileId": "8#0",
+                    "kind": "8",
+                    "face": "8"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "eabb179e07929262",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 82,
+                    "tileId": "12#0",
+                    "kind": "12",
+                    "face": "12"
+                  },
+                  {
+                    "cell": 97,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 10,
+      "seed": 5116,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 10,
+      "distinctWinningPaths": 2,
+      "immediateWinningMoves": 0,
+      "minimumSurvivalTurns": 5,
+      "observedWinRate": 0.5,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 5
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 39,
+        "p95": 97,
+        "count": 70
+      },
+      "status": "awaiting_admin_approval",
+      "winningReplays": [
+        {
+          "policy": "strong",
+          "trial": 4,
+          "scores": {
+            "A": 512,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "df6f6ec68a9673b2",
+              "type": "place",
+              "score": 24,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 6,
+                    "tileId": "4#4",
+                    "kind": "4",
+                    "face": "4"
+                  },
+                  {
+                    "cell": 7,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 8,
+                    "tileId": "4#1",
+                    "kind": "4",
+                    "face": "4"
+                  },
+                  {
+                    "cell": 9,
+                    "tileId": "+#1",
+                    "kind": "+",
+                    "face": "+"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        },
+        {
+          "policy": "greedy",
+          "trial": 4,
+          "scores": {
+            "A": 512,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "df6f6ec68a9673b2",
+              "type": "place",
+              "score": 24,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 6,
+                    "tileId": "4#4",
+                    "kind": "4",
+                    "face": "4"
+                  },
+                  {
+                    "cell": 7,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 8,
+                    "tileId": "4#1",
+                    "kind": "4",
+                    "face": "4"
+                  },
+                  {
+                    "cell": 9,
+                    "tileId": "+#1",
+                    "kind": "+",
+                    "face": "+"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "pass",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        },
+        {
+          "policy": "strong",
+          "trial": 0,
+          "scores": {
+            "A": 512,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "df6f6ec68a9673b2",
+              "type": "place",
+              "score": 24,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 6,
+                    "tileId": "4#4",
+                    "kind": "4",
+                    "face": "4"
+                  },
+                  {
+                    "cell": 7,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 8,
+                    "tileId": "4#1",
+                    "kind": "4",
+                    "face": "4"
+                  },
+                  {
+                    "cell": 9,
+                    "tileId": "+#1",
+                    "kind": "+",
+                    "face": "+"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 11,
+      "seed": 5106,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 7,
+      "distinctWinningPaths": 1,
+      "immediateWinningMoves": 0,
+      "minimumSurvivalTurns": 5,
+      "observedWinRate": 0.35,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 5
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 1
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 1
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 62,
+        "p95": 122,
+        "count": 95
+      },
+      "status": "awaiting_admin_approval",
+      "winningReplays": [
+        {
+          "policy": "strong",
+          "trial": 4,
+          "scores": {
+            "A": 523,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "14a657829050ffff",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 79,
+                    "tileId": "+#1",
+                    "kind": "+",
+                    "face": "+"
+                  },
+                  {
+                    "cell": 80,
+                    "tileId": "8#0",
+                    "kind": "8",
+                    "face": "8"
+                  },
+                  {
+                    "cell": 81,
+                    "tileId": "=#3",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 82,
+                    "tileId": "12#0",
+                    "kind": "12",
+                    "face": "12"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "6caa6f57ef3d6b46",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 97,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "policy": "strong",
+          "trial": 0,
+          "scores": {
+            "A": 523,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "14a657829050ffff",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 79,
+                    "tileId": "+#1",
+                    "kind": "+",
+                    "face": "+"
+                  },
+                  {
+                    "cell": 80,
+                    "tileId": "8#0",
+                    "kind": "8",
+                    "face": "8"
+                  },
+                  {
+                    "cell": 81,
+                    "tileId": "=#3",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 82,
+                    "tileId": "12#0",
+                    "kind": "12",
+                    "face": "12"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "6caa6f57ef3d6b46",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 97,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "policy": "strong",
+          "trial": 1,
+          "scores": {
+            "A": 523,
+            "B": 500
+          },
+          "actions": [
+            {
+              "side": "A",
+              "id": "14a657829050ffff",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 79,
+                    "tileId": "+#1",
+                    "kind": "+",
+                    "face": "+"
+                  },
+                  {
+                    "cell": 80,
+                    "tileId": "8#0",
+                    "kind": "8",
+                    "face": "8"
+                  },
+                  {
+                    "cell": 81,
+                    "tileId": "=#3",
+                    "kind": "=",
+                    "face": "="
+                  },
+                  {
+                    "cell": 82,
+                    "tileId": "12#0",
+                    "kind": "12",
+                    "face": "12"
+                  }
+                ]
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "B",
+              "id": "03b4240debc883f8",
+              "type": "pass",
+              "score": 0,
+              "move": {
+                "type": "pass"
+              }
+            },
+            {
+              "side": "A",
+              "id": "6caa6f57ef3d6b46",
+              "type": "place",
+              "score": 14,
+              "move": {
+                "type": "place",
+                "placements": [
+                  {
+                    "cell": 97,
+                    "tileId": "=#1",
+                    "kind": "=",
+                    "face": "="
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "level": 12,
+      "seed": 5112,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 18,
+      "distinctWinningPaths": 0,
+      "immediateWinningMoves": 4,
+      "minimumSurvivalTurns": 5,
+      "observedWinRate": 0.9,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 5
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 3
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 4,
+        "p95": 4,
+        "count": 2
+      },
+      "status": "needs_multi_turn_evidence",
+      "winningReplays": []
+    },
+    {
+      "level": 13,
+      "seed": 5128,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 17,
+      "distinctWinningPaths": 0,
+      "immediateWinningMoves": 12,
+      "minimumSurvivalTurns": 5,
+      "observedWinRate": 0.85,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 5
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 2
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 265,
+        "p95": 333,
+        "count": 18
+      },
+      "status": "needs_multi_turn_evidence",
+      "winningReplays": []
+    },
+    {
+      "level": 14,
+      "seed": 5114,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 15,
+      "distinctWinningPaths": 0,
+      "immediateWinningMoves": 12,
+      "minimumSurvivalTurns": 5,
+      "observedWinRate": 0.75,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 5
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 3
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 2
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 39,
+        "p95": 302,
+        "count": 26
+      },
+      "status": "needs_multi_turn_evidence",
+      "winningReplays": []
+    },
+    {
+      "level": 15,
+      "seed": 5121,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 14,
+      "distinctWinningPaths": 0,
+      "immediateWinningMoves": 1,
+      "minimumSurvivalTurns": 5,
+      "observedWinRate": 0.7,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 5
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 3
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 1
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 41,
+        "p95": 370,
+        "count": 34
+      },
+      "status": "needs_multi_turn_evidence",
+      "winningReplays": []
+    },
+    {
+      "level": 16,
+      "seed": 5099,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 12,
+      "distinctWinningPaths": 0,
+      "immediateWinningMoves": 1,
+      "minimumSurvivalTurns": 5,
+      "observedWinRate": 0.6,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 5
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 1
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 1
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 38,
+        "p95": 366,
+        "count": 42
+      },
+      "status": "needs_multi_turn_evidence",
+      "winningReplays": []
+    },
+    {
+      "level": 17,
+      "seed": 5123,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 11,
+      "distinctWinningPaths": 0,
+      "immediateWinningMoves": 1,
+      "minimumSurvivalTurns": 5,
+      "observedWinRate": 0.55,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 5
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 1
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 25,
+        "p95": 221,
+        "count": 42
+      },
+      "status": "needs_multi_turn_evidence",
+      "winningReplays": []
+    },
+    {
+      "level": 18,
+      "seed": 5130,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 11,
+      "distinctWinningPaths": 0,
+      "immediateWinningMoves": 1,
+      "minimumSurvivalTurns": 5,
+      "observedWinRate": 0.55,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 5
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 1
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 26,
+        "p95": 364,
+        "count": 42
+      },
+      "status": "needs_multi_turn_evidence",
+      "winningReplays": []
+    },
+    {
+      "level": 19,
+      "seed": 5104,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 10,
+      "distinctWinningPaths": 0,
+      "immediateWinningMoves": 3,
+      "minimumSurvivalTurns": 5,
+      "observedWinRate": 0.5,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 5
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 4
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 1
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 42,
+        "p95": 393,
+        "count": 56
+      },
+      "status": "needs_multi_turn_evidence",
+      "winningReplays": []
+    },
+    {
+      "level": 20,
+      "seed": 5115,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 10,
+      "distinctWinningPaths": 0,
+      "immediateWinningMoves": 1,
+      "minimumSurvivalTurns": 5,
+      "observedWinRate": 0.5,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 5
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 5
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 101,
+        "p95": 165,
+        "count": 25
+      },
+      "status": "needs_multi_turn_evidence",
+      "winningReplays": []
+    },
+    {
+      "level": 21,
+      "seed": 5132,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 9,
+      "distinctWinningPaths": 0,
+      "immediateWinningMoves": 3,
+      "minimumSurvivalTurns": 5,
+      "observedWinRate": 0.45,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 5
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 2
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 2
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 165,
+        "p95": 369,
+        "count": 66
+      },
+      "status": "needs_multi_turn_evidence",
+      "winningReplays": []
+    },
+    {
+      "level": 22,
+      "seed": 5094,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 163,
+        "p95": 225,
+        "count": 64
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 23,
+      "seed": 5095,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 45,
+        "p95": 599,
+        "count": 114
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 24,
+      "seed": 5096,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 5,
+        "p95": 6,
+        "count": 60
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 25,
+      "seed": 5097,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 176,
+        "p95": 363,
+        "count": 58
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 26,
+      "seed": 5098,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 42,
+        "p95": 405,
+        "count": 118
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 27,
+      "seed": 5100,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 39,
+        "p95": 551,
+        "count": 116
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 28,
+      "seed": 5101,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 21,
+        "p95": 41,
+        "count": 80
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 29,
+      "seed": 5102,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 42,
+        "p95": 562,
+        "count": 116
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 30,
+      "seed": 5103,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 21,
+        "p95": 44,
+        "count": 80
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 31,
+      "seed": 5105,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 38,
+        "p95": 160,
+        "count": 112
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 32,
+      "seed": 5107,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 38,
+        "p95": 432,
+        "count": 114
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 33,
+      "seed": 5108,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 42,
+        "p95": 137,
+        "count": 67
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 34,
+      "seed": 5110,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 5,
+        "p95": 8,
+        "count": 80
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 35,
+      "seed": 5111,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 52,
+        "p95": 351,
+        "count": 98
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 36,
+      "seed": 5113,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 35,
+        "p95": 425,
+        "count": 110
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 37,
+      "seed": 5118,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "distinctWinningPaths": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 33,
+        "p95": 433,
+        "count": 112
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 38,
+      "seed": 5119,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "distinctWinningPaths": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 174,
+        "p95": 382,
+        "count": 120
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 39,
+      "seed": 5120,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "distinctWinningPaths": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 29,
+        "p95": 46,
+        "count": 80
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 40,
+      "seed": 5122,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "distinctWinningPaths": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 4,
+        "p95": 6,
+        "count": 60
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 41,
+      "seed": 5124,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "distinctWinningPaths": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 4,
+        "p95": 6,
+        "count": 60
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 42,
+      "seed": 5127,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "distinctWinningPaths": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 30,
+        "p95": 48,
+        "count": 80
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 43,
+      "seed": 5133,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "distinctWinningPaths": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 42,
+        "p95": 513,
+        "count": 127
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 44,
+      "seed": 5135,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "distinctWinningPaths": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 33,
+        "p95": 52,
+        "count": 60
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 45,
+      "seed": 5136,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "distinctWinningPaths": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 155,
+        "p95": 361,
+        "count": 44
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 46,
+      "seed": 5137,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "distinctWinningPaths": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 4,
+        "p95": 5,
+        "count": 60
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 47,
+      "seed": 5138,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "distinctWinningPaths": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 326,
+        "p95": 420,
+        "count": 102
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    },
+    {
+      "level": 48,
+      "seed": 5140,
+      "positionSource": "authur-endgame fixture, seeded redistribution of the nine unplayed tiles",
+      "samplePolicy": "five trials each: Authur, greedy score, random top five score, random top twenty score",
+      "trials": 20,
+      "wins": 0,
+      "distinctWinningPaths": 0,
+      "observedWinRate": 0,
+      "byPolicy": {
+        "strong": {
+          "trials": 5,
+          "wins": 0
+        },
+        "greedy": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top5": {
+          "trials": 5,
+          "wins": 0
+        },
+        "top20": {
+          "trials": 5,
+          "wins": 0
+        }
+      },
+      "authurDecisionMs": {
+        "p50": 154,
+        "p95": 386,
+        "count": 40
+      },
+      "status": "needs_more_winning_replays",
+      "winningReplays": []
+    }
+  ]
+}
