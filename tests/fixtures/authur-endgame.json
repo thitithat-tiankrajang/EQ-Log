@@ -1,0 +1,801 @@
+{
+  "seed": 5093,
+  "board": [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+      "tileId": "0#2",
+      "kind": "0",
+      "face": "0",
+      "side": "A",
+      "turn": 15
+    },
+    null,
+    null,
+    null,
+    {
+      "tileId": "1#4",
+      "kind": "1",
+      "face": "1",
+      "side": "B",
+      "turn": 8
+    },
+    null,
+    {
+      "tileId": "4#2",
+      "kind": "4",
+      "face": "4",
+      "side": "B",
+      "turn": 14
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+      "tileId": "x#0",
+      "kind": "x",
+      "face": "×",
+      "side": "A",
+      "turn": 15
+    },
+    null,
+    {
+      "tileId": "6#2",
+      "kind": "6",
+      "face": "6",
+      "side": "A",
+      "turn": 13
+    },
+    null,
+    {
+      "tileId": "9#3",
+      "kind": "9",
+      "face": "9",
+      "side": "B",
+      "turn": 8
+    },
+    null,
+    {
+      "tileId": "+/-#1",
+      "kind": "+/-",
+      "face": "-",
+      "side": "B",
+      "turn": 14
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+      "tileId": "19#0",
+      "kind": "19",
+      "face": "19",
+      "side": "A",
+      "turn": 15
+    },
+    null,
+    {
+      "tileId": "x#1",
+      "kind": "x",
+      "face": "×",
+      "side": "A",
+      "turn": 13
+    },
+    null,
+    {
+      "tileId": "=#5",
+      "kind": "=",
+      "face": "=",
+      "side": "B",
+      "turn": 8
+    },
+    null,
+    {
+      "tileId": "4#3",
+      "kind": "4",
+      "face": "4",
+      "side": "B",
+      "turn": 14
+    },
+    null,
+    {
+      "tileId": "1#1",
+      "kind": "1",
+      "face": "1",
+      "side": "B",
+      "turn": 4
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+      "tileId": "-#3",
+      "kind": "-",
+      "face": "-",
+      "side": "B",
+      "turn": 6
+    },
+    null,
+    {
+      "tileId": "1#3",
+      "kind": "1",
+      "face": "1",
+      "side": "A",
+      "turn": 13
+    },
+    null,
+    {
+      "tileId": "6#0",
+      "kind": "6",
+      "face": "6",
+      "side": "B",
+      "turn": 8
+    },
+    null,
+    {
+      "tileId": "+#0",
+      "kind": "+",
+      "face": "+",
+      "side": "B",
+      "turn": 14
+    },
+    null,
+    {
+      "tileId": "5#3",
+      "kind": "5",
+      "face": "5",
+      "side": "B",
+      "turn": 4
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+      "tileId": "18#0",
+      "kind": "18",
+      "face": "18",
+      "side": "B",
+      "turn": 6
+    },
+    null,
+    {
+      "tileId": "8#3",
+      "kind": "8",
+      "face": "8",
+      "side": "A",
+      "turn": 13
+    },
+    null,
+    {
+      "tileId": "0#3",
+      "kind": "0",
+      "face": "0",
+      "side": "B",
+      "turn": 8
+    },
+    null,
+    {
+      "tileId": "15#0",
+      "kind": "15",
+      "face": "15",
+      "side": "A",
+      "turn": 11
+    },
+    null,
+    {
+      "tileId": "4#0",
+      "kind": "4",
+      "face": "4",
+      "side": "B",
+      "turn": 4
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+      "tileId": "/#3",
+      "kind": "/",
+      "face": "÷",
+      "side": "B",
+      "turn": 6
+    },
+    null,
+    {
+      "tileId": "-#0",
+      "kind": "-",
+      "face": "-",
+      "side": "A",
+      "turn": 13
+    },
+    null,
+    {
+      "tileId": "8#2",
+      "kind": "8",
+      "face": "8",
+      "side": "B",
+      "turn": 8
+    },
+    null,
+    {
+      "tileId": "=#9",
+      "kind": "=",
+      "face": "=",
+      "side": "A",
+      "turn": 11
+    },
+    null,
+    {
+      "tileId": "x//#2",
+      "kind": "x//",
+      "face": "÷",
+      "side": "B",
+      "turn": 4
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+      "tileId": "6#3",
+      "kind": "6",
+      "face": "6",
+      "side": "B",
+      "turn": 6
+    },
+    null,
+    {
+      "tileId": "16#0",
+      "kind": "16",
+      "face": "16",
+      "side": "A",
+      "turn": 13
+    },
+    null,
+    {
+      "tileId": "?#3",
+      "kind": "?",
+      "face": "÷",
+      "side": "B",
+      "turn": 8
+    },
+    {
+      "tileId": "2#0",
+      "kind": "2",
+      "face": "2",
+      "side": "B",
+      "turn": 10
+    },
+    {
+      "tileId": "7#2",
+      "kind": "7",
+      "face": "7",
+      "side": "B",
+      "turn": 10
+    },
+    {
+      "tileId": "+/-#0",
+      "kind": "+/-",
+      "face": "-",
+      "side": "B",
+      "turn": 10
+    },
+    {
+      "tileId": "14#0",
+      "kind": "14",
+      "face": "14",
+      "side": "B",
+      "turn": 4
+    },
+    {
+      "tileId": "=#4",
+      "kind": "=",
+      "face": "=",
+      "side": "B",
+      "turn": 10
+    },
+    {
+      "tileId": "10#1",
+      "kind": "10",
+      "face": "10",
+      "side": "A",
+      "turn": 7
+    },
+    {
+      "tileId": "?#1",
+      "kind": "?",
+      "face": "+",
+      "side": "A",
+      "turn": 7
+    },
+    {
+      "tileId": "10#0",
+      "kind": "10",
+      "face": "10",
+      "side": "B",
+      "turn": 2
+    },
+    {
+      "tileId": "x#2",
+      "kind": "x",
+      "face": "×",
+      "side": "A",
+      "turn": 7
+    },
+    {
+      "tileId": "2#2",
+      "kind": "2",
+      "face": "2",
+      "side": "A",
+      "turn": 7
+    },
+    {
+      "tileId": "-#2",
+      "kind": "-",
+      "face": "-",
+      "side": "B",
+      "turn": 6
+    },
+    {
+      "tileId": "17#0",
+      "kind": "17",
+      "face": "17",
+      "side": "A",
+      "turn": 7
+    },
+    {
+      "tileId": "=#2",
+      "kind": "=",
+      "face": "=",
+      "side": "A",
+      "turn": 7
+    },
+    {
+      "tileId": "1#0",
+      "kind": "1",
+      "face": "1",
+      "side": "A",
+      "turn": 7
+    },
+    {
+      "tileId": "3#2",
+      "kind": "3",
+      "face": "3",
+      "side": "A",
+      "turn": 7
+    },
+    null,
+    {
+      "tileId": "?#2",
+      "kind": "?",
+      "face": "-",
+      "side": "A",
+      "turn": 11
+    },
+    null,
+    {
+      "tileId": "=#8",
+      "kind": "=",
+      "face": "=",
+      "side": "B",
+      "turn": 4
+    },
+    null,
+    null,
+    null,
+    {
+      "tileId": "+#2",
+      "kind": "+",
+      "face": "+",
+      "side": "B",
+      "turn": 2
+    },
+    null,
+    null,
+    {
+      "tileId": "2#1",
+      "kind": "2",
+      "face": "2",
+      "side": "B",
+      "turn": 6
+    },
+    null,
+    {
+      "tileId": "9#1",
+      "kind": "9",
+      "face": "9",
+      "side": "A",
+      "turn": 13
+    },
+    null,
+    {
+      "tileId": "2#3",
+      "kind": "2",
+      "face": "2",
+      "side": "B",
+      "turn": 8
+    },
+    null,
+    {
+      "tileId": "11#0",
+      "kind": "11",
+      "face": "11",
+      "side": "A",
+      "turn": 11
+    },
+    null,
+    {
+      "tileId": "8#1",
+      "kind": "8",
+      "face": "8",
+      "side": "B",
+      "turn": 4
+    },
+    null,
+    null,
+    null,
+    {
+      "tileId": "2#5",
+      "kind": "2",
+      "face": "2",
+      "side": "B",
+      "turn": 2
+    },
+    null,
+    null,
+    {
+      "tileId": "=#0",
+      "kind": "=",
+      "face": "=",
+      "side": "B",
+      "turn": 6
+    },
+    null,
+    {
+      "tileId": "2#4",
+      "kind": "2",
+      "face": "2",
+      "side": "A",
+      "turn": 13
+    },
+    null,
+    {
+      "tileId": "+/-#2",
+      "kind": "+/-",
+      "face": "+",
+      "side": "A",
+      "turn": 9
+    },
+    null,
+    {
+      "tileId": "+#3",
+      "kind": "+",
+      "face": "+",
+      "side": "A",
+      "turn": 11
+    },
+    null,
+    {
+      "tileId": "+/-#3",
+      "kind": "+/-",
+      "face": "+",
+      "side": "B",
+      "turn": 4
+    },
+    null,
+    null,
+    null,
+    {
+      "tileId": "=#6",
+      "kind": "=",
+      "face": "=",
+      "side": "B",
+      "turn": 2
+    },
+    null,
+    null,
+    {
+      "tileId": "-#1",
+      "kind": "-",
+      "face": "-",
+      "side": "B",
+      "turn": 6
+    },
+    null,
+    null,
+    null,
+    {
+      "tileId": "3#4",
+      "kind": "3",
+      "face": "3",
+      "side": "A",
+      "turn": 9
+    },
+    null,
+    {
+      "tileId": "5#1",
+      "kind": "5",
+      "face": "5",
+      "side": "A",
+      "turn": 3
+    },
+    {
+      "tileId": "/#1",
+      "kind": "/",
+      "face": "÷",
+      "side": "A",
+      "turn": 3
+    },
+    {
+      "tileId": "3#1",
+      "kind": "3",
+      "face": "3",
+      "side": "A",
+      "turn": 3
+    },
+    {
+      "tileId": "?#0",
+      "kind": "?",
+      "face": "=",
+      "side": "A",
+      "turn": 3
+    },
+    {
+      "tileId": "20#0",
+      "kind": "20",
+      "face": "20",
+      "side": "A",
+      "turn": 3
+    },
+    {
+      "tileId": "/#2",
+      "kind": "/",
+      "face": "÷",
+      "side": "A",
+      "turn": 3
+    },
+    {
+      "tileId": "12#1",
+      "kind": "12",
+      "face": "12",
+      "side": "B",
+      "turn": 2
+    },
+    {
+      "tileId": "=#10",
+      "kind": "=",
+      "face": "=",
+      "side": "A",
+      "turn": 5
+    },
+    {
+      "tileId": "1#2",
+      "kind": "1",
+      "face": "1",
+      "side": "A",
+      "turn": 5
+    },
+    {
+      "tileId": "5#2",
+      "kind": "5",
+      "face": "5",
+      "side": "A",
+      "turn": 5
+    },
+    {
+      "tileId": "x//#1",
+      "kind": "x//",
+      "face": "÷",
+      "side": "A",
+      "turn": 5
+    },
+    {
+      "tileId": "9#0",
+      "kind": "9",
+      "face": "9",
+      "side": "A",
+      "turn": 5
+    },
+    null,
+    {
+      "tileId": "7#0",
+      "kind": "7",
+      "face": "7",
+      "side": "A",
+      "turn": 9
+    },
+    null,
+    {
+      "tileId": "7#3",
+      "kind": "7",
+      "face": "7",
+      "side": "A",
+      "turn": 11
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+      "tileId": "0#0",
+      "kind": "0",
+      "face": "0",
+      "side": "A",
+      "turn": 9
+    },
+    null,
+    {
+      "tileId": "/#0",
+      "kind": "/",
+      "face": "÷",
+      "side": "A",
+      "turn": 11
+    },
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    {
+      "tileId": "x#3",
+      "kind": "x",
+      "face": "×",
+      "side": "A",
+      "turn": 9
+    },
+    null,
+    {
+      "tileId": "3#0",
+      "kind": "3",
+      "face": "3",
+      "side": "A",
+      "turn": 11
+    },
+    null,
+    null,
+    {
+      "tileId": "1#5",
+      "kind": "1",
+      "face": "1",
+      "side": "B",
+      "turn": 16
+    },
+    {
+      "tileId": "x//#0",
+      "kind": "x//",
+      "face": "×",
+      "side": "B",
+      "turn": 16
+    },
+    {
+      "tileId": "13#0",
+      "kind": "13",
+      "face": "13",
+      "side": "B",
+      "turn": 12
+    },
+    {
+      "tileId": "=#7",
+      "kind": "=",
+      "face": "=",
+      "side": "B",
+      "turn": 12
+    },
+    {
+      "tileId": "6#1",
+      "kind": "6",
+      "face": "6",
+      "side": "B",
+      "turn": 12
+    },
+    {
+      "tileId": "0#1",
+      "kind": "0",
+      "face": "0",
+      "side": "B",
+      "turn": 12
+    },
+    {
+      "tileId": "3#3",
+      "kind": "3",
+      "face": "3",
+      "side": "B",
+      "turn": 12
+    },
+    {
+      "tileId": "+/-#4",
+      "kind": "+/-",
+      "face": "-",
+      "side": "B",
+      "turn": 12
+    },
+    {
+      "tileId": "5#0",
+      "kind": "5",
+      "face": "5",
+      "side": "B",
+      "turn": 12
+    },
+    {
+      "tileId": "9#2",
+      "kind": "9",
+      "face": "9",
+      "side": "B",
+      "turn": 12
+    },
+    {
+      "tileId": "0#4",
+      "kind": "0",
+      "face": "0",
+      "side": "A",
+      "turn": 9
+    }
+  ],
+  "racks": {
+    "A": [
+      "8#0",
+      "4#4",
+      "=#1",
+      "x//#3",
+      "=#3"
+    ],
+    "B": [
+      "4#1",
+      "7#1",
+      "12#0",
+      "+#1"
+    ]
+  },
+  "bag": [],
+  "scores": {
+    "A": 481,
+    "B": 500
+  },
+  "activeSide": "A",
+  "turnNumber": 17,
+  "noScoreTail": [],
+  "hasPlacement": true,
+  "rngStep": 18
+}
