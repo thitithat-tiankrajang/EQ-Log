@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { existsSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { StudyPuzzleAdminPanel } from "../src/components/admin/StudyPuzzleAdminPanel";
 import { reasonText } from "../src/components/admin/studyPuzzleLabels";
@@ -18,7 +19,6 @@ import { parseStudyPuzzleRoomId } from "../src/features/studyPuzzles/play";
 import { AMATH_TOKENS, type AmathToken } from "../src/game";
 import { parseHash, routeToHash } from "../src/router";
 // The generator's own normaliser: what the dev API files and the generator runs.
-import { configDrift } from "../tools/study-puzzles/lib/config.mjs";
 // Real output of amath-engine's Find Best Play generator (two puzzles) — a v1 set.
 import generated from "./fixtures/study-puzzles/find-best-play.json";
 // Real output of tools/study-puzzles: the targeted HOOK set, as the dev API serves it.
@@ -27,6 +27,14 @@ import hookFixture from "./fixtures/study-puzzles/v2-hook-set.json";
 import observedFixture from "./fixtures/study-puzzles/v2-observed-rack-26sep.json";
 // A real CONFIG_GUIDED_RACK puzzle: its constructed rack differs from its source game's.
 import guidedFixture from "./fixtures/study-puzzles/v2-specific-rack.json";
+
+// The generator's normaliser (tools/study-puzzles/lib/config.mjs) loads the Survival
+// rules bundle, which is built locally from the private amath-bot-lab checkout and
+// is not in git. Where it is absent (CI, a fresh clone) the one check that needs the
+// real normaliser is reported as skipped rather than failing this whole file.
+const HAS_LAB_RULES_BUNDLE = existsSync(
+  `${process.cwd()}/tools/survival-generator/.vendor/authur-rules.mjs`,
+);
 
 const legacyPuzzles = generated.puzzles as LegacyPuzzle[];
 const HOOK_SET = hookFixture.set as unknown as SetV2;
@@ -353,9 +361,17 @@ describe("Admin → Study puzzles", () => {
     await waitFor(() => expect(source.generate).toHaveBeenCalledTimes(1));
     const [config] = source.generate.mock.calls[0]!;
     expect(config).toEqual(observedFixture.request);
-    // Over the wire and through the generator's normaliser, nothing is added, dropped or rewritten.
-    expect(configDrift(JSON.parse(JSON.stringify({ config })).config)).toEqual([]);
   }, 15_000);
+
+  it.skipIf(!HAS_LAB_RULES_BUNDLE)(
+    "sends a request the generator's normaliser keeps exactly (needs the local amath-bot-lab rules bundle)",
+    async () => {
+      // The admin form sends observedFixture.request (asserted above). Over the wire
+      // and through the generator's normaliser, nothing is added, dropped or rewritten.
+      const { configDrift } = await import("../tools/study-puzzles/lib/config.mjs");
+      expect(configDrift(JSON.parse(JSON.stringify(observedFixture.request)))).toEqual([]);
+    },
+  );
 
   it("shows a guided puzzle's constructed Study rack, and its source game's rack only as provenance", async () => {
     const { source } = fakeSource({}, [HOOK_SUMMARY]);
