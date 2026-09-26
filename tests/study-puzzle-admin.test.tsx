@@ -15,11 +15,18 @@ import type {
   StudyPuzzleStatus,
 } from "../src/features/studyPuzzles/api";
 import { parseStudyPuzzleRoomId } from "../src/features/studyPuzzles/play";
+import { AMATH_TOKENS, type AmathToken } from "../src/game";
 import { parseHash, routeToHash } from "../src/router";
+// The generator's own normaliser: what the dev API files and the generator runs.
+import { configDrift } from "../tools/study-puzzles/lib/config.mjs";
 // Real output of amath-engine's Find Best Play generator (two puzzles) — a v1 set.
 import generated from "./fixtures/study-puzzles/find-best-play.json";
 // Real output of tools/study-puzzles: the targeted HOOK set, as the dev API serves it.
 import hookFixture from "./fixtures/study-puzzles/v2-hook-set.json";
+// The "26 Sep" incident: the configuration the admin entered, and the puzzle filed for it.
+import observedFixture from "./fixtures/study-puzzles/v2-observed-rack-26sep.json";
+// A real CONFIG_GUIDED_RACK puzzle: its constructed rack differs from its source game's.
+import guidedFixture from "./fixtures/study-puzzles/v2-specific-rack.json";
 
 const legacyPuzzles = generated.puzzles as LegacyPuzzle[];
 const HOOK_SET = hookFixture.set as unknown as SetV2;
@@ -282,6 +289,92 @@ describe("Admin → Study puzzles", () => {
     expect(config.equation?.tiles).toEqual({ min: 7, max: 7 });
     expect(config.equation?.properties).toEqual(["MUL_DIV_ONLY"]);
     expect(config.mobility?.legalPlacements).toEqual({ min: null, max: 5 });
+  });
+
+  it("sends the 26 Sep rack specification exactly as entered, zeros included, and the generator's normaliser changes none of it", async () => {
+    const { source } = fakeSource();
+    render(<StudyPuzzleAdminPanel source={source} />);
+    await screen.findByRole("button", { name: "เริ่มค้นหา" });
+    fireEvent.click(screen.getByRole("button", { name: "ต่อ (EXTEND)" }));
+    for (const section of [
+      "1. Rack ของโจทย์ · เบี้ยที่มีในมือ",
+      "2. ตาที่ดีที่สุด · เบี้ยที่วางจริง",
+      "3. รูปแบบการลง",
+      "4. สมการที่เกิดขึ้น",
+      "5. ความติดขัดของมือ",
+      "6. เงื่อนไขทั่วไป · แต้ม · ความชัดของคำตอบ",
+    ])
+      fireEvent.click(screen.getByText(section));
+    const type = (label: string, value: string) =>
+      fireEvent.change(screen.getByLabelText(label), { target: { value } });
+    const range = (label: string, min: string, max: string) => {
+      type(`${label} ขั้นต่ำ`, min);
+      type(`${label} ขั้นสูง`, max);
+    };
+    type("จำนวนข้อที่ต้องการ", "10");
+    type("ชื่อชุด (ไม่บังคับ)", "26 Sep");
+    type("เลขสุ่ม", "1769712542");
+    range("จำนวนเบี้ยในมือ", "8", "8");
+    range("Rack เลข 0–9", "5", "6");
+    range("Rack เลข 10–20", "0", "1");
+    range("Rack + − × ÷", "1", "1");
+    range("Rack เบี้ยสองหน้า", "1", "1");
+    range("Rack =", "0", "0");
+    // Blank exactly 0 the way an admin sets it: 0, then Exact.
+    type("Rack เบี้ยว่าง ขั้นต่ำ", "0");
+    fireEvent.click(
+      within(screen.getByLabelText("Rack เบี้ยว่าง ขั้นต่ำ").closest(".eq-study-range")!).getByRole(
+        "button",
+        { name: "Exact" },
+      ),
+    );
+    range("Rack เครื่องหมายคำนวณรวมเบี้ยสองหน้า (ไม่รวม =)", "2", "2");
+    range("Rack เครื่องหมายทุกชนิดรวม =", "2", "2");
+    type("Rack ชนิดเบี้ยเฉพาะ เพิ่มชนิดเบี้ย", "/");
+    type("Rack ชนิดเบี้ยเฉพาะ เพิ่มชนิดเบี้ย", "x//");
+    type("Rack ชนิดเบี้ยเฉพาะ ÷ ขั้นสูง", "1");
+    type(`Rack ชนิดเบี้ยเฉพาะ ${AMATH_TOKENS["x//"].token} ขั้นสูง`, "1");
+    range("จำนวนเบี้ยที่ลง", "5", "8");
+    range("จำนวนสมการที่ได้แต้ม", "1", "1");
+    fireEvent.click(screen.getByRole("checkbox", { name: "ต่อทั้งหัวและท้าย" }));
+    type("ขอบเขตสมการ", "ANY");
+    range("จำนวนเบี้ยในสมการ", "10", "15");
+    range("เบี้ยเดิมที่ใช้ในสมการ", "5", "8");
+    range("เบี้ยใหม่ที่ร่วมในสมการ", "5", "8");
+    fireEvent.click(screen.getByRole("checkbox", { name: "มีเฉพาะคูณ/หาร" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "ผลลัพธ์เป็นจำนวนเต็มขนาดใหญ่" }));
+    range("จำนวนตาที่สามารถลงได้", "1", "30");
+    type("แต้มของตาที่ดีที่สุด ขั้นต่ำ", "60");
+    expect(screen.getByRole("region", { name: "สรุปเงื่อนไขก่อนค้นหา" })).toHaveTextContent(
+      "= = 0 · เบี้ยว่าง = 0",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "เริ่มค้นหา" }));
+
+    await waitFor(() => expect(source.generate).toHaveBeenCalledTimes(1));
+    const [config] = source.generate.mock.calls[0]!;
+    expect(config).toEqual(observedFixture.request);
+    // Over the wire and through the generator's normaliser, nothing is added, dropped or rewritten.
+    expect(configDrift(JSON.parse(JSON.stringify({ config })).config)).toEqual([]);
+  }, 15_000);
+
+  it("shows a guided puzzle's constructed Study rack, and its source game's rack only as provenance", async () => {
+    const { source } = fakeSource({}, [HOOK_SUMMARY]);
+    const guided = guidedFixture as unknown as PuzzleRecord;
+    source.puzzle.mockResolvedValue({ puzzle: structuredClone(guided), attempts: [] });
+    render(<StudyPuzzleAdminPanel source={source} />);
+    fireEvent.click(await screen.findByRole("button", { name: "ดูโจทย์" }));
+    const shown = within(await screen.findByRole("list", { name: "เบี้ยในมือ" }))
+      .getAllByRole("listitem")
+      .map((item) => item.querySelector("b")?.textContent);
+    const faces = (rack: readonly string[]) =>
+      rack.map((kind) => AMATH_TOKENS[kind as AmathToken].token);
+    const { position, provenance } = guided.canonical;
+    expect(position.rack).toEqual(provenance!.constructedRack);
+    expect(shown).toEqual(faces(position.rack));
+    expect(shown).not.toEqual(faces(provenance!.originalRack!));
+    expect(screen.getByText(/มือเดิม:/)).toHaveTextContent(
+      `มือเดิม: ${provenance!.originalRack!.join(" ")}`,
+    );
   });
 
   it("prevents a contradictory physical rack request before a search", async () => {

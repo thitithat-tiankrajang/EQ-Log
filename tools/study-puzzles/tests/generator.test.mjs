@@ -4,7 +4,7 @@
 // seeded self-play under the real rules, real filters, real archive writes.
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, describe, it } from "node:test";
@@ -24,6 +24,9 @@ import {
 } from "../lib/record.mjs";
 import { createFakeEngine } from "./fake-engine.mjs";
 import { verifyProvenance } from "../lib/verify.mjs";
+import { analyzePlacement, rackDifficulty } from "../lib/analysis.mjs";
+import { bestPlayRejections } from "../lib/filters.mjs";
+import { compositionFailures } from "../lib/specification.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const RUN = join(here, "../generator/run.mjs");
@@ -313,6 +316,92 @@ describe("generating a set", () => {
       manifest.counters.rejectedPositions,
       manifest.counters.positionsInspected - manifest.counters.matchingPositions,
     );
+  });
+
+  it("searches nothing when the stored configuration is not exactly what this normaliser makes", async () => {
+    // What the dev server's stale API filed for the 26 Sep set: the admin's request
+    // with every rack, geometry, equation, mobility and search field dropped.
+    const { archivedConfig } = JSON.parse(
+      readFileSync(
+        new URL("../../../tests/fixtures/study-puzzles/v2-observed-rack-26sep.json", import.meta.url),
+      ),
+    );
+    const canonical = configFrom(LENIENT);
+    const misspelt = { ...canonical, rack: { ...canonical.rack, sizes: { min: 8, max: 8 } } };
+    for (const [stored, fields] of [
+      [archivedConfig, ["search", "rack.groups", "rack.specific", "equation", "mobility"]],
+      [misspelt, ["rack.sizes"]],
+    ]) {
+      const archiveDir = mkdtempSync(join(tmpdir(), "study-generate-"));
+      temporary.push(archiveDir);
+      const id = newSetId();
+      await createSet({ archiveDir, id, config: stored, engine: { analysis: "fake" } });
+      const base = createFakeEngine();
+      let calls = 0;
+      const events = [];
+      const manifest = await generateSet({
+        dir: join(archiveDir, id),
+        engine: { ...base, analyze: (request) => (calls++, base.analyze(request)) },
+        emit: (event) => events.push(event),
+      });
+      assert.equal(manifest.status, "failed");
+      for (const field of fields) assert.ok(manifest.error.includes(field), `${field}: ${manifest.error}`);
+      assert.match(manifest.error, /npm run dev/);
+      assert.equal(calls, 0);
+      assert.equal(manifest.counters.gamesStarted, 0);
+      assert.deepEqual(manifest.puzzles, []);
+      assert.deepEqual(events.at(-1), {
+        type: "finished",
+        status: "failed",
+        matched: 0,
+        target: stored.target,
+        error: manifest.error,
+      });
+      const onDisk = await readJson(join(archiveDir, id, "set.json"));
+      assert.equal(onDisk.status, "failed");
+      // What was filed stays as it was filed: it is the evidence.
+      assert.deepEqual(onDisk.config, stored);
+    }
+  });
+
+  it("accepts only puzzles whose whole rack meets the rack specification, by the final matcher", async () => {
+    const exact = (n) => ({ min: n, max: n });
+    const dir = await newSet({
+      target: 3,
+      maxPerGame: 2,
+      search: { strategy: "GUIDED", rackBudget: 8 },
+      bestPlay: { excludeTrivialZero: false },
+      rack: {
+        size: exact(8),
+        groups: {
+          digit: { min: 5, max: 6 },
+          heavy: { min: 0, max: 1 },
+          blank: exact(0),
+          equals: exact(1),
+          arithmetic: { min: 1, max: 2 },
+        },
+        specific: { "/": exact(1) },
+      },
+    });
+    const manifest = await generateSet({ dir, engine: createFakeEngine() });
+    assert.equal(manifest.status, "complete");
+    // Dealt racks that break it were turned away before any puzzle analysis.
+    assert.ok(manifest.counters.rejections["rack.authenticComposition"] > 0);
+    const config = configFrom(manifest.config);
+    for (const puzzle of await puzzlesOf(dir, manifest)) {
+      const { board, rack } = puzzle.canonical.position;
+      assert.deepEqual(compositionFailures(rack, config.rack.groups, config.rack.specific), [], rack.join(" "));
+      assert.deepEqual(
+        bestPlayRejections(config, {
+          analysis: analyzePlacement(board, puzzle.answer.best.placements),
+          nearBest: puzzle.answer.nearBest,
+          rackIndex: rackDifficulty(rack).index,
+          rack,
+        }),
+        [],
+      );
+      assert.equal(verifyProvenance(puzzle).ok, true);
+    }
   });
 
   it("fails the set, keeping it consistent, when the engine keeps failing", async () => {

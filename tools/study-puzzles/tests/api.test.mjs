@@ -16,13 +16,17 @@ import { readJson, createSet, commitPuzzle } from "../lib/archive.mjs";
 import { buildPuzzle, summaryOf } from "../lib/record.mjs";
 import { constructBranch } from "../lib/branch.mjs";
 import { replayStudyLog, positionOf } from "../lib/provenance.mjs";
-import { configFrom } from "../lib/config.mjs";
+import { configDrift, configFrom } from "../lib/config.mjs";
 import { studyRequestFor } from "../lib/engine.mjs";
 import { analyzePlacement, nearBestOf } from "../lib/analysis.mjs";
 import { createFakeEngine } from "./fake-engine.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const FAKE = join(here, "fake-engine.mjs");
+// The "26 Sep" incident: the admin's request, what a stale API filed, the puzzle it made.
+const OBSERVED = await readJson(
+  join(here, "../../../tests/fixtures/study-puzzles/v2-observed-rack-26sep.json"),
+);
 const LENIENT = {
   search: { strategy: "AUTHENTIC_ONLY", rackBudget: 24 },
   seed: 5,
@@ -243,6 +247,102 @@ describe("the Study puzzle API", () => {
       assert.ok(existsSync(join(archiveDir, started.body.id, entry.file)));
     }
     assert.equal((await server.call("POST", "/api/cancel")).status, 409);
+  });
+
+  it("files exactly the configuration the admin form sent: zeros, ranges, overlapping groups, specific kinds", async () => {
+    const { request } = OBSERVED;
+    const started = await server.call("POST", "/api/generate", { config: request });
+    assert.equal(started.status, 202);
+    const stored = (await readJson(join(archiveDir, started.body.id, "set.json"))).config;
+    assert.deepEqual(stored, request);
+    assert.deepEqual(configDrift(stored), []);
+    assert.deepEqual(stored.rack.groups.blank, { min: 0, max: 0 });
+    assert.deepEqual(stored.rack.groups.equals, { min: 0, max: 0 });
+    assert.deepEqual(stored.rack.specific, { "/": { min: 1, max: 1 }, "x//": { min: 1, max: 1 } });
+    // The generator runs it rather than refusing it; then Stop.
+    await server.waitFor((job) => job.counters?.positionsInspected > 0);
+    assert.equal((await server.call("POST", "/api/cancel")).status, 202);
+    const job = await server.settle();
+    assert.equal(job.state, "stopped");
+    assert.deepEqual(job.config, request);
+  });
+
+  it("will not generate or verify with code older than what is on disk, and still serves the archive", async () => {
+    const before = readdirSync(archiveDir).length;
+    const edited = await serve({
+      archiveDir,
+      generatorEngine: FAKE,
+      codeFingerprint: () => "lib/ edited after this server loaded it",
+    });
+    try {
+      const refused = await edited.call("POST", "/api/generate", { config: LENIENT });
+      assert.equal(refused.status, 503);
+      assert.match(refused.body.error, /npm run dev/);
+      const verify = await edited.call("POST", `/api/sets/${setId}/puzzles/${puzzleId}/verify`);
+      assert.equal(verify.status, 503);
+      assert.match(verify.body.error, /npm run dev/);
+      assert.equal(readdirSync(archiveDir).length, before);
+      assert.equal((await edited.call("GET", "/api/status")).status, 200);
+      assert.equal((await edited.call("GET", `/api/sets/${setId}`)).status, 200);
+      assert.equal((await edited.call("GET", `/api/sets/${setId}/puzzles/${puzzleId}`)).status, 200);
+      assert.equal((await edited.call("GET", `/api/sets/${setId}/puzzles/${puzzleId}/play`)).status, 200);
+    } finally {
+      await edited.close();
+    }
+  });
+
+  it("keeps the 26 Sep set readable, playable and replayable exactly as it was filed", async () => {
+    const { archivedConfig, puzzle } = OBSERVED;
+    const manifest = await createSet({
+      archiveDir,
+      id: puzzle.setId,
+      config: archivedConfig,
+      engine: { analysis: "fake" },
+    });
+    await commitPuzzle(join(archiveDir, puzzle.setId), manifest, puzzle, summaryOf(puzzle));
+    const listed = (await server.call("GET", "/api/sets")).body.sets.find((set) => set.id === puzzle.setId);
+    assert.equal(listed.version, 2);
+    const set = (await server.call("GET", `/api/sets/${puzzle.setId}`)).body;
+    assert.deepEqual(set.manifest.config, archivedConfig);
+    const base = `/api/sets/${puzzle.setId}/puzzles/${puzzle.id}`;
+    assert.deepEqual((await server.call("GET", base)).body.puzzle.canonical.position.rack, puzzle.canonical.position.rack);
+    const play = await server.call("GET", `${base}/play`);
+    assert.equal(play.status, 200);
+    assert.deepEqual(play.body.position.rack, ["1", "4", "6", "7", "x", "/", "x//", "?"]);
+    const verified = await server.call("POST", `${base}/verify`);
+    assert.equal(verified.status, 200);
+    assert.equal(verified.body.modes.seed.ok, true);
+    assert.equal(verified.body.modes.log.ok, true);
+    assert.equal(verified.body.checks.puzzleHash.ok, true);
+    // Its filed configuration carries no expanded field, so there is nothing to recheck it by.
+    assert.equal(verified.body.checks.specification, undefined);
+  });
+
+  it("fails fresh verification of that puzzle against the specification the admin entered", async () => {
+    const { request, puzzle } = OBSERVED;
+    const id = "observed-as-entered";
+    const manifest = await createSet({
+      archiveDir,
+      id,
+      config: configFrom(request),
+      engine: { analysis: "fake" },
+    });
+    await commitPuzzle(join(archiveDir, id), manifest, puzzle, summaryOf(puzzle));
+    const verified = await server.call("POST", `/api/sets/${id}/puzzles/${puzzle.id}/verify`);
+    assert.equal(verified.status, 200);
+    assert.equal(verified.body.ok, false);
+    assert.equal(verified.body.checks.sourceReplay.ok, true);
+    assert.equal(verified.body.checks.specification.ok, false);
+    for (const reason of [
+      "rack.group.digit",
+      "rack.group.operator",
+      "rack.group.blank",
+      "rack.group.arithmetic",
+      "rack.group.operatorLike",
+      "equation.property.LARGE_INTEGER_RESULT",
+      "mobility.legalPlacements",
+    ])
+      assert.ok(verified.body.checks.specification.reasons.includes(reason), reason);
   });
 
   it("serves, verifies and grades a guided puzzle without leaking either hidden allocation", async () => {

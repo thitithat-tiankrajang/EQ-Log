@@ -43,3 +43,12 @@ considered, 90 guided racks generated, 89 safely rejected by the complete
 canonical legal-move preflight, and **one** unrestricted Stage 5B call. This
 is an existence proof, not a general speedup claim. The 4/7/3 requirement
 was never relaxed.
+
+**Re-verified 2026-09-26** after the configuration-boundary fix (DESIGN §14),
+with the current code and the real engine, each against its own stored
+configuration: A–G all PASS every check (source replay, rack legality,
+conservation, checksum, specification, Stage 5B, EQ-Lab, C++); every stored
+configuration is already in the current normalised form (no drift); both guided
+fixtures are byte-identical to their proof-run output. None of these proofs went
+through the dev-server API, so none depended on the stale-API defect. Nothing was
+regenerated or edited.

@@ -4,6 +4,7 @@
 // position could ever satisfy is refused here, because the generator searches
 // until it matches or is stopped: an impossible filter would otherwise just run.
 
+import { isDeepStrictEqual } from "node:util";
 import { env } from "./provenance.mjs";
 import { categoryOf } from "./analysis.mjs";
 import { GROUPS, TILE_KINDS, INVENTORY, compositionPossible, anyRange } from "./specification.mjs";
@@ -223,6 +224,25 @@ export function configFrom(input) {
   const impossible = impossibility(config);
   if (impossible.length > 0) throw new StudyConfigError(impossible);
   return config;
+}
+
+/**
+ * Where a stored configuration differs from what this normaliser makes of it,
+ * as dotted paths two levels deep; [] when it is already exactly that. A
+ * configuration normalised by other code — an older normaliser still loaded in a
+ * long-running dev server — shows up here as every field that code did not know.
+ */
+export function configDrift(stored, normalized = configFrom(stored)) {
+  const keysOf = (value) => (isObject(value) ? Object.keys(value) : []);
+  const paths = [];
+  for (const key of new Set([...keysOf(stored), ...keysOf(normalized)])) {
+    const [had, has] = [stored?.[key], normalized[key]];
+    if (isDeepStrictEqual(had, has)) continue;
+    const inner = isObject(had) && isObject(has) ? [...new Set([...keysOf(had), ...keysOf(has)])] : [];
+    const differing = inner.filter((sub) => !isDeepStrictEqual(had[sub], has[sub]));
+    paths.push(...(differing.length ? differing.map((sub) => `${key}.${sub}`) : [key]));
+  }
+  return paths;
 }
 
 /** Why no best play could ever match, if that is so. */

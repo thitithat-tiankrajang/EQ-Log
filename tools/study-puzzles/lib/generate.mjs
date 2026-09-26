@@ -8,7 +8,7 @@
 import { join } from "node:path";
 import { analyzePlacement, difficultyFeatures, nearBestOf, rackDifficulty } from "./analysis.mjs";
 import { commitPuzzle, readJson, writeManifest } from "./archive.mjs";
-import { configFrom } from "./config.mjs";
+import { configDrift, configFrom } from "./config.mjs";
 import { seedFor } from "./engine.mjs";
 import { bestPlayRejections, positionRejections } from "./filters.mjs";
 import { replayStudyLog } from "./provenance.mjs";
@@ -56,11 +56,25 @@ export const gameSeed = (setSeed, index) => seedFor(`study:${setSeed}:game`, ind
  */
 export async function generateSet({ dir, engine, emit = () => {}, signal }) {
   const manifest = await readJson(join(dir, "set.json"));
-  // A pre-guided manifest retains the old behavior if it is ever resumed.
-  const config = configFrom({
-    ...manifest.config,
-    search: manifest.config.search ?? { strategy: "AUTHENTIC_ONLY" },
-  });
+  // Search exactly what the set asks for, or nothing. A stored configuration the
+  // current normaliser would change was not normalised by this code: typically an
+  // `npm run dev` whose API module was loaded before lib/ changed, and which
+  // silently dropped every field it did not know. Reading those fields as "no
+  // bound" (and a missing search as authentic-only) searches a weaker
+  // specification than the admin entered and accepts puzzles that break it.
+  const config = configFrom(manifest.config);
+  const drift = configDrift(manifest.config, config);
+  if (drift.length > 0) {
+    manifest.status = "failed";
+    manifest.finishedAt = new Date().toISOString();
+    manifest.durationMs = 0;
+    manifest.error =
+      `ไม่ได้ค้นหา: การตั้งค่าที่บันทึกไว้ไม่ใช่รูปแบบที่ตัวสร้างโจทย์นี้ใช้ (ต่างที่ ${drift.join(", ")}) ` +
+      "API ที่สร้างชุดนี้น่าจะยังเป็นโค้ดเก่าที่ npm run dev โหลดไว้ ให้ปิดแล้วเปิด npm run dev ใหม่ แล้วสร้างชุดอีกครั้ง";
+    await writeManifest(dir, manifest);
+    emit({ type: "finished", status: "failed", matched: 0, target: manifest.target, error: manifest.error });
+    return manifest;
+  }
   const guided = config.search.strategy === "GUIDED";
   const counters = manifest.counters;
   counters.matchingPositions ??= 0;

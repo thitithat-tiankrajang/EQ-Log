@@ -507,8 +507,13 @@ file untouched.
 
 `search.strategy` is `GUIDED` (new jobs/UI default) or `AUTHENTIC_ONLY`.
 `search.rackBudget` is 1–64, default 24; the UI offers Fast 8, Balanced 24,
-Deep 64. Old manifests without `search` retain authentic-only behavior when
-read by the generator; v1 and earlier v2 archive reads do not migrate data.
+Deep 64. The generator runs a set only when its stored configuration is exactly
+what the current normaliser makes of it (`configDrift` is empty). Anything else
+— an old manifest without `search`, or one filed by a dev-server API still
+running older code — fails before any game starts, naming the fields that
+differ, instead of reading a missing field as "no bound" (see §14). v1 and
+earlier v2 archive reads (listing, viewing, verification, play) do not migrate
+data and are unchanged.
 The player format, attempts, grading, one-turn `/play`, and all final filters
 are unchanged. Tile counts still count **new physical tiles**, never reused
 board cells or a blank's assigned face.
@@ -738,3 +743,32 @@ explicitly deferred.
 The bounded real-engine examples and replay results are recorded in
 `SPECIFICATION_PROOFS.md`. The guided A/B examples are also retained as
 admin-only test fixtures.
+
+## 14. One configuration from the form to the generator (2026-09-26)
+
+The admin's specification crosses three processes: the page (Vite, hot-reloaded),
+the dev API (`server/api.mjs`, imported by `vite.config.ts` on its first request
+and kept until `npm run dev` exits) and one generator per set (`generator/run.mjs`,
+spawned fresh, so always the code on disk). The "26 Sep" set showed what happens
+when they disagree: an `npm run dev` started before §12/§13 kept the pre-guided
+`configFrom`, which rebuilt each request from the §4 fields it knew and dropped
+`search`, every `rack` range, `bestPlay.specific`, `geometry`, `equation` and
+`mobility`. The generator read the missing `search` as authentic-only and every
+missing range as "no bound", and the final matcher correctly accepted puzzles
+against that weaker specification (29 sets filed that way, 38 puzzles).
+
+Two checks now make any such disagreement loud, and neither changes what a
+configuration means:
+
+- **Generator** — `configDrift(stored)` must be empty: the stored configuration
+  must already be exactly what `configFrom` makes of it. Otherwise the set is
+  written `failed` before any game starts, the error naming the differing fields,
+  and nothing is searched. This works even against an API that predates the
+  check, because the generator is always current.
+- **API** — it hashes `server/api.mjs`, `generator/run.mjs` and `lib/*.mjs` when
+  it loads, and answers `503` to generate and verify once the files on disk hash
+  differently (reading the archive, play and attempts are unaffected). Restart
+  `npm run dev` after editing this tool.
+
+Sets filed before this remain readable exactly as filed; their stored
+configuration is the evidence of what was actually enforced.

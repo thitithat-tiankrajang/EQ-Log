@@ -62,19 +62,28 @@ class HttpError extends Error {
   }
 }
 
-/** A hash of the generator's own code, recorded with every set it makes. */
-function generatorSha256() {
+const libFiles = () =>
+  readdirSync(join(TOOL_DIR, "lib"))
+    .filter((name) => name.endsWith(".mjs"))
+    .sort()
+    .map((name) => join(TOOL_DIR, "lib", name));
+
+function sha256Of(files) {
   const hash = createHash("sha256");
-  const files = [
-    GENERATOR,
-    ...readdirSync(join(TOOL_DIR, "lib"))
-      .filter((name) => name.endsWith(".mjs"))
-      .sort()
-      .map((name) => join(TOOL_DIR, "lib", name)),
-  ];
   for (const file of files) hash.update(readFileSync(file));
   return hash.digest("hex");
 }
+
+/** A hash of the generator's own code, recorded with every set it makes. */
+const generatorSha256 = () => sha256Of([GENERATOR, ...libFiles()]);
+
+/** Everything a request here runs: this server, the generator and lib/, as on disk now. */
+const studyCodeSha256 = () => sha256Of([fileURLToPath(import.meta.url), GENERATOR, ...libFiles()]);
+
+// The code this process imported. The dev server imports this module on its first
+// request and keeps it until it exits, so an edit to server/ or lib/ after that
+// never reaches it — while every generator it spawns runs the edited code.
+const LOADED_CODE = studyCodeSha256();
 
 async function readJsonBody(req, limit = 32 * 1024) {
   let size = 0;
@@ -100,19 +109,31 @@ function sendJson(res, status, body) {
 }
 
 /**
- * @param {{ archiveDir?: string, engineDir?: string, generatorEngine?: string, now?: () => Date }} [options]
+ * @param {{ archiveDir?: string, engineDir?: string, generatorEngine?: string, now?: () => Date, codeFingerprint?: () => string }} [options]
  *   `generatorEngine` is a module path handed to the generator as `--engine=`
  *   (the tests' stand-in); with it the amath-engine checkout is not required.
+ *   `codeFingerprint` hashes the Study code on disk now (the tests' stand-in for an edit).
  */
 export function createStudyPuzzleApi({
   archiveDir = ARCHIVE_DIR,
   engineDir = ENGINE_DIR,
   generatorEngine = null,
   now = () => new Date(),
+  codeFingerprint = studyCodeSha256,
 } = {}) {
   let job = null;
   let child = null;
   let killTimer = null;
+
+  // A set generated, or a puzzle verified, by code older than the disk would be
+  // judged by rules nobody can see any more — refuse until the server restarts.
+  function assertCurrentCode() {
+    if (codeFingerprint() === LOADED_CODE) return;
+    throw new HttpError(
+      "โค้ดของ tools/study-puzzles เปลี่ยนหลังจาก npm run dev โหลด API นี้ไว้ เซิร์ฟเวอร์นี้ยังใช้โค้ดเดิมอยู่ ให้ปิดแล้วเปิด npm run dev ใหม่ก่อน",
+      503,
+    );
+  }
 
   const publicJob = () => (job ? { ...job, logs: [...job.logs], recent: [...job.recent] } : null);
   const log = (line) => {
@@ -144,6 +165,7 @@ export function createStudyPuzzleApi({
   }
 
   async function start(body) {
+    assertCurrentCode();
     if (job?.state === "running") throw new HttpError("กำลังสร้างชุดโจทย์อยู่", 409);
     const config = configFrom(body?.config ?? body);
     if (!generatorEngine) {
@@ -295,6 +317,7 @@ export function createStudyPuzzleApi({
         });
       }
       if (req.method === "POST" && action === "verify" && parts.length === 6) {
+        assertCurrentCode();
         const puzzle = await puzzleFor(setId, puzzleId);
         const set = await readSet(archiveDir, setId, liveId());
         const archivedConfig = set.manifest?.config;
