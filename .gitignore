@@ -44,10 +44,7 @@ supabase/*
 !supabase/play_mode_tools_migration.sql
 !supabase/migrations/
 supabase/migrations/*
-!supabase/migrations/20260924170000_multiverse_timeline.sql
-!supabase/migrations/20260924170100_play_mode_tools.sql
-!supabase/migrations/20260924180000_survival_levels.sql
-!supabase/migrations/20260925120000_ranked_matches.sql
+!supabase/migrations/*.sql
 !supabase/config.toml
 !supabase/functions/
 supabase/functions/*

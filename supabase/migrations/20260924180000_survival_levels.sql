@@ -34,10 +34,13 @@ create table if not exists public.survival_levels (
 
 alter table public.survival_levels enable row level security;
 
+drop policy if exists survival_read on public.survival_levels;
 create policy survival_read on public.survival_levels for select to authenticated
   using (status = 'approved' or public.is_admin());
+drop policy if exists survival_admin_insert on public.survival_levels;
 create policy survival_admin_insert on public.survival_levels for insert to authenticated
   with check (public.is_admin());
+drop policy if exists survival_admin_update on public.survival_levels;
 create policy survival_admin_update on public.survival_levels for update to authenticated
   using (public.is_admin()) with check (public.is_admin());
 
@@ -61,8 +64,10 @@ create table if not exists public.survival_attempts (
   )
 );
 alter table public.survival_attempts enable row level security;
+drop policy if exists survival_attempt_read on public.survival_attempts;
 create policy survival_attempt_read on public.survival_attempts for select to authenticated
   using (player_id = auth.uid() or public.is_admin());
+drop policy if exists survival_attempt_insert on public.survival_attempts;
 create policy survival_attempt_insert on public.survival_attempts for insert to authenticated
   with check (player_id = auth.uid() and exists (
     select 1 from public.survival_levels l
@@ -72,6 +77,7 @@ create policy survival_attempt_insert on public.survival_attempts for insert to 
       and r.name = ('Survival test · seed ' || l.seed::text)
       and (l.status = 'approved' or public.is_admin())
   ));
+drop policy if exists survival_attempt_update on public.survival_attempts;
 create policy survival_attempt_update on public.survival_attempts for update to authenticated
   using (player_id = auth.uid() and finished_at is null)
   with check (player_id = auth.uid());
@@ -95,6 +101,7 @@ begin
   return new;
 end; $$;
 
+drop trigger if exists reject_new_aether_room on public.room_live;
 drop trigger if exists reject_new_aether_room on public.room_live;
 create trigger reject_new_aether_room before insert or update of mode_key on public.room_live
   for each row execute function public.reject_new_aether_room();
