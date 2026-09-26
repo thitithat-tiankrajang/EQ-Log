@@ -43,7 +43,7 @@ export type TypingState = {
 };
 
 /** Tokens a second digit can still be appended to: `1` reaches 10-19, `2` reaches only 20. */
-function growsInto(current: string, digit: string): AmathToken | null {
+export function growsInto(current: string, digit: string): AmathToken | null {
   const combined = `${current}${digit}`;
   const value = Number(combined);
   if (!Number.isInteger(value) || value < 10 || value > 20) return null;

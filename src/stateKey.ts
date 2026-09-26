@@ -106,6 +106,7 @@ function keyedFields(game: GameState) {
     status: game.status,
     tileDrawMode: getTileDrawMode(game),
     tilebag: game.tilebag,
+    drawEdits: game.drawEdits,
     // A branch can land on a position whose board, racks and logs another device
     // has already seen — returning to a line it parked, say. The reference is what
     // makes that a DIFFERENT state, so the change is written and, on the other
@@ -186,6 +187,7 @@ export function remoteStateIdentity(game: GameState): readonly unknown[] {
     fields.status,
     fields.tileDrawMode,
     fields.tilebag,
+    fields.drawEdits,
     fields.timelineRef,
     fields.timers.initialSeconds,
     fields.timers.initialSecondsBySide,

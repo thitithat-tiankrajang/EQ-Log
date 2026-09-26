@@ -169,6 +169,12 @@ function CompletedTurnRecord({
   const placedAll = isPlace && placedTiles.length >= RACK_SIZE;
   const sideClass = `side-${log.side.toLowerCase()}`;
   const others = options ? options.length - 1 : 0;
+  // Tiles a host swapped into this turn's rack (gameplay/drawEdit.ts). Shown, never hidden: a
+  // turn played from a chosen rack is not the same kind of record as one the bag dealt.
+  const drawEdits = (game.drawEdits ?? []).filter(
+    (edit) => edit.turnNumber === log.turnNumber && edit.side === log.side,
+  );
+  const drawEditSummary = drawEdits.map((edit) => `${edit.from}→${edit.to}`).join(" · ");
   return (
     <section
       className={`turn-record-group ${sideClass} ${selected ? "selected" : ""} ${placedAll ? "bingo" : ""} ${others > 0 ? "has-fork" : ""}`}
@@ -177,7 +183,18 @@ function CompletedTurnRecord({
       <div className="turn-record-row">
         <button className="turn-record-summary" type="button" aria-current={selected ? "true" : undefined} onClick={onSelect}>
           <span className="trs-turn">T{log.turnNumber}</span>
-          <span className={`trs-side ${sideClass}`}>{log.playedByName ?? game.players[log.side]}</span>
+          <span className={`trs-side ${sideClass}`}>
+            {log.playedByName ?? game.players[log.side]}
+            {drawEdits.length > 0 && (
+              <span
+                className="trs-draw-edit"
+                aria-label={`host กำหนดเบี้ยในมือตานี้: ${drawEditSummary}`}
+                title={`host กำหนดเบี้ยในมือตานี้: ${drawEditSummary}`}
+              >
+                host
+              </span>
+            )}
+          </span>
           <span className="trs-action">{summaryText(log)}</span>
           <span className="trs-score">{log.finalScore} pts</span>
         </button>
@@ -206,6 +223,7 @@ function CompletedTurnRecord({
             <span>After</span>
             <TileStrip muted tiles={log.rackAfter} />
           </div>
+          {drawEdits.length > 0 && <p className="trd-draw-edit">host กำหนดเบี้ย: {drawEditSummary}</p>}
         </div>
       )}
     </section>

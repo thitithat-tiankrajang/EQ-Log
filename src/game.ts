@@ -40,6 +40,18 @@ export type TileInstance = {
   assignedToken?: string;
 };
 
+/** One tile a host swapped in an app-dealt rack. The rules live in `gameplay/drawEdit.ts`. */
+export type DrawEdit = {
+  turnNumber: number;
+  side: Side;
+  /** The tile the app drew. Chained edits keep the ORIGINAL draw here. */
+  fromId: string;
+  from: AmathToken;
+  /** The tile the host put in its place. */
+  toId: string;
+  to: AmathToken;
+};
+
 export type PendingExchangeReturnBySide = Partial<Record<Side, TileInstance[]>>;
 
 export type BoardCell = {
@@ -307,6 +319,14 @@ export type GameSnapshot = {
   superWeightsVersion?: string;
   /** manual = record a physical bag; play = app draws from a shuffled queue. */
   tileDrawMode?: TileDrawMode;
+  /**
+   * Tiles a host swapped out of an app-dealt draw — see `src/gameplay/drawEdit.ts`.
+   *
+   * Absent on every game whose racks are exactly what the bag dealt. Present, it is the game's
+   * own admission that the deal was chosen, which is what keeps it out of the bot's statistics
+   * and what the turn log marks.
+   */
+  drawEdits?: DrawEdit[];
   turnNumber: number;
   activeSide: Side;
   phase: Phase;
@@ -702,6 +722,7 @@ export function makeSnapshot(
     superEngineVersion: game.superEngineVersion,
     superWeightsVersion: game.superWeightsVersion,
     tileDrawMode: getTileDrawMode(game),
+    drawEdits: game.drawEdits,
     turnNumber: game.turnNumber,
     activeSide: game.activeSide,
     phase: game.phase,

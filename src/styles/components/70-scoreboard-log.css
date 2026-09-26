@@ -3847,3 +3847,23 @@ button.tilebag-stat.active .ts-count {
   border-color: var(--accent, #15604e) !important;
   outline: none;
 }
+
+/* A turn whose rack a host chose (gameplay/drawEdit.ts). */
+.trs-draw-edit {
+  margin-left: 4px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: color-mix(in srgb, #facc15 30%, transparent);
+  color: #854d0e;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  vertical-align: 1px;
+}
+
+.trd-draw-edit {
+  margin: 4px 0 0;
+  color: #854d0e;
+  font-size: 12px;
+  font-weight: 650;
+}

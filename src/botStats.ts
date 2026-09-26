@@ -206,6 +206,9 @@ export async function recordBotGame(record: BotGameRecord): Promise<string | nul
  */
 export function botRecordFromGame(game: GameState, roomId: string | null): BotGameRecord | null {
   if (!game.botSide || game.status !== "finished") return null;
+  // A host chose some of these racks (see gameplay/drawEdit.ts). The bot's numbers are about what
+  // it does with the tiles the bag deals, so a game with a chosen deal is not one of them.
+  if (game.drawEdits && game.drawEdits.length > 0) return null;
   const bot = game.botSide;
   const human: Side = otherSide(bot);
   const botScore = game.scores[bot] ?? 0;

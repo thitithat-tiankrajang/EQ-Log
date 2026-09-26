@@ -9,6 +9,12 @@ export type RoomActorCapabilities = {
   canAct: boolean;
   canInteract: boolean;
   canRefill: boolean;
+  /**
+   * May swap tiles the app dealt (see `gameplay/drawEdit.ts`). Only a gameplay HOST: the device
+   * running a local game, the room owner, or an admin — never anyone in a direct room, which has
+   * no host, and never in a game whose tiles come off a real bag.
+   */
+  canEditDraw: boolean;
 };
 
 export function getRoomActorCapabilities({
@@ -27,7 +33,7 @@ export function getRoomActorCapabilities({
   remoteEnabled: boolean;
 }): RoomActorCapabilities {
   if (!game || game.status !== "playing") {
-    return { canAct: false, canInteract: false, canRefill: false };
+    return { canAct: false, canInteract: false, canRefill: false, canEditDraw: false };
   }
 
   if (!remoteEnabled) {
@@ -35,6 +41,7 @@ export function getRoomActorCapabilities({
       canAct: true,
       canInteract: true,
       canRefill: getTileDrawMode(game) === "manual",
+      canEditDraw: getTileDrawMode(game) === "play",
     };
   }
 
@@ -54,6 +61,7 @@ export function getRoomActorCapabilities({
       canAct: true,
       canInteract: true,
       canRefill: getTileDrawMode(game) === "manual",
+      canEditDraw: getTileDrawMode(game) === "play",
     };
   }
   const assignedToActiveSide = invitedSides.includes(game.activeSide);
@@ -72,5 +80,7 @@ export function getRoomActorCapabilities({
       : canRefill
     : canAct;
 
-  return { canAct, canInteract, canRefill };
+  const canEditDraw = getTileDrawMode(game) === "play" && emailMode !== "direct" && isOwner;
+
+  return { canAct, canInteract, canRefill, canEditDraw };
 }

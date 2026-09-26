@@ -282,6 +282,7 @@ function encodeSnapshot(snapshot: GameSnapshot): EncodedSnapshot {
     superEngineVersion: snapshot.superEngineVersion,
     superWeightsVersion: snapshot.superWeightsVersion,
     tileDrawMode: getTileDrawMode(snapshot),
+    drawEdits: snapshot.drawEdits,
     turnNumber: snapshot.turnNumber,
     activeSide: snapshot.activeSide,
     phase: snapshot.phase,
@@ -348,6 +349,9 @@ function decodeSnapshot(
     superEngineVersion: snapshot.superEngineVersion,
     superWeightsVersion: snapshot.superWeightsVersion,
     tileDrawMode: snapshot.tileDrawMode ?? "manual",
+    // Absent means the bag dealt every rack. Never defaulted to an empty list: the two are the
+    // same claim, and absent is the one every older game already makes.
+    drawEdits: snapshot.drawEdits,
     turnNumber: snapshot.turnNumber,
     activeSide: snapshot.activeSide as Side,
     phase: snapshot.phase,

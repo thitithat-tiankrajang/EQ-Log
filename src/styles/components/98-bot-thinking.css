@@ -1247,3 +1247,75 @@ fieldset.bot-config-section {
   line-height: 1.5;
   opacity: 0.72;
 }
+
+/* Re-dealing an app-dealt draw (⌥R). Host only, floating like the key notice so it never
+ * takes a row from the board. Yellow edge to match the rack's typing state. */
+.draw-edit-panel {
+  position: fixed;
+  z-index: 141;
+  right: 16px;
+  bottom: max(140px, calc(env(safe-area-inset-bottom) + 136px));
+  display: grid;
+  gap: 8px;
+  width: min(320px, calc(100vw - 32px));
+  padding: 12px 14px;
+  border: 1px solid color-mix(in srgb, #facc15 60%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, #111827 94%, transparent);
+  color: #f8fafc;
+  font-size: 13px;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.28);
+}
+
+.draw-edit-panel header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.draw-edit-panel header span,
+.draw-edit-keys,
+.draw-edit-empty {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.draw-edit-panel p {
+  margin: 0;
+}
+
+.draw-edit-focus b {
+  color: #facc15;
+}
+
+.draw-edit-candidates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.draw-edit-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.draw-edit-chip small {
+  color: #cbd5e1;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.draw-edit-log {
+  color: #fde68a;
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .draw-edit-panel {
+    right: 16px;
+    left: 16px;
+    width: auto;
+  }
+}

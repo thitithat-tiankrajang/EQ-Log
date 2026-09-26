@@ -168,7 +168,15 @@ import {
 import { STORAGE_KEYS } from "./constants/storage";
 import { createAutomaticEndGameLog, createSurrenderEndGameLog } from "./gameplay/endGame";
 import { getExchangeRule, getTilebagView, refillRackFromQueue } from "./gameplay/tilebag";
-import { typeKey, type Slot } from "./gameplay/rackTyping";
+import { growsInto, typeKey, type Slot } from "./gameplay/rackTyping";
+import {
+  drawEditWindow,
+  drawEditsFor,
+  replaceDrawnTile,
+  revertDrawnTile,
+  type DrawEditResult,
+} from "./gameplay/drawEdit";
+import { DrawEditPanel } from "./components/game/DrawEditPanel";
 import { advanceRunningClock } from "./gameplay/timer";
 import {
   buildTree,
@@ -482,6 +490,20 @@ function App() {
   const [rackTypingFocus, setRackTypingFocus] = useState<number | null>(null);
   const rackTypingFocusRef = useRef<number | null>(null);
   rackTypingFocusRef.current = rackTypingFocus;
+  /**
+   * The slot a host is re-dealing, or null when that mode is off.
+   *
+   * The play-mode counterpart of typing a rack: the app dealt this rack, and the host swaps
+   * tiles of the latest draw for others the bag could have given (see `gameplay/drawEdit.ts`).
+   * Keyboard only, and only on the host's own screen.
+   */
+  const [drawEditFocus, setDrawEditFocus] = useState<number | null>(null);
+  const drawEditFocusRef = useRef<number | null>(null);
+  drawEditFocusRef.current = drawEditFocus;
+  /** Digits typed into the focused slot, so `1` then `8` asks for 18 even when no 1 was left. */
+  const drawEditDigitsRef = useRef<{ slot: number; digits: string } | null>(null);
+  /** Which turn the mode was opened on; it closes itself when that turn is over. */
+  const drawEditTurnRef = useRef<string | null>(null);
   /** One line about what the last keystroke did, when it did something the
    *  player would not otherwise see — spending a blank, or finding nothing in
    *  hand that could play the face they asked for. Clears itself. */
@@ -756,7 +778,14 @@ function App() {
     [],
   );
   /** Aim the typing caret. Stable, because `Rack` compares its callbacks by identity. */
-  const onRackSlotFocus = useCallback((index: number) => setRackTypingFocus(index), []);
+  const onRackSlotFocus = useCallback((index: number) => {
+    if (drawEditFocusRef.current !== null) {
+      drawEditDigitsRef.current = null;
+      setDrawEditFocus(index);
+    } else {
+      setRackTypingFocus(index);
+    }
+  }, []);
   const onStepTurn = useCallback((step: TurnStep) => stepTurnRef.current(step), []);
   const onSetReplayPhase = useCallback(
     (phase: "before" | "after") => setReplayPhaseRef.current(phase),
@@ -938,9 +967,9 @@ function App() {
     studyPuzzle && !studyPuzzleSubmitted && studyPuzzleBusy === null,
   );
   const actorCapabilities = survival
-    ? { canAct: survivalCanAct, canInteract: survivalCanAct, canRefill: false }
+    ? { canAct: survivalCanAct, canInteract: survivalCanAct, canRefill: false, canEditDraw: false }
     : studyPuzzle
-      ? { canAct: studyPuzzleCanAct, canInteract: studyPuzzleCanAct, canRefill: false }
+      ? { canAct: studyPuzzleCanAct, canInteract: studyPuzzleCanAct, canRefill: false, canEditDraw: false }
       : getRoomActorCapabilities({
         game,
         emailPlayMode,
@@ -953,6 +982,8 @@ function App() {
   const canRefillActiveRack = actorCapabilities.canRefill;
   const canRefillActiveRackRef = useRef(false);
   canRefillActiveRackRef.current = canRefillActiveRack;
+  const canEditDrawRef = useRef(false);
+  canEditDrawRef.current = actorCapabilities.canEditDraw;
   const canPlayActiveRoom = actorCapabilities.canInteract;
   const readOnly =
     survival || studyPuzzle ? !canPlayActiveRoom : remoteEnabled && !canPlayActiveRoom;
@@ -2367,6 +2398,66 @@ function App() {
     selectedPendingTileId,
     assignmentRequest,
   ]);
+
+  // ── re-dealing an app-dealt draw (host only) ──────────────────────────────
+  //
+  // ⌥R toggles it on a Mac (F2 too, as it does for typing a rack by hand). Registered in the
+  // CAPTURE phase and ahead of the board's own keys, for two reasons: while it is on, every tile
+  // key means "put this tile in the slot", not "play it"; and a host who is not the side to move
+  // is read-only to the board handler, but is exactly who this mode is for.
+  useEffect(() => {
+    if (view !== "game" || !game || replayCursor !== null) return;
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || (target?.isContentEditable ?? false)) return;
+      const current = gameRef.current;
+      if (!current) return;
+      const optionR =
+        event.altKey && !event.metaKey && !event.ctrlKey && event.code === "KeyR";
+      const f2 =
+        event.key === "F2" && getTileDrawMode(current) === "play" && canEditDrawRef.current;
+      const active = drawEditFocusRef.current !== null;
+      if (!optionR && !f2 && !active) return;
+      const consumed = () => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      };
+      if (optionR || f2) {
+        consumed();
+        if (active) exitDrawEdit("ออกจากโหมดแก้เบี้ย");
+        else enterDrawEdit();
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (event.key === "Escape") {
+        consumed();
+        exitDrawEdit("ออกจากโหมดแก้เบี้ย");
+        return;
+      }
+      if (handleDrawEditKey(event)) consumed();
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, game?.gameId, replayCursor]);
+
+  // The mode belongs to one turn of one side. When that turn ends — the move was played, another
+  // device moved, the host lost the room — it closes rather than follow the rack somewhere else.
+  useEffect(() => {
+    if (drawEditFocus === null) return;
+    const stillOpen =
+      game !== null &&
+      replayCursor === null &&
+      actorCapabilities.canEditDraw &&
+      drawEditTurnRef.current === `${game.turnNumber}:${game.activeSide}` &&
+      drawEditWindow(game) !== null;
+    if (!stillOpen) {
+      drawEditDigitsRef.current = null;
+      drawEditTurnRef.current = null;
+      setDrawEditFocus(null);
+    }
+  }, [actorCapabilities.canEditDraw, drawEditFocus, game, replayCursor]);
 
   // Reset the undo timeline whenever a different game is opened/created/closed.
   // Declared BEFORE the capture effect so it clears state before capture runs.
@@ -4758,6 +4849,152 @@ function App() {
     return true;
   }
 
+  /** Why the host cannot re-deal right now, or null when they can. */
+  function drawEditBlockReason(sourceGame: GameState): string | null {
+    if (getTileDrawMode(sourceGame) !== "play") {
+      return "แก้เบี้ยที่หยิบใช้ได้เฉพาะห้องที่แอปหยิบเบี้ยให้ (หยิบเองใช้ F2)";
+    }
+    if (!canEditDrawRef.current) return "แก้เบี้ยที่หยิบได้เฉพาะ host ของห้อง";
+    if (sourceGame.status !== "playing") return "เกมจบแล้ว";
+    if (sourceGame.botSide === sourceGame.activeSide) return "ตาของบอท แก้เบี้ยไม่ได้";
+    if (actionModeRef.current !== "none" || pendingsRef.current.length > 0) {
+      return "ยกเลิกเบี้ยที่วางบนกระดานก่อน แล้วค่อยแก้เบี้ยในมือ";
+    }
+    if (sourceGame.phase !== "choose_action") return "แก้ได้เฉพาะตอนต้นตา ก่อนส่ง";
+    if (!drawEditWindow(sourceGame)) return "ตานี้ไม่มีเบี้ยที่เพิ่งหยิบมาให้แก้";
+    return null;
+  }
+
+  function enterDrawEdit() {
+    const current = gameRef.current;
+    if (!current) return;
+    const reason = drawEditBlockReason(current);
+    if (reason) {
+      showKeyNotice(reason);
+      return;
+    }
+    const drawWindow = drawEditWindow(current)!;
+    const slots = rackSlotsFrom(current, current.activeSide);
+    const first = slots.findIndex((tile) => tile !== null && drawWindow.drawnIds.has(tile.id));
+    setRackTypingFocus(null);
+    setSelectedRackTileId(null);
+    blankArmedRef.current = false;
+    setBlankArmed(false);
+    drawEditDigitsRef.current = null;
+    drawEditTurnRef.current = `${current.turnNumber}:${current.activeSide}`;
+    drawEditFocusRef.current = first >= 0 ? first : 0;
+    setDrawEditFocus(drawEditFocusRef.current);
+    showKeyNotice("โหมดแก้เบี้ย · พิมพ์เบี้ยที่ต้องการ · ⌫ คืนเบี้ยเดิม · ⌥R หรือ Esc ออก");
+  }
+
+  function exitDrawEdit(message?: string) {
+    drawEditDigitsRef.current = null;
+    drawEditTurnRef.current = null;
+    drawEditFocusRef.current = null;
+    setDrawEditFocus(null);
+    if (message) showKeyNotice(message);
+  }
+
+  function applyDrawEditResult(result: Extract<DrawEditResult, { ok: true }>) {
+    const side = result.game.activeSide;
+    pendingSessionEventRef.current = "state";
+    applyRackLayout((current) => ({
+      ...current,
+      [side]: current[side].map((id) => (id === result.outgoing.id ? result.incoming.id : id)),
+    }));
+    // Back-to-back keystrokes must build on this edit, not on the render before it.
+    gameRef.current = result.game;
+    setGame(result.game);
+    showKeyNotice(`${result.outgoing.token} → ${result.incoming.token}`);
+  }
+
+  /**
+   * One keystroke while re-dealing. Returns true when the key belonged to the mode.
+   *
+   * The tile keys are the board's own (see `gameplay/tileKeys.ts`) with one addition borrowed
+   * from typing a rack: an unshifted digit may grow, so `1` then `8` asks for 18.
+   */
+  function handleDrawEditKey(event: KeyboardEvent): boolean {
+    const current = gameRef.current;
+    const at = drawEditFocusRef.current;
+    if (!current || at === null) return false;
+    const drawWindow = drawEditWindow(current);
+    if (!drawWindow || drawEditBlockReason(current)) {
+      exitDrawEdit(drawEditBlockReason(current) ?? undefined);
+      return true;
+    }
+    const slots = rackSlotsFrom(current, current.activeSide);
+    const focus = (index: number) => {
+      const next = Math.max(0, Math.min(RACK_SIZE - 1, index));
+      drawEditDigitsRef.current = null;
+      drawEditFocusRef.current = next;
+      setDrawEditFocus(next);
+    };
+
+    if (event.key === "ArrowRight" || event.code === "Space" || event.key === "Tab") {
+      focus(event.shiftKey && event.key === "Tab" ? at - 1 : at + 1);
+      return true;
+    }
+    if (event.key === "ArrowLeft") {
+      focus(at - 1);
+      return true;
+    }
+    if (event.key === "Home") {
+      focus(0);
+      return true;
+    }
+    if (event.key === "End") {
+      focus(RACK_SIZE - 1);
+      return true;
+    }
+
+    const tile = slots[at] ?? null;
+    if (event.key === "Backspace" || event.key === "Delete") {
+      drawEditDigitsRef.current = null;
+      if (!tile) return true;
+      const reverted = revertDrawnTile(current, tile.id);
+      if (!reverted) showKeyNotice("ช่องนี้ยังเป็นเบี้ยที่แอปหยิบมา");
+      else if (reverted.ok) applyDrawEditResult(reverted);
+      else showKeyNotice(reverted.reason);
+      return true;
+    }
+
+    // Which tile the key asks for.
+    let wanted: Slot = null;
+    let advance = false;
+    const digit = /^Digit([0-9])$/.exec(event.code)?.[1];
+    if (digit !== undefined && !event.shiftKey) {
+      const typed = drawEditDigitsRef.current;
+      const grown = typed && typed.slot === at ? growsInto(typed.digits, digit) : null;
+      wanted = grown ?? (digit as Slot);
+      drawEditDigitsRef.current = { slot: at, digits: wanted as string };
+    } else {
+      const action = resolveStudyKey(event, false);
+      if (action?.kind === "tile") wanted = action.stroke.token;
+      else if (action?.kind === "armBlank" || action?.kind === "bareBlank") wanted = "?";
+      else return false;
+      drawEditDigitsRef.current = null;
+      advance = true;
+    }
+    if (!wanted) return true;
+    if (!tile) {
+      showKeyNotice("ช่องนี้ว่าง");
+      return true;
+    }
+    if (!drawWindow.drawnIds.has(tile.id)) {
+      showKeyNotice("เบี้ยนี้อยู่ในมือก่อนการหยิบรอบนี้ แก้ไม่ได้");
+      return true;
+    }
+    const result = replaceDrawnTile(current, tile.id, wanted);
+    if (result.ok) applyDrawEditResult(result);
+    else if (result.reason !== "same") showKeyNotice(result.reason);
+    if (advance && (result.ok || result.reason === "same")) {
+      drawEditFocusRef.current = Math.min(RACK_SIZE - 1, at + 1);
+      setDrawEditFocus(drawEditFocusRef.current);
+    }
+    return true;
+  }
+
   function refillFromBag(tile: TileInstance) {
     if (!game || !canRefillActiveRack || reviewing || game.status !== "playing") return;
     if (getTileDrawMode(game) === "play") return;
@@ -6581,6 +6818,9 @@ function App() {
       .find((log) => log.side === game.activeSide && log.action !== "end_game");
     return new Set(latestActiveSideLog?.rackAfter.map((tile) => tile.id) ?? []);
   })();
+  // While a host re-deals, the tiles held from before the draw are the locked ones.
+  const drawEditOpen = drawEditFocus !== null && !reviewing ? drawEditWindow(game) : null;
+  const rackHeldTileIds = drawEditOpen ? new Set(drawEditOpen.heldIds) : carriedOverTileIds;
   const concealDirectOpponentRack = isDirectEmailRoom && !emailPlayersCanSeeOpponentRack;
   // Survival: always the unseen pool, never the bag alone (that would reveal Authur's rack).
   const tilebagView = survival
@@ -7112,16 +7352,20 @@ function App() {
             <Rack
               actionMode={actionMode}
               active={rackConfigs[0].active}
-              carriedOverTileIds={carriedOverTileIds}
+              carriedOverTileIds={rackHeldTileIds}
               exchangeOutgoingIds={rackConfigs[0].exchangeOutgoingIds}
               label={rackConfigs[0].label}
               rack={rackConfigs[0].rack}
               selectedRackTileId={selectedRackTileId}
               side={rackConfigs[0].side}
               typing={
-                rackTypingFocus !== null && rackConfigs[0].side === game.activeSide
-                  ? { focus: rackTypingFocus }
-                  : null
+                rackConfigs[0].side !== game.activeSide
+                  ? null
+                  : drawEditOpen && drawEditFocus !== null
+                    ? { focus: drawEditFocus }
+                    : rackTypingFocus !== null
+                      ? { focus: rackTypingFocus }
+                      : null
               }
               onEmptySlotClick={onEmptyRackSlotClick}
               onSlotFocus={onRackSlotFocus}
@@ -7209,6 +7453,16 @@ function App() {
             entirely — `.board-zone` is a two-row grid whose board is sized from
             the viewport, so anything that takes height in there is drawn over
             the board rather than beside it. */}
+        {drawEditOpen && drawEditFocus !== null && (
+          <DrawEditPanel
+            drawWindow={drawEditOpen}
+            edits={drawEditsFor(game, drawEditOpen.turnNumber, drawEditOpen.side)}
+            focus={drawEditFocus}
+            playerName={game.players[drawEditOpen.side]}
+            slots={rackSlotsFrom(game, drawEditOpen.side)}
+          />
+        )}
+
         {(blankArmed || keyNotice) && (
           <div className={`key-notice${blankArmed ? " is-armed" : ""}`} role="status">
             {blankArmed ? "Blank พร้อมแล้ว — กดปุ่มของหน้าที่จะให้มันแทน · Esc ยกเลิก" : keyNotice}
