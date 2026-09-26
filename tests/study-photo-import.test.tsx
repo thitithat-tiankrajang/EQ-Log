@@ -152,8 +152,8 @@ describe("importing a board from a photo", () => {
     await user.click(screen.getByRole("button", { name: "ยืนยันกระดาน" }));
     await user.click(screen.getByRole("button", { name: /^1 เหลือ/ }));
     await user.click(screen.getByRole("button", { name: "ยืนยันเบี้ยในมือ" }));
-    await user.click(screen.getByRole("button", { name: /ไปเลือกระดับบอท/ }));
-    await user.click(screen.getByRole("button", { name: /Fast/ }));
+    await user.click(screen.getByRole("button", { name: /ไปดูเฉลย/ }));
+    await user.click(screen.getByRole("button", { name: /Stage 5B/ }));
     await waitFor(() => expect(requestStudyAnalysis).toHaveBeenCalled());
     const sent = requestStudyAnalysis.mock.calls[0]![0] as { board: unknown };
     expect(sent.board).toEqual([

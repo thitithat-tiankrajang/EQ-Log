@@ -17,5 +17,9 @@
     "jsx": "react-jsx"
   },
   "include": ["src", "tools"],
+  // A one-off Survival proof of concept (results: docs/survival-poc-results.json).
+  // It imports the private sibling checkout ../amath-bot-lab, which a clean
+  // clone, CI and Vercel do not have, so it cannot be part of the app's build.
+  "exclude": ["tools/survival-poc.ts"],
   "references": []
 }

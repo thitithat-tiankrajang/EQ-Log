@@ -473,6 +473,7 @@ describe("play route data loading", () => {
         botSide: "B" as const,
         startingSide: "B" as const,
         tileDrawMode: "play" as const,
+        botEngine: "aether" as const,
       }),
       playerUserIds: { A: OWNER_ID },
       lobbyReadyBySide: { A: true },
@@ -483,8 +484,8 @@ describe("play route data loading", () => {
 
     const view = render(<App />);
     await waitFor(() => expect(readRoom).toHaveBeenCalledWith(ROOM_ID));
-    await waitFor(() => expect(view.getByRole("button", { name: "Start game" })).toBeEnabled());
-    fireEvent.click(view.getByRole("button", { name: "Start game" }));
+    await waitFor(() => expect(view.getByRole("button", { name: "Start Lab" })).toBeEnabled());
+    fireEvent.click(view.getByRole("button", { name: "Start Lab" }));
     await waitFor(() => expect(commitRoomState).toHaveBeenCalled());
     await waitFor(() =>
       expect(requestBotMove).toHaveBeenCalledWith(expect.objectContaining({ expectedRevision: 6 })),

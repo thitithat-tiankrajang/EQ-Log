@@ -60,9 +60,11 @@ export function StudyRanking({
           <Stat label="วิธีคิด" value={SOLVER_LABEL[method.solver]} />
           <Stat label="ตาที่หาได้" value={method.legalMoves.toLocaleString()} />
           <Stat label="ตาที่ชั่งน้ำหนัก" value={method.candidatesEvaluated.toLocaleString()} />
-          {method.solver === "stage5b"
-            ? <Stat label="ตรวจเชิงลึก" value={`สูงสุด ${method.depth ?? 64} ตา`} />
-            : <Stat label="สุ่มมือคู่แข่ง" value={`${method.samples} รอบ`} />}
+          {method.solver === "stage5b" ? (
+            <Stat label="ตรวจเชิงลึก" value={`สูงสุด ${method.depth ?? 64} ตา`} />
+          ) : (
+            <Stat label="สุ่มมือคู่แข่ง" value={`${method.samples} รอบ`} />
+          )}
           <Stat label="เวลาที่ใช้" value={`${(method.elapsedMs / 1000).toFixed(1)} วิ`} />
           <Stat
             label="สถานะ"

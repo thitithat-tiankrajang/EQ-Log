@@ -33,6 +33,17 @@ export default tseslint.config(
       "src/components/modals/**",
       "src/components/rail/**",
       "src/components/replay/**",
+      // Build output: the Edge Function ships the esbuild bundle of index.ts
+      // (`npm run build:ranked`); index.ts is the source that is linted.
+      "supabase/functions/**/index.js",
+      // Local-only generated material (each directory ignores itself in git).
+      "tools/survival-generator/.vendor/**",
+      "tools/survival-generator/out/**",
+      "tools/study-puzzles/archive/**",
+      // The offline Survival level generator. It is never bundled or deployed,
+      // has its own node:test suite, and its outstanding findings (unused
+      // locals in experiment scripts) are left for the Survival owner.
+      "tools/survival-generator/**",
     ],
   },
   js.configs.recommended,

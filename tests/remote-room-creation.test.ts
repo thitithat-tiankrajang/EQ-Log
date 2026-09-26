@@ -49,6 +49,7 @@ describe("remote live-game creation", () => {
       playerB: "Aether",
       botSide: "B",
       botDifficulty: "medium",
+      botEngine: "aether",
       tileDrawMode: "play",
     });
     const session = emptyLiveSession(ownerId);

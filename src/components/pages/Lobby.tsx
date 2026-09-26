@@ -138,7 +138,11 @@ export function Lobby({
                 >
                   <KeyRound size={15} aria-hidden="true" /> Join with code
                 </button>
-                {visibility === "public" && <a className="eq-button eq-button-secondary" href="#/ranked"><Trophy size={15} aria-hidden="true" /> Ranked</a>}
+                {visibility === "public" && (
+                  <a className="eq-button eq-button-secondary" href="#/ranked">
+                    <Trophy size={15} aria-hidden="true" /> Ranked
+                  </a>
+                )}
               </div>
             </div>
             <div className="eq-arena-board" aria-hidden="true">
