@@ -69,11 +69,12 @@ test("@a11y has no serious accessibility violations on the main non-Play routes"
 
   await page.goto("/#/create");
   await page.getByRole("button", { name: /Public/ }).click();
-  await page.getByRole("button", { name: /Aether/ }).click();
+  // New bot rooms are Authur's; Aether rooms are refused by the database.
+  await page.getByRole("button", { name: /^Authur/ }).click();
   const botResults = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
     .analyze();
-  expect(botResults.violations, "Aether setup").toEqual([]);
+  expect(botResults.violations, "Authur setup").toEqual([]);
 
   await page.goto("/#/public");
   await page.goto("/#/create");
@@ -140,13 +141,13 @@ test("keeps every action in a game-table row the same height", async ({ page }) 
   );
 });
 
-test("loads the designed Aether form instead of browser-default controls", async ({ page }) => {
+test("loads the designed bot setup form instead of browser-default controls", async ({ page }) => {
   await page.getByRole("link", { name: "Create game" }).click();
   await page.getByRole("button", { name: /Public/ }).click();
-  await page.getByRole("button", { name: /Aether/ }).click();
+  await page.getByRole("button", { name: /^Authur/ }).click();
 
   const section = page.locator(".bot-config-section").first();
-  const option = page.getByRole("radio", { name: /Fast/ });
+  const option = page.getByRole("radio", { name: /^You/ });
   await expect(section).toBeVisible();
   await expect(option).toBeVisible();
 

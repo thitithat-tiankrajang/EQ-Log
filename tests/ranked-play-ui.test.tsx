@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { RankedMatchPage } from "../src/components/pages/ranked/RankedMatchPage";
 import { rankedPublicView } from "../src/features/ranked/publicView";
@@ -63,6 +63,10 @@ it("moves a selected rack tile onto the shared board without duplicating it in t
 
   const { container } = render(<RankedMatchPage matchId="match-id" />);
   await waitFor(() => expect(container.querySelectorAll(".rack-tile")).toHaveLength(8));
+  // The page clears any selection when the match revision changes, in an effect
+  // that runs just after the first render shows the rack. Let it run before
+  // clicking, or a fast click lands in between and is cleared (a CI-only flake).
+  await act(async () => {});
   fireEvent.click(container.querySelector(".rack-tile")!);
   fireEvent.click(container.querySelectorAll(".board-cell")[7 * 15 + 7]!);
   expect(container.querySelectorAll(".board-cell.pending")).toHaveLength(1);
@@ -87,6 +91,10 @@ it("cycles the placement arrow and moves it with the same keys as normal play", 
 
   const { container } = render(<RankedMatchPage matchId="match-id" />);
   await waitFor(() => expect(container.querySelectorAll(".board-cell")).toHaveLength(225));
+  // The page clears any selection when the match revision changes, in an effect
+  // that runs just after the first render shows the rack. Let it run before
+  // clicking, or a fast click lands in between and is cleared (a CI-only flake).
+  await act(async () => {});
   fireEvent.click(container.querySelectorAll(".board-cell")[7 * 15 + 7]!);
   expect(container.querySelectorAll(".board-cell")[7 * 15 + 7]).toHaveClass("cursor-right");
   fireEvent.keyDown(window, { key: " ", code: "Space" });

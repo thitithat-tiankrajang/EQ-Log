@@ -13,7 +13,13 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= npm run dev -- --port 4173",
+    // Local-only mode (no Supabase), but with an engine origin configured, as
+    // on every real deployment: without one the bot and Study entry points are
+    // disabled and the setup screens under test never render. Port 9 refuses
+    // connections, so nothing here reaches a real engine. Set explicitly so a
+    // developer's ignored .env cannot make CI and a laptop test different apps.
+    command:
+      "VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= VITE_ENGINE_API_URL=http://127.0.0.1:9 npm run dev -- --port 4173",
     url: "http://127.0.0.1:4173/#/public/rooms",
     reuseExistingServer: !process.env.CI,
   },
