@@ -109,6 +109,8 @@ begin
 
   -- Bot rooms are created through the catalog (bot_catalog migration); Aether
   -- is retired for new rooms, so this uses Authur.
+  perform public.economy_post(owner_id, 'probot_credit', 1, 'admin_grant', 'admin_request', 'sync',
+    'sync-smoke:' || owner_id, owner_id, 'sync smoke');
   select * into bot_room
   from public.create_bot_game(
     gen_random_uuid(),
@@ -134,7 +136,8 @@ begin
     'public',
     null,
     'invite_only',
-    null
+    null,
+    'credit'
   );
 
   select state || jsonb_build_object(

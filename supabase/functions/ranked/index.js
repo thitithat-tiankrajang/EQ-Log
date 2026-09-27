@@ -1486,6 +1486,16 @@ Deno.serve(async (request) => {
     }
     return respond({ error: "Unknown operation." }, 400);
   } catch (error) {
+    const message = error?.message;
+    if (typeof message === "string" && message.includes("active_board_limit:")) {
+      return respond(
+        {
+          error: message.includes("a seated player") ? "The other player already has the maximum number of active boards." : "You already have the maximum number of active boards. Finish or cancel one first.",
+          code: "active_board_limit"
+        },
+        409
+      );
+    }
     return respond(
       { error: error instanceof Error ? error.message : "Ranked request failed." },
       400

@@ -23,6 +23,14 @@ as_user() { # $1 = uid; rest = SQL run inside one transaction as that user
 cleanup() {
   q -c "update public.bot_catalog set enabled = true where bot_key = 'authur_strong'" >/dev/null
   q -c "delete from public.room_live where owner_id in ('$PLAYER','$ADMIN')" >/dev/null
+  q -c "begin; alter table public.economy_entries disable trigger economy_entries_immutable;
+        alter table public.probot_consumptions disable trigger probot_consumptions_immutable;
+        delete from public.probot_consumptions where user_id in ('$PLAYER','$ADMIN');
+        delete from public.economy_entries where user_id in ('$PLAYER','$ADMIN');
+        delete from public.economy_balances where user_id in ('$PLAYER','$ADMIN');
+        delete from public.probot_allowance_state where user_id in ('$PLAYER','$ADMIN');
+        alter table public.economy_entries enable trigger economy_entries_immutable;
+        alter table public.probot_consumptions enable trigger probot_consumptions_immutable; commit;" >/dev/null
   q -c "delete from auth.users where id in ('$PLAYER','$ADMIN')" >/dev/null
 }
 trap cleanup EXIT
@@ -33,7 +41,9 @@ q -c "insert into auth.users (id, email, aud, role) values ('$PLAYER','race-play
 q -c "update public.profiles set status = 'approved' where id in ('$PLAYER','$ADMIN'); update public.profiles set is_admin = true where id = '$ADMIN'" >/dev/null
 
 STATE="'{\"name\":\"race\",\"gameMode\":\"versus\",\"players\":{\"A\":\"P\",\"B\":\"Authur\"},\"botSide\":\"B\"}'::jsonb"
-CREATE="select room_id || ' replayed=' || replayed from public.create_bot_game('$REQ', 'authur_strong', 'B', $STATE, 'public', 'public', null, 'invite_only', null);"
+CREATE="select room_id || ' replayed=' || replayed from public.create_bot_game('$REQ', 'authur_strong', 'B', $STATE, 'public', 'public', null, 'invite_only', null, 'credit');"
+# Authur is Pro (Phase 3): fund the race rooms with Credits.
+q -c "select public.economy_post('$PLAYER', 'probot_credit', 5, 'admin_grant', 'admin_request', 'race', 'race-p1:' || gen_random_uuid(), '$ADMIN', 'race')" >/dev/null
 
 echo "── 1. Two sessions, same request id, at the same time"
 as_user $PLAYER "$CREATE select pg_sleep(2);" > /tmp/race_a.$$ &

@@ -386,7 +386,7 @@ export default function NonPlayApplication() {
           remoteRooms.emptyLiveSession(userId),
           scope,
           policy,
-          { requestId: settings.creationRequestId },
+          { requestId: settings.creationRequestId, funding: settings.botFunding },
         );
       }
       const local = localRooms.createRoom(waiting, scope);

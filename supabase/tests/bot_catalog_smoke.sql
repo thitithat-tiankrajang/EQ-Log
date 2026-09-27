@@ -67,18 +67,18 @@ begin
   if has_function_privilege('anon', 'public.create_live_game(jsonb,text,text,uuid,text,uuid)', 'EXECUTE') then
     raise exception 'anon can execute create_live_game';
   end if;
-  if has_function_privilege('anon', 'public.create_bot_game(uuid,text,text,jsonb,text,text,uuid,text,uuid)', 'EXECUTE') then
+  if has_function_privilege('anon', 'public.create_bot_game(uuid,text,text,jsonb,text,text,uuid,text,uuid,text)', 'EXECUTE') then
     raise exception 'anon can execute create_bot_game';
   end if;
-  if not has_function_privilege('authenticated', 'public.create_bot_game(uuid,text,text,jsonb,text,text,uuid,text,uuid)', 'EXECUTE') then
+  if not has_function_privilege('authenticated', 'public.create_bot_game(uuid,text,text,jsonb,text,text,uuid,text,uuid,text)', 'EXECUTE') then
     raise exception 'authenticated cannot execute create_bot_game';
   end if;
-  if has_function_privilege('service_role', 'public.create_bot_game(uuid,text,text,jsonb,text,text,uuid,text,uuid)', 'EXECUTE') then
+  if has_function_privilege('service_role', 'public.create_bot_game(uuid,text,text,jsonb,text,text,uuid,text,uuid,text)', 'EXECUTE') then
     raise exception 'service_role can execute create_bot_game';
   end if;
-  if has_function_privilege('authenticated', 'public.create_live_game_core(jsonb,text,text,uuid,text,uuid,text,text)', 'EXECUTE')
-     or has_function_privilege('anon', 'public.create_live_game_core(jsonb,text,text,uuid,text,uuid,text,text)', 'EXECUTE')
-     or has_function_privilege('service_role', 'public.create_live_game_core(jsonb,text,text,uuid,text,uuid,text,text)', 'EXECUTE') then
+  if has_function_privilege('authenticated', 'public.create_live_game_core(jsonb,text,text,uuid,text,uuid,text,text,text,uuid)', 'EXECUTE')
+     or has_function_privilege('anon', 'public.create_live_game_core(jsonb,text,text,uuid,text,uuid,text,text,text,uuid)', 'EXECUTE')
+     or has_function_privilege('service_role', 'public.create_live_game_core(jsonb,text,text,uuid,text,uuid,text,text,text,uuid)', 'EXECUTE') then
     raise exception 'an API role can call create_live_game_core directly';
   end if;
   if has_function_privilege('anon', 'public.get_live_game_engine_context(uuid)', 'EXECUTE') then
@@ -109,19 +109,20 @@ begin
     raise exception 'authenticated can write room_live bot identity directly';
   end if;
 
-  -- ── 2. Seed: backward-compatibility defaults, provisional ────────────────
-  select count(*) into n from public.bot_catalog
-   where access_tier = 'free' and access_tier_status = 'provisional';
-  if n <> (select count(*) from public.bot_catalog) then
-    raise exception 'seeded bots must all be free and provisional';
+  -- ── 2. Catalog (Phase 3 final state) ─────────────────────────────────────
+  if not exists (select 1 from public.bot_catalog where bot_key = 'authur_strong'
+                  and access_tier = 'pro' and access_tier_status = 'decided' and lifecycle = 'active'
+                  and enabled and new_rooms_allowed and execution_type = 'SERVER') then
+    raise exception 'Authur must be the active Pro server bot';
   end if;
-  if not exists (select 1 from public.bot_catalog
-                  where bot_key = 'authur_strong' and enabled and new_rooms_allowed) then
-    raise exception 'Authur must be open for new rooms';
+  if not exists (select 1 from public.bot_catalog where bot_key = 'stage5b'
+                  and access_tier = 'free' and execution_type = 'CLIENT' and lifecycle = 'pending'
+                  and not enabled and not new_rooms_allowed) then
+    raise exception 'Stage 5B must be a disabled, pending, free CLIENT bot';
   end if;
   if exists (select 1 from public.bot_catalog
-              where bot_key like 'aether_%' and new_rooms_allowed) then
-    raise exception 'retired Aether must stay closed to new rooms';
+              where bot_key like 'aether_%' and (new_rooms_allowed or lifecycle <> 'retired')) then
+    raise exception 'Aether must be retired and closed to new rooms';
   end if;
 
   -- ── 3. The old path refuses a bot room from the state blob ───────────────
@@ -137,7 +138,7 @@ begin
   perform pg_temp.act_as_anon();
   begin
     perform * from public.create_bot_game(gen_random_uuid(), 'authur_strong', 'B', pg_temp.bot_state(),
-      'public', 'public', null, 'invite_only', null);
+      'public', 'public', null, 'invite_only', null, 'credit');
     raise exception 'EXPECTED: anon created a bot room';
   exception when insufficient_privilege then null;
   end;
@@ -146,7 +147,7 @@ begin
   perform pg_temp.act_as(pending);
   begin
     perform * from public.create_bot_game(gen_random_uuid(), 'authur_strong', 'B', pg_temp.bot_state(),
-      'public', 'public', null, 'invite_only', null);
+      'public', 'public', null, 'invite_only', null, 'credit');
     raise exception 'EXPECTED: unapproved account created a bot room';
   exception when others then
     if sqlerrm <> 'approved membership required' then raise; end if;
@@ -154,6 +155,9 @@ begin
 
   -- ── 4. Tampering: the client's bot fields are ignored ────────────────────
   perform pg_temp.act_as_owner();
+  -- Authur is Pro (Phase 3): these rooms are paid with Credits.
+  perform public.economy_post(player, 'probot_credit', 20, 'admin_grant', 'admin_request', 'smoke', 'smoke:p1:' || player, admin_id, 'smoke');
+  perform public.economy_post(admin_id, 'probot_credit', 20, 'admin_grant', 'admin_request', 'smoke', 'smoke:p1:' || admin_id, admin_id, 'smoke');
   select count(*) into stats_before from public.room_live;
   perform pg_temp.act_as(player);
   select * into created from public.create_bot_game(
@@ -161,15 +165,15 @@ begin
     pg_temp.bot_state(jsonb_build_object(
       'botSide', 'A', 'botEngine', 'aether', 'botDifficulty', 'hard',
       'botAccessTier', 'pro', 'botExecutionType', 'CLIENT_WASM')),
-    'public', 'public', null, 'invite_only', null);
+    'public', 'public', null, 'invite_only', null, 'credit');
   if created.replayed then raise exception 'first creation reported as a replay'; end if;
 
   perform pg_temp.act_as_owner();
   select * into room from public.room_live where room_id = created.room_id;
   if room.bot_key <> 'authur_strong' or room.bot_side <> 'B'
      or room.bot_difficulty <> 'super' or room.mode_key <> 'authur_strong'
-     or room.bot_access_tier <> 'free' or room.bot_execution_type <> 'SERVER'
-     or room.bot_config_version <> 1 then
+     or room.bot_access_tier <> 'pro' or room.bot_execution_type <> 'SERVER'
+     or room.bot_config_version <> 2 then
     raise exception 'room did not freeze the catalog config: % % % % % % %',
       room.bot_key, room.bot_side, room.bot_difficulty, room.mode_key,
       room.bot_access_tier, room.bot_execution_type, room.bot_config_version;
@@ -186,21 +190,21 @@ begin
   perform pg_temp.act_as(player);
   begin
     perform * from public.create_bot_game(gen_random_uuid(), 'authur_ultra', 'B', pg_temp.bot_state(),
-      'public', 'public', null, 'invite_only', null);
+      'public', 'public', null, 'invite_only', null, 'credit');
     raise exception 'EXPECTED: unknown bot accepted';
   exception when others then
     if sqlerrm <> 'unknown bot' then raise; end if;
   end;
   begin
     perform * from public.create_bot_game(gen_random_uuid(), 'aether_max', 'B', pg_temp.bot_state(),
-      'public', 'public', null, 'invite_only', null);
+      'public', 'public', null, 'invite_only', null, 'credit');
     raise exception 'EXPECTED: retired Aether accepted';
   exception when others then
     if sqlerrm not like 'bot_closed%' then raise; end if;
   end;
   begin
     perform * from public.create_bot_game(gen_random_uuid(), 'authur_strong', null, pg_temp.bot_state(),
-      'public', 'public', null, 'invite_only', null);
+      'public', 'public', null, 'invite_only', null, 'credit');
     raise exception 'EXPECTED: bot room without a side accepted';
   exception when others then
     if sqlerrm <> 'a bot room must name the side the bot plays' then raise; end if;
@@ -209,7 +213,7 @@ begin
   -- the frozen identity cannot be rewritten afterwards, even by the table owner
   perform pg_temp.act_as_owner();
   begin
-    update public.room_live set bot_access_tier = 'pro' where room_id = created.room_id;
+    update public.room_live set bot_access_tier = 'free' where room_id = created.room_id;
     raise exception 'EXPECTED: bot tier rewritten';
   exception when others then
     if sqlerrm <> 'bot configuration is fixed for the life of a game' then raise; end if;
@@ -240,16 +244,16 @@ begin
   perform pg_temp.act_as(player);
   select * into replay from public.create_bot_game(
     request_one, 'authur_strong', 'B', pg_temp.bot_state(),
-    'public', 'public', null, 'invite_only', null);
+    'public', 'public', null, 'invite_only', null, 'credit');
   if not replay.replayed or replay.room_id <> created.room_id or replay.room_code <> created.room_code then
     raise exception 'replay did not return the same room';
   end if;
   begin
     perform * from public.create_bot_game(request_one, 'aether_super', 'B', pg_temp.bot_state(),
-      'public', 'public', null, 'invite_only', null);
+      'public', 'public', null, 'invite_only', null, 'credit');
     raise exception 'EXPECTED: request id reused for another bot';
   exception when others then
-    if sqlerrm <> 'this creation request id was already used for a different bot' then raise; end if;
+    if sqlerrm not like 'idempotency_conflict:%' then raise; end if;
   end;
   perform pg_temp.act_as_owner();
   select count(*) into n from public.room_live where owner_id = player and bot_key is not null;
@@ -263,7 +267,7 @@ begin
   perform pg_temp.act_as(admin_id);
   select * into replay from public.create_bot_game(
     request_one, 'authur_strong', 'B', pg_temp.bot_state(),
-    'public', 'public', null, 'invite_only', null);
+    'public', 'public', null, 'invite_only', null, 'credit');
   if replay.replayed or replay.room_id = created.room_id then
     raise exception 'a request id was shared across accounts';
   end if;
@@ -281,12 +285,9 @@ begin
     raise exception 'human room was not created as before';
   end if;
 
-  -- ── 7. No quota: many bot rooms in a row all succeed ─────────────────────
+  -- (Phase 3: bot rooms are now funded and limited to 3 active boards; the
+  -- economy suites test that. This suite keeps to catalog security.)
   perform pg_temp.act_as(player);
-  for i in 1..12 loop
-    perform * from public.create_bot_game(gen_random_uuid(), 'authur_strong', 'B', pg_temp.bot_state(),
-      'public', 'public', null, 'invite_only', null);
-  end loop;
 
   -- ── 8. Hard disable ───────────────────────────────────────────────────────
   -- Put the created room on the bot's turn: the human's command hands over.
@@ -314,7 +315,7 @@ begin
   perform pg_temp.act_as(player);
   begin
     perform * from public.create_bot_game(gen_random_uuid(), 'authur_strong', 'B', pg_temp.bot_state(),
-      'public', 'public', null, 'invite_only', null);
+      'public', 'public', null, 'invite_only', null, 'credit');
     raise exception 'EXPECTED: disabled bot accepted a new room';
   exception when others then
     if sqlerrm not like 'bot_disabled:%' then raise; end if;
@@ -369,11 +370,11 @@ begin
     raise exception 'bot command did not commit after re-enable';
   end if;
   perform * from public.create_bot_game(gen_random_uuid(), 'authur_strong', 'B', pg_temp.bot_state(),
-    'public', 'public', null, 'invite_only', null);
+    'public', 'public', null, 'invite_only', null, 'credit');
 
   -- ── 10. Catalog reads and admin edits ─────────────────────────────────────
   select count(*) into n from public.list_bots();
-  if n <> 6 then raise exception 'list_bots returned % rows', n; end if;
+  if n <> 7 then raise exception 'list_bots returned % rows', n; end if;
   begin
     perform * from public.admin_list_bots();
     raise exception 'EXPECTED: player listed admin bot data';
@@ -383,20 +384,20 @@ begin
   perform pg_temp.act_as(admin_id);
   begin
     perform public.admin_upsert_bot('authur_strong', 'Authur', 'aether', 'max', 'aether_max',
-      'SERVER', 'free', true, 10, 'swap engine');
+      'SERVER', 'pro', true, 10, 'swap engine');
     raise exception 'EXPECTED: engine identity of an existing bot changed';
   exception when others then
     if sqlerrm <> 'engine family, difficulty and mode of an existing bot cannot change' then raise; end if;
   end;
   perform public.admin_upsert_bot('authur_strong', 'Authur', 'authur', 'super', 'authur_strong',
-    'SERVER', 'free', true, 10, 'rename only');
+    'SERVER', 'pro', true, 10, 'rename only');
   perform pg_temp.act_as_owner();
-  if (select config_version from public.bot_catalog where bot_key = 'authur_strong') <> 1
-     or (select access_tier_status from public.bot_catalog where bot_key = 'authur_strong') <> 'provisional' then
+  if (select config_version from public.bot_catalog where bot_key = 'authur_strong') <> 2
+     or (select access_tier_status from public.bot_catalog where bot_key = 'authur_strong') <> 'decided' then
     raise exception 'a metadata-only edit changed the version or classification';
   end if;
   -- existing rooms keep the config they were created with
-  if (select bot_config_version from public.room_live where room_id = created.room_id) <> 1 then
+  if (select bot_config_version from public.room_live where room_id = created.room_id) <> 2 then
     raise exception 'room config version changed';
   end if;
 

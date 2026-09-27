@@ -206,7 +206,6 @@ import type { BotResponse } from "./bot/types";
 import * as engineDebug from "./engineDebug";
 import * as engineSessions from "./engineSessions";
 import type { LocalAnalysisContext } from "./engineSessions";
-import { botRecordFromGame, recordBotGame } from "./botStats";
 import { BotStuckNotice } from "./components/game/BotStuckNotice";
 import { BotThinkingCard } from "./components/game/BotThinkingCard";
 import { BotReasoningPanel } from "./components/game/BotReasoningPanel";
@@ -247,7 +246,9 @@ function botNoticeFor(error: unknown): string {
       case "engine_timeout":
         return "การคำนวณของบอทใช้เวลานานเกินกำหนด — ยังไม่เดินหมาก กำลังลองใหม่";
       case "budget_exhausted":
-        return "ใช้โควตาการคำนวณครบแล้ว — ยังไม่เดินหมาก กำลังลองใหม่";
+        // Engine rate limiting — temporary compute capacity, NOT the player's
+        // Pro-Bot allowance, and never described as it.
+        return "ระบบคำนวณของบอทจำกัดความถี่ชั่วคราว — ยังไม่เดินหมาก กำลังลองใหม่อัตโนมัติ";
       case "unauthenticated":
         return "เซสชันหมดอายุ — กรุณาเข้าสู่ระบบใหม่";
       case "unconfigured":
@@ -2838,29 +2839,9 @@ function App() {
       : game?.phase === "refill"
         ? "จั่วไทล์ให้ครบก่อนจึงจะวิเคราะห์ได้"
         : undefined;
-  // When a bot match finishes, append its summary to whichever stat folder the
-  // admin currently has open (the server no-ops if none is open). Only games we
-  // watched go from in-progress → finished this session are recorded, so merely
-  // opening an old finished bot game never re-logs it into a newer folder. The
-  // RPC also upserts by (folder, game) as a second guard against double-counting.
-  const recordedBotGamesRef = useRef<Set<string>>(new Set());
-  const sawLiveBotGameRef = useRef<Set<string>>(new Set());
-  useEffect(() => {
-    if (!game?.botSide) return;
-    if (game.status !== "finished") {
-      sawLiveBotGameRef.current.add(game.gameId);
-      return;
-    }
-    if (!sawLiveBotGameRef.current.has(game.gameId)) return; // loaded, not just played
-    if (recordedBotGamesRef.current.has(game.gameId)) return;
-    const record = botRecordFromGame(game, activeRoomIdRef.current);
-    if (!record) return;
-    recordedBotGamesRef.current.add(game.gameId);
-    void recordBotGame(record).catch(() => {
-      // Best effort: allow a later render to retry if the write failed.
-      recordedBotGamesRef.current.delete(game.gameId);
-    });
-  }, [game?.gameId, game?.botSide, game?.status]);
+  // Finished bot games are recorded into the open stat folder by the server
+  // itself (finalize_live_game), from the room's frozen bot identity. The
+  // client used to report them and no longer does.
   // ── Driving the bot's turn ─────────────────────────────────────────────────
   //
   // What this effect does NOT do is as important as what it does. It does not
@@ -3586,6 +3567,7 @@ function App() {
           game: remoteGame,
         } = await remoteRooms.createRoom(created, userId, session, roomScope, policy, {
           requestId: newSettings.creationRequestId,
+          funding: newSettings.botFunding,
         });
         resetRemoteRoomTracking();
         setRooms((current) => [meta, ...current.filter((room) => room.id !== id)]);

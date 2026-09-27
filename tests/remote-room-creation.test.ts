@@ -52,6 +52,7 @@ describe("remote live-game creation", () => {
         "target_archive_policy",
         "target_bot_key",
         "target_bot_side",
+        "target_funding",
         "target_join_policy",
         "target_private_parent_id",
         "target_region_id",

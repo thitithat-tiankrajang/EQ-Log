@@ -3,6 +3,7 @@ import { useAuth } from "../../auth";
 import {
   listSurvivalLevels,
   listSurvivalAttemptStats,
+  sealStageStart,
   startSurvivalPractice,
   type SurvivalLevel,
 } from "../../features/survival/repository";
@@ -87,6 +88,9 @@ export function SurvivalAdminPanel() {
       })
       .eq("id", level.id);
     if (writeError) throw writeError;
+    // A level is only playable once its starting position is sealed on the
+    // server; approving seals it from the level's own seed.
+    await sealStageStart(level);
     await load();
   }
 
@@ -198,6 +202,24 @@ export function SurvivalAdminPanel() {
                 >
                   เล่นทดสอบ
                 </button>
+                {!level.start_sealed_at && (
+                  <button
+                    className="eq-button eq-button-secondary"
+                    type="button"
+                    disabled={busy !== null}
+                    onClick={() =>
+                      void act(`seal-${level.id}`, async () => {
+                        await sealStageStart(level);
+                        await load();
+                      })
+                    }
+                  >
+                    ยืนยันตำแหน่งเริ่มต้น
+                  </button>
+                )}
+                <span className="eq-status" data-testid={`stage-seal-${level.id}`}>
+                  {level.start_sealed_at ? "ตำแหน่งเริ่มต้นยืนยันแล้ว" : "ยังไม่ยืนยันตำแหน่งเริ่มต้น"}
+                </span>
                 {level.status === "draft" && (
                   <button
                     className="eq-button eq-button-primary"

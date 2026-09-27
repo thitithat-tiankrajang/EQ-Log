@@ -68,6 +68,7 @@ declare
   col text;
   level_id uuid := (select id from public.survival_levels where season_key = 'adversarial');
 begin
+  perform public.economy_post(player, 'probot_credit', 20, 'admin_grant', 'admin_request', 'adv', 'adv:p1:' || player, admin_id, 'adv');
   -- ── A. A human room cannot become a bot room ──────────────────────────────
   perform pg_temp.act_as(player);
   select * into human from public.create_live_game(
@@ -119,7 +120,7 @@ begin
   -- ── B. Direct UPDATEs by the browser role: no privilege at all ────────────
   perform pg_temp.act_as(player);
   select * into bot from public.create_bot_game(gen_random_uuid(), 'authur_strong', 'B',
-    pg_temp.forged_bot_state(), 'public', 'public', null, 'invite_only', null);
+    pg_temp.forged_bot_state(), 'public', 'public', null, 'invite_only', null, 'credit');
   foreach col in array array['bot_key', 'bot_access_tier', 'bot_execution_type',
                              'bot_config_version', 'bot_side', 'bot_difficulty',
                              'mode_key', 'state', 'game_mode'] loop
@@ -141,13 +142,15 @@ begin
   exception when insufficient_privilege then null;
   end;
   -- the configuration RPC cannot move a bot room's mode either
+  -- (the player's seat is kept: vacating a bot room's seat is refused on its own)
   perform public.update_live_game_state(bot.room_id,
-    pg_temp.forged_bot_state() || '{"botEngine":"aether","botDifficulty":"max"}'::jsonb);
+    pg_temp.forged_bot_state() || '{"botEngine":"aether","botDifficulty":"max"}'::jsonb
+      || jsonb_build_object('playerUserIds', jsonb_build_object('A', player::text)));
 
   perform pg_temp.act_as_owner();
   select * into room from public.room_live where room_id = bot.room_id;
   if room.mode_key <> 'authur_strong' or room.bot_difficulty <> 'super'
-     or room.bot_access_tier <> 'free' or room.bot_execution_type <> 'SERVER' then
+     or room.bot_access_tier <> 'pro' or room.bot_execution_type <> 'SERVER' then
     raise exception 'B: bot room identity moved: % % % %',
       room.mode_key, room.bot_difficulty, room.bot_access_tier, room.bot_execution_type;
   end if;
@@ -161,9 +164,9 @@ begin
         'update public.room_live set %I = %s where room_id = %L', col,
         case col
           when 'bot_key' then quote_literal('aether_max')
-          when 'bot_access_tier' then quote_literal('pro')
+          when 'bot_access_tier' then quote_literal('free')
           when 'bot_execution_type' then quote_literal('CLIENT_WASM')
-          when 'bot_config_version' then '2'
+          when 'bot_config_version' then '9'
           when 'bot_side' then quote_literal('A')
           when 'bot_difficulty' then quote_literal('hard')
           else quote_literal('hosted_versus') -- mode_key: any change, even to a human mode
@@ -192,7 +195,19 @@ begin
   end;
   -- human-to-human mode changes still work
   update public.room_live set mode_key = 'hosted_versus' where room_id = human.room_id;
-  -- a direct insert must name a catalog bot, and gets the catalog's config
+  -- Phase 3: service_role may not insert rooms at all (every room is made by
+  -- a creation RPC, which charges it)
+  begin
+    insert into public.room_live (room_id, owner_id, name, player_a, player_b, status,
+      access_scope, archive_policy, join_policy, room_code_hash, game_mode, mode_key,
+      starting_side, state, bot_side, bot_key)
+    values (gen_random_uuid(), player, 'x', 'A', 'B', 'playing', 'public', 'public',
+      'invite_only', 'x', 'versus', 'authur_strong', 'A', '{}', 'B', 'authur_strong');
+    raise exception 'EXPECTED: service_role inserted a room';
+  exception when insufficient_privilege then null;
+  end;
+  -- the table owner's direct insert must name a catalog bot, and gets the catalog's config
+  perform pg_temp.act_as_owner();
   begin
     insert into public.room_live (room_id, owner_id, name, player_a, player_b, status,
       access_scope, archive_policy, join_policy, room_code_hash, game_mode, mode_key,
@@ -201,7 +216,7 @@ begin
     values (gen_random_uuid(), player, 'x', 'A', 'B', 'playing', 'public', 'public',
       'invite_only', 'x', 'versus', 'authur_strong', 'A', 1, 0, 0, pg_temp.forged_bot_state(),
       now(), now(), now(), 'B', 'super');
-    raise exception 'EXPECTED: service_role inserted a bot room without the catalog';
+    raise exception 'EXPECTED: a bot room inserted without the catalog';
   exception when others then
     if sqlerrm not like 'bot_room_requires_catalog%' then raise; end if;
   end;
@@ -212,16 +227,15 @@ begin
   values ('00000000-0000-4000-8000-0000000000f1', player, 'x', 'A', 'B', 'playing', 'public',
     'public', 'invite_only', 'x', 'versus', 'local_versus', 'A', 1, 0, 0, '{}', now(), now(),
     now(), 'B', 'authur_strong', 'hard', 'pro', 'CLIENT_WASM');
-  perform pg_temp.act_as_owner();
   select * into room from public.room_live where room_id = '00000000-0000-4000-8000-0000000000f1';
-  if room.bot_difficulty <> 'super' or room.bot_access_tier <> 'free'
+  if room.bot_difficulty <> 'super' or room.bot_access_tier <> 'pro'
      or room.bot_execution_type <> 'SERVER' or room.mode_key <> 'authur_strong' then
     raise exception 'C: direct insert kept caller-supplied bot config';
   end if;
 
   -- ── D. The table owner: bound by the trigger in normal DML… ───────────────
   begin
-    update public.room_live set bot_access_tier = 'pro' where room_id = bot.room_id;
+    update public.room_live set bot_access_tier = 'free' where room_id = bot.room_id;
     raise exception 'EXPECTED: owner DML rewrote a frozen column';
   exception when others then
     if sqlerrm <> 'bot configuration is fixed for the life of a game' then raise; end if;
@@ -229,8 +243,8 @@ begin
   -- …but NOT against itself disabling the trigger. This is the documented,
   -- trusted maintenance path, asserted here so the claim stays honest.
   alter table public.room_live disable trigger room_live_bot_config_frozen;
-  update public.room_live set bot_access_tier = 'pro' where room_id = bot.room_id;
-  if (select bot_access_tier from public.room_live where room_id = bot.room_id) <> 'pro' then
+  update public.room_live set bot_access_tier = 'free' where room_id = bot.room_id;
+  if (select bot_access_tier from public.room_live where room_id = bot.room_id) <> 'free' then
     raise exception 'D: expected the owner to be able to bypass a disabled trigger';
   end if;
   alter table public.room_live enable trigger room_live_bot_config_frozen;
@@ -248,13 +262,13 @@ declare
 begin
   perform pg_temp.act_as(player);
   select * into bot from public.create_bot_game(gen_random_uuid(), 'authur_strong', 'B',
-    pg_temp.forged_bot_state(), 'public', 'public', null, 'invite_only', null);
+    pg_temp.forged_bot_state(), 'public', 'public', null, 'invite_only', null, 'credit');
   perform pg_temp.act_as(admin_id);
   perform public.admin_upsert_bot('authur_strong', 'Authur', 'authur', 'super', 'authur_strong',
     'HYBRID', 'pro', true, 10, 'adversarial reclassify');
   perform pg_temp.act_as_owner();
   if (select bot_access_tier || '/' || bot_execution_type || '/' || bot_config_version
-        from public.room_live where room_id = bot.room_id) <> 'free/SERVER/1' then
+        from public.room_live where room_id = bot.room_id) <> 'pro/SERVER/2' then
     raise exception 'E: a catalog edit changed an existing room';
   end if;
 

@@ -260,7 +260,8 @@ begin
 
   -- ── No accidental gating of core features ─────────────────────────────────
   if (select array_agg(capability_key order by capability_key) from public.plan_capability_defs)
-     <> array['private_drive_limit', 'stage_plan_ceiling'] then
+     <> array['private_drive_limit', 'probot_allowance_capacity', 'probot_regen_minutes',
+              'probot_weekly_allowance_cap', 'stage_plan_ceiling'] then
     raise exception 'unexpected capability set: %', (select array_agg(capability_key) from public.plan_capability_defs);
   end if;
   -- nothing outside the plan functions reads plans: no existing feature is gated yet
@@ -271,6 +272,8 @@ begin
        and p.proname not in ('plan_effective', 'plan_capability', 'get_my_plan', 'get_my_plan_timeline',
                              'rebuild_plan_timeline', 'write_plan_segment', 'protect_plan_pass',
                              'admin_grant_plan', 'admin_revoke_pass', 'check_plan_capability_value', 'plan_capability_value_ok',
+                             'plan_capability_int', 'plan_epoch_start', 'probot_allowance_at',
+                             'probot_charge', 'probot_status_for',
                              'admin_get_user_plan')) then
     raise exception 'a non-plan function reads plans: %', (
       select string_agg(p.proname, ', ') from pg_proc p
@@ -279,6 +282,8 @@ begin
          and p.proname not in ('plan_effective', 'plan_capability', 'get_my_plan', 'get_my_plan_timeline',
                                'rebuild_plan_timeline', 'write_plan_segment', 'protect_plan_pass',
                                'admin_grant_plan', 'admin_revoke_pass', 'check_plan_capability_value', 'plan_capability_value_ok',
+                             'plan_capability_int', 'plan_epoch_start', 'probot_allowance_at',
+                             'probot_charge', 'probot_status_for',
                                'admin_get_user_plan'));
   end if;
 

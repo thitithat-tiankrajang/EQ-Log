@@ -10,19 +10,26 @@ export type AdminBotRow = {
   engine_family: string;
   difficulty: string;
   mode_key: string;
-  execution_type: "CLIENT_WASM" | "SERVER" | "HYBRID";
+  execution_type: "CLIENT" | "SERVER" | "HYBRID";
   access_tier: "free" | "pro";
   access_tier_status: "provisional" | "decided";
   enabled: boolean;
   new_rooms_allowed: boolean;
+  lifecycle: "active" | "pending" | "retired";
   config_version: number;
   sort_order: number;
   updated_at: string;
   live_rooms: number;
 };
 
+const LIFECYCLE_LABEL: Record<AdminBotRow["lifecycle"], string> = {
+  active: "Active product",
+  pending: "Disabled · awaiting Phase 3b",
+  retired: "Retired · legacy rooms only",
+};
+
 const EXECUTION_LABEL: Record<AdminBotRow["execution_type"], string> = {
-  CLIENT_WASM: "Runs in the browser",
+  CLIENT: "Runs on the player's device",
   SERVER: "Runs on the engine server",
   HYBRID: "Browser or server",
 };
@@ -121,11 +128,12 @@ export function BotCollectionAdminPanel() {
                     {EXECUTION_LABEL[row.execution_type]}
                   </small>
                   <small>
-                    Tier {row.access_tier}
+                    {row.access_tier === "pro" ? "Pro" : "Free"}
                     {row.access_tier_status === "provisional"
                       ? " (provisional default)"
-                      : ""} · {row.new_rooms_allowed ? "open to new games" : "closed to new games"}{" "}
-                    · {row.live_rooms} rooms
+                      : ""} · {LIFECYCLE_LABEL[row.lifecycle]} ·{" "}
+                    {row.new_rooms_allowed ? "open to new games" : "closed to new games"} ·{" "}
+                    {row.live_rooms} rooms
                   </small>
                 </div>
               </div>
@@ -136,7 +144,12 @@ export function BotCollectionAdminPanel() {
                 <button
                   className={`eq-button ${row.enabled ? "eq-button-danger" : "eq-button-primary"}`}
                   type="button"
-                  disabled={busyKey === row.bot_key}
+                  disabled={busyKey === row.bot_key || (row.lifecycle === "pending" && !row.enabled)}
+                  title={
+                    row.lifecycle === "pending" && !row.enabled
+                      ? "Not playable yet (awaiting its client, Phase 3b)"
+                      : undefined
+                  }
                   onClick={() => setPending(row)}
                 >
                   {row.enabled ? (

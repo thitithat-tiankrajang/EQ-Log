@@ -369,6 +369,12 @@ export type NewGameSettings = {
    * lost response returns the same room. Never copied into the game.
    */
   creationRequestId?: string;
+  /**
+   * How a Pro-tier bot room is paid for, chosen by the player. The server
+   * requires it for a Pro bot and refuses it for a free one. Never copied into
+   * the game.
+   */
+  botFunding?: "allowance" | "credit";
   tileDrawMode?: TileDrawMode;
   /**
    * Rack slots a side holds but nobody has identified — see `src/gameplay/facedown.ts`.

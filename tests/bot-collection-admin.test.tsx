@@ -26,6 +26,7 @@ function row(overrides: Partial<AdminBotRow>): AdminBotRow {
     access_tier_status: "provisional",
     enabled: true,
     new_rooms_allowed: true,
+    lifecycle: "active",
     config_version: 1,
     sort_order: 10,
     updated_at: "2026-09-27T00:00:00.000Z",
@@ -50,6 +51,7 @@ describe("Admin Bot Collection", () => {
           engine_family: "aether",
           difficulty: "max",
           new_rooms_allowed: false,
+          lifecycle: "retired",
           live_rooms: 0,
         }),
       ],
@@ -59,9 +61,13 @@ describe("Admin Bot Collection", () => {
 
     const authur = await screen.findByText("Authur");
     const card = authur.closest("article")!;
-    expect(within(card).getByText(/Tier free \(provisional default\)/)).toBeInTheDocument();
+    expect(
+      within(card).getByText(/Free \(provisional default\) · Active product/),
+    ).toBeInTheDocument();
     expect(within(card).getByText("enabled")).toBeInTheDocument();
-    expect(screen.getByText(/closed to new games/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Retired · legacy rooms only · closed to new games/),
+    ).toBeInTheDocument();
     expect(rpc).toHaveBeenCalledWith("admin_list_bots");
   });
 

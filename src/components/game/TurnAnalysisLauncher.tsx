@@ -86,8 +86,8 @@ function messageFor(error: EngineApiError): string {
     case "budget_exhausted": {
       const seconds = Math.ceil((error.detail?.retryAfterMs ?? 0) / 1000);
       return seconds > 0
-        ? `ใช้โควตาการวิเคราะห์ครบแล้ว — ลองใหม่ในอีก ${seconds} วินาที`
-        : "ใช้โควตาการวิเคราะห์ครบแล้ว — ลองใหม่อีกครั้งภายหลัง";
+        ? `ระบบวิเคราะห์จำกัดความถี่ชั่วคราว — ลองใหม่ในอีก ${seconds} วินาที`
+        : "ระบบวิเคราะห์จำกัดความถี่ชั่วคราว — ลองใหม่อีกครั้งภายหลัง";
     }
     case "analysis_in_progress":
       return "มีการวิเคราะห์ที่กำลังทำงานอยู่แล้ว";

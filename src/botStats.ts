@@ -1,13 +1,14 @@
 // Bot-play statistics grouped into admin-controlled "folders" (portfolios).
 //
 // An admin creates folders and keeps exactly one open. While a folder is open,
-// every finished Play-vs-BOT game appends a summary row via record_bot_game.
-// Everything here is a thin wrapper over the Supabase RPCs/tables defined in
-// supabase/bot_stats_migration.sql, plus pure aggregation used by the UI.
+// the SERVER appends a row for every finished bot game (finalize_live_game),
+// taking the bot's identity from the room's frozen columns — the client no
+// longer reports anything. Scores and outcome come from the finished game and
+// are advisory. Only admins can read the data, through admin RPCs; nothing
+// here, and nothing on the server, feeds statistics into the economy.
 
 import { supabase } from "./supabaseClient";
-import type { BotDifficulty, BotEngine, GameState, Side } from "./game";
-import { otherSide } from "./game";
+import type { BotDifficulty, Side } from "./game";
 
 export type BotFolder = {
   id: string;
@@ -29,7 +30,8 @@ export type BotGameRow = {
   playerName: string;
   playerMemberId: string | null;
   botSide: Side;
-  botEngine: BotEngine;
+  botEngine: string;
+  botKey: string | null;
   botDifficulty: BotDifficulty | null;
   botScore: number;
   oppScore: number;
@@ -37,22 +39,8 @@ export type BotGameRow = {
   turns: number;
   finishedAt: string | null;
   createdAt: string;
-};
-
-/** Payload the game screen hands to record_bot_game when a bot match finishes. */
-export type BotGameRecord = {
-  gameId: string;
-  roomId: string | null;
-  playerName: string;
-  playerMemberId: string | null;
-  botSide: Side;
-  botEngine: BotEngine;
-  botDifficulty: BotDifficulty | null;
-  botScore: number;
-  oppScore: number;
-  outcome: BotOutcome;
-  turns: number;
-  finishedAt: string;
+  /** true = recorded by the server from the room; false = legacy client report. */
+  recordedByServer: boolean;
 };
 
 // ---- row mapping -----------------------------------------------------------
@@ -60,7 +48,7 @@ export type BotGameRecord = {
 type FolderRow = {
   id: string;
   name: string;
-  created_by: string | null;
+  created_by?: string | null;
   is_open: boolean;
   created_at: string;
   opened_at: string | null;
@@ -71,7 +59,7 @@ function mapFolder(row: FolderRow): BotFolder {
   return {
     id: row.id,
     name: row.name,
-    createdBy: row.created_by,
+    createdBy: row.created_by ?? null,
     isOpen: row.is_open,
     createdAt: row.created_at,
     openedAt: row.opened_at,
@@ -85,9 +73,11 @@ type GameRow = {
   game_id: string;
   room_id: string | null;
   player_name: string;
-  player_member_id: string | null;
+  player_member_id?: string | null;
   bot_side: Side;
-  bot_engine?: BotEngine;
+  bot_engine?: string;
+  bot_key?: string | null;
+  recorded_by_server?: boolean;
   bot_difficulty: BotDifficulty | null;
   bot_score: number;
   opp_score: number;
@@ -104,9 +94,11 @@ function mapGame(row: GameRow): BotGameRow {
     gameId: row.game_id,
     roomId: row.room_id,
     playerName: row.player_name,
-    playerMemberId: row.player_member_id,
+    playerMemberId: row.player_member_id ?? null,
     botSide: row.bot_side,
     botEngine: row.bot_engine ?? "aether",
+    botKey: row.bot_key ?? null,
+    recordedByServer: row.recorded_by_server === true,
     botDifficulty: row.bot_difficulty,
     botScore: row.bot_score,
     oppScore: row.opp_score,
@@ -117,23 +109,20 @@ function mapGame(row: GameRow): BotGameRow {
   };
 }
 
-// ---- data access -----------------------------------------------------------
+// ---- data access (admin RPCs only) -----------------------------------------
 
-/** True when the bot-stats migration is live; false lets the UI show a hint. */
+/** True when the admin bot-stats RPCs answer for this account. */
 export async function botStatsAvailable(): Promise<boolean> {
   if (!supabase) return false;
-  const { error } = await supabase.from("bot_stat_folders").select("id").limit(1);
+  const { error } = await supabase.rpc("admin_list_bot_stat_folders");
   return !error;
 }
 
 export async function listBotFolders(): Promise<BotFolder[]> {
   if (!supabase) return [];
-  const { data, error } = await supabase
-    .from("bot_stat_folders")
-    .select("*")
-    .order("created_at", { ascending: false });
+  const { data, error } = await supabase.rpc("admin_list_bot_stat_folders");
   if (error) throw error;
-  return (data as FolderRow[]).map(mapFolder);
+  return ((data ?? []) as FolderRow[]).map(mapFolder);
 }
 
 export async function createBotFolder(name: string, open = true): Promise<BotFolder> {
@@ -160,72 +149,17 @@ export async function closeBotFolder(id: string): Promise<void> {
 
 export async function deleteBotFolder(id: string): Promise<void> {
   if (!supabase) return;
-  const { error } = await supabase.from("bot_stat_folders").delete().eq("id", id);
+  const { error } = await supabase.rpc("admin_delete_bot_stat_folder", { target_folder: id });
   if (error) throw error;
 }
 
 export async function loadFolderGames(folderId: string): Promise<BotGameRow[]> {
   if (!supabase) return [];
-  const { data, error } = await supabase
-    .from("bot_stat_games")
-    .select("*")
-    .eq("folder_id", folderId)
-    .order("created_at", { ascending: false });
-  if (error) throw error;
-  return (data as GameRow[]).map(mapGame);
-}
-
-/**
- * Append a finished bot game to whichever folder is currently open. The server
- * resolves the open folder and no-ops when none is open, so this is always safe
- * to fire-and-forget. Returns the folder id it recorded into, or null.
- */
-export async function recordBotGame(record: BotGameRecord): Promise<string | null> {
-  if (!supabase) return null;
-  const { data, error } = await supabase.rpc(record.botEngine === "authur" ? "record_bot_game_v2" : "record_bot_game", {
-    p_game_id: record.gameId,
-    p_room_id: record.roomId,
-    p_player_name: record.playerName,
-    p_player_member_id: record.playerMemberId,
-    p_bot_side: record.botSide,
-    ...(record.botEngine === "authur" ? { p_bot_engine: record.botEngine } : {}),
-    p_bot_difficulty: record.botDifficulty,
-    p_bot_score: record.botScore,
-    p_opp_score: record.oppScore,
-    p_outcome: record.outcome,
-    p_turns: record.turns,
-    p_finished_at: record.finishedAt,
+  const { data, error } = await supabase.rpc("admin_list_bot_stat_games", {
+    target_folder: folderId,
   });
   if (error) throw error;
-  return (data as string | null) ?? null;
-}
-
-/**
- * Build a record payload from a finished bot game, or null when the game is not
- * a finished bot match. "bot" is the engine side; the opponent is the human.
- */
-export function botRecordFromGame(game: GameState, roomId: string | null): BotGameRecord | null {
-  if (!game.botSide || game.status !== "finished") return null;
-  const bot = game.botSide;
-  const human: Side = otherSide(bot);
-  const botScore = game.scores[bot] ?? 0;
-  const oppScore = game.scores[human] ?? 0;
-  const outcome: BotOutcome =
-    botScore === oppScore ? "draw" : botScore > oppScore ? "bot_win" : "bot_loss";
-  return {
-    gameId: game.gameId,
-    roomId,
-    playerName: game.players[human] || "Player",
-    playerMemberId: game.playerMembers?.[human] ?? null,
-    botSide: bot,
-    botEngine: game.botEngine ?? "aether",
-    botDifficulty: game.botDifficulty ?? null,
-    botScore,
-    oppScore,
-    outcome,
-    turns: game.turnNumber,
-    finishedAt: game.lastSavedAt || new Date().toISOString(),
-  };
+  return ((data ?? []) as GameRow[]).map(mapGame);
 }
 
 // ---- aggregation (pure) ----------------------------------------------------

@@ -13,7 +13,13 @@ import type { RoomScope, RoomVisibility } from "./roomScope";
 import { deriveCompletion, deriveModeKey } from "./features/gameRecords/domain";
 import { revisionOf, withRevision } from "./gameSync";
 import { canonicalFromSnapshot, encodeCanonical } from "./domain/projection";
-import { BOT_DISABLED_NOTICE, botKeyFor, isBotDisabledMessage } from "./bot/catalog";
+import {
+  BOT_DISABLED_NOTICE,
+  botKeyFor,
+  economyErrorNotice,
+  isBotDisabledMessage,
+  type BotFunding,
+} from "./bot/catalog";
 
 type ActionMode = "none" | ActionType;
 
@@ -486,7 +492,7 @@ export async function createRoom(
   session: LiveRoomSession,
   scope: RoomScope,
   policy?: CreateRoomPolicy,
-  options?: { requestId?: string },
+  options?: { requestId?: string; funding?: BotFunding },
 ): Promise<{ id: string; meta: RoomMeta; game: GameState }> {
   if (!supabase) throw new Error("Supabase is not configured.");
   const initialGame = assignOwnerToReservedSide(game, ownerId);
@@ -520,6 +526,7 @@ export async function createRoom(
   const { data, error } = initialGame.botSide
     ? await supabase.rpc("create_bot_game", {
         target_request_id: options?.requestId ?? crypto.randomUUID(),
+        target_funding: options?.funding ?? null,
         target_bot_key: botKeyFor(initialGame),
         target_bot_side: initialGame.botSide,
         ...roomArgs,
@@ -541,6 +548,44 @@ export async function createRoom(
   }
   if (roomCode) payload.meta.roomCode = roomCode;
   return { id, meta: payload.meta, game: payload.game };
+}
+
+/**
+ * Start a Stage (Survival) attempt. The server creates the room and its
+ * attempt together, names it, marks it a Stage room and never charges it; the
+ * first position committed here must be the level's sealed start, which the
+ * server checks. `requestId` makes a retry return the same attempt.
+ */
+export async function createStageAttempt(
+  game: GameState,
+  ownerId: string,
+  levelId: string,
+  requestId: string,
+): Promise<{ id: string; attemptId: string | null }> {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const initialGame = assignOwnerToReservedSide(game, ownerId);
+  const { data, error } = await supabase.rpc("create_stage_attempt", {
+    target_request_id: requestId,
+    target_level_id: levelId,
+    target_state: encodeGame(initialGame),
+  });
+  if (error) throw schemaError(error.message);
+  const result = (Array.isArray(data) ? data[0] : data) as {
+    room_id?: string;
+    attempt_id?: string | null;
+  } | null;
+  const id = String(result?.room_id ?? "");
+  if (!id) throw new Error("The Stage attempt was created without a room.");
+  // Commit the level's start. On a replay this is still right: if the first
+  // try never committed it, it lands now; if it did, the server answers
+  // `conflict` (the room is past revision 0) and nothing changes.
+  await commitRoomState({
+    id,
+    game: initialGame,
+    session: emptyLiveSession(ownerId),
+    event: "create",
+  });
+  return { id, attemptId: result?.attempt_id ?? null };
 }
 
 /**
@@ -1052,6 +1097,8 @@ function enqueueRoomWrite<T>(id: string, task: () => Promise<T>): Promise<T> {
 
 function schemaError(message: string): Error {
   if (isBotDisabledMessage(message)) return new Error(BOT_DISABLED_NOTICE);
+  const economy = economyErrorNotice(message);
+  if (economy) return new Error(economy);
   if (/bot_closed:/.test(message)) return new Error("บอทตัวนี้ไม่เปิดให้สร้างเกมใหม่แล้ว");
   if (/bot_room_requires_catalog/.test(message)) {
     return new Error("This version of the app can no longer create bot games. Reload the app.");

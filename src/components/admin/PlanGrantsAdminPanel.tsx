@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Ban, Plus, RefreshCw } from "lucide-react";
+import { Ban, Coins, Plus, RefreshCw } from "lucide-react";
+import type { ProBotStatus } from "../../bot/catalog";
 import { supabase } from "../../supabaseClient";
 import type { Profile } from "../../auth";
 import { SelectControl } from "../ui/SelectControl";
@@ -43,7 +44,29 @@ function when(value: string | null): string {
 }
 
 type Pending =
-  { kind: "grant"; plan: PaidPlan; months: number } | { kind: "revoke"; passId: string };
+  | { kind: "grant"; plan: PaidPlan; months: number }
+  | { kind: "revoke"; passId: string }
+  | { kind: "credits"; amount: number };
+
+/** `admin_get_user_economy`: the user's Pro-Bot status plus recent ledger rows. */
+export type AdminUserEconomy = ProBotStatus & {
+  consumptions: Array<{
+    id: string;
+    room_id: string;
+    bot_key: string;
+    funding: "allowance" | "credit";
+    plan_key_at_use: string;
+    consumed_at: string;
+  }>;
+  credit_entries: Array<{
+    id: string;
+    delta: number;
+    reason: string;
+    note: string;
+    balance_after: number;
+    created_at: string;
+  }>;
+};
 
 /**
  * Administrative plan grants: how EQ Plus and EQ Pro are tested before
@@ -59,6 +82,9 @@ export function PlanGrantsAdminPanel() {
   const [pending, setPending] = useState<Pending | null>(null);
   // One id per intended grant: a double submit or a retry cannot grant twice.
   const [requestId, setRequestId] = useState(() => crypto.randomUUID());
+  const [economy, setEconomy] = useState<AdminUserEconomy | null>(null);
+  const [creditAmount, setCreditAmount] = useState(1);
+  const [creditRequestId, setCreditRequestId] = useState(() => crypto.randomUUID());
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -81,10 +107,17 @@ export function PlanGrantsAdminPanel() {
       return;
     }
     setPlan(data as AdminUserPlan);
+    const { data: economyData, error: economyError } = await supabase.rpc(
+      "admin_get_user_economy",
+      { target_user: target },
+    );
+    if (economyError) setError(economyError.message);
+    else setEconomy(economyData as AdminUserEconomy);
   }
 
   useEffect(() => {
     setPlan(null);
+    setEconomy(null);
     if (userId) void loadPlan(userId);
   }, [userId]);
 
@@ -101,16 +134,24 @@ export function PlanGrantsAdminPanel() {
             target_reason: reason,
             target_request_id: requestId,
           })
-        : await supabase.rpc("admin_revoke_pass", {
-            target_pass: action.passId,
-            target_reason: reason,
-          });
+        : action.kind === "credits"
+          ? await supabase.rpc("admin_grant_credits", {
+              target_user: userId,
+              target_amount: action.amount,
+              target_reason: reason,
+              target_request_id: creditRequestId,
+            })
+          : await supabase.rpc("admin_revoke_pass", {
+              target_pass: action.passId,
+              target_reason: reason,
+            });
     setBusy(false);
     if (actionError) {
       setError(actionError.message);
       return;
     }
     if (action.kind === "grant") setRequestId(crypto.randomUUID());
+    if (action.kind === "credits") setCreditRequestId(crypto.randomUUID());
     await loadPlan(userId);
   }
 
@@ -208,6 +249,52 @@ export function PlanGrantsAdminPanel() {
             ))}
           </ul>
 
+          {economy && (
+            <section aria-labelledby="admin-probot-title" data-testid="admin-probot">
+              <h3 id="admin-probot-title">Pro-Bot</h3>
+              <p>
+                Allowance {economy.allowance.available}/{economy.allowance.capacity} (
+                {economy.allowance.reason}) · week {economy.weekly.used}/{economy.weekly.cap} ·
+                Credits {economy.credits} · boards {economy.boards.active}/
+                {economy.boards.limit ?? "–"}
+              </p>
+              <form
+                className="eq-admin-row-actions"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  setPending({ kind: "credits", amount: creditAmount });
+                }}
+              >
+                <label className="eq-compact-field">
+                  <span>Credits to grant</span>
+                  <input
+                    type="number"
+                    min={1}
+                    value={creditAmount}
+                    onChange={(event) => setCreditAmount(Number(event.target.value))}
+                  />
+                </label>
+                <button className="eq-button eq-button-primary" type="submit" disabled={busy}>
+                  <Coins size={15} /> Grant Credits
+                </button>
+              </form>
+              <ul>
+                {economy.credit_entries.map((entry) => (
+                  <li key={entry.id}>
+                    {entry.delta > 0 ? `+${entry.delta}` : entry.delta} · {entry.reason}
+                    {entry.note ? ` · ${entry.note}` : ""} · balance {entry.balance_after} ·{" "}
+                    {when(entry.created_at)}
+                  </li>
+                ))}
+                {economy.consumptions.map((c) => (
+                  <li key={c.id}>
+                    {c.bot_key} · {c.funding} · {c.plan_key_at_use} · {when(c.consumed_at)}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           <h3>Pass facts</h3>
           <div className="eq-admin-users">
             {plan.passes.map((p) => (
@@ -249,11 +336,19 @@ export function PlanGrantsAdminPanel() {
         title={
           pending?.kind === "grant"
             ? `Grant ${pending.months} month(s) of ${PLAN_LABEL[pending.plan]}?`
-            : "Revoke this pass?"
+            : pending?.kind === "credits"
+              ? `Grant ${pending.amount} Pro-Bot Credit(s)?`
+              : "Revoke this pass?"
         }
         label="Reason (kept with the pass)"
         initialValue=""
-        submitLabel={pending?.kind === "grant" ? "Grant" : "Revoke"}
+        submitLabel={
+          pending?.kind === "grant"
+            ? "Grant"
+            : pending?.kind === "credits"
+              ? "Grant Credits"
+              : "Revoke"
+        }
         onCancel={() => setPending(null)}
         onSubmit={(reason) => {
           const action = pending;

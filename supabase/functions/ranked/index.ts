@@ -267,6 +267,20 @@ Deno.serve(async (request) => {
     }
     return respond({ error: "Unknown operation." }, 400);
   } catch (error) {
+    // The active-board limit is enforced by the database on ranked_matches
+    // (it counts Ranked alongside every other seated board). Say so plainly.
+    const message = (error as { message?: unknown } | null)?.message;
+    if (typeof message === "string" && message.includes("active_board_limit:")) {
+      return respond(
+        {
+          error: message.includes("a seated player")
+            ? "The other player already has the maximum number of active boards."
+            : "You already have the maximum number of active boards. Finish or cancel one first.",
+          code: "active_board_limit",
+        },
+        409,
+      );
+    }
     return respond(
       { error: error instanceof Error ? error.message : "Ranked request failed." },
       400,

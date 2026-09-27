@@ -1,6 +1,7 @@
 import { supabase } from "../../supabaseClient";
 import * as remoteRooms from "../../remoteRooms";
 import { isEngineApiConfigured } from "../../bot/engineApi";
+import { canonicalFromSnapshot, encodeCanonical } from "../../domain/projection";
 import { createSurvivalTestGame } from "./seededGame";
 
 export type SurvivalLevel = {
@@ -33,7 +34,45 @@ export type SurvivalLevel = {
   }>;
   status: "draft" | "approved";
   admin_note: string;
+  /** When an admin sealed the level's starting position; null = not playable. */
+  start_sealed_at?: string | null;
 };
+
+/**
+ * The starting position a Stage attempt at this seed must begin from, in the
+ * canonical wire form the server compares against. Built by the same code
+ * that builds the attempt (`createSurvivalTestGame`), so a sealed start and a
+ * real attempt's first commit are the same bytes. Player name and account do
+ * not affect it.
+ */
+export function stageStartCanonical(seed: number) {
+  const canonical = encodeCanonical(
+    canonicalFromSnapshot(createSurvivalTestGame(seed, "Player"), 1),
+  ) as {
+    inventory: unknown[];
+    scores: { A: number; B: number };
+    activeSide: string;
+    turnNumber: number;
+    startingSide: string;
+  };
+  return {
+    inventory: canonical.inventory,
+    scores: canonical.scores,
+    activeSide: canonical.activeSide,
+    turnNumber: canonical.turnNumber,
+    startingSide: canonical.startingSide,
+  };
+}
+
+/** Admin: seal a level's starting position so attempts can be created. */
+export async function sealStageStart(level: Pick<SurvivalLevel, "id" | "seed">): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.rpc("admin_seal_stage_start", {
+    target_level: level.id,
+    target_start: stageStartCanonical(level.seed),
+  });
+  if (error) throw error;
+}
 
 export async function listSurvivalLevels(): Promise<SurvivalLevel[]> {
   if (!supabase) return [];
@@ -53,26 +92,16 @@ export async function startSurvivalPractice(
   level: Pick<SurvivalLevel, "id" | "seed">,
   playerName: string,
   userId: string | null,
+  requestId: string = crypto.randomUUID(),
 ): Promise<string> {
   const game = createSurvivalTestGame(level.seed, playerName, userId ?? undefined);
-  const scope = { visibility: "public" as const, regionId: null };
   if (!supabase || !isEngineApiConfigured)
     throw new Error("Survival ต้องใช้เซิร์ฟเวอร์เกมที่เชื่อมต่ออยู่");
   if (!userId) throw new Error("เข้าสู่ระบบก่อนเริ่มด่าน");
-  const result = await remoteRooms.createRoom(
-    game,
-    userId,
-    remoteRooms.emptyLiveSession(userId),
-    scope,
-    { accessScope: "private", archivePolicy: "none", joinPolicy: "invite_only", regionId: null },
-  );
-  const { error } = await supabase.from("survival_attempts").insert({
-    level_id: level.id,
-    room_id: result.id,
-    player_id: userId,
-  });
-  if (error) throw error;
-  return result.id;
+  // The server creates the room AND its attempt, marks it a Stage room (never
+  // charged), and checks the first position against the level's sealed start.
+  const { id } = await remoteRooms.createStageAttempt(game, userId, level.id, requestId);
+  return id;
 }
 
 export async function recordSurvivalPracticeResult(

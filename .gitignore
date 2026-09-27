@@ -66,3 +66,9 @@ supabase/tests/*
 !supabase/tests/plan_timeline_race.sh
 !supabase/tests/plan_bot_privileges_smoke.sql
 !supabase/tests/multiverse_timeline_smoke.sql
+!supabase/tests/probot_economy_smoke.sql
+!supabase/tests/active_boards_smoke.sql
+!supabase/tests/stage_attempt_smoke.sql
+!supabase/tests/phase3_adversarial_smoke.sql
+!supabase/tests/phase3_race.sh
+!supabase/tests/phase3_mutation.sh
