@@ -3,6 +3,7 @@ import {
   Ban,
   BookOpen,
   Bot,
+  CreditCard,
   Check,
   MapPin,
   Pencil,
@@ -22,6 +23,7 @@ import { ConfirmSheet, TextPromptSheet } from "./components/ui/Sheet";
 import { SelectControl } from "./components/ui/SelectControl";
 import { SurvivalAdminPanel } from "./components/admin/SurvivalAdminPanel";
 import { BotCollectionAdminPanel } from "./components/admin/BotCollectionAdminPanel";
+import { PlanGrantsAdminPanel } from "./components/admin/PlanGrantsAdminPanel";
 
 // Admin-only development tools; loaded only when an administrator opens them.
 const BoardLabeler = lazy(() => import("./components/admin/BoardLabeler"));
@@ -170,7 +172,9 @@ export function AdminPage({ section }: { section: AdminSection }) {
                 ? "Study puzzles"
                 : section === "bots"
                   ? "Bot collection"
-                  : "Vision dataset"
+                  : section === "plans"
+                    ? "Plans"
+                    : "Vision dataset"
       }
       description={
         section === "users"
@@ -183,7 +187,9 @@ export function AdminPage({ section }: { section: AdminSection }) {
                 ? "สร้างโจทย์ Find Best Play จากกระดานจริง แล้วเก็บทุกชุดไว้ในคลัง"
                 : section === "bots"
                   ? "Every bot a room can play against. Disabling one stops new games and pauses the bot in existing games until it is enabled again."
-                  : "Board Labeler: hand-label real board photos (tile / empty / unsure) for board-vision evaluation. Stays in this browser until exported."
+                  : section === "plans"
+                    ? "Grant EQ Plus or EQ Pro months for testing before payments exist. Not a trial: every grant is an audited, zero-price pass."
+                    : "Board Labeler: hand-label real board photos (tile / empty / unsure) for board-vision evaluation. Stays in this browser until exported."
       }
       actions={<AccountChip />}
       onBack={() => navigate({ kind: "home", visibility: "public", section: "rooms" })}
@@ -204,6 +210,8 @@ export function AdminPage({ section }: { section: AdminSection }) {
 
       {section === "bots" ? (
         <BotCollectionAdminPanel />
+      ) : section === "plans" ? (
+        <PlanGrantsAdminPanel />
       ) : section === "survival" ? (
         <SurvivalAdminPanel />
       ) : section === "study" ? (
@@ -333,6 +341,13 @@ function AdminNavigation({ active }: { active: AdminSection }) {
         aria-current={active === "bots" ? "page" : undefined}
       >
         <Bot size={17} /> Bots
+      </a>
+      <a
+        className={active === "plans" ? "is-active" : ""}
+        href="#/admin/plans"
+        aria-current={active === "plans" ? "page" : undefined}
+      >
+        <CreditCard size={17} /> Plans
       </a>
     </nav>
   );

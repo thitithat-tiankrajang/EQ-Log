@@ -61,4 +61,8 @@ supabase/tests/*
 !supabase/tests/bot_catalog_smoke.sql
 !supabase/tests/bot_catalog_adversarial_smoke.sql
 !supabase/tests/bot_catalog_race.sh
+!supabase/tests/plan_timeline_smoke.sql
+!supabase/tests/plan_timeline_adversarial_smoke.sql
+!supabase/tests/plan_timeline_race.sh
+!supabase/tests/plan_bot_privileges_smoke.sql
 !supabase/tests/multiverse_timeline_smoke.sql

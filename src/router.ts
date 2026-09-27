@@ -23,7 +23,7 @@ export type Route =
   | { kind: "play"; roomId: string; returnTo?: ReturnDestination };
 
 export type LobbySection = "live" | "history" | "rooms" | "members" | "stats";
-export type AdminSection = "users" | "regions" | "vision" | "survival" | "study" | "bots";
+export type AdminSection = "users" | "regions" | "vision" | "survival" | "study" | "bots" | "plans";
 export type ReturnDestination =
   | { kind: "home"; visibility: RoomVisibility; section: "live" | "history" }
   | { kind: "private"; folderId: string | null; trash?: boolean };
@@ -83,7 +83,8 @@ export function parseHash(hash: string): Route {
       segments[1] === "vision" ||
       segments[1] === "survival" ||
       segments[1] === "study" ||
-      segments[1] === "bots"
+      segments[1] === "bots" ||
+      segments[1] === "plans"
         ? segments[1]
         : "users";
     return { kind: "admin", section };
