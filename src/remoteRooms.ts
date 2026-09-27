@@ -13,6 +13,7 @@ import type { RoomScope, RoomVisibility } from "./roomScope";
 import { deriveCompletion, deriveModeKey } from "./features/gameRecords/domain";
 import { revisionOf, withRevision } from "./gameSync";
 import { canonicalFromSnapshot, encodeCanonical } from "./domain/projection";
+import { BOT_DISABLED_NOTICE, botKeyFor, isBotDisabledMessage } from "./bot/catalog";
 
 type ActionMode = "none" | ActionType;
 
@@ -485,21 +486,10 @@ export async function createRoom(
   session: LiveRoomSession,
   scope: RoomScope,
   policy?: CreateRoomPolicy,
+  options?: { requestId?: string },
 ): Promise<{ id: string; meta: RoomMeta; game: GameState }> {
   if (!supabase) throw new Error("Supabase is not configured.");
   const initialGame = assignOwnerToReservedSide(game, ownerId);
-  if (initialGame.botEngine === "authur") {
-    // An older database derives aether_super from every bot room. Refuse to
-    // create a mislabeled Authur game before any room is written.
-    const { data: modeKey, error: modeError } = await supabase.rpc("mode_key_from_state", {
-      target_state: encodeGame(initialGame),
-    });
-    if (modeError || modeKey !== "authur_strong") {
-      throw new Error(
-        "Authur is not enabled in this database. Run supabase/authur_bot_migration.sql.",
-      );
-    }
-  }
   const resolvedPolicy: CreateRoomPolicy =
     policy ??
     (scope.visibility === "region"
@@ -515,14 +505,26 @@ export async function createRoom(
           joinPolicy: hasAssignedPlayers(game) ? "invite_only" : "open",
           regionId: null,
         });
-  const { data, error } = await supabase.rpc("create_live_game", {
+  const roomArgs = {
     target_state: encodeGame(initialGame),
     target_access_scope: resolvedPolicy.accessScope,
     target_archive_policy: resolvedPolicy.archivePolicy,
     target_region_id: resolvedPolicy.regionId,
     target_join_policy: resolvedPolicy.joinPolicy,
     target_private_parent_id: resolvedPolicy.privateParentId ?? null,
-  });
+  };
+  // A bot room names its bot by catalog key and nothing else: the server copies
+  // the engine, strength and tier from `bot_catalog` and overwrites the bot
+  // fields in the state. The request id makes a retry of the same confirmation
+  // return the room it already made instead of a second one.
+  const { data, error } = initialGame.botSide
+    ? await supabase.rpc("create_bot_game", {
+        target_request_id: options?.requestId ?? crypto.randomUUID(),
+        target_bot_key: botKeyFor(initialGame),
+        target_bot_side: initialGame.botSide,
+        ...roomArgs,
+      })
+    : await supabase.rpc("create_live_game", roomArgs);
   if (error) throw schemaError(error.message);
   const result = Array.isArray(data) ? data[0] : data;
   const id = String((result as { room_id?: unknown } | null)?.room_id ?? "");
@@ -1049,6 +1051,19 @@ function enqueueRoomWrite<T>(id: string, task: () => Promise<T>): Promise<T> {
 }
 
 function schemaError(message: string): Error {
+  if (isBotDisabledMessage(message)) return new Error(BOT_DISABLED_NOTICE);
+  if (/bot_closed:/.test(message)) return new Error("บอทตัวนี้ไม่เปิดให้สร้างเกมใหม่แล้ว");
+  if (/bot_room_requires_catalog/.test(message)) {
+    return new Error("This version of the app can no longer create bot games. Reload the app.");
+  }
+  if (
+    /create_bot_game/i.test(message) &&
+    /does not exist|schema cache|PGRST20|42883/i.test(message)
+  ) {
+    return new Error(
+      "Bot rooms need an upgrade. Apply supabase/migrations/20260927120000_bot_catalog.sql.",
+    );
+  }
   // The conditional commit path is the only write path. A deployment without
   // it cannot order concurrent moves, so say exactly what is missing rather
   // than falling back to a write that could overwrite a committed turn.

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { encodeGame } from "../src/codec";
 import { DEFAULT_NEW_GAME_SETTINGS } from "../src/constants/roomDefaults";
 import { createNewGame } from "../src/game";
+import { BOT_DISABLED_NOTICE } from "../src/bot/catalog";
 
 const { from, rpc } = vi.hoisted(() => ({
   from: vi.fn(),
@@ -21,7 +22,8 @@ describe("remote live-game creation", () => {
     rpc.mockReset();
   });
 
-  it("refuses an Authur room before creation when the database still labels bots Aether", async () => {
+  it("creates a bot room by catalog key and request id only, never by client bot config", async () => {
+    const ownerId = "11111111-1111-4111-8111-111111111111";
     const game = createNewGame({
       ...DEFAULT_NEW_GAME_SETTINGS,
       playerB: "Authur",
@@ -30,14 +32,114 @@ describe("remote live-game creation", () => {
       botDifficulty: "super",
       tileDrawMode: "play",
     });
-    rpc.mockResolvedValue({ data: "aether_super", error: null });
+    rpc.mockResolvedValue({ data: null, error: { message: "stop after creation" } });
+    await expect(
+      createRoom(
+        game,
+        ownerId,
+        emptyLiveSession(ownerId),
+        { visibility: "public", regionId: null },
+        undefined,
+        { requestId: "22222222-2222-4222-8222-222222222222" },
+      ),
+    ).rejects.toThrow("stop after creation");
+
+    expect(rpc.mock.calls.map(([name]) => name)).toEqual(["create_bot_game"]);
+    const args = rpc.mock.calls[0]![1] as Record<string, unknown>;
+    expect(Object.keys(args).sort()).toEqual(
+      [
+        "target_access_scope",
+        "target_archive_policy",
+        "target_bot_key",
+        "target_bot_side",
+        "target_join_policy",
+        "target_private_parent_id",
+        "target_region_id",
+        "target_request_id",
+        "target_state",
+      ].sort(),
+    );
+    expect(args.target_bot_key).toBe("authur_strong");
+    expect(args.target_bot_side).toBe("B");
+    expect(args.target_request_id).toBe("22222222-2222-4222-8222-222222222222");
+  });
+
+  it("sends the same request id on a retry of the same creation", async () => {
+    const game = createNewGame({
+      ...DEFAULT_NEW_GAME_SETTINGS,
+      botSide: "B",
+      botEngine: "authur",
+      botDifficulty: "super",
+      tileDrawMode: "play",
+    });
+    rpc.mockResolvedValue({ data: null, error: { message: "network" } });
+    const requestId = "33333333-3333-4333-8333-333333333333";
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await expect(
+        createRoom(
+          game,
+          "11111111-1111-4111-8111-111111111111",
+          emptyLiveSession(null),
+          { visibility: "public", regionId: null },
+          undefined,
+          { requestId },
+        ),
+      ).rejects.toThrow();
+    }
+    expect(
+      rpc.mock.calls.map(([, args]) => (args as { target_request_id: string }).target_request_id),
+    ).toEqual([requestId, requestId]);
+  });
+
+  it("keeps human rooms on create_live_game with no bot arguments", async () => {
+    const game = createNewGame({ ...DEFAULT_NEW_GAME_SETTINGS, tileDrawMode: "play" });
+    rpc.mockResolvedValue({ data: null, error: { message: "stop after creation" } });
     await expect(
       createRoom(game, "11111111-1111-4111-8111-111111111111", emptyLiveSession(null), {
         visibility: "public",
         regionId: null,
       }),
-    ).rejects.toThrow("authur_bot_migration.sql");
-    expect(rpc.mock.calls.map(([name]) => name)).toEqual(["mode_key_from_state"]);
+    ).rejects.toThrow("stop after creation");
+    expect(rpc.mock.calls.map(([name]) => name)).toEqual(["create_live_game"]);
+    const args = rpc.mock.calls[0]![1] as Record<string, unknown>;
+    expect(args).not.toHaveProperty("target_bot_key");
+    expect(args).not.toHaveProperty("target_request_id");
+  });
+
+  it("says a bot is disabled, not that creation failed", async () => {
+    const game = createNewGame({
+      ...DEFAULT_NEW_GAME_SETTINGS,
+      botSide: "B",
+      botEngine: "authur",
+      botDifficulty: "super",
+      tileDrawMode: "play",
+    });
+    rpc.mockResolvedValue({
+      data: null,
+      error: { message: "bot_disabled: Authur has been disabled by an administrator." },
+    });
+    await expect(
+      createRoom(game, "11111111-1111-4111-8111-111111111111", emptyLiveSession(null), {
+        visibility: "public",
+        regionId: null,
+      }),
+    ).rejects.toThrow(BOT_DISABLED_NOTICE);
+  });
+
+  it("tells an out-of-date client to reload when the old path refuses a bot room", async () => {
+    const game = createNewGame({ ...DEFAULT_NEW_GAME_SETTINGS, tileDrawMode: "play" });
+    rpc.mockResolvedValue({
+      data: null,
+      error: {
+        message: "bot_room_requires_catalog: bot rooms must be created with create_bot_game",
+      },
+    });
+    await expect(
+      createRoom(game, "11111111-1111-4111-8111-111111111111", emptyLiveSession(null), {
+        visibility: "public",
+        regionId: null,
+      }),
+    ).rejects.toThrow(/Reload the app/);
   });
 
   it("persists an Aether room's initial state and session atomically before reading it", async () => {
@@ -56,8 +158,11 @@ describe("remote live-game creation", () => {
     let synced = false;
 
     rpc.mockImplementation(async (name: string) => {
-      if (name === "create_live_game") {
-        return { data: { room_id: roomId, room_code: "AETHER123456" }, error: null };
+      if (name === "create_bot_game") {
+        return {
+          data: [{ room_id: roomId, room_code: "AETHER123456", replayed: false }],
+          error: null,
+        };
       }
       if (name === "commit_live_game_command") {
         synced = true;
@@ -122,7 +227,7 @@ describe("remote live-game creation", () => {
     });
 
     expect(rpc.mock.calls.map(([name]) => name)).toEqual([
-      "create_live_game",
+      "create_bot_game",
       "commit_live_game_command",
       "get_live_game_code",
     ]);

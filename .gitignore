@@ -58,4 +58,7 @@ supabase/tests/*
 !supabase/tests/live_game_sync_smoke.sql
 !supabase/tests/canonical_revision_smoke.sql
 !supabase/tests/room_live_access_contract_smoke.sql
+!supabase/tests/bot_catalog_smoke.sql
+!supabase/tests/bot_catalog_adversarial_smoke.sql
+!supabase/tests/bot_catalog_race.sh
 !supabase/tests/multiverse_timeline_smoke.sql

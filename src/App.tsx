@@ -194,6 +194,7 @@ import {
   warmUpBotEngine,
 } from "./bot/botController";
 import { EngineApiError, isEngineApiConfigured, type BotMoveResult } from "./bot/engineApi";
+import { BOT_DISABLED_NOTICE } from "./bot/catalog";
 import { clientSuperReadiness, type ClientSuperReadiness } from "./bot/clientSuper";
 import { planSuperThreads, readThreadEnvironment } from "./bot/superThreads";
 import {
@@ -251,6 +252,8 @@ function botNoticeFor(error: unknown): string {
         return "เซสชันหมดอายุ — กรุณาเข้าสู่ระบบใหม่";
       case "unconfigured":
         return "ระบบบอทยังไม่ได้เปิดใช้งานในเซิร์ฟเวอร์นี้";
+      case "bot_disabled":
+        return BOT_DISABLED_NOTICE;
       default:
         return "บอทคำนวณตานี้ไม่สำเร็จ — ยังไม่เดินหมาก กำลังลองใหม่";
     }
@@ -2954,7 +2957,11 @@ function App() {
             setBotNotice("กระดานบนเซิร์ฟเวอร์เปลี่ยนไปแล้ว — กำลังรอข้อมูลล่าสุด");
             return;
           }
-          setBotFailures((count) => count + 1);
+          // A disabled bot is not a malfunction: counting it would soon offer the
+          // "take over the bot's move" escape, which the server refuses anyway
+          // while the bot is off. The notice says why, and the slow re-check
+          // resumes the room by itself once an administrator re-enables it.
+          if (error.code !== "bot_disabled") setBotFailures((count) => count + 1);
           if (!isRetryableBotFailure(error)) return;
 
           // NOTHING here ends the turn. A pass is a scoring, irreversible move,
@@ -3577,7 +3584,9 @@ function App() {
           id,
           meta,
           game: remoteGame,
-        } = await remoteRooms.createRoom(created, userId, session, roomScope, policy);
+        } = await remoteRooms.createRoom(created, userId, session, roomScope, policy, {
+          requestId: newSettings.creationRequestId,
+        });
         resetRemoteRoomTracking();
         setRooms((current) => [meta, ...current.filter((room) => room.id !== id)]);
         setActiveRoomId(id);

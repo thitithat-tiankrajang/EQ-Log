@@ -2,6 +2,7 @@ import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import {
   Ban,
   BookOpen,
+  Bot,
   Check,
   MapPin,
   Pencil,
@@ -20,6 +21,7 @@ import { ApplicationShell } from "./app/shells/ApplicationShell";
 import { ConfirmSheet, TextPromptSheet } from "./components/ui/Sheet";
 import { SelectControl } from "./components/ui/SelectControl";
 import { SurvivalAdminPanel } from "./components/admin/SurvivalAdminPanel";
+import { BotCollectionAdminPanel } from "./components/admin/BotCollectionAdminPanel";
 
 // Admin-only development tools; loaded only when an administrator opens them.
 const BoardLabeler = lazy(() => import("./components/admin/BoardLabeler"));
@@ -166,7 +168,9 @@ export function AdminPage({ section }: { section: AdminSection }) {
               ? "Survival levels"
               : section === "study"
                 ? "Study puzzles"
-                : "Vision dataset"
+                : section === "bots"
+                  ? "Bot collection"
+                  : "Vision dataset"
       }
       description={
         section === "users"
@@ -177,7 +181,9 @@ export function AdminPage({ section }: { section: AdminSection }) {
               ? "ทดสอบ วัดผล และอนุมัติด่านก่อนเปิดให้เล่น"
               : section === "study"
                 ? "สร้างโจทย์ Find Best Play จากกระดานจริง แล้วเก็บทุกชุดไว้ในคลัง"
-                : "Board Labeler: hand-label real board photos (tile / empty / unsure) for board-vision evaluation. Stays in this browser until exported."
+                : section === "bots"
+                  ? "Every bot a room can play against. Disabling one stops new games and pauses the bot in existing games until it is enabled again."
+                  : "Board Labeler: hand-label real board photos (tile / empty / unsure) for board-vision evaluation. Stays in this browser until exported."
       }
       actions={<AccountChip />}
       onBack={() => navigate({ kind: "home", visibility: "public", section: "rooms" })}
@@ -196,7 +202,9 @@ export function AdminPage({ section }: { section: AdminSection }) {
         </div>
       )}
 
-      {section === "survival" ? (
+      {section === "bots" ? (
+        <BotCollectionAdminPanel />
+      ) : section === "survival" ? (
         <SurvivalAdminPanel />
       ) : section === "study" ? (
         <Suspense
@@ -318,6 +326,13 @@ function AdminNavigation({ active }: { active: AdminSection }) {
         aria-current={active === "study" ? "page" : undefined}
       >
         <BookOpen size={17} /> Study puzzles
+      </a>
+      <a
+        className={active === "bots" ? "is-active" : ""}
+        href="#/admin/bots"
+        aria-current={active === "bots" ? "page" : undefined}
+      >
+        <Bot size={17} /> Bots
       </a>
     </nav>
   );

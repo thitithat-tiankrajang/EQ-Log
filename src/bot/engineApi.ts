@@ -21,6 +21,7 @@
 // error string cannot carry that.
 
 import * as engineTrace from "../engineTrace";
+import { isBotDisabledMessage } from "./catalog";
 import { supabase } from "../supabaseClient";
 
 export const ANALYSIS_LEVELS = ["quick", "normal", "deep", "max", "stage5b64"] as const;
@@ -60,16 +61,24 @@ export type EngineErrorCode =
   | "analysis_unavailable"
   | "cancelled"
   | "offline"
+  | "bot_disabled"
   | "internal";
 
 export class EngineApiError extends Error {
+  readonly code: EngineErrorCode;
+
   constructor(
-    readonly code: EngineErrorCode,
+    code: EngineErrorCode,
     message: string,
     readonly detail?: { currentRevision?: number; retryAfterMs?: number },
   ) {
     super(message);
     this.name = "EngineApiError";
+    // The database refuses a turn for a disabled bot with a `bot_disabled:`
+    // message, and the engine service forwards it inside a generic `forbidden`.
+    // Recognising it here, once, is what lets every path — attach, start,
+    // discovery — show the real reason instead of an engine failure.
+    this.code = isBotDisabledMessage(message) ? "bot_disabled" : code;
   }
 }
 

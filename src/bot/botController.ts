@@ -125,7 +125,16 @@ const BOT_RETRY_HONOURED_MAX_MS = 60_000;
  * how a refusal that resolves itself in six seconds turned into a retry at 1.5s
  * that failed again, and again, with an error on screen the whole time.
  */
+/**
+ * A disabled bot is not a failure that fixes itself in seconds, but it is not
+ * permanent either: an administrator can re-enable it, and the room continues
+ * from where it stopped. Checking again at this pace notices that without
+ * hammering the server while the bot stays off.
+ */
+export const BOT_DISABLED_RECHECK_MS = 20_000;
+
 export function botRetryDelay(error: unknown, tries: number): number {
+  if (error instanceof EngineApiError && error.code === "bot_disabled") return BOT_DISABLED_RECHECK_MS;
   const stated = error instanceof EngineApiError ? error.detail?.retryAfterMs : undefined;
   if (typeof stated === "number" && stated > 0 && stated <= BOT_RETRY_HONOURED_MAX_MS) {
     // A small margin: retrying on the exact millisecond the window rolls over

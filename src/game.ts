@@ -363,6 +363,12 @@ export type NewGameSettings = {
   botSide?: Side;
   botEngine?: BotEngine;
   botDifficulty?: BotDifficulty;
+  /**
+   * One id per confirmed "create this room" intent. A bot room is created
+   * idempotently on it (`create_bot_game`), so a double click or a retry after a
+   * lost response returns the same room. Never copied into the game.
+   */
+  creationRequestId?: string;
   tileDrawMode?: TileDrawMode;
   /**
    * Rack slots a side holds but nobody has identified — see `src/gameplay/facedown.ts`.

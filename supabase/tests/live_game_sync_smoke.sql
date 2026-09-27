@@ -107,14 +107,19 @@ begin
     true
   );
 
+  -- Bot rooms are created through the catalog (bot_catalog migration); Aether
+  -- is retired for new rooms, so this uses Authur.
   select * into bot_room
-  from public.create_live_game(
+  from public.create_bot_game(
+    gen_random_uuid(),
+    'authur_strong',
+    'B',
     jsonb_build_object(
       'gameId', gen_random_uuid(),
       'name', 'Bot sync smoke test',
       'gameMode', 'versus',
       'roomStage', 'playing',
-      'players', jsonb_build_object('A', 'Sync Owner', 'B', 'Aether'),
+      'players', jsonb_build_object('A', 'Sync Owner', 'B', 'Authur'),
       'playerUserIds', jsonb_build_object('A', owner_id),
       'botSide', 'B',
       'botDifficulty', 'medium',

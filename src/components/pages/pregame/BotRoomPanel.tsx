@@ -64,6 +64,10 @@ export function BotRoomPanel({
   const [nameTouched, setNameTouched] = useState(false);
   const [startingSide, setStartingSide] = useState<Side>("A");
   const [difficulty, setDifficulty] = useState<BotDifficulty>("max");
+  // Minted once per visit to this panel: every submit from it is the same
+  // creation intent, so a second click, or a retry after an error whose room
+  // was in fact made, gets that room back instead of a second one.
+  const [creationRequestId] = useState(() => crypto.randomUUID());
   const trimmedPlayerName = playerName.trim();
   const selectedDifficulty = useMemo(
     () => DIFFICULTY_OPTIONS.find((option) => option.value === difficulty)!,
@@ -92,6 +96,7 @@ export function BotRoomPanel({
           botSide: "B",
           botEngine: engine,
           botDifficulty: engine === "authur" ? "super" : difficulty,
+          creationRequestId,
           // Always auto-draw, and no longer a choice.
           //
           // Hand-picking the draws meant the HUMAN drew tiles for the bot's
