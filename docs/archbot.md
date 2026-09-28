@@ -117,6 +117,18 @@ determinism layer, ArchBot's arithmetic is plain IEEE-754 double operations that
 JavaScript specifies exactly, so they are expected to match — but that is an
 expectation, not a measurement.
 
+### Running the gate
+
+| Gate                          | Command                                                     |
+| ----------------------------- | ----------------------------------------------------------- |
+| ordinary unit suite           | `npm test` (excludes the two gate files below)              |
+| Node parity + determinism     | `npm run test:archbot-parity` (`vitest.archbot.config.ts`)  |
+| Chromium parity and benchmark | `npx playwright test --config playwright.archbot.config.ts` |
+
+The Node gate runs ninety seconds of full-strength searches, so it is its own
+command: inside `npm test` it starved unrelated timing-sensitive UI tests.
+`npm run check` and CI run it after the ordinary suite, never beside it.
+
 ## Architecture
 
 ```
