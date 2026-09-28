@@ -38,6 +38,15 @@ export const SERVER_ERROR_CODES = [
   "ranked_own_room",
   "ranked_stakes_changed",
   "ranked_stakes_required",
+  // Refusals the Ranked Edge Function makes itself.
+  "sign_in_required",
+  "ranked_invalid_request",
+  "ranked_already_waiting",
+  "ranked_not_a_player",
+  "ranked_match_started",
+  "ranked_cannot_ready",
+  "ranked_position_changed",
+  "ranked_request_failed",
 ] as const;
 
 export type ServerErrorCode = (typeof SERVER_ERROR_CODES)[number];

@@ -108,9 +108,10 @@ describe("the Ranked authority in the database", () => {
     expect(topLevel).not.toMatch(/\b(unique|constraint)\b/i);
   });
 
-  it("leaves the current Edge Function on the v1 claim until C8 moves it", () => {
-    expect(edge).toContain('db.rpc("ranked_claim_match",');
-    expect(edge).not.toContain("ranked_claim_match_v2");
+  it("keeps v1 in the database, while the Edge Function (since C8) claims only through v2", () => {
+    expect(edge).toContain('"ranked_claim_match_v2"');
+    expect(edge).not.toMatch(/"ranked_claim_match"/);
+    // v1 is left untouched for any client still deployed against it.
     expect(migration).not.toMatch(/create or replace function public\.ranked_claim_match\(/);
   });
 
@@ -250,6 +251,7 @@ describe("stakes on the client", () => {
     };
     walk(join(root, "src"));
     files.push(join(root, "supabase/functions/ranked/index.ts"));
+    files.push(join(root, "supabase/functions/ranked/handler.ts"));
     const elo = /(10\s*\*\*|Math\.pow\(\s*10)[^;\n]*\/\s*400/;
     const offenders = files.filter((file) => elo.test(readFileSync(file, "utf8")));
     expect(offenders).toEqual([]);

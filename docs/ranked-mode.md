@@ -30,6 +30,12 @@ Every approved account starts at **1000 rating**. A win is worth 1, draw 0.5 and
 
 The leaderboard shows the top 100 players with at least 10 completed ranked games, ordered by rating then wins. The player's own rating remains visible before qualification. Tiers change immediately with rating; there are no promotion matches or seasonal resets in this version.
 
+## Joining: one active match, and confirmed stakes
+
+- A player may be in at most **one active Ranked match** (matched or playing). A waiting room is not an active match, but it is a board under the active-board limit. Both rules are the database's (`20260930110000_ranked_match_authority.sql`) and both apply to every join. A player already in several active matches from before the rule keeps and finishes them, but cannot join another until none is left. A waiting room whose creator is busy stays open to list but cannot be joined until the creator is free.
+- Joining is two calls to the Edge Function. `preview` returns the rating the player would have after a win, draw or loss, exactly as the database computes it, with a `basis` token. `join` sends that `basis` back. The database re-checks everything under lock and refuses with `ranked_stakes_changed` (with the new preview) if the stakes have moved, and with `ranked_stakes_required` if no basis was sent. The Edge Function never supplies a basis itself and never retries.
+- Every refusal carries a machine-readable `code` (`ranked_already_active`, `ranked_room_unavailable`, `active_board_limit`, …); the client explains it in the player's language.
+
 ## Information contract
 
 `ranked_matches.state` holds the complete game and is never granted to a browser role or published to Realtime. The ranked Edge Function returns an explicit projection containing the board, scores, clocks, bag **count**, both rack **counts**, the caller's own rack, and a turn log. Neither rack is revealed until both players are ready. Each log entry exposes the action, score or number of exchanged tiles, and the board after that turn. A caller sees historical rack tiles only for their own turns. The other side's rack, draws, exchanges, full bag order, raw snapshots, and canonical tile map never enter the browser response.
@@ -44,6 +50,8 @@ Normal game information can still support deduction when the bag is empty: every
 2. Run `npm run build:ranked` whenever the shared rules or function change; the generated `supabase/functions/ranked/index.js` is the configured Edge Function entrypoint.
 3. Deploy the `ranked` Supabase function. It requires the normal Supabase URL, anon key and service role key in the function environment.
 4. Verify create → join → move → replay → finish → rating on two approved test accounts before enabling the UI in production.
+
+The one-active-match authority ships in this order, each step only after the last is live: the migration `20260930110000_ranked_match_authority.sql`, then the `ranked` Edge Function that uses it, then the web client with the stakes confirmation. Between the Edge Function and that client, the current web client cannot join a room (it has no basis to send, so the server refuses with `ranked_stakes_required`); creating, readying, playing and finishing are unaffected.
 
 ## Deployment status (25 September 2026)
 

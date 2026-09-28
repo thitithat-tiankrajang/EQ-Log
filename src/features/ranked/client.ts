@@ -2,6 +2,7 @@ import { serverErrorCode, serverErrorNotice, type ServerErrorCode } from "../../
 import { supabase } from "../../supabaseClient";
 import type { RankedAction } from "./rules";
 import type { RankedMatchView } from "./publicView";
+import type { RankedStakePreview } from "./stakes";
 
 export type RankedOpenRoom = {
   id: string;
@@ -33,12 +34,19 @@ export type RankedLeaderboardRow = RankedRating & {
 export class RankedRequestError extends Error {
   readonly code: ServerErrorCode | null;
   readonly serverMessage: string;
+  /** With `ranked_stakes_changed`: the new stakes, to confirm again. */
+  readonly preview: RankedStakePreview | null;
 
-  constructor(serverMessage: string, code: ServerErrorCode | null) {
+  constructor(
+    serverMessage: string,
+    code: ServerErrorCode | null,
+    preview: RankedStakePreview | null = null,
+  ) {
     super(serverErrorNotice({ error: serverMessage, code }) ?? serverMessage);
     this.name = "RankedRequestError";
     this.code = code;
     this.serverMessage = serverMessage;
+    this.preview = preview;
   }
 }
 
@@ -49,12 +57,17 @@ async function invoke<T>(body: Record<string, unknown>): Promise<T> {
     const response = "context" in error ? error.context : null;
     const detail =
       response instanceof Response
-        ? ((await response.json().catch(() => null)) as { error?: string; code?: string } | null)
+        ? ((await response.json().catch(() => null)) as {
+            error?: string;
+            code?: string;
+            preview?: RankedStakePreview;
+          } | null)
         : null;
     const serverMessage = detail?.error ?? error.message;
     throw new RankedRequestError(
       serverMessage,
       serverErrorCode({ error: serverMessage, code: detail?.code }),
+      detail?.preview ?? null,
     );
   }
   return data as T;
@@ -69,7 +82,20 @@ export const rankedClient = {
     invoke<{ rows: RankedLeaderboardRow[]; own: RankedRating }>({ operation: "leaderboard" }),
   create: (minutesA: number, minutesB: number) =>
     invoke<{ match: RankedMatchView }>({ operation: "create", minutesA, minutesB }),
-  join: (id: string) => invoke<{ match: RankedMatchView }>({ operation: "join", id }),
+  /** The rating this match puts at stake for you, as the server computes it. */
+  preview: (id: string) => invoke<{ preview: RankedStakePreview }>({ operation: "preview", id }),
+  /**
+   * Take a seat in a waiting room at the stakes you were shown: `basis` is the
+   * preview's. Without it the server refuses (`ranked_stakes_required`); if the
+   * stakes moved it refuses with `ranked_stakes_changed` and the new preview,
+   * and nothing is claimed. It never retries on its own.
+   */
+  join: (id: string, basis?: string) =>
+    invoke<{ match: RankedMatchView }>({
+      operation: "join",
+      id,
+      ...(basis ? { basis } : {}),
+    }),
   cancel: (id: string) => invoke<{ cancelled: boolean }>({ operation: "cancel", id }),
   ready: (id: string) => invoke<{ match: RankedMatchView }>({ operation: "ready", id }),
   read: (id: string) => invoke<{ match: RankedMatchView }>({ operation: "read", id }),

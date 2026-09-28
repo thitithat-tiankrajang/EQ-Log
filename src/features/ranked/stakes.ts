@@ -58,3 +58,33 @@ export function rankedStakeChanges(stakes: RankedStakes): {
     loss: stakes.after.loss - stakes.rating,
   };
 }
+
+/**
+ * The stakes the Ranked function shows a player before they commit to a match:
+ * who, how long, their rating now and after each result, and the basis to hand
+ * back when they confirm. The opponent's rating and games are not included;
+ * the player needs only their own consequences.
+ */
+export type RankedStakePreview = {
+  matchId: string;
+  opponent: { id: string; name: string };
+  minutes: number;
+  rating: number;
+  after: { win: number; draw: number; loss: number };
+  basis: string;
+};
+
+export function rankedStakePreview(
+  stakes: RankedStakes,
+  opponentName: string,
+  minutes: number,
+): RankedStakePreview {
+  return {
+    matchId: stakes.matchId,
+    opponent: { id: stakes.opponentId, name: opponentName },
+    minutes,
+    rating: stakes.rating,
+    after: { ...stakes.after },
+    basis: stakes.basis,
+  };
+}

@@ -1304,6 +1304,284 @@ function rankedPublicView(id, revision, game, viewerId) {
   };
 }
 
+// src/features/ranked/stakes.ts
+function rankedStakesFromRow(row) {
+  if (row.viewer_side !== "A" && row.viewer_side !== "B") {
+    throw new Error(`Unexpected Ranked seat: ${row.viewer_side}`);
+  }
+  return {
+    matchId: row.match_id,
+    side: row.viewer_side,
+    opponentId: row.opponent_id,
+    rating: row.viewer_rating,
+    games: row.viewer_games,
+    opponentRating: row.opponent_rating,
+    after: { win: row.win_rating, draw: row.draw_rating, loss: row.loss_rating },
+    basis: row.basis
+  };
+}
+function rankedStakePreview(stakes, opponentName, minutes) {
+  return {
+    matchId: stakes.matchId,
+    opponent: { id: stakes.opponentId, name: opponentName },
+    minutes,
+    rating: stakes.rating,
+    after: { ...stakes.after },
+    basis: stakes.basis
+  };
+}
+
+// supabase/functions/ranked/handler.ts
+var StoreError = class extends Error {
+  constructor(message, sqlState = null) {
+    super(message);
+    this.sqlState = sqlState;
+    this.name = "StoreError";
+  }
+  sqlState;
+};
+var DATABASE_CODES = {
+  approval_required: 403,
+  active_board_limit: 409,
+  active_board_limit_unconfigured: 503,
+  ranked_already_active: 409,
+  ranked_room_unavailable: 409,
+  ranked_room_claimed: 409,
+  ranked_room_expired: 409,
+  ranked_room_finished: 409,
+  ranked_own_room: 409,
+  ranked_room_not_found: 404,
+  ranked_stakes_changed: 409,
+  ranked_stakes_required: 400
+};
+function refuse(status, code, error) {
+  return { status, body: { error, code } };
+}
+var SIGN_IN = () => refuse(401, "sign_in_required", "Sign in required.");
+var APPROVAL = () => refuse(403, "approval_required", "Approved account required.");
+var INVALID = (error) => refuse(400, "ranked_invalid_request", error);
+var RuleError = class extends Error {
+};
+function databaseRefusal(error) {
+  const code = /^([a-z_]+):/.exec(error.message)?.[1];
+  if (!code || !(code in DATABASE_CODES)) return null;
+  if (code === "active_board_limit") {
+    return refuse(409, code, "active_board_limit: you have reached your active board limit.");
+  }
+  return refuse(DATABASE_CODES[code], code, error.message);
+}
+var OPERATIONS = /* @__PURE__ */ new Set([
+  "list",
+  "leaderboard",
+  "create",
+  "preview",
+  "join",
+  "cancel",
+  "ready",
+  "read",
+  "action"
+]);
+var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+async function handleRanked(request, store2, now = () => /* @__PURE__ */ new Date()) {
+  try {
+    return await route(request, store2, now);
+  } catch (error) {
+    if (error instanceof RuleError) return { status: 400, body: { error: error.message } };
+    if (error instanceof StoreError) {
+      const refusal = databaseRefusal(error);
+      if (refusal) return refusal;
+    }
+    console.error("ranked request failed", error);
+    return refuse(500, "ranked_request_failed", "Ranked request failed.");
+  }
+}
+async function route(request, store2, now) {
+  const authorization = request.authorization ?? "";
+  if (!authorization.startsWith("Bearer ")) return SIGN_IN();
+  const userId = await store2.authenticate(authorization.slice(7));
+  if (!userId) return SIGN_IN();
+  const profile = await store2.profile(userId);
+  if (profile?.status !== "approved") return APPROVAL();
+  const name = profile.display_name?.trim() || "Player";
+  const body = request.body && typeof request.body === "object" ? request.body : {};
+  const operation = typeof body.operation === "string" ? body.operation : "";
+  if (!OPERATIONS.has(operation)) return INVALID("Unknown operation.");
+  if (operation === "list") {
+    const open = await store2.listOpen(
+      new Date(now().getTime() - 24 * 60 * 60 * 1e3).toISOString()
+    );
+    const names = await store2.names(open.map((room) => room.player_a_id));
+    const mine = await store2.listMine(userId);
+    return {
+      status: 200,
+      body: {
+        open: open.map((room) => ({
+          id: room.id,
+          creatorId: room.player_a_id,
+          creator: names.get(room.player_a_id) ?? "Player",
+          minutesA: room.minutes_a,
+          createdAt: room.created_at
+        })),
+        mine
+      }
+    };
+  }
+  if (operation === "leaderboard") {
+    const ratings = await store2.leaderboard();
+    const names = await store2.names(ratings.map((row) => row.player_id));
+    const own = await store2.ownRating(userId);
+    return {
+      status: 200,
+      body: {
+        rows: ratings.map((row, index) => ({
+          ...row,
+          place: index + 1,
+          name: names.get(row.player_id) ?? "Player"
+        })),
+        own: own ?? { rating: 1e3, games: 0, wins: 0, losses: 0, draws: 0 }
+      }
+    };
+  }
+  if (operation === "create") {
+    const minutesA = Number(body.minutesA);
+    const minutesB = Number(body.minutesB);
+    if (!isRankedTime(minutesA) || minutesA !== minutesB)
+      return INVALID("Choose the same 10, 15, 20 or 30 minutes for both sides.");
+    const game = createRankedGame(
+      userId,
+      name,
+      minutesA,
+      minutesB,
+      crypto.getRandomValues(new Uint8Array(1))[0] % 2 === 0 ? "A" : "B"
+    );
+    let created;
+    try {
+      created = await store2.insertWaiting({
+        player_a_id: userId,
+        minutes_a: minutesA,
+        minutes_b: minutesB,
+        state: game
+      });
+    } catch (error) {
+      if (error instanceof StoreError && error.sqlState === "23505")
+        return refuse(409, "ranked_already_waiting", "You already have a waiting ranked room.");
+      throw error;
+    }
+    return {
+      status: 200,
+      body: { match: await viewFor(store2, created.id, created.revision, game, userId) }
+    };
+  }
+  const id = typeof body.id === "string" ? body.id : "";
+  if (!UUID.test(id)) return INVALID("Invalid room id.");
+  if (operation === "preview") {
+    return { status: 200, body: { preview: await preview(store2, id, userId) } };
+  }
+  if (operation === "join") {
+    const basis = typeof body.basis === "string" && body.basis ? body.basis : null;
+    try {
+      await store2.claim(id, userId, name, basis, now().toISOString());
+    } catch (error) {
+      if (error instanceof StoreError && error.message.startsWith("ranked_stakes_changed:")) {
+        const fresh = await preview(store2, id, userId).catch(() => null);
+        return {
+          status: 409,
+          body: {
+            error: error.message,
+            code: "ranked_stakes_changed",
+            ...fresh ? { preview: fresh } : {}
+          }
+        };
+      }
+      throw error;
+    }
+  }
+  const match = await store2.match(id);
+  if (!match) return refuse(404, "ranked_room_not_found", "Ranked room not found.");
+  if (match.player_a_id !== userId && match.player_b_id !== userId)
+    return refuse(403, "ranked_not_a_player", "Only players can open this match.");
+  if (operation === "cancel") {
+    if (match.status !== "waiting" && match.status !== "matched" || match.status === "waiting" && match.player_a_id !== userId)
+      return refuse(403, "ranked_match_started", "This match has already started.");
+    if (await store2.deleteUnstarted(id) === 0)
+      return refuse(409, "ranked_match_started", "This room has already started.");
+    return { status: 200, body: { cancelled: true } };
+  }
+  if (operation === "ready") {
+    if (!await store2.ready(id, userId, now().toISOString()))
+      return refuse(409, "ranked_cannot_ready", "This match cannot be readied.");
+    const updated = await store2.match(id);
+    if (!updated) return refuse(404, "ranked_room_not_found", "Ranked room not found.");
+    return {
+      status: 200,
+      body: { match: await viewFor(store2, id, updated.revision, updated.state, userId) }
+    };
+  }
+  if (operation === "read" || operation === "join") {
+    const at = now().toISOString();
+    const settled = settleRankedClock(match.state, at);
+    if (settled.status === "finished" && match.status === "playing") {
+      if (!await commit(store2, id, match.revision, settled))
+        return refuse(409, "ranked_position_changed", "Position changed; refresh the match.");
+      return {
+        status: 200,
+        body: { match: await viewFor(store2, id, match.revision + 1, settled, userId) }
+      };
+    }
+    return {
+      status: 200,
+      body: { match: await viewFor(store2, id, match.revision, settled, userId) }
+    };
+  }
+  if (operation === "action") {
+    if (match.revision !== body.revision)
+      return refuse(409, "ranked_position_changed", "Position changed; refresh the match.");
+    const side = match.player_a_id === userId ? "A" : "B";
+    const action = body.action;
+    if (!action || !["place", "exchange", "pass", "resign"].includes(action.kind))
+      return INVALID("Unknown action.");
+    let next;
+    try {
+      next = applyRankedAction(match.state, side, action, now().toISOString());
+    } catch (error) {
+      throw new RuleError(error instanceof Error ? error.message : "Invalid action.");
+    }
+    if (!await commit(store2, id, match.revision, next))
+      return refuse(409, "ranked_position_changed", "Position changed; refresh the match.");
+    return {
+      status: 200,
+      body: { match: await viewFor(store2, id, match.revision + 1, next, userId) }
+    };
+  }
+  return INVALID("Unknown operation.");
+}
+async function preview(store2, id, userId) {
+  const stakes = rankedStakesFromRow(await store2.stakes(id, userId));
+  const [match, names] = await Promise.all([store2.match(id), store2.names([stakes.opponentId])]);
+  if (!match) throw new StoreError("ranked_room_not_found: no such Ranked room");
+  return rankedStakePreview(stakes, names.get(stakes.opponentId) ?? "Player", match.minutes_a);
+}
+async function commit(store2, id, revision, game) {
+  const result = resultOf(game);
+  return store2.commit(
+    id,
+    revision,
+    game,
+    result ? result.winner ?? "draw" : null,
+    result?.reason ?? null
+  );
+}
+async function viewFor(store2, id, revision, game, userId) {
+  const view = rankedPublicView(id, revision, game, userId);
+  if (game.status !== "finished") return view;
+  const data = await store2.result(id);
+  if (!data || !view.yourSide) return view;
+  return {
+    ...view,
+    ratingChange: view.yourSide === "A" ? { before: data.rating_a_before, after: data.rating_a_after } : { before: data.rating_b_before, after: data.rating_b_after }
+  };
+}
+
 // supabase/functions/ranked/index.ts
 var cors = {
   "Access-Control-Allow-Origin": "*",
@@ -1314,191 +1592,114 @@ var url = Deno.env.get("SUPABASE_URL");
 var serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 var anonKey = Deno.env.get("SUPABASE_ANON_KEY");
 var db = createClient(url, serviceKey, { auth: { persistSession: false } });
-function respond(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { ...cors, "Content-Type": "application/json" }
-  });
+function failed(error) {
+  throw new StoreError(error?.message ?? "Database request failed.", error?.code ?? null);
 }
-async function getMatch(id) {
-  const { data, error } = await db.from("ranked_matches").select("*").eq("id", id).maybeSingle();
-  if (error) throw error;
-  if (!data) throw new Error("Ranked room not found.");
-  return data;
-}
-async function commit(id, revision, game) {
-  const result = resultOf(game);
-  const { data, error } = await db.rpc("ranked_commit_match", {
-    target_match_id: id,
-    target_revision: revision,
-    target_state: game,
-    target_winner: result ? result.winner ?? "draw" : null,
-    target_reason: result?.reason ?? null
-  });
-  if (error) throw error;
-  return data === true;
-}
-async function viewFor(id, revision, game, userId) {
-  const view = rankedPublicView(id, revision, game, userId);
-  if (game.status !== "finished") return view;
-  const { data, error } = await db.from("ranked_results").select("rating_a_before,rating_a_after,rating_b_before,rating_b_after").eq("match_id", id).maybeSingle();
-  if (error) throw error;
-  if (!data || !view.yourSide) return view;
-  return {
-    ...view,
-    ratingChange: view.yourSide === "A" ? { before: data.rating_a_before, after: data.rating_a_after } : { before: data.rating_b_before, after: data.rating_b_after }
-  };
-}
+var store = {
+  async authenticate(token) {
+    const authClient = createClient(url, anonKey, { auth: { persistSession: false } });
+    const { data, error } = await authClient.auth.getUser(token);
+    return error || !data.user ? null : data.user.id;
+  },
+  async profile(userId) {
+    const { data, error } = await db.from("profiles").select("display_name,status").eq("id", userId).maybeSingle();
+    if (error) failed(error);
+    return data;
+  },
+  async names(ids) {
+    if (!ids.length) return /* @__PURE__ */ new Map();
+    const { data, error } = await db.from("profiles").select("id,display_name").in("id", ids);
+    if (error) failed(error);
+    return new Map(
+      (data ?? []).map((row) => [row.id, row.display_name])
+    );
+  },
+  async listOpen(since) {
+    const { data, error } = await db.from("ranked_matches").select("id,player_a_id,minutes_a,created_at").eq("status", "waiting").gte("created_at", since).order("created_at", { ascending: false }).limit(50);
+    if (error) failed(error);
+    return data ?? [];
+  },
+  async listMine(userId) {
+    const { data, error } = await db.from("ranked_matches").select("id,player_a_id,player_b_id,status,created_at").or(`player_a_id.eq.${userId},player_b_id.eq.${userId}`).order("created_at", { ascending: false }).limit(20);
+    if (error) failed(error);
+    return data ?? [];
+  },
+  async leaderboard() {
+    const { data, error } = await db.from("ranked_ratings").select("player_id,rating,games,wins,losses,draws").gte("games", 10).order("rating", { ascending: false }).order("wins", { ascending: false }).limit(100);
+    if (error) failed(error);
+    return data ?? [];
+  },
+  async ownRating(userId) {
+    const { data, error } = await db.from("ranked_ratings").select("rating,games,wins,losses,draws").eq("player_id", userId).maybeSingle();
+    if (error) failed(error);
+    return data;
+  },
+  async insertWaiting(row) {
+    const { data, error } = await db.from("ranked_matches").insert({ ...row, status: "waiting" }).select("id,revision").single();
+    if (error) failed(error);
+    return data;
+  },
+  async stakes(matchId, viewerId) {
+    const { data, error } = await db.rpc("ranked_stakes", { target_match_id: matchId, target_player_id: viewerId }).single();
+    if (error) failed(error);
+    return data;
+  },
+  async claim(matchId, playerId, playerName, basis, now) {
+    const { data, error } = await db.rpc("ranked_claim_match_v2", {
+      target_match_id: matchId,
+      target_player_id: playerId,
+      target_player_name: playerName,
+      target_stakes_basis: basis,
+      target_now: now
+    }).single();
+    if (error) failed(error);
+    return data;
+  },
+  async match(id) {
+    const { data, error } = await db.from("ranked_matches").select("*").eq("id", id).maybeSingle();
+    if (error) failed(error);
+    return data;
+  },
+  async deleteUnstarted(id) {
+    const { data, error } = await db.from("ranked_matches").delete().eq("id", id).in("status", ["waiting", "matched"]).select("id");
+    if (error) failed(error);
+    return data?.length ?? 0;
+  },
+  async ready(matchId, playerId, now) {
+    const { data, error } = await db.rpc("ranked_ready_match", {
+      target_match_id: matchId,
+      target_player_id: playerId,
+      target_now: now
+    });
+    if (error) failed(error);
+    return data === true;
+  },
+  async commit(matchId, revision, state, winner, reason) {
+    const { data, error } = await db.rpc("ranked_commit_match", {
+      target_match_id: matchId,
+      target_revision: revision,
+      target_state: state,
+      target_winner: winner,
+      target_reason: reason
+    });
+    if (error) failed(error);
+    return data === true;
+  },
+  async result(matchId) {
+    const { data, error } = await db.from("ranked_results").select("rating_a_before,rating_a_after,rating_b_before,rating_b_after").eq("match_id", matchId).maybeSingle();
+    if (error) failed(error);
+    return data;
+  }
+};
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response(null, { headers: cors });
-  try {
-    const authorization = request.headers.get("Authorization") ?? "";
-    if (!authorization.startsWith("Bearer ")) return respond({ error: "Sign in required." }, 401);
-    const authClient = createClient(url, anonKey, { auth: { persistSession: false } });
-    const { data: authData, error: authError } = await authClient.auth.getUser(
-      authorization.slice(7)
-    );
-    if (authError || !authData.user) return respond({ error: "Sign in required." }, 401);
-    const userId = authData.user.id;
-    const { data: profile, error: profileError } = await db.from("profiles").select("display_name,status").eq("id", userId).maybeSingle();
-    if (profileError) throw profileError;
-    if (profile?.status !== "approved")
-      return respond({ error: "Approved account required." }, 403);
-    const name = profile.display_name?.trim() || "Player";
-    const body = request.method === "POST" ? await request.json() : {};
-    const operation = String(body.operation ?? "");
-    if (operation === "list") {
-      const { data: open, error: openError } = await db.from("ranked_matches").select("id,player_a_id,minutes_a,created_at").eq("status", "waiting").gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1e3).toISOString()).order("created_at", { ascending: false }).limit(50);
-      if (openError) throw openError;
-      const ids = (open ?? []).map((room) => room.player_a_id);
-      const { data: profiles } = ids.length ? await db.from("profiles").select("id,display_name").in("id", ids) : { data: [] };
-      const names = new Map((profiles ?? []).map((item) => [item.id, item.display_name]));
-      const { data: mine, error: mineError } = await db.from("ranked_matches").select("id,player_a_id,player_b_id,status,created_at").or(`player_a_id.eq.${userId},player_b_id.eq.${userId}`).order("created_at", { ascending: false }).limit(20);
-      if (mineError) throw mineError;
-      return respond({
-        open: (open ?? []).map((room) => ({
-          id: room.id,
-          creatorId: room.player_a_id,
-          creator: names.get(room.player_a_id) ?? "Player",
-          minutesA: room.minutes_a,
-          createdAt: room.created_at
-        })),
-        mine
-      });
-    }
-    if (operation === "leaderboard") {
-      const { data: ratings, error } = await db.from("ranked_ratings").select("player_id,rating,games,wins,losses,draws").gte("games", 10).order("rating", { ascending: false }).order("wins", { ascending: false }).limit(100);
-      if (error) throw error;
-      const ids = (ratings ?? []).map((row) => row.player_id);
-      const { data: profiles } = ids.length ? await db.from("profiles").select("id,display_name").in("id", ids) : { data: [] };
-      const names = new Map((profiles ?? []).map((item) => [item.id, item.display_name]));
-      const { data: own } = await db.from("ranked_ratings").select("rating,games,wins,losses,draws").eq("player_id", userId).maybeSingle();
-      return respond({
-        rows: (ratings ?? []).map((row, index) => ({
-          ...row,
-          place: index + 1,
-          name: names.get(row.player_id) ?? "Player"
-        })),
-        own: own ?? { rating: 1e3, games: 0, wins: 0, losses: 0, draws: 0 }
-      });
-    }
-    if (operation === "create") {
-      const minutesA = Number(body.minutesA);
-      const minutesB = Number(body.minutesB);
-      if (!isRankedTime(minutesA) || minutesA !== minutesB)
-        return respond({ error: "Choose the same 10, 15, 20 or 30 minutes for both sides." }, 400);
-      const game = createRankedGame(
-        userId,
-        name,
-        minutesA,
-        minutesB,
-        crypto.getRandomValues(new Uint8Array(1))[0] % 2 === 0 ? "A" : "B"
-      );
-      const { data, error } = await db.from("ranked_matches").insert({
-        player_a_id: userId,
-        status: "waiting",
-        minutes_a: minutesA,
-        minutes_b: minutesB,
-        state: game
-      }).select("id,revision").single();
-      if (error?.code === "23505")
-        return respond({ error: "You already have a waiting ranked room." }, 409);
-      if (error) throw error;
-      return respond({ match: await viewFor(data.id, data.revision, game, userId) });
-    }
-    const id = String(body.id ?? "");
-    if (!/^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(id))
-      return respond({ error: "Invalid room id." }, 400);
-    if (operation === "join") {
-      const { data, error } = await db.rpc("ranked_claim_match", {
-        target_match_id: id,
-        target_player_id: userId,
-        target_player_name: name,
-        target_now: (/* @__PURE__ */ new Date()).toISOString()
-      });
-      if (error) throw error;
-      if (!data) return respond({ error: "This room is no longer open." }, 409);
-    }
-    const match = await getMatch(id);
-    if (match.player_a_id !== userId && match.player_b_id !== userId)
-      return respond({ error: "Only players can open this match." }, 403);
-    if (operation === "cancel") {
-      if (match.status !== "waiting" && match.status !== "matched" || match.status === "waiting" && match.player_a_id !== userId)
-        return respond({ error: "This match has already started." }, 403);
-      const { data, error } = await db.from("ranked_matches").delete().eq("id", id).in("status", ["waiting", "matched"]).select("id");
-      if (error) throw error;
-      if (!data?.length) return respond({ error: "This room has already started." }, 409);
-      return respond({ cancelled: true });
-    }
-    if (operation === "ready") {
-      const { data, error } = await db.rpc("ranked_ready_match", {
-        target_match_id: id,
-        target_player_id: userId,
-        target_now: (/* @__PURE__ */ new Date()).toISOString()
-      });
-      if (error) throw error;
-      if (!data) return respond({ error: "This match cannot be readied." }, 409);
-      const updated = await getMatch(id);
-      return respond({ match: await viewFor(id, updated.revision, updated.state, userId) });
-    }
-    if (operation === "read" || operation === "join") {
-      const now = (/* @__PURE__ */ new Date()).toISOString();
-      const settled = settleRankedClock(match.state, now);
-      if (settled.status === "finished" && match.status === "playing") {
-        if (!await commit(id, match.revision, settled))
-          return respond({ error: "Position changed; refresh the match." }, 409);
-        return respond({ match: await viewFor(id, match.revision + 1, settled, userId) });
-      }
-      return respond({ match: await viewFor(id, match.revision, settled, userId) });
-    }
-    if (operation === "action") {
-      if (match.revision !== body.revision)
-        return respond({ error: "Position changed; refresh the match." }, 409);
-      const side = match.player_a_id === userId ? "A" : "B";
-      const action = body.action;
-      if (!action || !["place", "exchange", "pass", "resign"].includes(action.kind))
-        return respond({ error: "Unknown action." }, 400);
-      const now = (/* @__PURE__ */ new Date()).toISOString();
-      const next = applyRankedAction(match.state, side, action, now);
-      if (!await commit(id, match.revision, next))
-        return respond({ error: "Position changed; refresh the match." }, 409);
-      return respond({ match: await viewFor(id, match.revision + 1, next, userId) });
-    }
-    return respond({ error: "Unknown operation." }, 400);
-  } catch (error) {
-    const message = error?.message;
-    if (typeof message === "string" && message.includes("active_board_limit:")) {
-      return respond(
-        {
-          error: message.includes("a seated player") ? "The other player already has the maximum number of active boards." : "You already have the maximum number of active boards. Finish or cancel one first.",
-          code: "active_board_limit"
-        },
-        409
-      );
-    }
-    return respond(
-      { error: error instanceof Error ? error.message : "Ranked request failed." },
-      400
-    );
-  }
+  const body = request.method === "POST" ? await request.json().catch(() => null) : null;
+  const response = await handleRanked(
+    { authorization: request.headers.get("Authorization"), body },
+    store
+  );
+  return new Response(JSON.stringify(response.body), {
+    status: response.status,
+    headers: { ...cors, "Content-Type": "application/json" }
+  });
 });

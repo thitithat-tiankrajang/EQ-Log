@@ -50,6 +50,7 @@ supabase/migrations/*
 supabase/functions/*
 !supabase/functions/ranked/
 !supabase/functions/ranked/index.ts
+!supabase/functions/ranked/handler.ts
 !supabase/functions/ranked/index.js
 !supabase/tests/
 supabase/tests/*

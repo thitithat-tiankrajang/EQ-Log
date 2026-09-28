@@ -210,6 +210,14 @@ export const en = {
       ranked_stakes_changed:
         "The rating at stake has changed since you looked. Check the new stakes and confirm again.",
       ranked_stakes_required: "Confirm the rating at stake before joining.",
+      sign_in_required: "Sign in to continue.",
+      ranked_invalid_request: "That Ranked request isn't valid.",
+      ranked_already_waiting: "You already have a Ranked room waiting for an opponent.",
+      ranked_not_a_player: "Only the players can open this Ranked match.",
+      ranked_match_started: "This Ranked match has already started.",
+      ranked_cannot_ready: "This Ranked match can't be readied now.",
+      ranked_position_changed: "The position changed. Refresh the match and try again.",
+      ranked_request_failed: "Ranked couldn't complete that request. Please try again.",
       idempotency_conflict:
         "This request was already used with different settings. Please try creating the game again.",
     },
