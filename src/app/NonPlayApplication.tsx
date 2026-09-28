@@ -13,6 +13,7 @@ import { SurvivalPage } from "../components/pages/survival/SurvivalPage";
 import { RankedPage } from "../components/pages/ranked/RankedPage";
 import { rankedClient } from "../features/ranked/client";
 import { ProfilePage } from "../components/pages/ProfilePage";
+import { MePage } from "../components/pages/me/MePage";
 import { STORAGE_KEYS } from "../constants/storage";
 import {
   getGameMode,
@@ -777,6 +778,14 @@ export default function NonPlayApplication() {
     return (
       <>
         <StudyPage />
+        {coffeeReturn}
+      </>
+    );
+  }
+  if (route.kind === "me") {
+    return (
+      <>
+        <MePage />
         {coffeeReturn}
       </>
     );

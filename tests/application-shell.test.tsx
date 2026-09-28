@@ -19,9 +19,12 @@ describe("ApplicationShell", () => {
     expect(screen.getByRole("heading", { level: 1, name: "Public" })).toBeVisible();
     const navigation = screen.getByRole("navigation", { name: "Primary navigation" });
     expect(navigation).toBeVisible();
-    expect(screen.getByRole("link", { name: "Public" })).toHaveAttribute("aria-current", "page");
+    // The live-games lobby belongs to no primary destination.
+    expect(navigation.querySelector('[aria-current="page"]')).toBeNull();
+    expect(screen.getByRole("link", { name: "Home" })).toHaveAttribute("href", "#/");
     expect(screen.getByRole("link", { name: "Create game" })).toHaveAttribute("href", "#/create");
     expect(navigation.querySelectorAll(":scope > a")).toHaveLength(5);
+    expect(screen.getByRole("link", { name: "EQ Lab home" })).toHaveAttribute("href", "#/");
     expect(screen.getByRole("main")).toHaveAttribute("id", "main-content");
     expect(screen.getByRole("button", { name: "Back" }).closest("header")).toHaveClass(
       "eq-page-header",

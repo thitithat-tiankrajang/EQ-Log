@@ -692,6 +692,113 @@ body[data-route="play"] .eq-coffee-return {
   color: var(--eq-text-soft);
 }
 
+/* Me: the account and platform hub. */
+.eq-me-section {
+  display: grid;
+  gap: 12px;
+}
+
+.eq-me-section h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.eq-me-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid var(--eq-line);
+  border-radius: var(--eq-radius-md);
+  background: var(--eq-surface);
+  padding: 14px 16px;
+}
+
+.eq-me-avatar {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--eq-primary-soft);
+  color: var(--eq-primary);
+  font-weight: 700;
+}
+
+.eq-me-identity > span:last-child,
+.eq-me-rating,
+.eq-me-link-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.eq-me-identity small,
+.eq-me-rating small,
+.eq-me-link small,
+.eq-me-note {
+  color: var(--eq-text-soft);
+}
+
+.eq-me-note,
+.eq-me-rating {
+  margin: 0;
+}
+
+.eq-me-links {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.eq-me-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  border: 1px solid var(--eq-line);
+  border-radius: var(--eq-radius-md);
+  background: var(--eq-surface);
+  color: var(--eq-text);
+  cursor: pointer;
+  font: inherit;
+  padding: 12px 16px;
+  text-align: left;
+  text-decoration: none;
+}
+
+.eq-me-link:hover {
+  border-color: var(--eq-line-strong);
+}
+
+.eq-me-link-icon {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  color: var(--eq-primary);
+}
+
+.eq-me-link-copy {
+  flex: 1;
+}
+
+.eq-me-link-arrow {
+  flex: none;
+  color: var(--eq-text-faint);
+}
+
+.eq-me-setting {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .eq-library-controls,
 .eq-library-toolbar,
 .eq-library-view-links,

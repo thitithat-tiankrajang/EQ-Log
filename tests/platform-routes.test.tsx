@@ -13,18 +13,19 @@ afterEach(() => {
 });
 
 describe("pages serving the platform destinations until they are built", () => {
-  it("serves the Arena Home with the Public live-games lobby, Learn with Study, Me with Profile", () => {
+  it("serves the Arena Home with the Public live-games lobby and Learn with Study", () => {
     expect(servedRoute({ kind: "arena" })).toEqual({
       kind: "home",
       visibility: "public",
       section: "live",
     });
     expect(servedRoute({ kind: "learn" })).toEqual({ kind: "study" });
-    expect(servedRoute({ kind: "me" })).toEqual({ kind: "profile" });
   });
 
   it("leaves every destination that has its own page alone", () => {
     const routes: Route[] = [
+      // Me has its own page now.
+      { kind: "me" },
       { kind: "stage" },
       { kind: "ranked" },
       { kind: "ranked", matchId: "m-1" },
@@ -41,16 +42,16 @@ describe("pages serving the platform destinations until they are built", () => {
 });
 
 describe("primary navigation during the transition", () => {
-  it("keeps Public current on the site root, as before", () => {
+  it("marks Home on the site root by what the route means, not by the page serving it", () => {
     window.history.replaceState(null, "", "/#/");
     render(<PrimaryNavigation />);
-    expect(screen.getByRole("link", { name: "Public" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Home" })).toHaveAttribute("aria-current", "page");
   });
 
-  it("keeps Profile current on #/me", () => {
+  it("marks Me on #/me", () => {
     window.history.replaceState(null, "", "/#/me");
     render(<PrimaryNavigation />);
-    expect(screen.getByRole("link", { name: "Profile" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("link", { name: "Me" })).toHaveAttribute("aria-current", "page");
   });
 
   it("still offers Create and the same five destinations", () => {

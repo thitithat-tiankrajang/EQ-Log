@@ -2,6 +2,7 @@ import { ArrowLeft, Atom } from "lucide-react";
 import { useEffect, useRef, type ReactNode } from "react";
 import type { RoomVisibility } from "../../roomScope";
 import { PrimaryNavigation } from "./PrimaryNavigation";
+import { useLocale } from "../../i18n/LocaleProvider";
 
 export function ApplicationShell({
   actions,
@@ -31,6 +32,7 @@ export function ApplicationShell({
   visibility?: RoomVisibility;
 }) {
   const mainRef = useRef<HTMLElement | null>(null);
+  const { t } = useLocale();
 
   useEffect(() => {
     document.title = `${documentTitle ?? title} · EQ Lab`;
@@ -46,7 +48,7 @@ export function ApplicationShell({
 
       <header className="eq-app-header">
         <div className="eq-app-header-start">
-          <a className="eq-brand" href="#/public" aria-label="EQ Lab home">
+          <a className="eq-brand" href="#/" aria-label={t("nav.brandHome")}>
             <img src="/icons/eqlab-mark.svg" alt="" width="34" height="34" />
             <span>
               <strong>EQ Lab</strong>

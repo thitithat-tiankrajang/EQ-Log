@@ -21,6 +21,7 @@ vi.mock("../src/supabaseClient", () => ({
 }));
 
 import { AuthGate, AuthProvider } from "../src/auth";
+import { PrimaryNavigation } from "../src/app/shells/PrimaryNavigation";
 
 describe("AuthGate", () => {
   beforeEach(() => {
@@ -39,5 +40,19 @@ describe("AuthGate", () => {
     expect(await screen.findByRole("heading", { name: "Sign in required" })).toBeVisible();
     expect(screen.queryByText("Protected game data route")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Sign in with Google" })).toBeVisible();
+  });
+
+  it("keeps the platform navigation behind the sign-in gate", async () => {
+    render(
+      <AuthProvider>
+        <AuthGate>
+          <PrimaryNavigation />
+        </AuthGate>
+      </AuthProvider>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "Sign in required" })).toBeVisible();
+    expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Me" })).not.toBeInTheDocument();
   });
 });

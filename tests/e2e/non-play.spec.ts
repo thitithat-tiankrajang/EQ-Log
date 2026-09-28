@@ -37,7 +37,12 @@ test("opens a match from the lobby's game entry point", async ({ page }) => {
 });
 
 test("keeps Region inaccessible until an admin assigns the account", async ({ page }) => {
-  await page.getByRole("link", { name: "Region" }).click();
+  // Live games is reached from Me now that Public and Region are not primary tabs.
+  await page
+    .getByRole("navigation", { name: "Primary navigation" })
+    .getByRole("link", { name: "Me", exact: true })
+    .click();
+  await page.getByRole("link", { name: /Region games/ }).click();
   await expect(page).toHaveURL(/#\/region$/);
   await expect(page.getByRole("heading", { name: "Sign in to enter your region" })).toBeVisible();
   await expect(page.getByText(/Region games require an approved account/)).toBeVisible();
@@ -53,6 +58,7 @@ test("@a11y has no serious accessibility violations on the main non-Play routes"
     "#/create",
     "#/private",
     "#/profile",
+    "#/me",
     "#/public/join",
     "#/private?view=trash",
     "#/study",

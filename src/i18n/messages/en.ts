@@ -21,6 +21,57 @@ export const en = {
       th: "ไทย",
     },
   },
+  nav: {
+    label: "Primary navigation",
+    brandHome: "EQ Lab home",
+    home: "Home",
+    learn: "Learn",
+    create: "Create",
+    createGame: "Create game",
+    ranked: "Ranked",
+    me: "Me",
+  },
+  me: {
+    title: "Me",
+    description: "Your account, games and settings",
+    account: {
+      heading: "Account",
+      region: "Region: {region}",
+      noRegion: "No region assigned yet",
+      admin: "Administrator",
+      localOnly: "Playing on this device without an account",
+    },
+    ranked: {
+      heading: "Ranked",
+      rating: "{tier} · {rating}",
+      games: { one: "{count} ranked game", other: "{count} ranked games" },
+      loading: "Loading your rating…",
+      unavailable: "Your Ranked rating could not be loaded right now.",
+      open: "Open Ranked",
+    },
+    games: {
+      heading: "Your games",
+      profile: "Game statistics",
+      profileHint: "Your record in every mode",
+      saved: "Saved games",
+      savedHint: "Your private library and folders",
+    },
+    live: {
+      heading: "Live games",
+      public: "Public games",
+      publicHint: "Watch or join games open to every member",
+      region: "Region games",
+      regionHint: "Games in your region",
+    },
+    settings: {
+      heading: "Settings",
+    },
+    admin: {
+      link: "Admin",
+      hint: "Approvals, regions, bots and plans",
+    },
+    signOut: "Sign out",
+  },
   analysis: {
     /** A deep-analysis level named after the bot that runs it. */
     botLevel: "{bot} · {depth}-turn deep check",
