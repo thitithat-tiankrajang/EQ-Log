@@ -47,6 +47,8 @@ const SOLVER_LABEL: Record<BotResponse["solver"], string> = {
   endgame: "คำนวณจนจบเกม",
   greedy: "เทียบทางเลือกที่เห็น",
   strong: "ประเมินหลายชั้น",
+  // Never shown: ArchBot moves carry no reasoning report and open no panel.
+  stage5b: "ArchBot",
 };
 
 /** Board coordinate as A-Math notation: column A–O, row 1–15 (center = H8). */

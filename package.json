@@ -12,11 +12,12 @@
     "lint": "eslint . --max-warnings=0",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:archbot-parity": "vitest run --config vitest.archbot.config.ts",
     "test:e2e": "playwright test",
     "test:perf": "playwright test --config=playwright.perf.config.ts",
     "test:a11y": "playwright test --grep @a11y",
     "typecheck": "tsc -b",
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run test:archbot-parity && npm run build",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {

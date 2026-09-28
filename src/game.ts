@@ -27,9 +27,11 @@ export type Side = "A" | "B";
 
 export type GameMode = "versus" | "solo";
 export type TileDrawMode = "manual" | "play";
-export type BotDifficulty = "medium" | "hard" | "max" | "super";
+/** `stage5b64` is ArchBot's one strength (Stage 5B, deepTop 64); the rest are legacy Aether/Authur. */
+export type BotDifficulty = "medium" | "hard" | "max" | "super" | "stage5b64";
 /** The two opponents share room infrastructure, not a decision algorithm. */
-export type BotEngine = "aether" | "authur";
+/** `stage5b` is ArchBot. Players see `botDisplayName`, never this value. */
+export type BotEngine = "aether" | "authur" | "stage5b";
 export type EmailPlayMode = "hosted" | "direct";
 export type RoomStage = "waiting" | "playing";
 export type SideTimerMinutes = Record<Side, number | null>;

@@ -33,7 +33,9 @@ export type ModeKey =
   | "aether_hard"
   | "aether_max"
   | "aether_super"
-  | "authur_strong";
+  | "authur_strong"
+  // ArchBot. Named by the catalog's mode key; players see "ArchBot".
+  | "stage5b_standard";
 
 export type ProfileModeKey =
   Exclude<ModeKey, `aether_${string}` | `authur_${string}`> | "aether" | "authur";
@@ -49,7 +51,21 @@ export const MODE_CATALOG: ReadonlyArray<{
   { key: "solo_practice", label: "Solo Practice", family: "solo" },
   { key: "aether", label: "Aether", family: "versus" },
   { key: "authur", label: "Authur", family: "versus" },
+  { key: "stage5b_standard", label: "ArchBot", family: "versus" },
 ];
+
+/** Whether a mode key names a game against a bot (any engine, any era). */
+export function isBotModeKey(modeKey: string | null | undefined): boolean {
+  return Boolean(
+    modeKey &&
+    (modeKey.startsWith("aether_") ||
+      modeKey.startsWith("authur_") ||
+      modeKey === "stage5b_standard"),
+  );
+}
+
+/** ArchBot's mode as players see it. The key stays `stage5b_standard` everywhere it is stored. */
+export const ARCHBOT_MODE_LABEL = "ArchBot";
 
 const NATURAL_REASONS = new Set<CompletionReason>(["rack_out", "no_score_streak", "perfect_game"]);
 
@@ -60,9 +76,14 @@ export function deriveModeKey(
   >,
 ): ModeKey {
   if (game.botSide) {
-    return game.botEngine === "authur"
-      ? "authur_strong"
-      : `aether_${game.botDifficulty ?? "medium"}`;
+    if (game.botEngine === "stage5b") return "stage5b_standard";
+    if (game.botEngine === "authur") return "authur_strong";
+    // Only Aether's own strengths name an Aether mode; a room that says
+    // otherwise is legacy and keyed as the engine's default tier.
+    const difficulty = game.botDifficulty;
+    return difficulty === "hard" || difficulty === "max" || difficulty === "super"
+      ? `aether_${difficulty}`
+      : "aether_medium";
   }
   if (game.gameMode === "solo") return "solo_practice";
   if (game.emailPlayMode === "direct") return "online_versus";

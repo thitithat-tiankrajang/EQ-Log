@@ -1,0 +1,28 @@
+{
+  "comment": "Canonical provenance of ArchBot (internal: Stage 5B, stage5b64 / deepTop64). See docs/archbot.md.",
+  "amathBotLab": {
+    "ref": "pin/stage5b-reference",
+    "commit": "c8255f358e2d9bde1c71ff51ae14d8d2f7ac58df",
+    "note": "Local-only: amath-bot-lab has no remote yet. Back this commit up to a private remote."
+  },
+  "oracle": {
+    "repository": "engine-algo (amath-engine)",
+    "commit": "7aafbfcfcd72f08975c0d0140f1c981e00d282b4",
+    "containedIn": "origin/main dd9fb0e1d34baa4a6cd573675259cb3d14820ccb",
+    "runtime": "service/stage5b/runtime.mjs",
+    "runtimeSha256": "50ef6cd7d01caa435e054fbe16977c3c28695979ffc8c86089913f373039df27"
+  },
+  "model": {
+    "source": "public/models/stage5a-value",
+    "modelJsonSha256": "0bd5dd416a57dd7236998e3e14dc99b27e50aebcb51f2877ef91e763e59e99ca",
+    "weightsSha256": "95ba8c0d3e7040234dc02940ec09fe18f8478d78c8f2cfe65cc42452a65d6c52",
+    "weightsBytes": 4005988
+  },
+  "esbuildVersion": "0.27.7",
+  "determinism": {
+    "shim": "tools/archbot/determinism.js",
+    "why": "Math.exp/log/log1p and localeCompare are engine/locale-dependent; the core uses production-exact replacements (fdlibm as V8 ships it; ICU root order).",
+    "productionRuntime": "Node 22, x86-64, no LANG/LC_* (node:22-bookworm-slim)",
+    "oracleCommand": "tools/archbot/pinned.mjs oracleCommand() \u2014 x86-64 Node 22; on Apple Silicon, arch -x86_64 /usr/local/bin/node"
+  }
+}

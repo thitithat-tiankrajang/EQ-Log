@@ -115,11 +115,51 @@ begin
                   and enabled and new_rooms_allowed and execution_type = 'SERVER') then
     raise exception 'Authur must be the active Pro server bot';
   end if;
+  -- Phase 3b: ArchBot (key stage5b) is the active, open, free CLIENT bot.
   if not exists (select 1 from public.bot_catalog where bot_key = 'stage5b'
-                  and access_tier = 'free' and execution_type = 'CLIENT' and lifecycle = 'pending'
-                  and not enabled and not new_rooms_allowed) then
-    raise exception 'Stage 5B must be a disabled, pending, free CLIENT bot';
+                  and display_name = 'ArchBot' and engine_family = 'stage5b'
+                  and difficulty = 'stage5b64' and mode_key = 'stage5b_standard'
+                  and access_tier = 'free' and execution_type = 'CLIENT' and lifecycle = 'active'
+                  and enabled and new_rooms_allowed) then
+    raise exception 'ArchBot must be the active, enabled, open, free CLIENT bot';
   end if;
+  if (select label from public.game_modes where mode_key = 'stage5b_standard') <> 'ArchBot'
+     or (select string_agg(t.tool_key, ',' order by t.tool_key)
+           from public.game_mode_tools mt
+           join public.game_modes m on m.id = mt.mode_id
+           join public.game_tools t on t.id = mt.tool_id
+          where m.mode_key = 'stage5b_standard') <> 'analysis,multiverse,replay,turn_log' then
+    raise exception 'ArchBot rooms must offer turn log, replay, analysis and alternate lines, and no bot explanation';
+  end if;
+
+  -- A pending bot — the state ArchBot was in until Phase 3b — stays closed. A
+  -- test-only row, removed again so the catalog counts below are unaffected.
+  insert into public.bot_catalog (bot_key, display_name, engine_family, difficulty, mode_key,
+    execution_type, access_tier, access_tier_status, enabled, new_rooms_allowed, lifecycle, sort_order)
+  values ('smoke_pending', 'Smoke Pending', 'stage5b', 'stage5b64', 'stage5b_standard',
+          'CLIENT', 'free', 'decided', false, false, 'pending', 98);
+  begin
+    update public.bot_catalog set new_rooms_allowed = true where bot_key = 'smoke_pending';
+    raise exception 'EXPECTED: a pending bot was opened to new rooms';
+  exception when check_violation then null;
+  end;
+  perform pg_temp.act_as(admin_id);
+  begin
+    perform public.admin_set_bot_enabled('smoke_pending', true, 'smoke');
+    raise exception 'EXPECTED: a pending bot was enabled';
+  exception when others then
+    if sqlerrm not like 'bot_pending:%' then raise; end if;
+  end;
+  perform pg_temp.act_as(player);
+  begin
+    perform * from public.create_bot_game(gen_random_uuid(), 'smoke_pending', 'B', pg_temp.bot_state(),
+      'public', 'public', null, 'invite_only', null, null);
+    raise exception 'EXPECTED: a room was created with a pending bot';
+  exception when others then
+    if sqlerrm not like 'bot_pending:%' then raise; end if;
+  end;
+  perform pg_temp.act_as_owner();
+  delete from public.bot_catalog where bot_key = 'smoke_pending';
   if exists (select 1 from public.bot_catalog
               where bot_key like 'aether_%' and (new_rooms_allowed or lifecycle <> 'retired')) then
     raise exception 'Aether must be retired and closed to new rooms';

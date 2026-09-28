@@ -87,10 +87,10 @@ begin
   perform pg_temp.expect('Authur is Pro/server',
     (select access_tier || '/' || execution_type || '/' || lifecycle from public.bot_catalog where bot_key = 'authur_strong'),
     'pro/SERVER/active');
-  perform pg_temp.expect('Stage 5B is Free/client, pending',
+  perform pg_temp.expect('ArchBot is Free/client, active and open',
     (select access_tier || '/' || execution_type || '/' || lifecycle || '/' || enabled || '/' || new_rooms_allowed
        from public.bot_catalog where bot_key = 'stage5b'),
-    'free/CLIENT/pending/false/false');
+    'free/CLIENT/active/true/true');
   perform pg_temp.expect('Aether retired',
     (select count(*)::int from public.bot_catalog where engine_family = 'aether' and (lifecycle <> 'retired' or new_rooms_allowed)), 0);
   perform pg_temp.expect('free capacity', public.plan_capability_int('free', 'probot_allowance_capacity'), 0);
@@ -375,12 +375,33 @@ begin
   perform pg_temp.expect('no consumption for the free bot',
     (select count(*)::int from public.probot_consumptions where user_id = u_stats), 0);
 
-  -- Stage 5B (pending) and Aether (retired) cannot be created
+  -- ArchBot: a free room, created with no funding and charging nothing
+  perform pg_temp.act_as(u_stats);
+  declare
+    archbot record;
+  begin
+    select * into archbot from public.create_bot_game(gen_random_uuid(), 'stage5b', 'B', pg_temp.bot_state(),
+      'public', 'public', null, 'invite_only', null, null);
+    perform pg_temp.expect('ArchBot: no charge', archbot.consumption_id, null::uuid);
+    perform pg_temp.act_as_owner();
+    perform pg_temp.expect('ArchBot room identity',
+      (select bot_key || '/' || bot_access_tier || '/' || bot_execution_type || '/' || room_purpose || '/' || mode_key
+         from public.room_live where room_id = archbot.room_id),
+      'stage5b/free/CLIENT/normal/stage5b_standard');
+  end;
+  perform pg_temp.act_as_owner();
+  perform pg_temp.expect('still no consumption with ArchBot',
+    (select count(*)::int from public.probot_consumptions where user_id = u_stats), 0);
+  -- A pending bot (test-only row) and Aether (retired) cannot be created
+  insert into public.bot_catalog (bot_key, display_name, engine_family, difficulty, mode_key,
+    execution_type, access_tier, access_tier_status, enabled, new_rooms_allowed, lifecycle)
+  values ('test_pending', 'Test Pending', 'stage5b', 'stage5b64', 'stage5b_standard',
+          'CLIENT', 'free', 'decided', false, false, 'pending');
   perform pg_temp.act_as(u_stats);
   begin
-    perform * from public.create_bot_game(gen_random_uuid(), 'stage5b', 'B', pg_temp.bot_state(),
+    perform * from public.create_bot_game(gen_random_uuid(), 'test_pending', 'B', pg_temp.bot_state(),
       'public', 'public', null, 'invite_only', null, null);
-    raise exception 'EXPECTED: Stage 5B created';
+    raise exception 'EXPECTED: pending bot created';
   exception when others then if sqlerrm not like 'bot_pending:%' then raise; end if;
   end;
   begin

@@ -172,6 +172,9 @@ describe("the application module graph", () => {
       /new\s+Worker\s*\(/.test(readFileSync(path, "utf8")),
     );
     expect(offenders.map((path) => path.replace(`${root}/`, ""))).toEqual([
+      // ArchBot (Stage 5B, JavaScript): one dedicated worker per tab, kept for
+      // the tab's life. Its own leash is tests/archbot-client.test.ts.
+      "src/bot/archbot/client.ts",
       "src/bot/authur/client.ts",
       "src/bot/superEngine.ts",
       // Not a bot engine: Board Vision's recognition worker (ONNX Runtime).

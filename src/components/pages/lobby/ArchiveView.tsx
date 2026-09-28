@@ -12,6 +12,7 @@ import {
 import { Sheet } from "../../ui/Sheet";
 import { SelectControl } from "../../ui/SelectControl";
 import { GameTable, GameTableRow } from "./GameTable";
+import { ARCHBOT_MODE_LABEL } from "../../../features/gameRecords/domain";
 
 type RegionOption = { id: string; name: string };
 
@@ -329,6 +330,7 @@ function modeLabel(value: string, botName: BotNameResolver): string {
         online_versus: "Online Versus",
         hosted_versus: "Hosted Versus",
         local_versus: "Pass & Play",
+        stage5b_standard: ARCHBOT_MODE_LABEL,
       } as Record<string, string>
     )[value] ?? value
   );

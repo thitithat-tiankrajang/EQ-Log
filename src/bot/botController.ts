@@ -146,6 +146,9 @@ export function botRetryDelay(error: unknown, tries: number): number {
 
 export function isRetryableBotFailure(error: unknown): boolean {
   if (!(error instanceof EngineApiError)) return true;
+  // A browser that cannot run ArchBot will not start being able to. The room
+  // says so and waits; asking again would only repeat the refusal.
+  if (error.code === "archbot_unsupported") return false;
   // A desync is retried by re-deriving the position, not by re-sending — see
   // `isDesyncBotFailure`. Everything else is worth asking again.
   return !isDesyncBotFailure(error);

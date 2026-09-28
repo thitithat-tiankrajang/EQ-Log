@@ -22,7 +22,12 @@ export default tseslint.config(
       // The cross-check harness. A development tool, not application code.
       "tools/engine-wasm/parity.mjs",
       "src/App.tsx",
-      "src/bot/**",
+      // Everything under src/bot except ArchBot, which is new code and is linted
+      // (all but its generated core).
+      "src/bot/*.ts",
+      "src/bot/authur/**",
+      "src/bot/engine/**",
+      "src/bot/archbot/core/**",
       "src/codec.ts",
       "src/components/actions/**",
       "src/components/board/**",
@@ -40,6 +45,8 @@ export default tseslint.config(
       "tools/survival-generator/.vendor/**",
       "tools/survival-generator/out/**",
       "tools/study-puzzles/archive/**",
+      // The ArchBot browser harness build (playwright.archbot.config.ts).
+      "tools/archbot/bench/dist/**",
       // The offline Survival level generator. It is never bundled or deployed,
       // has its own node:test suite, and its outstanding findings (unused
       // locals in experiment scripts) are left for the Survival owner.

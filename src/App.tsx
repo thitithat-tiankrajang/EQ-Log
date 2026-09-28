@@ -195,6 +195,8 @@ import {
 } from "./bot/botController";
 import { EngineApiError, isEngineApiConfigured, type BotMoveResult } from "./bot/engineApi";
 import { botDisabledNotice } from "./bot/catalog";
+import { ARCHBOT_ENGINE, ARCHBOT_NAME, botDisplayName } from "./bot/archbot/identity";
+import { warmUpArchBot } from "./bot/archbot/client";
 import { clientSuperReadiness, type ClientSuperReadiness } from "./bot/clientSuper";
 import { planSuperThreads, readThreadEnvironment } from "./bot/superThreads";
 import {
@@ -255,6 +257,12 @@ function botNoticeFor(error: unknown): string {
         return "ระบบบอทยังไม่ได้เปิดใช้งานในเซิร์ฟเวอร์นี้";
       case "bot_disabled":
         return botDisabledNotice();
+      case "archbot_unsupported":
+        return "เบราว์เซอร์นี้เล่นกับ ArchBot ไม่ได้ — ArchBot คิดบนเครื่องของคุณ ลองเปิดด้วยเบราว์เซอร์รุ่นใหม่";
+      case "archbot_model_unavailable":
+        return "โหลดโมเดลของ ArchBot ไม่สำเร็จ — ยังไม่เดินหมาก กำลังลองใหม่";
+      case "archbot_failed":
+        return "ArchBot คำนวณตานี้ไม่สำเร็จ — ยังไม่เดินหมาก กำลังลองใหม่";
       default:
         return "บอทคำนวณตานี้ไม่สำเร็จ — ยังไม่เดินหมาก กำลังลองใหม่";
     }
@@ -2704,6 +2712,13 @@ function App() {
   useEffect(() => {
     if (game?.botSide) warmUpBotEngine();
   }, [game?.gameId, game?.botSide]);
+  // An ArchBot room: close the server bot path for it, and start the worker and
+  // the model download while the player is still looking at the board.
+  useEffect(() => {
+    if (!activeRoomId || !game?.botSide || game.botEngine !== ARCHBOT_ENGINE) return;
+    engineSessions.markClientBotRoom(activeRoomId);
+    warmUpArchBot();
+  }, [activeRoomId, game?.botSide, game?.botEngine]);
 
   // ── Is this room's Super bot allowed to think on this device? ──────────────
   //
@@ -2879,7 +2894,11 @@ function App() {
           // from the same ref the revision check above used — so the engine is
           // asked about exactly the position this attempt is for, and a later
           // render cannot change the question mid-search.
+          //
+          // An ArchBot room computes on this device and nowhere else.
+          ...(current.botEngine === ARCHBOT_ENGINE ? { archbot: { game: current } } : {}),
           ...(current.botEngine !== "authur" &&
+          current.botEngine !== ARCHBOT_ENGINE &&
           clientSuper?.available &&
           current.botDifficulty === "super"
             ? {
@@ -3499,6 +3518,12 @@ function App() {
       (!remoteEnabled || !isEngineApiConfigured)
     ) {
       setSyncError("Authur ต้องใช้เซิร์ฟเวอร์เกมที่เชื่อมต่ออยู่");
+      return;
+    }
+    // ArchBot thinks on this device, but its room — like every bot room — is
+    // created and kept by the game server.
+    if (newSettings.botSide && newSettings.botEngine === ARCHBOT_ENGINE && !remoteEnabled) {
+      setSyncError(`${ARCHBOT_NAME} ต้องใช้เซิร์ฟเวอร์เกมที่เชื่อมต่ออยู่`);
       return;
     }
     const visibility =
@@ -4546,7 +4571,7 @@ function App() {
   };
 
   const botName = game.botSide
-    ? game.players[game.botSide] || (game.botEngine === "authur" ? "Authur" : "Aether")
+    ? game.players[game.botSide] || botDisplayName(game.botEngine)
     : "Aether";
   /** Hand the turn back: the loop restarts, and any half-built draft the player
    *  had started on the bot's behalf is dropped so two moves cannot collide. */
@@ -4586,6 +4611,7 @@ function App() {
           // No session yet means the request has not gone out, or a retry is
           // pending. Both are "working on it" and neither has a percentage.
           state={botStatus ?? { kind: "requesting" }}
+          localPhase={botSession?.engine === "archbot" ? (botSession.localPhase ?? null) : null}
           botName={botName}
           variant={variant}
           slowDevice={
@@ -6041,11 +6067,14 @@ function App() {
     // Tie the reasoning to the log this move produces, so the "why" panel shows
     // it only while that bot move is the latest one on the board.
     const recordReasoning = (logId: string) => {
+      // ArchBot's answer has no value-term breakdown for the panel to show, and
+      // it is never invented: no ArchBot move offers "why this move".
+      if (response.solver === "stage5b") return;
       if (g.botSide) {
         setBotReasoning({
           logId,
           turnNumber: g.turnNumber,
-          playerName: g.players[g.botSide] || (g.botEngine === "authur" ? "Authur" : "Aether"),
+          playerName: g.players[g.botSide] || botDisplayName(g.botEngine),
           response,
         });
       }

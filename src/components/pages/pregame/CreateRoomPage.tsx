@@ -23,6 +23,9 @@ import { useMembersCatalog } from "../lobby/useMembersCatalog";
 import { useRegisteredPlayersCatalog } from "../lobby/useRegisteredPlayersCatalog";
 import { BotRoomPanel } from "./BotRoomPanel";
 import { CreateChooser } from "./CreateChooser";
+import { ArchBotRoomPanel } from "./ArchBotRoomPanel";
+import { useArchBotOffer } from "../../../bot/archbot/availability";
+import { ARCHBOT_NAME } from "../../../bot/archbot/identity";
 import { PreGameShell } from "./PreGameShell";
 import { navigate, type CreatePreset, type ReturnDestination } from "../../../router";
 import { isEngineApiConfigured } from "../../../bot/engineApi";
@@ -41,7 +44,7 @@ import { useLocale } from "../../../i18n/LocaleProvider";
 import type { MessageKey } from "../../../i18n/translate";
 
 type Destination = CreateScope;
-type PlayChoice = "match" | "solo" | "authur" | "ranked";
+type PlayChoice = "match" | "solo" | "authur" | "archbot" | "ranked";
 
 /** The opponent step each address answers in advance (none for Custom). */
 function playChoiceFor(preset: CreatePreset | undefined): PlayChoice | null {
@@ -99,6 +102,8 @@ export function CreateRoomPage({
   const { profile, userId } = useAuth();
   const { t } = useLocale();
   const botServerAvailable = isSupabaseConfigured && isEngineApiConfigured;
+  // Offered only when the bot catalog says so; see `availability.ts`.
+  const archBotOffer = useArchBotOffer();
   const context: CreateRoute = { kind: "create", visibility, ...(returnTo ? { returnTo } : {}) };
   // A Create choice opens its settings form directly, in the space the player
   // came from; Custom (and the older bot address) still asks step by step.
@@ -291,9 +296,11 @@ export function CreateRoomPage({
       ? "Configure ranked match"
       : playChoice === "authur"
         ? "Play vs Authur"
-        : playChoice === "solo"
-          ? "Solo Practice"
-          : "Configure match";
+        : playChoice === "archbot"
+          ? `Play vs ${ARCHBOT_NAME}`
+          : playChoice === "solo"
+            ? "Solo Practice"
+            : "Configure match";
   return (
     <PreGameShell
       eyebrow={
@@ -429,6 +436,14 @@ export function CreateRoomPage({
               </div>
             </div>
           </section>
+        ) : playChoice === "archbot" ? (
+          <ArchBotRoomPanel
+            busy={submitting || !archBotOffer.available}
+            onSubmit={(botSettings) => {
+              if (canCreate && !submitting && archBotOffer.available)
+                onCreate(botSettings, policy());
+            }}
+          />
         ) : playChoice === "authur" ? (
           <>
             {!botServerAvailable && (
