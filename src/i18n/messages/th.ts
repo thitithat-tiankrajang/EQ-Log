@@ -77,8 +77,7 @@ export const th: Catalog = {
       rankedMatched: "เจอคู่แข่งแล้ว เตรียมพร้อมเริ่มเกม",
       rankedWaiting: "รอคู่แข่ง",
       playing: "กำลังเล่น",
-      paused: "หยุดพัก",
-      waiting: "รอเริ่มเกม",
+      waiting: "รอเริ่มหรือหยุดพัก",
     },
     live: {
       heading: "กำลังเล่นอยู่ตอนนี้",

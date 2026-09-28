@@ -124,7 +124,7 @@ describe("Continue", () => {
     const hosted = room({
       id: "hosted",
       name: "Club final",
-      status: "waiting",
+      status: "draft",
       accessScope: "private",
     });
     const watching = room({ id: "watching", name: "Someone else's game" });
@@ -147,7 +147,7 @@ describe("Continue", () => {
     ]);
     // Ranked opens the existing Ranked match page.
     expect(within(rows[0]).getByRole("link")).toHaveAttribute("href", "#/ranked/rk-1");
-    expect(rows[2]).toHaveTextContent("Waiting to start · Private");
+    expect(rows[2]).toHaveTextContent("Waiting or paused · Private");
     await user.click(within(rows[1]).getByRole("button", { name: /Friday game.*Continue/ }));
     expect(onContinue).toHaveBeenCalledWith(mine);
     expect(
@@ -186,7 +186,7 @@ describe("Live now", () => {
     const seat = room({
       id: "seat",
       name: "Open table",
-      status: "waiting",
+      status: "draft",
       hasOpponent: false,
       ownerName: "Nok",
     });
@@ -194,7 +194,7 @@ describe("Live now", () => {
     const invite = room({
       id: "invite",
       name: "Invite only",
-      status: "waiting",
+      status: "draft",
       hasOpponent: false,
       joinPolicy: "invite_only",
     });
@@ -449,10 +449,10 @@ describe("the lists Home reads", () => {
     roles.mine = "Owner";
     roles.admin = "Admin";
     const rooms = [
-      room({ id: "mine", status: "paused" }),
+      room({ id: "mine", status: "draft" }),
       room({ id: "admin", status: "playing" }),
       room({ id: "done", status: "finished" }),
-      room({ id: "seat", status: "waiting", hasOpponent: false }),
+      room({ id: "seat", status: "draft", hasOpponent: false }),
     ];
     roles.done = "Player B";
     expect(continuableGames(rooms, roleOf).map((r) => r.id)).toEqual(["mine"]);

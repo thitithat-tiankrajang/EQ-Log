@@ -1,4 +1,5 @@
 import { partitionLiveRooms } from "../../components/pages/lobby/RoomsView";
+import type { GameStatus } from "../../game";
 import type { RoomMeta } from "../../rooms";
 
 /**
@@ -14,7 +15,11 @@ export function isMyGame(role: string): boolean {
   return MY_ROLES.has(role);
 }
 
-const CONTINUABLE = new Set(["waiting", "playing", "paused"]);
+/**
+ * A room's status as the lists give it: the server's waiting and paused rooms
+ * both arrive as "draft" (remoteRooms), and only a finished game is over.
+ */
+const CONTINUABLE: ReadonlySet<GameStatus> = new Set<GameStatus>(["draft", "playing"]);
 
 /** Games you own, host or play in that have not ended, most recently active first. */
 export function continuableGames(

@@ -46,9 +46,9 @@ const rooms: RoomMeta[] = [
     accessScope: "private",
     updatedAt: "2026-09-28T11:00:00Z",
   }),
-  room("Lunch rematch", { status: "paused", accessScope: "region" }),
-  room("Open table", { status: "waiting", hasOpponent: false, ownerName: "Nokkaew Srisawat" }),
-  room("Second open table", { status: "waiting", hasOpponent: false, ownerName: "Pim" }),
+  room("Lunch rematch", { status: "draft", accessScope: "region" }),
+  room("Open table", { status: "draft", hasOpponent: false, ownerName: "Nokkaew Srisawat" }),
+  room("Second open table", { status: "draft", hasOpponent: false, ownerName: "Pim" }),
 ];
 const MINE = new Set([rooms[0].id, rooms[1].id]);
 

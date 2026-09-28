@@ -89,8 +89,7 @@ export const en = {
       rankedMatched: "Opponent found. Get ready to start.",
       rankedWaiting: "Waiting for an opponent",
       playing: "In progress",
-      paused: "Paused",
-      waiting: "Waiting to start",
+      waiting: "Waiting or paused",
     },
     live: {
       heading: "Live now",

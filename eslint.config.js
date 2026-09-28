@@ -69,8 +69,8 @@ export default tseslint.config(
     languageOptions: { globals: globals.serviceworker },
   },
   {
-    // Development scripts, run by Node directly rather than bundled.
-    files: ["tools/**/*.mjs"],
+    // Development scripts and local-stack tests, run by Node directly rather than bundled.
+    files: ["tools/**/*.mjs", "supabase/tests/**/*.mjs"],
     languageOptions: { globals: globals.node },
   },
 );

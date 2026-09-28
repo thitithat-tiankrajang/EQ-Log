@@ -539,6 +539,18 @@ describe("Custom", () => {
     expect(cards).toEqual(["Match", "Solo Practice", "Authur"]);
     expect(view.queryByRole("button", { name: /Ranked|Survival|Study|ArchBot/ })).toBeNull();
   });
+
+  it("introduces its setup form in the player's language", async () => {
+    const user = userEvent.setup();
+    chooseLocale("th");
+    const { view } = renderPage({ preset: "custom" });
+    const choices = () =>
+      view.getAllByRole("button").filter((button) => button.classList.contains("eq-create-choice"));
+    await user.click(choices()[0]);
+    await user.click(choices()[0]);
+    expect(view.getByText("ตั้งค่าเกมของคุณ")).toBeVisible();
+    expect(view.queryByText("Set up your game.")).toBeNull();
+  });
 });
 
 describe("older Create addresses", () => {

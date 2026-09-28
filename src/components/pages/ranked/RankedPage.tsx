@@ -148,9 +148,12 @@ export function RankedPage({ matchId }: { matchId?: string }) {
                       </span>
                       <button
                         type="button"
-                        disabled={joining !== null || room.creatorId === userId}
+                        // Not disabled while the confirmation is open: the sheet is
+                        // modal, and a disabled trigger loses the focus the sheet
+                        // returns to when it closes.
+                        disabled={room.creatorId === userId}
                         aria-haspopup="dialog"
-                        onClick={() => setJoining(room.id)}
+                        onClick={() => setJoining((current) => current ?? room.id)}
                       >
                         เข้าร่วม
                       </button>

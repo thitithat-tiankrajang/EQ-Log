@@ -302,7 +302,7 @@ export function CreateRoomPage({
           : `${destinationLabel(destination, regionName)} · ${archiveLabel(destination, privateSaved)}`
       }
       title={title}
-      subtitle={direct ? t("create.formSubtitle") : "Set up your game."}
+      subtitle={t("create.formSubtitle")}
       onBack={() =>
         direct ? onBack() : preset === "ranked" ? navigate({ kind: "ranked" }) : setPlayChoice(null)
       }

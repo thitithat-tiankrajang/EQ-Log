@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { RankedStakePreview } from "../src/features/ranked/stakes";
@@ -159,6 +159,21 @@ describe("joining a waiting Ranked room", () => {
     expect(client.preview).toHaveBeenCalledTimes(2);
   });
 
+  it("returns focus to the room's Join button when the confirmation closes", async () => {
+    const user = userEvent.setup();
+    renderRanked();
+    const joinButton = await screen.findByRole("button", { name: "เข้าร่วม" });
+    joinButton.focus();
+    await user.keyboard("{Enter}");
+    const dialog = screen.getByRole("dialog", { name: "Join Ranked match" });
+    await within(dialog).findByText("Nok");
+    // A focused trigger must stay focusable, or there is nothing to return to.
+    expect(joinButton).toBeEnabled();
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(joinButton).toHaveFocus();
+  });
+
   it("shows a loading state and allows no second preview while the first is on its way", async () => {
     const user = userEvent.setup();
     const pending = deferred<{ preview: RankedStakePreview }>();
@@ -166,8 +181,8 @@ describe("joining a waiting Ranked room", () => {
     const dialog = await openConfirmation(user);
     expect(within(dialog).getByRole("status")).toHaveTextContent("Checking the rating at stake…");
     expect(within(dialog).queryByRole("button", { name: "Join Ranked" })).toBeNull();
-    // The room's own button is behind the dialog and disabled.
-    expect(screen.getByRole("button", { name: "เข้าร่วม", hidden: true })).toBeDisabled();
+    // The room's own button is behind the modal dialog; pressing it again asks nothing.
+    fireEvent.click(screen.getByRole("button", { name: "เข้าร่วม", hidden: true }));
     expect(client.preview).toHaveBeenCalledTimes(1);
     await act(async () => pending.resolve({ preview: PREVIEW }));
     expect(await within(dialog).findByRole("button", { name: "Join Ranked" })).toBeEnabled();
@@ -398,5 +413,21 @@ describe("the confirmation code", () => {
     const page = sources[1];
     expect(page).not.toMatch(/rankedClient\.join\(/);
     expect(sources[0]).toMatch(/\.join\(roomId, preview\.basis\)/);
+  });
+
+  it("gives every Ranked commitment a full touch target, including creating a room", () => {
+    // The unlayered 36px .eq-button beats any layered rule, so the 44px rule
+    // must live in non-play-refresh.css and name each committing button.
+    const rule = /([^{}]+)\{\s*min-height:\s*44px;\s*\}/.exec(
+      read("src/styles/non-play-refresh.css").replace(/\/\*[\s\S]*?\*\//g, ""),
+    );
+    const selectors = rule?.[1].split(",").map((selector) => selector.trim()) ?? [];
+    expect(selectors).toEqual(
+      expect.arrayContaining([
+        ".ranked-head > .eq-button",
+        ".ranked-confirm-actions .eq-button",
+        ".ranked-ready > .eq-button",
+      ]),
+    );
   });
 });

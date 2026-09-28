@@ -14,6 +14,7 @@ import { ApplicationShell } from "../../../app/shells/ApplicationShell";
 import { AccountChip } from "../../../auth";
 import { isEngineApiConfigured } from "../../../bot/engineApi";
 import type { ProBotStatus } from "../../../bot/catalog";
+import type { GameStatus } from "../../../game";
 import type { ArenaBot } from "../../../features/arena/arenaBots";
 import { continuableGames, openGames } from "../../../features/arena/arenaGames";
 import {
@@ -139,7 +140,7 @@ export function ArenaHomeView({
                   disabled={opening}
                   icon={<Swords size={20} />}
                   title={room.name}
-                  detail={[t(STATUS[room.status] ?? "home.continue.playing"), scopeOf(room, t)]
+                  detail={[STATUS[room.status] && t(STATUS[room.status]!), scopeOf(room, t)]
                     .filter(Boolean)
                     .join(" · ")}
                   action={t("home.continue.open")}
@@ -241,10 +242,10 @@ export function ArenaHomeView({
   );
 }
 
-const STATUS: Record<string, MessageKey> = {
+const STATUS: Record<GameStatus, MessageKey | null> = {
   playing: "home.continue.playing",
-  paused: "home.continue.paused",
-  waiting: "home.continue.waiting",
+  draft: "home.continue.waiting",
+  finished: null,
 };
 
 function scopeOf(room: RoomMeta, t: (key: MessageKey) => string): string | null {
