@@ -195,6 +195,21 @@ export const en = {
       stage_start_mismatch: "This Stage's starting position doesn't match the one set for it.",
       stage_board_rewrite:
         "In a Stage game, tiles already on the board can't be taken back or changed.",
+      approval_required: "An approved account is needed for this.",
+      ranked_already_active: {
+        self: "You're already in a Ranked match. Finish it before joining another.",
+        seatedPlayer: "One of the players is already in another Ranked match.",
+      },
+      ranked_room_unavailable:
+        "This room's creator is playing another Ranked match right now. Try again later.",
+      ranked_room_claimed: "Another player has already taken this Ranked room.",
+      ranked_room_expired: "This Ranked room is no longer open.",
+      ranked_room_not_found: "This Ranked room doesn't exist any more.",
+      ranked_room_finished: "This Ranked match has already finished.",
+      ranked_own_room: "This is your own Ranked room.",
+      ranked_stakes_changed:
+        "The rating at stake has changed since you looked. Check the new stakes and confirm again.",
+      ranked_stakes_required: "Confirm the rating at stake before joining.",
       idempotency_conflict:
         "This request was already used with different settings. Please try creating the game again.",
     },

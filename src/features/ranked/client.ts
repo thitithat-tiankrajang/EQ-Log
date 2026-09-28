@@ -1,3 +1,4 @@
+import { serverErrorCode, serverErrorNotice, type ServerErrorCode } from "../../i18n/serverErrors";
 import { supabase } from "../../supabaseClient";
 import type { RankedAction } from "./rules";
 import type { RankedMatchView } from "./publicView";
@@ -22,6 +23,25 @@ export type RankedLeaderboardRow = RankedRating & {
   place: number;
 };
 
+/**
+ * A refusal from the Ranked function. `code` is the server's machine-readable
+ * reason (the Edge Function's `code`, or the database's `snake_code:` prefix)
+ * so callers can react to it — `ranked_stakes_changed` above all — without
+ * reading prose; the message is the player-facing one where the product
+ * explains that code, and the server's text otherwise.
+ */
+export class RankedRequestError extends Error {
+  readonly code: ServerErrorCode | null;
+  readonly serverMessage: string;
+
+  constructor(serverMessage: string, code: ServerErrorCode | null) {
+    super(serverErrorNotice({ error: serverMessage, code }) ?? serverMessage);
+    this.name = "RankedRequestError";
+    this.code = code;
+    this.serverMessage = serverMessage;
+  }
+}
+
 async function invoke<T>(body: Record<string, unknown>): Promise<T> {
   if (!supabase) throw new Error("Ranked needs an online account.");
   const { data, error } = await supabase.functions.invoke("ranked", { body });
@@ -29,9 +49,13 @@ async function invoke<T>(body: Record<string, unknown>): Promise<T> {
     const response = "context" in error ? error.context : null;
     const detail =
       response instanceof Response
-        ? ((await response.json().catch(() => null)) as { error?: string } | null)
+        ? ((await response.json().catch(() => null)) as { error?: string; code?: string } | null)
         : null;
-    throw new Error(detail?.error ?? error.message);
+    const serverMessage = detail?.error ?? error.message;
+    throw new RankedRequestError(
+      serverMessage,
+      serverErrorCode({ error: serverMessage, code: detail?.code }),
+    );
   }
   return data as T;
 }

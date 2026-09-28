@@ -5,7 +5,7 @@ import {
   settleRankedClock,
 } from "../src/features/ranked/rules";
 import { rankedPublicView } from "../src/features/ranked/publicView";
-import { rankTier, ratingDelta } from "../src/features/ranked/rating";
+import { rankTier } from "../src/features/ranked/rating";
 
 const creator = "00000000-0000-4000-8000-000000000001";
 const opponent = "00000000-0000-4000-8000-000000000002";
@@ -112,10 +112,9 @@ describe("ranked server rules", () => {
     });
   });
 
-  it("uses outcome-only Elo with a faster provisional period", () => {
-    expect(ratingDelta(1000, 1000, 1, 0)).toBe(20);
-    expect(ratingDelta(1000, 1000, 0, 10)).toBe(-12);
-    expect(ratingDelta(1000, 1000, 0.5, 3)).toBe(0);
+  // Rating changes are the server's alone (ranked_rating_outcome, checked in
+  // supabase/tests/ranked_authority_smoke.sql); the client only names tiers.
+  it("names the rank tiers", () => {
     expect(rankTier(1000)).toBe("Silver");
     expect(rankTier(1800)).toBe("Master");
   });

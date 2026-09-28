@@ -28,6 +28,16 @@ export const SERVER_ERROR_CODES = [
   "stage_start_mismatch",
   "stage_board_rewrite",
   "idempotency_conflict",
+  "approval_required",
+  "ranked_already_active",
+  "ranked_room_unavailable",
+  "ranked_room_claimed",
+  "ranked_room_expired",
+  "ranked_room_not_found",
+  "ranked_room_finished",
+  "ranked_own_room",
+  "ranked_stakes_changed",
+  "ranked_stakes_required",
 ] as const;
 
 export type ServerErrorCode = (typeof SERVER_ERROR_CODES)[number];
@@ -92,6 +102,17 @@ export function serverErrorNotice(
       theirs
         ? "errors.server.active_board_limit.seatedPlayer"
         : "errors.server.active_board_limit.self",
+    );
+  }
+  if (code === "ranked_already_active") {
+    // Seen by the claimant through the stakes-aware claim ("you are"); through
+    // the older claim the database only knows that a seated player is busy.
+    const { message } = describe(input);
+    return translate(
+      locale,
+      /\byou are\b/i.test(message ?? "")
+        ? "errors.server.ranked_already_active.self"
+        : "errors.server.ranked_already_active.seatedPlayer",
     );
   }
   const key = `errors.server.${code}`;

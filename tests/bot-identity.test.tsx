@@ -104,8 +104,10 @@ describe("the C2 catalogue migration", () => {
   const statements = sql.replace(/--.*$/gm, "");
 
   it("runs after every Phase 3 migration", () => {
-    expect(migrations.at(-1)).toBe(file);
-    expect(migrations).toContain("20260929140000_room_creation_charging.sql");
+    const phase3 = migrations.filter((name) => name.startsWith("20260929"));
+    expect(phase3).toContain("20260929140000_room_creation_charging.sql");
+    for (const name of phase3)
+      expect(migrations.indexOf(file), name).toBeGreaterThan(migrations.indexOf(name));
   });
 
   it("changes only the two display values, for the stage5b bot and its mode", () => {

@@ -92,7 +92,8 @@ describe("unknown errors fail safely", () => {
     expect(
       serverErrorNotice({ error: "Ranked request failed.", code: "whatever" }, "en"),
     ).toBeNull();
-    expect(serverErrorNotice({ code: "ranked_room_claimed" }, "en")).toBeNull();
+    // (ranked_room_claimed stood here until C7 made it a real code.)
+    expect(serverErrorNotice({ code: "ranked_room_haunted" }, "en")).toBeNull();
     expect(serverErrorNotice(undefined, "en")).toBeNull();
     expect(serverErrorNotice(42, "th")).toBeNull();
   });
