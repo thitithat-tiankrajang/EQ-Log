@@ -18,5 +18,11 @@
     "weightsSha256": "95ba8c0d3e7040234dc02940ec09fe18f8478d78c8f2cfe65cc42452a65d6c52",
     "weightsBytes": 4005988
   },
-  "esbuildVersion": "0.27.7"
+  "esbuildVersion": "0.27.7",
+  "determinism": {
+    "shim": "tools/archbot/determinism.js",
+    "why": "Math.exp/log/log1p and localeCompare are engine/locale-dependent; the core uses production-exact replacements (fdlibm as V8 ships it; ICU root order).",
+    "productionRuntime": "Node 22, x86-64, no LANG/LC_* (node:22-bookworm-slim)",
+    "oracleCommand": "tools/archbot/pinned.mjs oracleCommand() \u2014 x86-64 Node 22; on Apple Silicon, arch -x86_64 /usr/local/bin/node"
+  }
 }

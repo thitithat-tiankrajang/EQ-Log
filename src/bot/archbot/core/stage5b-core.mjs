@@ -1,6 +1,267 @@
 // GENERATED — do not edit. ArchBot's browser core: the Stage 5B decision code
 // (amath-bot-lab c8255f358e2d9bde1c71ff51ae14d8d2f7ac58df, pin/stage5b-reference),
-// bundled by tools/archbot/build-core.mjs. See docs/archbot.md for provenance.
+// bundled by tools/archbot/build-core.mjs with tools/archbot/determinism.js
+// (production-exact exp/log/log1p and collation). See docs/archbot.md.
+
+// determinism.js
+var buffer = new ArrayBuffer(8);
+var f64 = new Float64Array(buffer);
+var u32 = new Uint32Array(buffer);
+f64[0] = 1;
+if (u32[1] !== 1072693248) throw new Error("ArchBot determinism: unexpected byte order");
+var highWord = (x) => {
+  f64[0] = x;
+  return u32[1] | 0;
+};
+var lowWord = (x) => {
+  f64[0] = x;
+  return u32[0] >>> 0;
+};
+var withHighWord = (x, high) => {
+  f64[0] = x;
+  u32[1] = high >>> 0;
+  return f64[0];
+};
+var fromWords = (high, low) => {
+  u32[1] = high >>> 0;
+  u32[0] = low >>> 0;
+  return f64[0];
+};
+var halF = [0.5, -0.5];
+var o_threshold = 709.782712893384;
+var u_threshold = -745.1332191019411;
+var ln2HI = [0.6931471803691238, -0.6931471803691238];
+var ln2LO = [19082149292705877e-26, -19082149292705877e-26];
+var invln2 = 1.4426950408889634;
+var P1 = 0.16666666666666602;
+var P2 = -0.0027777777777015593;
+var P3 = 6613756321437934e-20;
+var P4 = -16533902205465252e-22;
+var P5 = 41381367970572385e-24;
+var E = 2.718281828459045;
+var huge = 1e300;
+var twom1000 = 9332636185032189e-317;
+var two1023 = 898846567431158e293;
+function exp(x) {
+  let hi = 0;
+  let lo = 0;
+  let k = 0;
+  let hx = highWord(x);
+  const xsb = hx >>> 31 & 1;
+  hx &= 2147483647;
+  if (hx >= 1082535490) {
+    if (hx >= 2146435072) {
+      if ((hx & 1048575 | lowWord(x)) !== 0) return x + x;
+      return xsb === 0 ? x : 0;
+    }
+    if (x > o_threshold) return huge * huge;
+    if (x < u_threshold) return twom1000 * twom1000;
+  }
+  if (hx > 1071001154) {
+    if (hx < 1072734898) {
+      if (x === 1) return E;
+      hi = x - ln2HI[xsb];
+      lo = ln2LO[xsb];
+      k = 1 - xsb - xsb;
+    } else {
+      k = invln2 * x + halF[xsb] | 0;
+      const t2 = k;
+      hi = x - t2 * ln2HI[0];
+      lo = t2 * ln2LO[0];
+    }
+    x = hi - lo;
+  } else if (hx < 1043333120) {
+    if (huge + x > 1) return 1 + x;
+  } else {
+    k = 0;
+  }
+  const t = x * x;
+  const twopk = k >= -1021 ? fromWords(1072693248 + (k << 20) | 0, 0) : fromWords(1072693248 + (k + 1e3 << 20) | 0, 0);
+  const c = x - t * (P1 + t * (P2 + t * (P3 + t * (P4 + t * P5))));
+  if (k === 0) return 1 - (x * c / (c - 2) - x);
+  const y = 1 - (lo - x * c / (2 - c) - hi);
+  if (k >= -1021) {
+    if (k === 1024) return y * 2 * two1023;
+    return y * twopk;
+  }
+  return y * twopk * twom1000;
+}
+var ln2_hi = 0.6931471803691238;
+var ln2_lo = 19082149292705877e-26;
+var two54 = 18014398509481984;
+var Lg1 = 0.6666666666666735;
+var Lg2 = 0.3999999999940942;
+var Lg3 = 0.2857142874366239;
+var Lg4 = 0.22222198432149784;
+var Lg5 = 0.1818357216161805;
+var Lg6 = 0.15313837699209373;
+var Lg7 = 0.14798198605116586;
+function log(x) {
+  let hx = highWord(x);
+  const lx = lowWord(x);
+  let k = 0;
+  if (hx < 1048576) {
+    if ((hx & 2147483647 | lx) === 0) return -two54 / 0;
+    if (hx < 0) return (x - x) / 0;
+    k -= 54;
+    x *= two54;
+    hx = highWord(x);
+  }
+  if (hx >= 2146435072) return x + x;
+  if (hx === 1072693248 && lx === 0) return 0;
+  k += (hx >> 20) - 1023;
+  hx &= 1048575;
+  let i = hx + 614244 & 1048576;
+  x = withHighWord(x, hx | i ^ 1072693248);
+  k += i >> 20;
+  const f = x - 1;
+  if ((1048575 & 2 + hx) < 3) {
+    if (f === 0) {
+      if (k === 0) return 0;
+      const dk3 = k;
+      return dk3 * ln2_hi + dk3 * ln2_lo;
+    }
+    const R2 = f * f * (0.5 - 0.3333333333333333 * f);
+    if (k === 0) return f - R2;
+    const dk2 = k;
+    return dk2 * ln2_hi - (R2 - dk2 * ln2_lo - f);
+  }
+  const s = f / (2 + f);
+  const dk = k;
+  const z = s * s;
+  i = hx - 398458;
+  const w = z * z;
+  const j = 440401 - hx;
+  const t1 = w * (Lg2 + w * (Lg4 + w * Lg6));
+  const t2 = z * (Lg1 + w * (Lg3 + w * (Lg5 + w * Lg7)));
+  i |= j;
+  const R = t2 + t1;
+  if (i > 0) {
+    const hfsq = 0.5 * f * f;
+    if (k === 0) return f - (hfsq - s * (hfsq + R));
+    return dk * ln2_hi - (hfsq - (s * (hfsq + R) + dk * ln2_lo) - f);
+  }
+  if (k === 0) return f - s * (f - R);
+  return dk * ln2_hi - (s * (f - R) - dk * ln2_lo - f);
+}
+var Lp1 = 0.6666666666666735;
+var Lp2 = 0.3999999999940942;
+var Lp3 = 0.2857142874366239;
+var Lp4 = 0.22222198432149784;
+var Lp5 = 0.1818357216161805;
+var Lp6 = 0.15313837699209373;
+var Lp7 = 0.14798198605116586;
+function log1p(x) {
+  let f = 0;
+  let c = 0;
+  let hu = 0;
+  const hx = highWord(x);
+  const ax = hx & 2147483647;
+  let k = 1;
+  if (hx < 1071284858) {
+    if (ax >= 1072693248) {
+      if (x === -1) return -two54 / 0;
+      return (x - x) / (x - x);
+    }
+    if (ax < 1042284544) {
+      if (two54 + x > 0 && ax < 1016070144) return x;
+      return x - x * x * 0.5;
+    }
+    if (hx > 0 || hx <= (3218259652 | 0)) {
+      k = 0;
+      f = x;
+      hu = 1;
+    }
+  }
+  if (hx >= 2146435072) return x + x;
+  if (k !== 0) {
+    let u;
+    if (hx < 1128267776) {
+      u = 1 + x;
+      hu = highWord(u);
+      k = (hu >> 20) - 1023;
+      c = k > 0 ? 1 - (u - x) : x - (u - 1);
+      c /= u;
+    } else {
+      u = x;
+      hu = highWord(u);
+      k = (hu >> 20) - 1023;
+      c = 0;
+    }
+    hu &= 1048575;
+    if (hu < 434334) {
+      u = withHighWord(u, hu | 1072693248);
+    } else {
+      k += 1;
+      u = withHighWord(u, hu | 1071644672);
+      hu = 1048576 - hu >> 2;
+    }
+    f = u - 1;
+  }
+  const hfsq = 0.5 * f * f;
+  if (hu === 0) {
+    if (f === 0) {
+      if (k === 0) return 0;
+      c += k * ln2_lo;
+      return k * ln2_hi + c;
+    }
+    const R2 = hfsq * (1 - 0.6666666666666666 * f);
+    if (k === 0) return f - R2;
+    return k * ln2_hi - (R2 - (k * ln2_lo + c) - f);
+  }
+  const s = f / (2 + f);
+  const z = s * s;
+  const R = z * (Lp1 + z * (Lp2 + z * (Lp3 + z * (Lp4 + z * (Lp5 + z * (Lp6 + z * Lp7))))));
+  if (k === 0) return f - (hfsq - s * (hfsq + R));
+  return k * ln2_hi - (hfsq - (s * (hfsq + R) + (k * ln2_lo + c)) - f);
+}
+var __archbotMath = { exp, log, log1p };
+var ROOT_ORDER = [
+  ["-"],
+  ["?"],
+  ["/"],
+  ["+"],
+  ["+/-"],
+  ["\xF7"],
+  ["\xD7"],
+  ["="],
+  ["0"],
+  ["1"],
+  ["10"],
+  ["11"],
+  ["12"],
+  ["13"],
+  ["14"],
+  ["15"],
+  ["16"],
+  ["17"],
+  ["18"],
+  ["19"],
+  ["2"],
+  ["20"],
+  ["3"],
+  ["4"],
+  ["5"],
+  ["6"],
+  ["7"],
+  ["8"],
+  ["9"],
+  ["x"],
+  ["x//"]
+];
+var rank = /* @__PURE__ */ new Map();
+ROOT_ORDER.forEach((group, index) => {
+  for (const value of group) rank.set(value, index);
+});
+var HEX = /^[0-9a-f]+$/;
+var diagnosticCollator = new Intl.Collator("en-US");
+function __archbotCompare(a, b) {
+  const ra = rank.get(a);
+  const rb = rank.get(b);
+  if (ra !== void 0 && rb !== void 0) return ra - rb;
+  if (a.length === b.length && HEX.test(a) && HEX.test(b)) return a < b ? -1 : a > b ? 1 : 0;
+  return diagnosticCollator.compare(a, b);
+}
 
 // ../amath-bot-lab/src/data/tokens.ts
 var TOKENS = {
@@ -1490,7 +1751,7 @@ var SpaceMapImpl = class {
         });
       }
     }
-    built.sort((a, b) => a.face === b.face ? a.kind.localeCompare(b.kind) : compareFaces(a, b));
+    built.sort((a, b) => a.face === b.face ? __archbotCompare(a.kind, b.kind) : compareFaces(a, b));
     this.#candidateCache.set(cell, built);
     return built;
   }
@@ -1631,15 +1892,15 @@ var KINDS_BY_FACE = (() => {
   return out;
 })();
 function compareFaces(a, b) {
-  const rank = (face) => {
+  const rank2 = (face) => {
     const value = Number.parseInt(face, 10);
     return Number.isNaN(value) ? [1, face] : [0, value];
   };
-  const [ra, va] = rank(a.face);
-  const [rb, vb] = rank(b.face);
+  const [ra, va] = rank2(a.face);
+  const [rb, vb] = rank2(b.face);
   if (ra !== rb) return ra - rb;
   if (typeof va === "number" && typeof vb === "number") return va - vb;
-  return String(va).localeCompare(String(vb));
+  return __archbotCompare(String(va), String(vb));
 }
 function inRange(cell) {
   return Number.isInteger(cell) && cell >= 0 && cell < CELL_COUNT;
@@ -2200,7 +2461,7 @@ var MoveCollector = class {
   }
   /** Sorted by id, so two runs hand back the same list in the same order. */
   moves() {
-    return [...this.#byId.values()].sort((a, b) => a.id.localeCompare(b.id));
+    return [...this.#byId.values()].sort((a, b) => __archbotCompare(a.id, b.id));
   }
   /** Opt in to a discovery log; normal move generation keeps no second list. */
   trackDiscovery() {
@@ -3533,7 +3794,7 @@ function finishSearch(prepared, startedAt, unitsDone) {
     skippedByLine: counters.skippedByLine,
     prunedByCompletion: counters.prunedByCompletion,
     lineReasons: namedReasons(counters.lineReasons),
-    rejectedByCode: [...counters.rejected.entries()].map(([code, count]) => ({ code, count })).sort((a, b) => b.count - a.count || a.code.localeCompare(b.code)),
+    rejectedByCode: [...counters.rejected.entries()].map(([code, count]) => ({ code, count })).sort((a, b) => b.count - a.count || __archbotCompare(a.code, b.code)),
     legalMoves: prepared.collector.size,
     duplicates: prepared.collector.duplicates,
     movesByNewTiles: counters.movesByNewTiles,
@@ -3569,7 +3830,7 @@ function namedReasons(counts) {
     const count = counts[code];
     if (count > 0) rows.push({ reason: problemName(code), count });
   }
-  return rows.sort((a, b) => b.count - a.count || a.reason.localeCompare(b.reason));
+  return rows.sort((a, b) => b.count - a.count || __archbotCompare(a.reason, b.reason));
 }
 
 // ../amath-bot-lab/src/core/types.ts
@@ -3641,7 +3902,7 @@ function enumerateExchangeActions(state) {
       kinds: subset.kinds
     };
     return { id: moveId(action), action, score: 0 };
-  }).sort((a, b) => a.id.localeCompare(b.id));
+  }).sort((a, b) => __archbotCompare(a.id, b.id));
 }
 
 // ../amath-bot-lab/src/env/state.ts
@@ -4223,7 +4484,7 @@ function saturate(value, at) {
 }
 function logSaturate(value, at) {
   if (at <= 0) return 0;
-  return clamp(Math.log1p(Math.max(0, value)) / Math.log1p(at));
+  return clamp(__archbotMath.log1p(Math.max(0, value)) / __archbotMath.log1p(at));
 }
 function clamp(value) {
   return value < 0 ? 0 : value > 1 ? 1 : value;
@@ -5619,8 +5880,8 @@ function relu(values) {
   return values;
 }
 function sigmoid(z) {
-  if (z >= 0) return 1 / (1 + Math.exp(-z));
-  const e = Math.exp(z);
+  if (z >= 0) return 1 / (1 + __archbotMath.exp(-z));
+  const e = __archbotMath.exp(z);
   return e / (1 + e);
 }
 
@@ -5670,7 +5931,7 @@ var ValueHead = class {
     const probability = winProbability(this.#model, input);
     return {
       probability,
-      logit: Math.log(probability / (1 - probability)),
+      logit: __archbotMath.log(probability / (1 - probability)),
       historyDepth: encoded.historyWindow,
       cached: false
     };

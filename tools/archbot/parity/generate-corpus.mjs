@@ -23,6 +23,7 @@ import {
   comparable,
   extractOracle,
   extractPinnedSource,
+  oracleCommand,
   pin,
   repo,
   runOracle,
@@ -34,6 +35,10 @@ const SEEDS = [11, 23, 37, 59];
 
 const log = (message) => console.log(`[corpus] ${message}`);
 
+const oracleRuntime = oracleCommand();
+log(
+  `oracle runtime: ${oracleRuntime.command.join(" ")} = ${JSON.stringify(oracleRuntime.runtime)}`,
+);
 const pinned = extractPinnedSource();
 const oracle = extractOracle();
 try {
@@ -131,7 +136,7 @@ try {
   const out = [];
   for (const [index, item] of cases.entries()) {
     const started = Date.now();
-    const answer = runOracle(oracle.runtime, item.request);
+    const answer = runOracle(oracle.runtime, item.request, oracleRuntime.command);
     const ms = Date.now() - started;
     if (answer.error) throw new Error(`oracle failed on ${item.id}: ${answer.error}`);
     const expected = comparable(answer);
@@ -148,15 +153,13 @@ try {
         },
         equity: expected.equity,
         chosenIndex,
-        top: expected.candidates
-          .slice(0, 3)
-          .map((c) => ({
-            type: c.type,
-            score: c.score,
-            value: c.value,
-            placements: c.placements,
-            exchange: c.exchange,
-          })),
+        top: expected.candidates.slice(0, 3).map((c) => ({
+          type: c.type,
+          score: c.score,
+          value: c.value,
+          placements: c.placements,
+          exchange: c.exchange,
+        })),
         legalMoves: expected.stats.moves,
         oracleMs: ms,
       },
@@ -176,6 +179,7 @@ try {
       modelJsonSha256: pin.model.modelJsonSha256,
       weightsSha256: pin.model.weightsSha256,
     },
+    oracleRuntime: oracleRuntime.runtime,
     digest: "sha256 of JSON.stringify(answer) with stats.elapsedMs removed",
   };
   const head = JSON.stringify(header, null, 1).replace(/\n}$/, "");

@@ -64,6 +64,54 @@ try {
   const entryDir = join(tmp, "archbot");
   mkdirSync(entryDir);
   writeFileSync(join(entryDir, "core-entry.js"), readFileSync(join(here, "core-entry.js")));
+  writeFileSync(join(entryDir, "determinism.js"), readFileSync(join(here, "determinism.js")));
+
+  // Determinism (see determinism.js): the core's only engine- and locale-dependent
+  // operations are pinned to the production runtime's results. Each replacement
+  // is exact text and must occur exactly once; the output is then checked to
+  // contain none of the originals, so a new call site cannot slip through.
+  const replacements = new Map([
+    [
+      "src/space-map/spaceMap.ts",
+      [
+        ["a.kind.localeCompare(b.kind)", "__archbotCompare(a.kind, b.kind)"],
+        ["String(va).localeCompare(String(vb))", "__archbotCompare(String(va), String(vb))"],
+      ],
+    ],
+    [
+      "src/move-generator/moveCollector.ts",
+      [["a.id.localeCompare(b.id)", "__archbotCompare(a.id, b.id)"]],
+    ],
+    ["src/env/exchange.ts", [["a.id.localeCompare(b.id)", "__archbotCompare(a.id, b.id)"]]],
+    [
+      "src/move-generator/generateMoves.ts",
+      [
+        ["a.code.localeCompare(b.code)", "__archbotCompare(a.code, b.code)"],
+        ["a.reason.localeCompare(b.reason)", "__archbotCompare(a.reason, b.reason)"],
+      ],
+    ],
+    [
+      "src/space-map/validate.ts",
+      [["a.code.localeCompare(b.code)", "__archbotCompare(a.code, b.code)"]],
+    ],
+  ]);
+  const determinism = {
+    name: "archbot-determinism",
+    setup(build) {
+      build.onLoad({ filter: /amath-bot-lab\/src\/.*\.ts$/ }, async (args) => {
+        let contents = readFileSync(args.path, "utf8");
+        const relative = args.path.slice(
+          args.path.indexOf("amath-bot-lab/") + "amath-bot-lab/".length,
+        );
+        for (const [from, to] of replacements.get(relative) ?? []) {
+          const count = contents.split(from).length - 1;
+          if (count !== 1) fail(`expected one "${from}" in ${relative}, found ${count}`);
+          contents = contents.replace(from, to);
+        }
+        return { contents, loader: "ts" };
+      });
+    },
+  };
   const built = await esbuild.build({
     absWorkingDir: entryDir,
     entryPoints: ["core-entry.js"],
@@ -73,14 +121,31 @@ try {
     target: "es2022",
     write: false,
     logLevel: "warning",
+    define: {
+      "Math.exp": "__archbotMath.exp",
+      "Math.log": "__archbotMath.log",
+      "Math.log1p": "__archbotMath.log1p",
+    },
+    inject: [join(entryDir, "determinism.js")],
+    plugins: [determinism],
     banner: {
       js: [
         "// GENERATED — do not edit. ArchBot's browser core: the Stage 5B decision code",
         `// (amath-bot-lab ${commit}, ${pin.amathBotLab.ref}),`,
-        "// bundled by tools/archbot/build-core.mjs. See docs/archbot.md for provenance.",
+        "// bundled by tools/archbot/build-core.mjs with tools/archbot/determinism.js",
+        "// (production-exact exp/log/log1p and collation). See docs/archbot.md.",
       ].join("\n"),
     },
   });
+  const text = built.outputFiles[0].text;
+  for (const forbidden of [
+    /\.localeCompare\(/,
+    /(?<![\w$])Math\.exp\b/,
+    /(?<![\w$])Math\.log\b/,
+    /(?<![\w$])Math\.log1p\b/,
+  ]) {
+    if (forbidden.test(text)) fail(`the core still calls ${forbidden}`);
+  }
   const core = Buffer.from(built.outputFiles[0].contents);
 
   const outputs = [

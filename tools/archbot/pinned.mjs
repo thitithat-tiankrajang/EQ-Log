@@ -65,11 +65,59 @@ export function extractOracle() {
   return { root, runtime: join(root, "runtime.mjs") };
 }
 
+/**
+ * The runtime that answers as production does.
+ *
+ * Production is Node 22 on x86-64 Linux, with no locale set (node:22-bookworm-slim).
+ * That matters: V8's Math.exp/log/log1p round differently in the last bit on
+ * arm64 builds (fused multiply-add), and localeCompare follows the locale. So the
+ * oracle must be x86-64 Node 22 run with no LANG/LC_* — on Apple Silicon, the
+ * universal installer's binary under Rosetta. Override with
+ * ARCHBOT_ORACLE_NODE="<command...>"; any other runtime is refused unless
+ * ARCHBOT_ORACLE_ANY_RUNTIME=1, and is then recorded as such.
+ */
+export function oracleCommand() {
+  const configured = process.env.ARCHBOT_ORACLE_NODE?.split(" ").filter(Boolean);
+  const command =
+    configured ??
+    (process.platform === "darwin" && process.arch === "arm64"
+      ? ["arch", "-x86_64", "/usr/local/bin/node"]
+      : [process.execPath]);
+  const probe = spawnSync(
+    command[0],
+    [
+      ...command.slice(1),
+      "-p",
+      "JSON.stringify([process.version, process.arch, process.platform])",
+    ],
+    {
+      env: oracleEnv(),
+    },
+  );
+  if (probe.status !== 0)
+    throw new Error(`oracle runtime ${command.join(" ")} is not runnable: ${probe.stderr}`);
+  const [version, arch, platform] = JSON.parse(probe.stdout.toString());
+  const faithful = version.startsWith("v22.") && arch === "x64";
+  if (!faithful && process.env.ARCHBOT_ORACLE_ANY_RUNTIME !== "1") {
+    throw new Error(
+      `oracle runtime is ${version} ${arch}; production is Node 22 on x64 (see oracleCommand)`,
+    );
+  }
+  return { command, runtime: { version, arch, platform, productionFaithful: faithful } };
+}
+
+function oracleEnv() {
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) if (key === "LANG" || key.startsWith("LC_")) delete env[key];
+  return env;
+}
+
 /** Ask the production runtime one question, exactly as the service does. */
-export function runOracle(runtime, request) {
-  const run = spawnSync(process.execPath, [runtime], {
+export function runOracle(runtime, request, command = [process.execPath]) {
+  const run = spawnSync(command[0], [...command.slice(1), runtime], {
     input: JSON.stringify(request),
     maxBuffer: 1 << 26,
+    env: oracleEnv(),
   });
   const line = run.stdout.toString().trim();
   const answer = JSON.parse(line);
