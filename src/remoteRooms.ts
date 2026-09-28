@@ -14,12 +14,13 @@ import { deriveCompletion, deriveModeKey } from "./features/gameRecords/domain";
 import { revisionOf, withRevision } from "./gameSync";
 import { canonicalFromSnapshot, encodeCanonical } from "./domain/projection";
 import {
-  BOT_DISABLED_NOTICE,
+  botDisabledNotice,
   botKeyFor,
   economyErrorNotice,
   isBotDisabledMessage,
   type BotFunding,
 } from "./bot/catalog";
+import { serverErrorNotice } from "./i18n/serverErrors";
 
 type ActionMode = "none" | ActionType;
 
@@ -1096,10 +1097,10 @@ function enqueueRoomWrite<T>(id: string, task: () => Promise<T>): Promise<T> {
 }
 
 function schemaError(message: string): Error {
-  if (isBotDisabledMessage(message)) return new Error(BOT_DISABLED_NOTICE);
+  if (isBotDisabledMessage(message)) return new Error(botDisabledNotice());
   const economy = economyErrorNotice(message);
   if (economy) return new Error(economy);
-  if (/bot_closed:/.test(message)) return new Error("บอทตัวนี้ไม่เปิดให้สร้างเกมใหม่แล้ว");
+  if (/bot_closed:/.test(message)) return new Error(serverErrorNotice(message) ?? message);
   if (/bot_room_requires_catalog/.test(message)) {
     return new Error("This version of the app can no longer create bot games. Reload the app.");
   }

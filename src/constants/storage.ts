@@ -2,6 +2,8 @@ export const STORAGE_KEYS = {
   activeRoom: "amath-lab-active-room-v1",
   coffeeRoom: "amath-lab-coffee-room-v1",
   legacyGame: "amath-lab-board-state-v3",
+  /** Written only when the player explicitly chooses a language. */
+  locale: "eq-lab:locale:v1",
   members: "amath-lab-members-v1",
   railSplit: "amath:right-rail-split",
   remoteCapabilities: "eq-lab:supabase-capabilities:v3",

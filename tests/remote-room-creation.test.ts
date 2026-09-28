@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { encodeGame } from "../src/codec";
 import { DEFAULT_NEW_GAME_SETTINGS } from "../src/constants/roomDefaults";
 import { createNewGame } from "../src/game";
-import { BOT_DISABLED_NOTICE } from "../src/bot/catalog";
+import { botDisabledNotice } from "../src/bot/catalog";
 
 const { from, rpc } = vi.hoisted(() => ({
   from: vi.fn(),
@@ -124,7 +124,7 @@ describe("remote live-game creation", () => {
         visibility: "public",
         regionId: null,
       }),
-    ).rejects.toThrow(BOT_DISABLED_NOTICE);
+    ).rejects.toThrow(botDisabledNotice());
   });
 
   it("tells an out-of-date client to reload when the old path refuses a bot room", async () => {

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { BOT_DISABLED_NOTICE, botKeyFor, isBotDisabledMessage } from "../src/bot/catalog";
+import { botDisabledNotice, botKeyFor, isBotDisabledMessage } from "../src/bot/catalog";
 import { EngineApiError } from "../src/bot/engineApi";
 import {
   BOT_DISABLED_RECHECK_MS,
@@ -51,7 +51,8 @@ describe("disabled bot on the engine path", () => {
     expect(isDesyncBotFailure(error)).toBe(false);
     expect(botRetryDelay(error, 0)).toBe(BOT_DISABLED_RECHECK_MS);
     expect(botRetryDelay(error, 9)).toBe(BOT_DISABLED_RECHECK_MS);
-    expect(BOT_DISABLED_NOTICE).toMatch(/ปิดใช้งาน/);
+    expect(botDisabledNotice("th")).toMatch(/ปิดใช้งาน/);
+    expect(botDisabledNotice("en")).toMatch(/disabled this bot/);
   });
 });
 

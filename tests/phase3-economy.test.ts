@@ -74,11 +74,21 @@ describe("economy error notices", () => {
     expect(
       economyErrorNotice(
         "active_board_limit: a seated player has 3 active boards already (limit 3)",
+        "th",
       ),
     ).toContain("ผู้เล่นที่ถูกจัดที่นั่ง");
     expect(
-      economyErrorNotice("active_board_limit: you have 3 active boards already (limit 3)"),
+      economyErrorNotice("active_board_limit: you have 3 active boards already (limit 3)", "th"),
     ).toContain("คุณมีกระดาน");
+    expect(
+      economyErrorNotice(
+        "active_board_limit: a seated player has 3 active boards already (limit 3)",
+        "en",
+      ),
+    ).toContain("A seated player");
+    expect(
+      economyErrorNotice("active_board_limit: you have 3 active boards already (limit 3)", "en"),
+    ).toContain("You already have");
   });
 
   it("leaves unrelated errors alone", () => {

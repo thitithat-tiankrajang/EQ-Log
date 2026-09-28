@@ -194,7 +194,7 @@ import {
   warmUpBotEngine,
 } from "./bot/botController";
 import { EngineApiError, isEngineApiConfigured, type BotMoveResult } from "./bot/engineApi";
-import { BOT_DISABLED_NOTICE } from "./bot/catalog";
+import { botDisabledNotice } from "./bot/catalog";
 import { clientSuperReadiness, type ClientSuperReadiness } from "./bot/clientSuper";
 import { planSuperThreads, readThreadEnvironment } from "./bot/superThreads";
 import {
@@ -254,7 +254,7 @@ function botNoticeFor(error: unknown): string {
       case "unconfigured":
         return "ระบบบอทยังไม่ได้เปิดใช้งานในเซิร์ฟเวอร์นี้";
       case "bot_disabled":
-        return BOT_DISABLED_NOTICE;
+        return botDisabledNotice();
       default:
         return "บอทคำนวณตานี้ไม่สำเร็จ — ยังไม่เดินหมาก กำลังลองใหม่";
     }
