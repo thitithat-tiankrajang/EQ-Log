@@ -3388,7 +3388,7 @@ function App() {
         >
           ลองอีกครั้ง
         </button>{" "}
-        <button type="button" className="eq-button" onClick={() => navigate({ kind: "survival" })}>
+        <button type="button" className="eq-button" onClick={() => navigate({ kind: "stage" })}>
           กลับหน้า Survival
         </button>
       </div>
@@ -3791,7 +3791,7 @@ function App() {
     setReplayCursor(null);
     setShowResult(false);
     if (survivalRef.current || survivalRoute) {
-      navigate({ kind: "survival" });
+      navigate({ kind: "stage" });
       return;
     }
     if (studyPuzzleRef.current || studyPuzzleRoute) {
@@ -3806,7 +3806,8 @@ function App() {
             section: "live" as const,
           })
         : { kind: "home" as const, visibility: lobbyVisibility, section: "live" as const };
-    if (destination.kind === "private") {
+    // Only a lobby needs its list refreshed; every other destination owns its data.
+    if (destination.kind !== "home") {
       navigate(destination);
       return;
     }

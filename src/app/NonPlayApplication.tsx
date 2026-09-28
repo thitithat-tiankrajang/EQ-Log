@@ -43,6 +43,7 @@ import type { RoomMeta } from "../rooms";
 import { navigate, returnDestinationFor, useRoute } from "../router";
 import { isSupabaseConfigured } from "../supabaseClient";
 import { ApplicationShell } from "./shells/ApplicationShell";
+import { servedRoute } from "./servedRoute";
 import {
   ARCHIVE_PAGE_SIZE,
   listArchiveGames,
@@ -52,7 +53,10 @@ import {
 
 export default function NonPlayApplication() {
   const { configured, isApproved, profile, userId } = useAuth();
-  const route = useRoute();
+  const requestedRoute = useRoute();
+  // Platform destinations whose own pages are not built yet are served by an
+  // existing page (see servedRoute). Memoised: effects below depend on `route`.
+  const route = useMemo(() => servedRoute(requestedRoute), [requestedRoute]);
   const remoteEnabled = isSupabaseConfigured;
   const regionId = profile?.region_id ?? null;
   const regionName = profile?.region_name ?? null;
@@ -777,7 +781,7 @@ export default function NonPlayApplication() {
       </>
     );
   }
-  if (route.kind === "survival") {
+  if (route.kind === "stage") {
     return (
       <>
         <SurvivalPage />

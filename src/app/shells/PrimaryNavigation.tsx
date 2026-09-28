@@ -1,5 +1,6 @@
 import { FolderLock, Globe2, MapPin, Plus, UserRound } from "lucide-react";
 import { routeToHash, useRoute } from "../../router";
+import { servedRoute } from "../servedRoute";
 
 /**
  * The five application destinations. One element serves both layouts: a fixed
@@ -12,7 +13,9 @@ import { routeToHash, useRoute } from "../../router";
  * fixed mobile bar and pin the nav to the header instead of the viewport.
  */
 export function PrimaryNavigation() {
-  const route = useRoute();
+  // The destination a page is serving decides the active tab, so `#/` keeps
+  // Public highlighted while the Public lobby serves the Arena Home.
+  const route = servedRoute(useRoute());
   const active =
     route.kind === "home"
       ? route.visibility

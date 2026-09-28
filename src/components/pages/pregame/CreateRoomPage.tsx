@@ -221,7 +221,7 @@ export function CreateRoomPage({
             description="เล่นต่อจากสถานการณ์ที่กำหนดจนเอาชนะ Authur"
             disabled={!botServerAvailable}
             note={!botServerAvailable ? "ต้องเชื่อมต่อเซิร์ฟเวอร์เกมก่อน" : undefined}
-            onClick={() => navigate({ kind: "survival" })}
+            onClick={() => navigate({ kind: "stage" })}
           />
         </div>
       </PreGameShell>

@@ -5,6 +5,13 @@ import type { RoomVisibility } from "./roomScope";
 // requiring server-side rewrite rules.
 
 export type Route =
+  // Platform destinations. `arena` is the Arena Home (`#/`, `#/home`); it is
+  // deliberately not `home`, which remains the Public/Region live-games lobby.
+  | { kind: "arena" }
+  | { kind: "learn" }
+  | { kind: "me" }
+  // The Stage 1–50 product (Survival levels). Unrelated to the ArchBot engine.
+  | { kind: "stage" }
   | { kind: "home"; visibility: RoomVisibility; section?: LobbySection }
   | {
       kind: "create";
@@ -16,7 +23,6 @@ export type Route =
   | { kind: "private"; folderId: string | null; trash?: boolean }
   | { kind: "profile" }
   | { kind: "study" }
-  | { kind: "survival" }
   | { kind: "ranked"; matchId?: string }
   | { kind: "admin"; section: AdminSection }
   | { kind: "room"; roomId: string; returnTo?: ReturnDestination }
@@ -25,10 +31,13 @@ export type Route =
 export type LobbySection = "live" | "history" | "rooms" | "members" | "stats";
 export type AdminSection = "users" | "regions" | "vision" | "survival" | "study" | "bots" | "plans";
 export type ReturnDestination =
+  | { kind: "arena" }
+  | { kind: "stage" }
   | { kind: "home"; visibility: RoomVisibility; section: "live" | "history" }
   | { kind: "private"; folderId: string | null; trash?: boolean };
 
 export function returnDestinationFor(route: Route): ReturnDestination | null {
+  if (route.kind === "arena" || route.kind === "stage") return { kind: route.kind };
   if (route.kind === "home") {
     return {
       kind: "home",
@@ -47,20 +56,33 @@ export function returnDestinationFor(route: Route): ReturnDestination | null {
   return null;
 }
 
+/**
+ * How a return destination is written into a `from=` query. The Arena Home's
+ * own hash is `#/`, whose path is empty, so it travels as `home`.
+ */
+function returnPath(destination: ReturnDestination): string {
+  return destination.kind === "arena" ? "home" : routeToHash(destination).slice(2);
+}
+
 function returnDestinationFromQuery(query: string): ReturnDestination | undefined {
   const path = new URLSearchParams(query).get("from");
   if (!path) return undefined;
+  const isPlatform = path === "home" || path === "stage";
   const isHome = ["public", "region", "public/history", "region/history"].includes(path);
   const isPrivate =
     path === "private" || path === "private?view=trash" || path.startsWith("private/");
-  if (!isHome && !isPrivate) return undefined;
+  if (!isPlatform && !isHome && !isPrivate) return undefined;
   try {
     const route = parseHash(`#/${path}`);
-    if (
-      (route.kind === "home" || route.kind === "private") &&
-      routeToHash(route).slice(2) === path
-    ) {
-      return returnDestinationFor(route) ?? undefined;
+    const destination =
+      route.kind === "arena" ||
+      route.kind === "stage" ||
+      route.kind === "home" ||
+      route.kind === "private"
+        ? returnDestinationFor(route)
+        : null;
+    if (destination && returnPath(destination) === path) {
+      return destination;
     }
   } catch {
     // A malformed or obsolete return path must not prevent the room from opening.
@@ -70,7 +92,7 @@ function returnDestinationFromQuery(query: string): ReturnDestination | undefine
 
 export function parseHash(hash: string): Route {
   const cleaned = hash.replace(/^#\/?/, "");
-  if (!cleaned) return { kind: "home", visibility: "public", section: "live" };
+  if (!cleaned) return { kind: "arena" };
   const [path, query = ""] = cleaned.split("?", 2);
   const segments = path.split("/").filter(Boolean);
   const visibility = segments[0] === "region" ? "region" : "public";
@@ -98,9 +120,13 @@ export function parseHash(hash: string): Route {
       trash: params.get("view") === "trash",
     };
   }
+  if (segments[0] === "home") return { kind: "arena" };
+  if (segments[0] === "learn") return { kind: "learn" };
+  if (segments[0] === "me") return { kind: "me" };
+  // `#/survival` predates the Stage name and stays a working alias.
+  if (segments[0] === "stage" || segments[0] === "survival") return { kind: "stage" };
   if (segments[0] === "profile") return { kind: "profile" };
   if (segments[0] === "study") return { kind: "study" };
-  if (segments[0] === "survival") return { kind: "survival" };
   if (segments[0] === "ranked")
     return { kind: "ranked", ...(segments[1] ? { matchId: decodeURIComponent(segments[1]) } : {}) };
   if (segments[0] === "create") {
@@ -174,6 +200,10 @@ export function parseHash(hash: string): Route {
 }
 
 export function routeToHash(route: Route): string {
+  if (route.kind === "arena") return "#/";
+  if (route.kind === "learn") return "#/learn";
+  if (route.kind === "me") return "#/me";
+  if (route.kind === "stage") return "#/stage";
   if (route.kind === "home") {
     return route.section && route.section !== "live" && route.section !== "rooms"
       ? `#/${route.visibility}/${route.section}`
@@ -183,7 +213,7 @@ export function routeToHash(route: Route): string {
     const params = new URLSearchParams();
     if (route.visibility === "region") params.set("space", "region");
     if (route.preset) params.set("mode", route.preset);
-    if (route.returnTo) params.set("from", routeToHash(route.returnTo).slice(2));
+    if (route.returnTo) params.set("from", returnPath(route.returnTo));
     const query = params.toString();
     return `#/create${query ? `?${query}` : ""}`;
   }
@@ -195,15 +225,12 @@ export function routeToHash(route: Route): string {
     return route.trash ? `${path}?view=trash` : path;
   }
   if (route.kind === "profile") return "#/profile";
-  if (route.kind === "survival") return "#/survival";
   if (route.kind === "ranked")
     return route.matchId ? `#/ranked/${encodeURIComponent(route.matchId)}` : "#/ranked";
   if (route.kind === "study") return "#/study";
   if (route.kind === "admin") return `#/admin/${route.section}`;
   const path = `#/${route.kind}/${encodeURIComponent(route.roomId)}`;
-  return route.returnTo
-    ? `${path}?from=${encodeURIComponent(routeToHash(route.returnTo).slice(2))}`
-    : path;
+  return route.returnTo ? `${path}?from=${encodeURIComponent(returnPath(route.returnTo))}` : path;
 }
 
 function subscribeToHashChange(notify: () => void): () => void {
@@ -216,10 +243,10 @@ function currentHash(): string {
 }
 
 export function useRoute(): Route {
-  const hash = useSyncExternalStore(subscribeToHashChange, currentHash, () => "#/public");
+  const hash = useSyncExternalStore(subscribeToHashChange, currentHash, () => "#/");
   useEffect(() => {
     if (!hash) {
-      const url = `${window.location.pathname}${window.location.search}#/public`;
+      const url = `${window.location.pathname}${window.location.search}#/`;
       window.history.replaceState(null, "", url);
     }
   }, [hash]);
