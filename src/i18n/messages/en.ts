@@ -21,6 +21,13 @@ export const en = {
       th: "ไทย",
     },
   },
+  analysis: {
+    /** A deep-analysis level named after the bot that runs it. */
+    botLevel: "{bot} · {depth}-turn deep check",
+  },
+  study: {
+    seeAnswerWith: "See the answer with {bot}",
+  },
   errors: {
     generic: "Something went wrong. Please try again.",
     server: {

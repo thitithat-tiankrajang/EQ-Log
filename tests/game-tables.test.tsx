@@ -111,6 +111,42 @@ describe("public and region game tables", () => {
     );
   });
 
+  it("names a catalogue bot's mode by the bot, never by its internal key", () => {
+    render(
+      <ArchiveView
+        games={[
+          {
+            gameId: "archive-archbot",
+            regionId: null,
+            creatorName: "Alice",
+            name: "Alice vs ArchBot",
+            playerA: "Alice",
+            playerB: "ArchBot",
+            gameMode: "versus",
+            modeKey: "stage5b_standard",
+            turnNumber: 12,
+            scoreA: 180,
+            scoreB: 175,
+            completionKind: "natural",
+            completionReason: "rack_out",
+            surrenderedSide: null,
+            createdAt: "2026-09-30T00:00:00.000Z",
+            finishedAt: "2026-09-30T00:30:00.000Z",
+            archivedAt: "2026-09-30T00:30:00.000Z",
+          },
+        ]}
+        total={1}
+        loading={false}
+        loadingMore={false}
+        scope="public"
+        onSave={vi.fn()}
+      />,
+    );
+    const table = screen.getByRole("table", { name: "Game history" });
+    expect(table.textContent).not.toMatch(/stage5b|Stage ?5[AB]/i);
+    expect(within(table).getAllByText(/ArchBot/).length).toBeGreaterThan(0);
+  });
+
   it("confirms a replay was saved and avoids duplicate saves", async () => {
     const onSave = vi.fn().mockResolvedValue(true);
     render(

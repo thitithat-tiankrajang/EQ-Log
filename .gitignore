@@ -72,3 +72,4 @@ supabase/tests/*
 !supabase/tests/phase3_adversarial_smoke.sql
 !supabase/tests/phase3_race.sh
 !supabase/tests/phase3_mutation.sh
+!supabase/tests/archbot_display_smoke.sql

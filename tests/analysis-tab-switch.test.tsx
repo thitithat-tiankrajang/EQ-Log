@@ -207,7 +207,7 @@ describe("leaving for another tab mid-analysis", () => {
 
     const analyze = await screen.findByRole("button", { name: /วิเคราะห์ตานี้/ });
     await userEvent.click(analyze);
-    await userEvent.click(screen.getByText("Stage 5B · 64 ตา"));
+    await userEvent.click(screen.getByText("ArchBot · 64-turn deep check"));
     await waitFor(() => expect(requestAnalysis).toHaveBeenCalledTimes(1));
 
     await act(async () => {

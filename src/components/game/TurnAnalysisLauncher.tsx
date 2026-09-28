@@ -13,6 +13,7 @@ import type { LocalAnalysisContext } from "../../engineSessions";
 import { LOCAL_ANALYSIS_LEVEL } from "../../bot/localAnalysis";
 import { EngineActivityBar } from "./EngineActivityBar";
 import { TurnAnalysisPanel } from "./TurnAnalysisPanel";
+import { useAnalysisLevelLabel } from "./analysisLabels";
 
 // The Analyze control and everything that can go wrong behind it.
 //
@@ -39,14 +40,6 @@ import { TurnAnalysisPanel } from "./TurnAnalysisPanel";
 // SERVER owns discovery: `GET /jobs` answers "what is running for this
 // position?" without the browser having to remember. What is left here is
 // rendering, and choosing a level.
-
-const LEVEL_LABEL: Record<AnalysisLevel, string> = {
-  quick: "เร็ว",
-  normal: "ปกติ",
-  deep: "ลึก",
-  max: "สูงสุด (Super)",
-  stage5b64: "Stage 5B · 64 ตา",
-};
 
 const LEVEL_HINT: Record<AnalysisLevel, string> = {
   quick: "~5 วินาที",
@@ -152,6 +145,7 @@ export function TurnAnalysisLauncher({
   localHint?: { estimatedMs: number; threads: number } | null;
   mobileTool?: boolean;
 }) {
+  const levelLabel = useAnalysisLevelLabel();
   const [open, setOpen] = useState(false);
   const [level, setLevel] = useState<AnalysisLevel>("stage5b64");
   const [panelOpen, setPanelOpen] = useState(false);
@@ -315,7 +309,7 @@ export function TurnAnalysisLauncher({
               className={`analysis-level${option === level ? " active" : ""}`}
               onClick={() => analyze(option)}
             >
-              <span className="analysis-level-name">{LEVEL_LABEL[option]}</span>
+              <span className="analysis-level-name">{levelLabel(option)}</span>
               <span className="analysis-level-hint">
                 {option === LOCAL_ANALYSIS_LEVEL && localHint
                   ? `${formatWait(localHint.estimatedMs)} · ทำบนเครื่องนี้`
@@ -379,6 +373,7 @@ export function TurnAnalysisBar({
     engineSessions.getVersion,
     engineSessions.getVersion,
   );
+  const levelLabel = useAnalysisLevelLabel();
   const session = engineSessions.analysisFor(roomId, revision);
   const status = session?.status;
   const cancel = useCallback(() => {
@@ -404,10 +399,10 @@ export function TurnAnalysisBar({
       tone={queued ? "queued" : reconnecting ? "reconnecting" : "running"}
       label={
         queued
-          ? `กำลังรอคิววิเคราะห์ (${LEVEL_LABEL[level]})`
+          ? `กำลังรอคิววิเคราะห์ (${levelLabel(level)})`
           : reconnecting
             ? "กำลังเชื่อมต่องานวิเคราะห์เดิม"
-            : `กำลังวิเคราะห์ (${LEVEL_LABEL[level]})`
+            : `กำลังวิเคราะห์ (${levelLabel(level)})`
       }
       meter={
         queued

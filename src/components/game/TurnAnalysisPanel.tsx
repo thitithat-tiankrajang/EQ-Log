@@ -4,7 +4,9 @@ import {
   type AnalysisCandidate,
   type AnalysisResult,
 } from "../../bot/engineApi";
+import { useBotNames } from "../../bot/botIdentity";
 import { useDialogBehavior } from "../ui/useDialogBehavior";
+import { useAnalysisLevelLabel } from "./analysisLabels";
 
 // The player's own turn, analysed. Reuses the "why this move" panel's visual
 // language on purpose: the two answer the same question about different turns,
@@ -14,19 +16,12 @@ import { useDialogBehavior } from "../ui/useDialogBehavior";
 // Every number shown here is one the engine produced. Nothing on this screen is
 // computed for presentation.
 
-const SOLVER_LABEL: Record<AnalysisResult["method"]["solver"], string> = {
+// The Stage 5B search (with its Stage 5A value model) is presented as the bot
+// that runs it: its name comes from the catalogue, see `useBotNames`.
+const SOLVER_LABEL: Record<Exclude<AnalysisResult["method"]["solver"], "stage5b">, string> = {
   sim: "ลองเดินเกมหลายแบบ",
   endgame: "คำนวณจนจบเกม",
   greedy: "เทียบทางเลือกที่เห็น",
-  stage5b: "Stage 5B + โมเดล Stage 5A",
-};
-
-const LEVEL_LABEL: Record<AnalysisResult["level"], string> = {
-  quick: "เร็ว",
-  normal: "ปกติ",
-  deep: "ลึก",
-  max: "สูงสุด (Super)",
-  stage5b64: "Stage 5B · 64 ตา",
 };
 
 /**
@@ -95,6 +90,8 @@ export function TurnAnalysisPanel({
   const isEndgame = method.solver === "endgame";
   const titleId = useId();
   const dialogRef = useDialogBehavior<HTMLDivElement>({ onClose });
+  const botName = useBotNames();
+  const levelLabel = useAnalysisLevelLabel();
 
   return (
     <div className="bot-reason-overlay" role="presentation" onClick={onClose}>
@@ -113,8 +110,8 @@ export function TurnAnalysisPanel({
               🔎 วิเคราะห์ตาของ {playerName}
             </div>
             <div className="bot-reason-sub">
-              ตาที่ {analysis.turnNumber} · ระดับ {LEVEL_LABEL[analysis.level]} ·{" "}
-              {SOLVER_LABEL[method.solver]}
+              ตาที่ {analysis.turnNumber} · ระดับ {levelLabel(analysis.level)} ·{" "}
+              {method.solver === "stage5b" ? botName(method.solver) : SOLVER_LABEL[method.solver]}
             </div>
           </div>
           <button className="bot-reason-close" onClick={onClose} aria-label="ปิด">

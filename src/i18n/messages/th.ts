@@ -9,6 +9,12 @@ export const th: Catalog = {
       th: "ไทย",
     },
   },
+  analysis: {
+    botLevel: "{bot} · {depth} ตา",
+  },
+  study: {
+    seeAnswerWith: "ดูเฉลยด้วย {bot}",
+  },
   errors: {
     generic: "เกิดข้อผิดพลาด กรุณาลองใหม่อีกครั้ง",
     server: {

@@ -104,14 +104,14 @@ function analysisAt(revision: number): AnalysisResult {
   };
 }
 
-/** Render the launcher and press Analyse → Stage 5B. */
+/** Render the launcher and press Analyse → ArchBot. */
 async function startAnalysis(revision = 7) {
   const view = render(
     <AnalysisSurface roomId={ROOM_ID} revision={revision} playerName="Player" disabled={false} />,
   );
   const user = userEvent.setup();
   await user.click(screen.getByRole("button", { name: /วิเคราะห์ตานี้/ }));
-  await user.click(screen.getByText("Stage 5B · 64 ตา"));
+  await user.click(screen.getByText("ArchBot · 64-turn deep check"));
   return { ...view, user };
 }
 
@@ -264,6 +264,10 @@ describe("queued → running → completed", () => {
 
     await waitFor(() => expect(screen.getByText("A summary.")).toBeInTheDocument());
     expect(screen.queryByText(/กำลังรอคิววิเคราะห์/)).not.toBeInTheDocument();
+    // The engine that produced it is presented as its catalogue bot, never by
+    // its internal Stage 5B / Stage 5A names.
+    expect(screen.getAllByText(/ArchBot/).length).toBeGreaterThan(0);
+    expect(document.body.textContent).not.toMatch(/Stage ?5[AB]|stage5b/i);
   });
 });
 

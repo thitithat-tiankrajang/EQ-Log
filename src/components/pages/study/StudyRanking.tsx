@@ -7,13 +7,15 @@
 // arrived over the wire or been read back from the archive months later.
 
 import type { AnalysisCandidate } from "../../../bot/engineApi";
+import { useBotNames } from "../../../bot/botIdentity";
 import type { StudyMethod } from "../../../features/study/repository";
 
-const SOLVER_LABEL: Record<StudyMethod["solver"], string> = {
+// The Stage 5B search (with its Stage 5A value model) is presented as the bot
+// that runs it: its name comes from the catalogue, see `useBotNames`.
+const SOLVER_LABEL: Record<Exclude<StudyMethod["solver"], "stage5b">, string> = {
   sim: "จำลองตาต่อไป (Monte-Carlo 2 ply)",
   endgame: "แก้ท้ายเกมแบบ exact (พิสูจน์ทุกเส้นทาง)",
   greedy: "ประเมินแบบ static (greedy)",
-  stage5b: "Stage 5B + โมเดล Stage 5A",
 };
 
 /** Board coordinate as A-Math notation: column A–O, row 1–15 (center = H8). */
@@ -47,6 +49,7 @@ export function StudyRanking({
   method: StudyMethod | null;
   summary: string;
 }) {
+  const botName = useBotNames();
   if (candidates.length === 0) {
     return <p className="info-banner">ไม่มีตาที่วิเคราะห์ได้ในโจทย์นี้</p>;
   }
@@ -57,7 +60,12 @@ export function StudyRanking({
 
       {method && (
         <dl className="study-method">
-          <Stat label="วิธีคิด" value={SOLVER_LABEL[method.solver]} />
+          <Stat
+            label="วิธีคิด"
+            value={
+              method.solver === "stage5b" ? botName(method.solver) : SOLVER_LABEL[method.solver]
+            }
+          />
           <Stat label="ตาที่หาได้" value={method.legalMoves.toLocaleString()} />
           <Stat label="ตาที่ชั่งน้ำหนัก" value={method.candidatesEvaluated.toLocaleString()} />
           {method.solver === "stage5b" ? (

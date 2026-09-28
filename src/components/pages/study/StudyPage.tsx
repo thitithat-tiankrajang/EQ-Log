@@ -57,6 +57,8 @@ import {
 // other route renders as unstyled markup — a vertical stack of 225 buttons and
 // transparent tiles — unless the page asks for these itself.
 import { useBoardStyles } from "./useBoardStyles";
+import { useBotNames } from "../../../bot/botIdentity";
+import { useLocale } from "../../../i18n/LocaleProvider";
 import { StudyRanking } from "./StudyRanking";
 import { KEY_LEGEND, resolveStudyKey, type TileStroke } from "../../../gameplay/tileKeys";
 import { TOKEN_LIST, countUsage, hiddenInventory, remainingOf } from "./tileSupply";
@@ -110,10 +112,11 @@ function retreatCursor(cursor: Cursor): Cursor | null {
 
 type Step = "board" | "rack" | "review" | "level" | "running" | "result";
 
-const LEVELS: Array<{ value: string; label: string; desc: string; meter: number }> = [
+// Named after the bot that runs the level (ArchBot, from the catalogue); the
+// value is the engine identity the request and stored record keep.
+const LEVELS: Array<{ value: "stage5b64"; desc: string; meter: number }> = [
   {
     value: "stage5b64",
-    label: "Stage 5B + Stage 5A",
     desc: "หาแต้มที่มีค่าดีที่สุด · ตรวจเชิงลึกสูงสุด 64 ตา",
     meter: 4,
   },
@@ -123,6 +126,8 @@ export function StudyPage() {
   // Board and tile styling for this page only — see useBoardStyles for why it is not global.
   useBoardStyles();
   const { configured, userId } = useAuth();
+  const botName = useBotNames();
+  const { t } = useLocale();
 
   const [step, setStep] = useState<Step>("board");
   const [scoreSelf, setScoreSelf] = useState(0);
@@ -675,7 +680,9 @@ export function StudyPage() {
 
       {step === "level" && (
         <section className="study-step" aria-label="ดูเฉลย">
-          <h2 className="study-heading">ดูเฉลยด้วย Stage 5B</h2>
+          <h2 className="study-heading">
+            {t("study.seeAnswerWith", { bot: botName("stage5b64") })}
+          </h2>
           <div className="study-levels">
             {LEVELS.map((option) => (
               <button
@@ -687,7 +694,7 @@ export function StudyPage() {
               >
                 <span className="study-level-head">
                   <Bot size={18} aria-hidden />
-                  <strong>{option.label}</strong>
+                  <strong>{botName(option.value)}</strong>
                   <span className="bot-strength" aria-hidden="true">
                     {[1, 2, 3, 4].map((bar) => (
                       <i key={bar} className={bar <= option.meter ? "on" : ""} />
@@ -744,8 +751,7 @@ export function StudyPage() {
       {step === "result" && result && (
         <section className="study-step" aria-label="ผลวิเคราะห์">
           <h2 className="study-heading">
-            ผลวิเคราะห์ · ระดับ{" "}
-            {LEVELS.find((item) => item.value === result.level)?.label ?? result.level}
+            ผลวิเคราะห์ · ระดับ {botName(result.level) ?? result.level}
           </h2>
           {result.saveError ? (
             <p className="sync-banner">
@@ -796,8 +802,8 @@ export function StudyPage() {
                   {record.rack.join(" ")} · {record.scoreSelf}–{record.scoreOpponent}
                 </strong>
                 <span>
-                  {record.level} · {record.board.length} เบี้ยบนกระดาน · เก็บ{" "}
-                  {record.candidates.length} อันดับ
+                  {botName(record.level) ?? record.level} · {record.board.length} เบี้ยบนกระดาน ·
+                  เก็บ {record.candidates.length} อันดับ
                 </span>
                 <time dateTime={record.createdAt}>
                   {new Date(record.createdAt).toLocaleString()}
@@ -1017,6 +1023,7 @@ function PositionSummary({
 
 function SavedRecordView({ record }: { record: StudyRecord }) {
   const board = useMemo(() => boardFromStudyCells(record.board), [record]);
+  const botName = useBotNames();
 
   return (
     <>
@@ -1039,7 +1046,7 @@ function SavedRecordView({ record }: { record: StudyRecord }) {
         </div>
         <div>
           <dt>ระดับบอท</dt>
-          <dd>{record.level}</dd>
+          <dd>{botName(record.level) ?? record.level}</dd>
         </div>
       </dl>
       <div className="study-board is-readonly">

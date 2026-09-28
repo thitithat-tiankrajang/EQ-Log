@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Archive, ArrowUpRight, Bot, Check, FileClock, FolderInput, Save } from "lucide-react";
 import { useAuth } from "../../../auth";
+import { useBotNames, type BotNameResolver } from "../../../bot/botIdentity";
 import type { RoomVisibility } from "../../../roomScope";
 import { routeToHash } from "../../../router";
 import {
@@ -43,6 +44,7 @@ export function ArchiveView({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [savedIds, setSavedIds] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const botName = useBotNames();
 
   useEffect(() => {
     if (scope !== "public" || !profile?.is_admin) {
@@ -173,7 +175,7 @@ export function ArchiveView({
                     {(game.modeKey.startsWith("aether_") || game.modeKey.startsWith("authur_")) && (
                       <Bot size={14} />
                     )}
-                    {modeLabel(game.modeKey)}
+                    {modeLabel(game.modeKey, botName)}
                   </span>
                   <span>Turn {game.turnNumber}</span>
                   <span>{reasonLabel(game.completionReason)}</span>
@@ -311,7 +313,10 @@ function formatDate(value: string): string {
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(value));
 }
 
-function modeLabel(value: string): string {
+function modeLabel(value: string, botName: BotNameResolver): string {
+  // A catalogue bot's mode is named by the catalogue (ArchBot's is `stage5b_standard`).
+  const catalogueBot = botName(value);
+  if (catalogueBot) return catalogueBot;
   if (value.startsWith("authur_")) return "Authur · STRONG";
   if (value.startsWith("aether_")) {
     const difficulty = value.slice("aether_".length);

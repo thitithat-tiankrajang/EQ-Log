@@ -61,7 +61,7 @@ async function analyseWithRack(user: User) {
   await user.click(screen.getByRole("button", { name: /^1 เหลือ/ }));
   await user.click(screen.getByRole("button", { name: "ยืนยันเบี้ยในมือ" }));
   await user.click(screen.getByRole("button", { name: /ไปดูเฉลย/ }));
-  await user.click(screen.getByRole("button", { name: /Stage 5B/ }));
+  await user.click(screen.getByRole("button", { name: /ArchBot/ }));
   await waitFor(() => expect(requestStudyAnalysis).toHaveBeenCalled());
   return requestStudyAnalysis.mock.calls.at(-1)?.[0] as Record<string, unknown>;
 }
