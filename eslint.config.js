@@ -22,7 +22,12 @@ export default tseslint.config(
       // The cross-check harness. A development tool, not application code.
       "tools/engine-wasm/parity.mjs",
       "src/App.tsx",
-      "src/bot/**",
+      // Everything under src/bot except ArchBot, which is new code and is linted
+      // (all but its generated core).
+      "src/bot/*.ts",
+      "src/bot/authur/**",
+      "src/bot/engine/**",
+      "src/bot/archbot/core/**",
       "src/codec.ts",
       "src/components/actions/**",
       "src/components/board/**",
