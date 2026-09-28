@@ -66,7 +66,9 @@ test("@a11y has no serious accessibility violations on the main non-Play routes"
     "#/me",
     "#/public/join",
     "#/private?view=trash",
+    "#/learn",
     "#/study",
+    "#/stage",
     "#/admin/users",
     "#/admin/regions",
   ]) {
@@ -117,6 +119,8 @@ test("does not overflow the viewport horizontally", async ({ page }) => {
     "#/private",
     "#/profile",
     "#/region",
+    "#/learn",
+    "#/stage",
   ]) {
     await page.goto(`/${hash}`);
     await expect(page.locator("main")).toBeVisible();

@@ -7,6 +7,7 @@ import {
   startSurvivalPractice,
   type SurvivalLevel,
 } from "../../../features/survival/repository";
+import { useLocale } from "../../../i18n/LocaleProvider";
 import { navigate } from "../../../router";
 import {
   survivalPlaytestSource,
@@ -14,20 +15,28 @@ import {
 } from "../../../features/survivalPlay/api";
 import { survivalLevelRoomId } from "../../../features/survivalPlay/route";
 
+/**
+ * Stage: the Arena's set-position challenges against Authur. Presentation
+ * only — the levels, the player's recorded wins and the attempt start are the
+ * existing ones. An attempt is created by the server (`create_stage_attempt`),
+ * which checks the level's sealed start; nothing here decides availability
+ * beyond showing that a level's start is not sealed yet.
+ */
 export function SurvivalPage() {
   const { profile, userId } = useAuth();
+  const { t } = useLocale();
   const [levels, setLevels] = useState<SurvivalLevel[]>([]);
   const [wonLevels, setWonLevels] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    void Promise.all([listSurvivalLevels(), listMySurvivalWins()])
+    void Promise.all([listSurvivalLevels(), listMySurvivalWins(userId)])
       .then(([loadedLevels, wins]) => {
         setLevels(loadedLevels);
         setWonLevels(wins);
       })
       .catch((cause: Error) => setError(cause.message));
-  }, []);
+  }, [userId]);
 
   async function start(level: SurvivalLevel) {
     setBusy(level.level_no);
@@ -38,11 +47,7 @@ export function SurvivalPage() {
         profile?.display_name?.trim() || "Player",
         userId,
       );
-      navigate({
-        kind: "play",
-        roomId,
-        returnTo: { kind: "home", visibility: "public", section: "live" },
-      });
+      navigate({ kind: "play", roomId, returnTo: { kind: "stage" } });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause));
     } finally {
@@ -50,11 +55,13 @@ export function SurvivalPage() {
     }
   }
 
+  const openLevels = levels.filter((level) => level.status === "approved");
+
   return (
     <ApplicationShell
-      eyebrow="Survival · MVP"
-      title="เอาชนะ Authur ให้ได้"
-      description="เริ่มจากสถานการณ์ที่กำหนด สลับตากับ Authur ไปจนเกมจบ และต้องมีคะแนนสุดท้ายสูงกว่าจึงจะชนะ ด่านทดลองยังไม่นับอันดับฤดูกาล"
+      title={t("stage.title")}
+      description={t("stage.description")}
+      routeKey="stage"
       actions={<AccountChip />}
     >
       {error && (
@@ -62,34 +69,42 @@ export function SurvivalPage() {
           {error}
         </p>
       )}
-      <section className="eq-section eq-feature-section" aria-label="Survival levels">
-        {levels.filter((level) => level.status === "approved").length === 0 ? (
-          <p>ยังไม่มีด่านที่แอดมินอนุมัติ</p>
+      <section className="eq-section eq-feature-section" aria-label={t("stage.listLabel")}>
+        <p className="eq-stage-note">{t("stage.unranked")}</p>
+        {openLevels.length === 0 ? (
+          <p>{t("stage.empty")}</p>
         ) : (
-          <div className="eq-survival-grid">
-            {levels
-              .filter((level) => level.status === "approved")
-              .map((level) => (
-                <article className="eq-survival-card" key={level.id}>
-                  <span className="eq-eyebrow">ด่าน {level.level_no}</span>
-                  <h2>สถานการณ์ #{level.seed}</h2>
-                  {wonLevels.has(level.id) && <p>ผ่านด่านแล้ว · คะแนนสุดท้ายชนะ Authur</p>}
-                  <p>
-                    ผู้เล่นจำลองชนะ {level.win_count}/{level.sample_count}{" "}
-                    ครั้งในนโยบายทดสอบที่กำหนด
-                  </p>
-                  <p>{level.admin_note}</p>
-                  <button
-                    className="eq-button eq-button-primary"
-                    type="button"
-                    disabled={busy !== null}
-                    onClick={() => void start(level)}
-                  >
-                    {busy === level.level_no ? "กำลังเตรียมด่าน…" : "ลองเล่นฟรี"}
-                  </button>
-                </article>
-              ))}
-          </div>
+          <ul className="eq-survival-grid" aria-label={t("stage.listLabel")}>
+            {openLevels.map((level) => {
+              // Only an unsealed start is known to be refused by the server.
+              const notReady = level.start_sealed_at === null;
+              const won = wonLevels.has(level.id);
+              return (
+                <li className="eq-survival-card" key={level.id}>
+                  <h2>{t("stage.level", { number: level.level_no })}</h2>
+                  {won && <p className="eq-stage-won">{t("stage.won")}</p>}
+                  {level.admin_note && <p>{level.admin_note}</p>}
+                  {notReady ? (
+                    <p className="eq-stage-not-ready">{t("stage.notReady")}</p>
+                  ) : (
+                    <button
+                      className="eq-button eq-button-primary"
+                      type="button"
+                      disabled={busy !== null}
+                      aria-label={
+                        busy === level.level_no
+                          ? undefined
+                          : t("stage.play", { number: level.level_no })
+                      }
+                      onClick={() => void start(level)}
+                    >
+                      {busy === level.level_no ? t("stage.starting") : t("stage.playShort")}
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         )}
       </section>
       {import.meta.env.DEV && <PlaytestLevels />}

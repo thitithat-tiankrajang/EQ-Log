@@ -9,7 +9,8 @@ import type { Route } from "../router";
  *
  *   #/, #/home  Arena Home   → the Public live-games lobby (the page `#/` has
  *                              always shown); the Arena Home itself comes later
- *   #/learn     Learn centre → Study
+ *
+ * Learn and Me have their own pages now.
  *
  * Nothing is presented as the finished destination: each shows exactly the page
  * it replaces, with that page's own title. One router, one table; the rollout
@@ -20,8 +21,6 @@ export function servedRoute(route: Route): Route {
   switch (route.kind) {
     case "arena":
       return { kind: "home", visibility: "public", section: "live" };
-    case "learn":
-      return { kind: "study" };
     default:
       return route;
   }

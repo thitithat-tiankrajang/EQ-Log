@@ -13,19 +13,19 @@ afterEach(() => {
 });
 
 describe("pages serving the platform destinations until they are built", () => {
-  it("serves the Arena Home with the Public live-games lobby and Learn with Study", () => {
+  it("serves the Arena Home with the Public live-games lobby", () => {
     expect(servedRoute({ kind: "arena" })).toEqual({
       kind: "home",
       visibility: "public",
       section: "live",
     });
-    expect(servedRoute({ kind: "learn" })).toEqual({ kind: "study" });
   });
 
   it("leaves every destination that has its own page alone", () => {
     const routes: Route[] = [
-      // Me has its own page now.
+      // Me and Learn have their own pages now.
       { kind: "me" },
+      { kind: "learn" },
       { kind: "stage" },
       { kind: "ranked" },
       { kind: "ranked", matchId: "m-1" },

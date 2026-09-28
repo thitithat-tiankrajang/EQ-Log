@@ -3,6 +3,8 @@ import * as remoteRooms from "../../remoteRooms";
 import { isEngineApiConfigured } from "../../bot/engineApi";
 import { canonicalFromSnapshot, encodeCanonical } from "../../domain/projection";
 import { createSurvivalTestGame } from "./seededGame";
+import { getActiveLocale } from "../../i18n/locale";
+import { translate } from "../../i18n/translate";
 
 export type SurvivalLevel = {
   id: string;
@@ -96,8 +98,8 @@ export async function startSurvivalPractice(
 ): Promise<string> {
   const game = createSurvivalTestGame(level.seed, playerName, userId ?? undefined);
   if (!supabase || !isEngineApiConfigured)
-    throw new Error("Survival ต้องใช้เซิร์ฟเวอร์เกมที่เชื่อมต่ออยู่");
-  if (!userId) throw new Error("เข้าสู่ระบบก่อนเริ่มด่าน");
+    throw new Error(translate(getActiveLocale(), "stage.needsServer"));
+  if (!userId) throw new Error(translate(getActiveLocale(), "stage.signIn"));
   // The server creates the room AND its attempt, marks it a Stage room (never
   // charged), and checks the first position against the level's sealed start.
   const { id } = await remoteRooms.createStageAttempt(game, userId, level.id, requestId);
@@ -143,11 +145,17 @@ export async function listSurvivalAttemptStats(): Promise<
   return stats;
 }
 
-export async function listMySurvivalWins(): Promise<Set<string>> {
-  if (!supabase) return new Set();
+/**
+ * The levels this player has a recorded win on. Results are client-reported
+ * (advisory) until the Stage product records them on the server. Filtered to
+ * the player: an administrator can read everyone's attempts.
+ */
+export async function listMySurvivalWins(userId: string | null): Promise<Set<string>> {
+  if (!supabase || !userId) return new Set();
   const { data, error } = await supabase
     .from("survival_attempts")
     .select("level_id")
+    .eq("player_id", userId)
     .eq("result", "win");
   if (error) throw error;
   return new Set((data ?? []).map((row) => row.level_id));

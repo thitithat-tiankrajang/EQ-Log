@@ -14,6 +14,9 @@ test("serves each platform address, and keeps the old ones", async ({ page }) =>
   await expect(page.getByRole("heading", { level: 1, name: "Public" })).toBeVisible();
 
   await page.goto("/#/learn");
+  await expect(page.getByRole("heading", { level: 1, name: "Learn" })).toBeVisible();
+
+  await page.goto("/#/study");
   await expect(page.getByRole("heading", { level: 1, name: "Study" })).toBeVisible();
 
   await page.goto("/#/me");
@@ -24,12 +27,10 @@ test("serves each platform address, and keeps the old ones", async ({ page }) =>
   );
 
   await page.goto("/#/stage");
-  const stageHeading = page.getByRole("heading", { level: 1 });
-  await expect(stageHeading).toBeVisible();
-  const stageTitle = await stageHeading.textContent();
+  await expect(page.getByRole("heading", { level: 1, name: "Stage" })).toBeVisible();
 
   await page.goto("/#/survival");
-  await expect(page.getByRole("heading", { level: 1, name: stageTitle ?? "" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Stage" })).toBeVisible();
 
   // The live-games lobby is still there, and is not mistaken for Home.
   await page.goto("/#/region");
@@ -73,7 +74,7 @@ test("Back returns through the platform addresses", async ({ page }) => {
   await page.goto("/#/learn");
   await page.goto("/#/me");
   await page.goBack();
-  await expect(page.getByRole("heading", { level: 1, name: "Study" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Learn" })).toBeVisible();
   await page.goBack();
   await expect(page.getByRole("heading", { level: 1, name: "Public" })).toBeVisible();
 });

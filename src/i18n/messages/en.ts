@@ -75,6 +75,48 @@ export const en = {
       privateHint: "Invite only. Save or discard when done.",
     },
   },
+  learn: {
+    title: "Learn",
+    description: "Examine positions and look back at your games.",
+    examine: {
+      heading: "Examine a position",
+      study: "Study a position",
+      studyHint:
+        "Set up a board and your tiles, then see the best play. Positions you analyse are kept in Study.",
+      inGame: "While you play, you can also analyse your own turn from inside the game.",
+    },
+    review: {
+      heading: "Look back at finished games",
+      public: "Public game history",
+      publicHint: "Replay finished public games move by move.",
+      region: "Region game history",
+      regionHint: "Replay finished games from your region.",
+      saved: "Your saved games",
+      savedHint: "Open the games you saved to your private library.",
+    },
+    arena: {
+      eyebrow: "Arena",
+      heading: "Test yourself",
+      stage: "Stage",
+      stageHint: "Start from a set position and try to finish ahead of Authur.",
+    },
+  },
+  stage: {
+    title: "Stage",
+    description:
+      "Start from a set position and play it out against Authur. Finish with the higher score to win the Stage.",
+    unranked: "Stages don't count towards a season ranking yet.",
+    listLabel: "Stages",
+    level: "Stage {number}",
+    won: "You've won this Stage",
+    play: "Play Stage {number}",
+    playShort: "Play",
+    starting: "Getting the Stage ready…",
+    notReady: "Not open to play yet",
+    empty: "No Stages are open yet.",
+    needsServer: "Stage needs the game server to be connected.",
+    signIn: "Sign in to play a Stage.",
+  },
   me: {
     title: "Me",
     description: "Your account, games and settings",

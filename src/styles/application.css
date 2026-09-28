@@ -791,6 +791,117 @@ body[data-route="play"] .eq-coffee-return {
   color: var(--eq-text-faint);
 }
 
+/* Learn: what to examine or look back at, then the Arena's Stage. */
+.eq-learn-section {
+  display: grid;
+  gap: 12px;
+}
+
+.eq-learn-section h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.eq-learn-section > .eq-eyebrow {
+  margin-block-end: -8px;
+}
+
+.eq-learn-links {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.eq-learn-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  border: 1px solid var(--eq-line);
+  border-radius: var(--eq-radius-md);
+  background: var(--eq-surface);
+  color: var(--eq-text);
+  padding: 12px 16px;
+  text-decoration: none;
+}
+
+.eq-learn-link:hover {
+  border-color: var(--eq-line-strong);
+}
+
+.eq-learn-link:focus-visible {
+  outline: 2px solid var(--eq-primary);
+  outline-offset: 2px;
+}
+
+.eq-learn-link.is-primary {
+  border-color: color-mix(in srgb, var(--eq-primary) 35%, var(--eq-line));
+}
+
+.eq-learn-link-icon {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--eq-primary-soft);
+  color: var(--eq-primary);
+}
+
+.eq-learn-link-copy {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.eq-learn-link-copy strong {
+  font-size: 15px;
+}
+
+.eq-learn-link-copy small {
+  color: var(--eq-text-soft);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.eq-learn-link-arrow {
+  flex: none;
+  color: var(--eq-text-faint);
+}
+
+.eq-learn-note,
+.eq-stage-note {
+  margin: 0;
+  color: var(--eq-text-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* Stage: the level list is a list; its cards keep their existing styles. */
+ul.eq-survival-grid {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.eq-survival-card > .eq-button {
+  min-height: 44px;
+}
+
+.eq-survival-card .eq-stage-won {
+  color: var(--eq-success);
+  font-weight: 700;
+}
+
+.eq-survival-card .eq-stage-not-ready {
+  font-weight: 700;
+}
+
 .eq-me-setting {
   display: flex;
   flex-wrap: wrap;

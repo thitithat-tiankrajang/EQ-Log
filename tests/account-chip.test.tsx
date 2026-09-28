@@ -19,6 +19,7 @@ vi.mock("../src/supabaseClient", () => ({
 
 import { AccountChip, AuthGate, AuthProvider } from "../src/auth";
 import { PrimaryNavigation } from "../src/app/shells/PrimaryNavigation";
+import { LearnPage } from "../src/components/pages/learn/LearnPage";
 import { LocaleProvider } from "../src/i18n/LocaleProvider";
 import { chooseLocale, resetActiveLocale } from "../src/i18n/locale";
 import { parseHash } from "../src/router";
@@ -75,7 +76,7 @@ describe("the header account chip", () => {
   });
 });
 
-describe("creating behind the approval gate", () => {
+describe("the approval gate", () => {
   it("offers no Create action to an account waiting for approval", async () => {
     rpc.mockResolvedValue({ data: { ...PROFILE, status: "pending" }, error: null });
     renderWithAccount(
@@ -86,6 +87,19 @@ describe("creating behind the approval gate", () => {
     expect(await screen.findByRole("heading", { name: "Approval pending" })).toBeVisible();
     expect(screen.queryByRole("link", { name: "Create game" })).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("keeps Learn, and its way into Stage, behind the same gate", async () => {
+    rpc.mockResolvedValue({ data: { ...PROFILE, status: "pending" }, error: null });
+    renderWithAccount(
+      <AuthGate>
+        <LearnPage />
+      </AuthGate>,
+    );
+    expect(await screen.findByRole("heading", { name: "Approval pending" })).toBeVisible();
+    expect(screen.queryByRole("heading", { name: "Learn" })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Stage/ })).toBeNull();
+    expect(screen.queryByRole("link", { name: /Study a position/ })).toBeNull();
   });
 
   it("offers it once the account is approved", async () => {

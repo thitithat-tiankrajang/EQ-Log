@@ -8,6 +8,7 @@ import { CreateRoomPage } from "../components/pages/pregame/CreateRoomPage";
 import { JoinRoomPage } from "../components/pages/pregame/JoinRoomPage";
 import { WaitingRoomPage } from "../components/pages/pregame/WaitingRoomPage";
 import { PrivateLibraryPage } from "../components/pages/PrivateLibraryPage";
+import { LearnPage } from "../components/pages/learn/LearnPage";
 import { StudyPage } from "../components/pages/study/StudyPage";
 import { SurvivalPage } from "../components/pages/survival/SurvivalPage";
 import { RankedPage } from "../components/pages/ranked/RankedPage";
@@ -783,6 +784,14 @@ export default function NonPlayApplication() {
     return (
       <>
         <StudyPage />
+        {coffeeReturn}
+      </>
+    );
+  }
+  if (route.kind === "learn") {
+    return (
+      <>
+        <LearnPage />
         {coffeeReturn}
       </>
     );
