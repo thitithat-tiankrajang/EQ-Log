@@ -180,7 +180,9 @@ Production build, whole corpus, decision wall time in the worker:
   HTTP cache warm. Real network download time was not measured.
 - Memory (renderer process, from the OS; no page API reports worker memory):
   ~190 MB before, ~700–730 MB peak on the 229k-move position. With the worker
-  retired after huge searches, the process was back to ~80 MB five seconds later.
+  retired after huge searches, the operating system reclaims it gradually: back to
+  ~80 MB within 5–30 s across runs (e.g. 715 → 678 → 575 → 442 → 333 → 166 → 78 MB
+  at 5 s intervals), below the pre-search level.
 - Mobile: not measured. Chromium's CPU throttling does not slow a dedicated
   worker, so it cannot emulate a phone here; no phone figures are claimed.
 
@@ -200,6 +202,15 @@ ownership ("placed by self" / "placed by opponent"). ArchBot therefore labels
 tiles relative to its own seat. **The production Analysis adapter does not**: it
 passes absolute sides, so for a player analysing as side B the network sees
 ownership inverted. That is a known engine-algo follow-up, outside Phase 3b.
+
+## Catalog (Phase 3b)
+
+`supabase/migrations/20260930100000_archbot_enable.sql` opens ArchBot: the
+`stage5b` row becomes active, enabled and open to new rooms, named ArchBot, still
+free and CLIENT (config_version unchanged). ArchBot rooms (`stage5b_standard`,
+labelled ArchBot) offer turn log, replay, analysis and alternate lines, and no
+bot explanation — a Product Owner decision for a practice mode, not a precedent
+for Ranked.
 
 ## Trust boundary
 

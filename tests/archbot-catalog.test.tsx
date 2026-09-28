@@ -35,6 +35,7 @@ import {
   MODE_CATALOG,
 } from "../src/features/gameRecords/domain";
 import { defaultPlayTools } from "../src/playModeTools";
+import { readFileSync } from "node:fs";
 import type { NewGameSettings } from "../src/game";
 
 const ENABLED: CatalogBot = {
@@ -202,5 +203,39 @@ describe("ArchBot's identity in records", () => {
     expect([...defaultPlayTools("stage5b_standard")].sort()).toEqual(
       ["analysis", "multiverse", "replay", "turn_log"].sort(),
     );
+  });
+});
+
+describe("the enabling migration", () => {
+  const migration = readFileSync(
+    `${process.cwd()}/supabase/migrations/20260930100000_archbot_enable.sql`,
+    "utf8",
+  );
+  const code = migration.replace(/--[^\n]*/g, "");
+
+  it("opens stage5b as ArchBot, and only that", () => {
+    expect(code).toMatch(
+      /set display_name = 'ArchBot', lifecycle = 'active', enabled = true,\s+new_rooms_allowed = true/,
+    );
+    expect(code).toMatch(
+      /where bot_key = 'stage5b'\s+and access_tier = 'free' and execution_type = 'CLIENT'/,
+    );
+    expect(code).toContain(
+      "update public.game_modes set label = 'ArchBot' where mode_key = 'stage5b_standard'",
+    );
+    // Tier, execution and identity never change here; nothing is charged or staged.
+    const setLists = [...code.matchAll(/\bset\s+([\s\S]*?)\s+where\b/g)].map((match) => match[1]!);
+    expect(setLists.length).toBeGreaterThan(0);
+    for (const list of setLists) {
+      expect(list).not.toMatch(
+        /\b(access_tier|execution_type|engine_family|difficulty|mode_key|config_version)\s*=/,
+      );
+    }
+    expect(code).not.toMatch(/probot|economy|credit|allowance|survival|room_purpose|CLIENT_WASM/i);
+  });
+
+  it("gives ArchBot rooms the approved Play tools and no bot explanation", () => {
+    expect(code).toContain("t.tool_key in ('turn_log', 'replay', 'analysis', 'multiverse')");
+    expect(code).not.toContain("bot_insight");
   });
 });

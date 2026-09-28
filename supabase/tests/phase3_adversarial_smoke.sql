@@ -186,8 +186,21 @@ begin
   -- a bot room through the generic path, or disguised as Stage 5B / Stage
   perform pg_temp.refused(format($q$select * from public.create_live_game(%L::jsonb || '{"botDifficulty":"super","botEngine":"authur"}',
       'private', 'none', null, 'invite_only', null)$q$, pg_temp.bot_state()), 'bot_room_requires_catalog:%');
-  perform pg_temp.refused(format($q$select * from public.create_bot_game(gen_random_uuid(), 'stage5b', 'B', %L,
+  -- a pending bot cannot be played (ArchBot left that state in Phase 3b; a
+  -- test-only pending row stands in for it)
+  perform pg_temp.act_as_owner();
+  insert into public.bot_catalog (bot_key, display_name, engine_family, difficulty, mode_key,
+    execution_type, access_tier, access_tier_status, enabled, new_rooms_allowed, lifecycle, sort_order)
+  values ('adv_pending', 'Adversarial Pending', 'stage5b', 'stage5b64', 'stage5b_standard',
+          'CLIENT', 'free', 'decided', false, false, 'pending', 97);
+  perform pg_temp.act_as(mallory);
+  perform pg_temp.refused(format($q$select * from public.create_bot_game(gen_random_uuid(), 'adv_pending', 'B', %L,
       'private', 'none', null, 'invite_only', null, null)$q$, pg_temp.bot_state()), 'bot_pending:%');
+  -- ArchBot is free: it cannot be made to take a Credit or an allowance
+  perform pg_temp.refused(format($q$select * from public.create_bot_game(gen_random_uuid(), 'stage5b', 'B', %L,
+      'private', 'none', null, 'invite_only', null, 'credit')$q$, pg_temp.bot_state()), 'funding_not_applicable:%');
+  perform pg_temp.refused(format($q$select * from public.create_bot_game(gen_random_uuid(), 'stage5b', 'B', %L,
+      'private', 'none', null, 'invite_only', null, 'allowance')$q$, pg_temp.bot_state()), 'funding_not_applicable:%');
   perform pg_temp.refused(format($q$select * from public.create_bot_game(gen_random_uuid(), 'aether_super', 'B', %L,
       'private', 'none', null, 'invite_only', null, null)$q$, pg_temp.bot_state()), 'bot_closed:%');
   -- the victim's allowance/credits are not reachable by naming them
