@@ -8,6 +8,7 @@ import { CreateRoomPage } from "../components/pages/pregame/CreateRoomPage";
 import { JoinRoomPage } from "../components/pages/pregame/JoinRoomPage";
 import { WaitingRoomPage } from "../components/pages/pregame/WaitingRoomPage";
 import { PrivateLibraryPage } from "../components/pages/PrivateLibraryPage";
+import { ArenaHome } from "../components/pages/home/ArenaHome";
 import { LearnPage } from "../components/pages/learn/LearnPage";
 import { StudyPage } from "../components/pages/study/StudyPage";
 import { SurvivalPage } from "../components/pages/survival/SurvivalPage";
@@ -474,7 +475,20 @@ export default function NonPlayApplication() {
   }
 
   async function openLiveRoom(id: string) {
-    const target = rooms.find((room) => room.id === id);
+    await openListedRoom(
+      id,
+      rooms.find((room) => room.id === id),
+      requestedScope,
+    );
+  }
+
+  /** Open a room as the lobby does: take an open seat as a spectator first, then open it. */
+  async function openListedRoom(
+    id: string,
+    target: RoomMeta | undefined,
+    // The scope the room must belong to; undefined when the list spans scopes (Home).
+    scope: RoomScope | null | undefined,
+  ) {
     const role = target ? getRoomRole(target) : null;
     if (remoteEnabled && target?.joinPolicy === "open" && role?.label === "Spectator") {
       try {
@@ -484,7 +498,7 @@ export default function NonPlayApplication() {
         return;
       }
     }
-    await openRoom(id, requestedScope);
+    await openRoom(id, scope);
   }
 
   async function persistWaiting(next: GameState) {
@@ -784,6 +798,24 @@ export default function NonPlayApplication() {
     return (
       <>
         <StudyPage />
+        {coffeeReturn}
+      </>
+    );
+  }
+  if (route.kind === "arena") {
+    return (
+      <>
+        <ArenaHome
+          remoteEnabled={remoteEnabled}
+          regionId={regionId}
+          userId={userId}
+          roleOf={(room) => getRoomRole(room).label}
+          // Your own games open without a scope check: they may be in any scope.
+          onContinue={(room) => void openRoom(room.id)}
+          onOpenListed={(room) => void openListedRoom(room.id, room, undefined)}
+          opening={Boolean(foregroundLoading)}
+        />
+        <GlobalActivity error={syncError} foreground={foregroundLoading} syncing={false} />
         {coffeeReturn}
       </>
     );

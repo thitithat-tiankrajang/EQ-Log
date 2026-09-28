@@ -4076,3 +4076,186 @@ body[data-route="play"] .pending-select-wrap .ui-select-button {
 .ranked-ready > .eq-button-primary {
   justify-self: start;
 }
+
+/* Home, the Arena lobby: short rows to scan top to bottom — what you can
+   continue, what is open now, ways to play — in the Learn page's row style. */
+.eq-home-section,
+.eq-home-bots {
+  display: grid;
+  gap: 12px;
+}
+
+.eq-home-section h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+.eq-home-bots h3 {
+  margin: 4px 0 0;
+  font-size: 14px;
+}
+
+.eq-home-rows {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.eq-home-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 56px;
+  border: 1px solid var(--eq-line);
+  border-radius: var(--eq-radius-md);
+  background: var(--eq-surface);
+  color: var(--eq-text);
+  font: inherit;
+  padding: 10px 14px;
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+a.eq-home-row:hover,
+button.eq-home-row:not(:disabled):hover {
+  border-color: var(--eq-line-strong);
+}
+
+.eq-home-row:focus-visible,
+.eq-home-links a:focus-visible {
+  outline: 2px solid var(--eq-primary);
+  outline-offset: 2px;
+}
+
+.eq-home-row.is-emphasis {
+  border-color: color-mix(in srgb, var(--eq-primary) 35%, var(--eq-line));
+  background: color-mix(in srgb, var(--eq-primary-soft) 45%, var(--eq-surface));
+}
+
+button.eq-home-row:disabled,
+span.eq-home-row[aria-disabled="true"] {
+  cursor: default;
+}
+
+span.eq-home-row[aria-disabled="true"] {
+  opacity: 0.7;
+}
+
+.eq-home-row-icon {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--eq-primary-soft);
+  color: var(--eq-primary);
+}
+
+.eq-home-row-copy {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.eq-home-row-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.eq-home-row-copy strong {
+  font-size: 15px;
+}
+
+.eq-home-row-copy small {
+  color: var(--eq-text-soft);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.eq-home-row-copy .eq-home-row-note {
+  color: var(--eq-text);
+}
+
+.eq-home-row-tag {
+  flex: none;
+  border: 1px solid var(--eq-line);
+  border-radius: 99px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.eq-home-row-action {
+  flex: none;
+  color: var(--eq-primary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.eq-home-row-arrow {
+  flex: none;
+  color: var(--eq-text-faint);
+}
+
+@media (max-width: 420px) {
+  .eq-home-row {
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .eq-home-row-icon {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+.eq-home-status,
+.eq-home-note {
+  margin: 0;
+  color: var(--eq-text-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.eq-home-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin: 0;
+}
+
+.eq-home-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--eq-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.eq-home-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  border: 1px solid #f1c3bf;
+  border-radius: var(--eq-radius-md);
+  background: #fdf0ef;
+  padding: 10px 14px;
+}
+
+.eq-home-error p {
+  margin: 0;
+  font-size: 13px;
+}

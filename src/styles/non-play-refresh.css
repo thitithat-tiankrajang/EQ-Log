@@ -141,11 +141,12 @@
   padding: 6px 11px;
 }
 /* Full touch targets where a button commits to something: joining or readying
-   a Ranked match, starting a Stage. Here, not in application.css, because
+   a Ranked match, starting a Stage, retrying Home. Here, not in application.css, because
    this unlayered sheet sets the 36px above and would win over a layer. */
 .ranked-confirm-actions .eq-button,
 .ranked-ready > .eq-button,
-.eq-survival-card > .eq-button {
+.eq-survival-card > .eq-button,
+.eq-home-error .eq-button {
   min-height: 44px;
 }
 .eq-icon-button {

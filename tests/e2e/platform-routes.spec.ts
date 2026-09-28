@@ -1,16 +1,18 @@
 import { expect, test } from "@playwright/test";
 
-// The platform destinations are routable before their own pages exist; each is
-// served by the page it will replace, at its own address.
+// Every platform destination at its own address; the old addresses still work.
 test("serves each platform address, and keeps the old ones", async ({ page }) => {
   const nav = page.getByRole("navigation", { name: "Primary navigation" });
 
   await page.goto("/#/");
-  await expect(page.getByRole("heading", { level: 1, name: "Public" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Home" })).toBeVisible();
   await expect(nav.getByRole("link", { name: "Home" })).toHaveAttribute("aria-current", "page");
   expect(new URL(page.url()).hash).toBe("#/");
 
   await page.goto("/#/home");
+  await expect(page.getByRole("heading", { level: 1, name: "Home" })).toBeVisible();
+
+  await page.goto("/#/public");
   await expect(page.getByRole("heading", { level: 1, name: "Public" })).toBeVisible();
 
   await page.goto("/#/learn");
