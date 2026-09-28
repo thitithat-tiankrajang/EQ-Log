@@ -46,6 +46,7 @@ export function BotThinkingCard({
   botName,
   slowDevice,
   variant = "panel",
+  localPhase = null,
 }: {
   /** A projection of the server-owned session. This component renders it; it
    *  never owns it, and unmounting it stops nothing. */
@@ -66,6 +67,12 @@ export function BotThinkingCard({
    *  or the slow-device sentence; it keeps the percentage, which is the part
    *  that answers "is it stuck?". */
   variant?: "panel" | "mobile";
+  /**
+   * ArchBot, which thinks on this device and reports no percentage: whether it
+   * is still loading its model (first turn of a tab) or searching. Null for
+   * every other bot.
+   */
+  localPhase?: "loading_model" | "thinking" | null;
 }) {
   if (state.kind === "queued") {
     return (
@@ -102,7 +109,11 @@ export function BotThinkingCard({
       phase={
         reconnecting
           ? "กำลังเชื่อมต่องานเดิม"
-          : progress
+          : localPhase === "loading_model"
+            ? "กำลังโหลดโมเดลลงเครื่อง (ครั้งแรกเท่านั้น)"
+            : localPhase === "thinking"
+              ? "กำลังคิดบนเครื่องนี้"
+              : progress
             ? (PHASE_LABELS[progress.phase] ?? progress.phase)
             : "กำลังเริ่มคำนวณ"
       }

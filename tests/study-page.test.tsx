@@ -118,7 +118,7 @@ describe("Study wizard", () => {
     expect(screen.getByText("คู่แข่งถือ")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /ไปดูเฉลย/ }));
 
-    await user.click(screen.getByRole("button", { name: /Stage 5B/ }));
+    await user.click(screen.getByRole("button", { name: /ArchBot/ }));
 
     await waitFor(() => expect(requestStudyAnalysis).toHaveBeenCalledTimes(1));
     const sent = requestStudyAnalysis.mock.calls[0]?.[0] as Record<string, unknown>;
@@ -161,7 +161,7 @@ describe("Study wizard", () => {
     await user.click(screen.getByRole("button", { name: /^1 เหลือ/ }));
     await user.click(screen.getByRole("button", { name: "ยืนยันเบี้ยในมือ" }));
     await user.click(screen.getByRole("button", { name: /ไปดูเฉลย/ }));
-    await user.click(screen.getByRole("button", { name: /Stage 5B/ }));
+    await user.click(screen.getByRole("button", { name: /ArchBot/ }));
 
     await waitFor(() => expect(requestStudyAnalysis).toHaveBeenCalledTimes(1));
     const sent = requestStudyAnalysis.mock.calls[0]?.[0] as Record<string, unknown>;
@@ -208,7 +208,7 @@ describe("Study wizard", () => {
     await user.click(screen.getByRole("button", { name: /^1 เหลือ/ }));
     await user.click(screen.getByRole("button", { name: "ยืนยันเบี้ยในมือ" }));
     await user.click(screen.getByRole("button", { name: /ไปดูเฉลย/ }));
-    await user.click(screen.getByRole("button", { name: /Stage 5B/ }));
+    await user.click(screen.getByRole("button", { name: /ArchBot/ }));
 
     await waitFor(() => expect(requestStudyAnalysis).toHaveBeenCalledTimes(1));
     const sent = requestStudyAnalysis.mock.calls[0]?.[0] as Record<string, unknown>;
@@ -237,7 +237,7 @@ describe("Study wizard", () => {
     await user.click(screen.getByRole("button", { name: /^1 เหลือ/ }));
     await user.click(screen.getByRole("button", { name: "ยืนยันเบี้ยในมือ" }));
     await user.click(screen.getByRole("button", { name: /ไปดูเฉลย/ }));
-    await user.click(screen.getByRole("button", { name: /Stage 5B/ }));
+    await user.click(screen.getByRole("button", { name: /ArchBot/ }));
 
     await waitFor(() => expect(requestStudyAnalysis).toHaveBeenCalledTimes(1));
     const sent = requestStudyAnalysis.mock.calls[0]?.[0] as Record<string, unknown>;
@@ -274,7 +274,7 @@ describe("Study wizard", () => {
 
     await user.click(screen.getByRole("button", { name: "ยืนยันเบี้ยในมือ" }));
     await user.click(screen.getByRole("button", { name: /ไปดูเฉลย/ }));
-    await user.click(screen.getByRole("button", { name: /Stage 5B/ }));
+    await user.click(screen.getByRole("button", { name: /ArchBot/ }));
 
     await waitFor(() => expect(requestStudyAnalysis).toHaveBeenCalledTimes(1));
     const sent = requestStudyAnalysis.mock.calls[0]?.[0] as Record<string, unknown>;
@@ -292,7 +292,7 @@ describe("Study wizard", () => {
     await user.click(screen.getByRole("button", { name: /^1 เหลือ/ }));
     await user.click(screen.getByRole("button", { name: "ยืนยันเบี้ยในมือ" }));
     await user.click(screen.getByRole("button", { name: /ไปดูเฉลย/ }));
-    await user.click(screen.getByRole("button", { name: /Stage 5B/ }));
+    await user.click(screen.getByRole("button", { name: /ArchBot/ }));
 
     await waitFor(() => expect(screen.getByText(/บันทึกลงฐานข้อมูลไม่สำเร็จ/)).toBeInTheDocument());
     expect(screen.getByText("บอทเลือกตานี้")).toBeInTheDocument();

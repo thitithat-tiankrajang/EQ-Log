@@ -113,7 +113,8 @@ type Step = "board" | "rack" | "review" | "level" | "running" | "result";
 const LEVELS: Array<{ value: string; label: string; desc: string; meter: number }> = [
   {
     value: "stage5b64",
-    label: "Stage 5B + Stage 5A",
+    // Players meet Stage 5B as ArchBot; the level key stays `stage5b64`.
+    label: "ArchBot",
     desc: "หาแต้มที่มีค่าดีที่สุด · ตรวจเชิงลึกสูงสุด 64 ตา",
     meter: 4,
   },
@@ -675,7 +676,7 @@ export function StudyPage() {
 
       {step === "level" && (
         <section className="study-step" aria-label="ดูเฉลย">
-          <h2 className="study-heading">ดูเฉลยด้วย Stage 5B</h2>
+          <h2 className="study-heading">ดูเฉลยด้วย ArchBot</h2>
           <div className="study-levels">
             {LEVELS.map((option) => (
               <button

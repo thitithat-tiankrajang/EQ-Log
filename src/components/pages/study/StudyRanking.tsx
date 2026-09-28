@@ -13,7 +13,8 @@ const SOLVER_LABEL: Record<StudyMethod["solver"], string> = {
   sim: "จำลองตาต่อไป (Monte-Carlo 2 ply)",
   endgame: "แก้ท้ายเกมแบบ exact (พิสูจน์ทุกเส้นทาง)",
   greedy: "ประเมินแบบ static (greedy)",
-  stage5b: "Stage 5B + โมเดล Stage 5A",
+  // Players meet Stage 5B as ArchBot; the solver key stays `stage5b`.
+  stage5b: "ArchBot",
 };
 
 /** Board coordinate as A-Math notation: column A–O, row 1–15 (center = H8). */

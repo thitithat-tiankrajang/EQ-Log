@@ -1,3 +1,4 @@
+import { ARCHBOT_MODE_LABEL } from "../../features/gameRecords/domain";
 import { useEffect, useMemo, useState, type DragEvent, type MouseEvent } from "react";
 import {
   ArchiveRestore,
@@ -582,7 +583,7 @@ export function PrivateLibraryPage({
                           <small>
                             {item.itemType === "folder"
                               ? "Folder"
-                              : `${item.modeKey?.replaceAll("_", " ") ?? "Saved game"} · ${item.scoreA ?? 0}:${item.scoreB ?? 0}`}
+                              : `${item.modeKey === "stage5b_standard" ? ARCHBOT_MODE_LABEL : (item.modeKey?.replaceAll("_", " ") ?? "Saved game")} · ${item.scoreA ?? 0}:${item.scoreB ?? 0}`}
                             <span aria-hidden="true"> · </span>
                             <time dateTime={item.updatedAt}>{formatFileDate(item.updatedAt)}</time>
                           </small>

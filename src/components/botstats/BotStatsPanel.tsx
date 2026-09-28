@@ -26,6 +26,7 @@ import {
 } from "../../botStats";
 import { formatWinRate } from "../../stats";
 import { ScoreDensityChart } from "./ScoreDensityChart";
+import { botDisplayName } from "../../bot/archbot/identity";
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
@@ -333,7 +334,7 @@ function FolderDetail({
 }) {
   const [games, setGames] = useState<BotGameRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [engineFilter, setEngineFilter] = useState<"all" | "aether" | "authur">("all");
+  const [engineFilter, setEngineFilter] = useState<"all" | "aether" | "authur" | "stage5b">("all");
 
   useEffect(() => {
     let active = true;
@@ -381,7 +382,7 @@ function FolderDetail({
 
       {games !== null && (
         <div className="bstat-engine-filter" aria-label="Bot filter">
-          {(["all", "aether", "authur"] as const).map((engine) => (
+          {(["all", "aether", "authur", "stage5b"] as const).map((engine) => (
             <button
               key={engine}
               type="button"
@@ -389,7 +390,7 @@ function FolderDetail({
               aria-pressed={engineFilter === engine}
               onClick={() => setEngineFilter(engine)}
             >
-              {engine === "all" ? "All bots" : engine === "aether" ? "Aether" : "Authur"}
+              {engine === "all" ? "All bots" : botDisplayName(engine)}
             </button>
           ))}
         </div>
@@ -399,7 +400,7 @@ function FolderDetail({
         <p className="empty-text">
           {engineFilter === "all"
             ? "No games recorded here yet."
-            : `No ${engineFilter === "authur" ? "Authur" : "Aether"} games recorded here yet.`}{" "}
+            : `No ${botDisplayName(engineFilter)} games recorded here yet.`}{" "}
           {folder.isOpen
             ? "This folder is open — the next finished bot game will land here."
             : "Open this folder, then play the bot."}
@@ -482,7 +483,9 @@ function FolderDetail({
                       <td>
                         {g.botEngine === "authur"
                           ? "Authur · STRONG"
-                          : `Aether · ${g.botDifficulty ?? "—"}`}
+                          : g.botEngine === "stage5b"
+                            ? botDisplayName(g.botEngine)
+                            : `Aether · ${g.botDifficulty ?? "—"}`}
                       </td>
                       <td className="num">{g.botScore}</td>
                       <td className="num">{g.oppScore}</td>

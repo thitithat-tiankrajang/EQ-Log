@@ -45,7 +45,8 @@ const LEVEL_LABEL: Record<AnalysisLevel, string> = {
   normal: "ปกติ",
   deep: "ลึก",
   max: "สูงสุด (Super)",
-  stage5b64: "Stage 5B · 64 ตา",
+  // Players meet Stage 5B as ArchBot; the level key stays `stage5b64`.
+  stage5b64: "ArchBot · 64 ตา",
 };
 
 const LEVEL_HINT: Record<AnalysisLevel, string> = {

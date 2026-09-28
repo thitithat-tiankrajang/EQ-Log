@@ -11,6 +11,8 @@ import type { BotDifficulty, BotEngine } from "../game";
  * records.
  */
 export function botKeyFor(bot: { botEngine?: BotEngine; botDifficulty?: BotDifficulty }): string {
+  // ArchBot's key is its engine family; its one strength is part of the catalog row.
+  if (bot.botEngine === "stage5b") return "stage5b";
   if ((bot.botEngine ?? "authur") === "authur") return "authur_strong";
   return `aether_${bot.botDifficulty ?? "medium"}`;
 }

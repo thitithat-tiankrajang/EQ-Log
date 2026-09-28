@@ -18,7 +18,8 @@ const SOLVER_LABEL: Record<AnalysisResult["method"]["solver"], string> = {
   sim: "ลองเดินเกมหลายแบบ",
   endgame: "คำนวณจนจบเกม",
   greedy: "เทียบทางเลือกที่เห็น",
-  stage5b: "Stage 5B + โมเดล Stage 5A",
+  // Players meet Stage 5B as ArchBot; the solver key stays `stage5b`.
+  stage5b: "ArchBot",
 };
 
 const LEVEL_LABEL: Record<AnalysisResult["level"], string> = {
@@ -26,7 +27,7 @@ const LEVEL_LABEL: Record<AnalysisResult["level"], string> = {
   normal: "ปกติ",
   deep: "ลึก",
   max: "สูงสุด (Super)",
-  stage5b64: "Stage 5B · 64 ตา",
+  stage5b64: "ArchBot · 64 ตา",
 };
 
 /**

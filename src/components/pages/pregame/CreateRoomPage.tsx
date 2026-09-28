@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   ArrowUpRight,
   Bot,
+  Cpu,
   Globe2,
   LockKeyhole,
   MapPin,
@@ -19,6 +20,9 @@ import { CheckboxControl } from "../../ui/CheckboxControl";
 import { useMembersCatalog } from "../lobby/useMembersCatalog";
 import { useRegisteredPlayersCatalog } from "../lobby/useRegisteredPlayersCatalog";
 import { BotRoomPanel } from "./BotRoomPanel";
+import { ArchBotRoomPanel } from "./ArchBotRoomPanel";
+import { useArchBotOffer } from "../../../bot/archbot/availability";
+import { ARCHBOT_NAME } from "../../../bot/archbot/identity";
 import { PreGameShell } from "./PreGameShell";
 import { navigate } from "../../../router";
 import { isEngineApiConfigured } from "../../../bot/engineApi";
@@ -28,7 +32,7 @@ import type { CreateRoomPolicy, JoinPolicy } from "../../../remoteRooms";
 import { RANKED_TIME_OPTIONS } from "../../../features/ranked/rules";
 
 type Destination = "public" | "region" | "private";
-type PlayChoice = "match" | "solo" | "authur" | "ranked";
+type PlayChoice = "match" | "solo" | "authur" | "archbot" | "ranked";
 
 export function CreateRoomPage({
   canCreate,
@@ -56,6 +60,8 @@ export function CreateRoomPage({
 }) {
   const { userId } = useAuth();
   const botServerAvailable = isSupabaseConfigured && isEngineApiConfigured;
+  // Offered only when the bot catalog says so; see `availability.ts`.
+  const archBotOffer = useArchBotOffer();
   const [destination, setDestination] = useState<Destination | null>(
     preset === "ranked" ? "public" : null,
   );
@@ -200,6 +206,16 @@ export function CreateRoomPage({
             note={!botServerAvailable ? "ต้องเชื่อมต่อเซิร์ฟเวอร์เกมก่อน" : undefined}
             onClick={() => choosePlayChoice("authur")}
           />
+          {(archBotOffer.available || archBotOffer.reason === "unsupported") && (
+            <DestinationCard
+              icon={<Cpu />}
+              title={ARCHBOT_NAME}
+              description="Free. Thinks on your device."
+              disabled={!archBotOffer.available}
+              note={!archBotOffer.available ? "เบราว์เซอร์นี้เล่นกับ ArchBot ไม่ได้" : undefined}
+              onClick={() => choosePlayChoice("archbot")}
+            />
+          )}
           <DestinationCard
             icon={<Sparkles />}
             title="Study"
@@ -233,9 +249,11 @@ export function CreateRoomPage({
       ? "Configure ranked match"
       : playChoice === "authur"
         ? "Play vs Authur"
-        : playChoice === "solo"
-          ? "Solo Practice"
-          : "Configure match";
+        : playChoice === "archbot"
+          ? `Play vs ${ARCHBOT_NAME}`
+          : playChoice === "solo"
+            ? "Solo Practice"
+            : "Configure match";
   return (
     <PreGameShell
       eyebrow={`${destinationLabel(destination, regionName)} · ${archiveLabel(destination, privateSaved)}`}
@@ -356,6 +374,14 @@ export function CreateRoomPage({
               </div>
             </div>
           </section>
+        ) : playChoice === "archbot" ? (
+          <ArchBotRoomPanel
+            busy={submitting || !archBotOffer.available}
+            onSubmit={(botSettings) => {
+              if (canCreate && !submitting && archBotOffer.available)
+                onCreate(botSettings, policy());
+            }}
+          />
         ) : playChoice === "authur" ? (
           <>
             {!botServerAvailable && (

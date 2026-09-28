@@ -54,6 +54,7 @@ import {
 } from "./bot/clientSuper";
 import * as superTelemetry from "./bot/superTelemetry";
 import { LocalAnalysisUnavailable, runLocalAnalysis } from "./bot/localAnalysis";
+import { ArchBotError, runArchBot, type ArchBotPhase } from "./bot/archbot/client";
 import { initialize as initializeSuperEngine } from "./bot/superEngine";
 import type { GameState, Side } from "./game";
 import * as engineDebug from "./engineDebug";
@@ -93,6 +94,14 @@ export type EngineSession = {
    * started.
    */
   local?: boolean;
+  /**
+   * ArchBot's search, on this device. Never persisted and never sent to the
+   * service: there is no server job to rejoin after a reload, and ArchBot has no
+   * server fallback — a failure is reported, not rerouted.
+   */
+  engine?: "archbot";
+  /** ArchBot only: whether the worker is still loading the model or thinking. */
+  localPhase?: ArchBotPhase;
   status: EngineSessionStatus;
   /** The last progress the server reported, kept across status changes so a
    *  reconnect never has to fall back to nothing. */
@@ -185,7 +194,9 @@ function storageKey(roomId: string): string {
 function persist(roomId: string): void {
   try {
     const open = forRoom(roomId)
-      .filter((session) => isPending(session.status))
+      // ArchBot's search dies with the tab, and no server job exists to rejoin:
+      // persisting it would turn a reload into a SERVER bot request.
+      .filter((session) => isPending(session.status) && session.engine !== "archbot")
       .map<StoredSession>((session) => ({
         key: session.key,
         kind: session.kind,
@@ -295,7 +306,7 @@ export function adoptHints(roomId: string, skipBot = false): void {
         level: hint.level,
         hint: hint.progress,
       });
-    } else if (hint.kind === "bot" && !skipBot) {
+    } else if (hint.kind === "bot" && !skipBot && !clientBotRooms.has(roomId)) {
       void observeBot({
         roomId,
         revision: hint.revision,
@@ -401,6 +412,44 @@ function settleFailed(key: string, failure: unknown): EngineSession {
  * the registry deduplicates by key, so a racing second caller still joins the
  * one search rather than starting another.
  */
+/**
+ * Rooms whose bot runs only on the player's device (ArchBot). The server bot path
+ * — attach, start, discovery — is closed for them in this module, so no stray
+ * caller can turn an ArchBot turn into an engine-service request.
+ */
+const clientBotRooms = new Set<string>();
+
+export function markClientBotRoom(roomId: string): void {
+  clientBotRooms.add(roomId);
+}
+
+export function isClientBotRoom(roomId: string): boolean {
+  return clientBotRooms.has(roomId);
+}
+
+/** What ArchBot needs: the position, read once when the turn starts. */
+export type ArchBotContext = { game: GameState };
+
+/** An ArchBot failure in the session's terms. */
+function archBotFailure(failure: unknown): EngineApiError {
+  if (failure instanceof ArchBotError) {
+    switch (failure.code) {
+      case "unsupported":
+        return new EngineApiError("archbot_unsupported", failure.message);
+      case "model_unavailable":
+        return new EngineApiError("archbot_model_unavailable", failure.message);
+      case "cancelled":
+        return new EngineApiError("cancelled", failure.message);
+      default:
+        return new EngineApiError("archbot_failed", failure.message);
+    }
+  }
+  return new EngineApiError(
+    "archbot_failed",
+    failure instanceof Error ? failure.message : String(failure),
+  );
+}
+
 export type LocalSuperContext = {
   /** The position to search, as this tab holds it. Read once, at the moment the
    *  turn starts, so a later render cannot change what the engine was asked. */
@@ -428,8 +477,11 @@ export function observeBot(options: {
    * and a second that started.
    */
   local?: LocalSuperContext;
+  /** Present for an ArchBot room: the move is computed here and ONLY here. */
+  archbot?: ArchBotContext;
 }): Promise<EngineSession> {
   const key = botKey(options.roomId, options.revision);
+  if (options.archbot) markClientBotRoom(options.roomId);
   // A freshly admitted position is brand new, so no hint can describe it.
   const hint = options.freshlyAdmitted ? null : (options.hint ?? null);
   const entry = begin(
@@ -442,10 +494,41 @@ export function observeBot(options: {
         ? { kind: "requesting" }
         : { kind: "reconnecting", progress: hint },
       progress: hint,
+      ...(options.archbot ? { engine: "archbot" as const, local: true } : {}),
     },
     (controller) =>
       (async (): Promise<EngineSession> => {
         const lifecycle = { ...lifecycleFor(key), signal: controller.signal };
+
+        if (options.archbot) {
+          const archbot = options.archbot;
+          try {
+            engineTrace.mark(key, "engine_start");
+            update(key, { status: { kind: "running", progress: null } });
+            const result = await runArchBot({
+              game: archbot.game,
+              roomId: options.roomId,
+              revision: options.revision,
+              signal: controller.signal,
+              onPhase: (localPhase) => update(key, { localPhase }),
+            });
+            update(key, { status: { kind: "completed" }, result });
+            engineTrace.end(key, "result");
+            return get(key)!;
+          } catch (failure) {
+            // No fallback of any kind: not the service, not Authur, not a weaker
+            // search. The room shows why, and the turn waits.
+            return settleFailed(key, archBotFailure(failure));
+          }
+        }
+        if (clientBotRooms.has(options.roomId)) {
+          // An ArchBot room reached the server path without its position — a
+          // caller bug. Refuse rather than ask the service to play ArchBot's turn.
+          return settleFailed(
+            key,
+            new EngineApiError("archbot_failed", "ArchBot's turn must be computed on this device."),
+          );
+        }
 
         if (options.local) {
           const local = options.local;
@@ -787,7 +870,7 @@ async function runDiscovery(options: { roomId: string; revision: number }): Prom
         hint: job.progress ?? null,
       });
     }
-    if (job.kind === "bot") {
+    if (job.kind === "bot" && !clientBotRooms.has(options.roomId)) {
       const key = botKey(options.roomId, options.revision);
       if (!reclaim(key)) continue;
       const session = observeBot({
@@ -835,8 +918,11 @@ export function drop(key: string): void {
 export function cancel(key: string): void {
   const entry = live.get(key);
   if (!entry) return;
-  const { kind, roomId, revision, level, local } = entry.session;
+  const { kind, roomId, revision, level, local, engine } = entry.session;
   drop(key);
+  // Dropping aborted ArchBot's request, which terminated its worker; the next
+  // turn starts a fresh one. There is no server job to cancel.
+  if (engine === "archbot") return;
   if (local) {
     // Stopping a local search means TERMINATING the worker: nothing else can
     // interrupt a synchronous call inside WASM. Put it back straight away, in
@@ -876,6 +962,7 @@ export function resetForTests(): void {
   for (const entry of live.values()) entry.controller.abort();
   live.clear();
   discoveries.clear();
+  clientBotRooms.clear();
   version = 0;
   listeners.clear();
 }

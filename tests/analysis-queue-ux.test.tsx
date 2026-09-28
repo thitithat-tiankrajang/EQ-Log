@@ -104,14 +104,14 @@ function analysisAt(revision: number): AnalysisResult {
   };
 }
 
-/** Render the launcher and press Analyse → Stage 5B. */
+/** Render the launcher and press Analyse → ArchBot. */
 async function startAnalysis(revision = 7) {
   const view = render(
     <AnalysisSurface roomId={ROOM_ID} revision={revision} playerName="Player" disabled={false} />,
   );
   const user = userEvent.setup();
   await user.click(screen.getByRole("button", { name: /วิเคราะห์ตานี้/ }));
-  await user.click(screen.getByText("Stage 5B · 64 ตา"));
+  await user.click(screen.getByText("ArchBot · 64 ตา"));
   return { ...view, user };
 }
 

@@ -3,6 +3,7 @@ import type { RoomMeta } from "../../../rooms";
 import { EmptyState } from "../../ui/EmptyState";
 import { RoomCard } from "./RoomCard";
 import { GameTable } from "./GameTable";
+import { isBotModeKey } from "../../../features/gameRecords/domain";
 
 export function RoomsView({
   rooms,
@@ -139,12 +140,7 @@ export function partitionLiveRooms(rooms: RoomMeta[]): {
 }
 
 function roomHasOpponent(room: RoomMeta): boolean {
-  if (
-    room.gameMode === "solo" ||
-    room.modeKey?.startsWith("aether_") ||
-    room.modeKey?.startsWith("authur_")
-  )
-    return true;
+  if (room.gameMode === "solo" || isBotModeKey(room.modeKey)) return true;
   if (typeof room.hasOpponent === "boolean") return room.hasOpponent;
   const participants = new Set(
     [room.inviteUserAId, room.inviteUserBId].filter((id): id is string => Boolean(id)),

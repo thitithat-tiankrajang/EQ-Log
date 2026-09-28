@@ -23,6 +23,9 @@ const MODE_DEFAULTS: Record<string, readonly PlayTool[]> = {
   aether_max: ALL_TOOLS,
   aether_super: ALL_TOOLS,
   authur_strong: ALL_TOOLS,
+  // ArchBot: as the other bot rooms, but no bot explanation — ArchBot does not
+  // produce the value terms that panel shows (Product Owner, Phase 3b).
+  stage5b_standard: ["turn_log", "replay", "analysis", "multiverse"],
   // The offline Survival playtest (src/features/survivalPlay). Local only, never
   // in the catalog: no analysis or bot insight, which would hand the player the
   // answer, and no branching, since the level's server keeps one line.
