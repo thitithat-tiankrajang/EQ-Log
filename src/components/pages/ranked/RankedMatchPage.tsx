@@ -8,6 +8,7 @@ import { Scoreboard } from "../../game/Scoreboard";
 import { ActionPanel } from "../../actions/ActionPanel";
 import { PanelHeading } from "../../layout/PanelHeading";
 import { PreGameShell } from "../pregame/PreGameShell";
+import { RankedReadyConfirmation } from "./RankedStakes";
 import { rankedClient } from "../../../features/ranked/client";
 import { rankTier } from "../../../features/ranked/rating";
 import type { RankedMatchView } from "../../../features/ranked/publicView";
@@ -519,17 +520,15 @@ export function RankedMatchPage({ matchId }: { matchId: string }) {
               : `A ${match.readyBySide.A ? "พร้อม" : "ยังไม่พร้อม"} · B ${match.readyBySide.B ? "พร้อม" : "ยังไม่พร้อม"}`}
           </p>
           <p>เวลา {Math.round(match.timers.A / 60)} นาทีต่อฝ่าย · กติกาแข่ง · เบี้ยคู่แข่งปิด</p>
+          {match.status === "matched" && match.yourSide && !match.readyBySide[match.yourSide] && (
+            // Each player sees their own stakes; Ready is the confirmation.
+            <RankedReadyConfirmation
+              matchId={match.id}
+              busy={busy}
+              onReady={() => void run(() => rankedClient.ready(match.id))}
+            />
+          )}
           <div className="ranked-actions">
-            {match.status === "matched" && match.yourSide && !match.readyBySide[match.yourSide] && (
-              <button
-                className="eq-button eq-button-primary"
-                type="button"
-                disabled={busy}
-                onClick={() => void run(() => rankedClient.ready(match.id))}
-              >
-                พร้อมเริ่ม
-              </button>
-            )}
             <button
               className="eq-button"
               type="button"

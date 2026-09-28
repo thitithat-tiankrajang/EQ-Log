@@ -889,10 +889,6 @@ ul.eq-survival-grid {
   list-style: none;
 }
 
-.eq-survival-card > .eq-button {
-  min-height: 44px;
-}
-
 .eq-survival-card .eq-stage-won {
   color: var(--eq-success);
   font-weight: 700;
@@ -3959,4 +3955,124 @@ body[data-route="play"] .pending-select-wrap .ui-select-button {
   .eq-main {
     padding-block-end: 56px;
   }
+}
+
+/* Ranked stakes: the rating the server says a match puts at stake, shown
+   before joining (in a sheet) and at Ready (on the match's waiting card). */
+.ranked-confirm,
+.ranked-stakes,
+.ranked-ready {
+  display: grid;
+  gap: 12px;
+}
+
+.ranked-stakes-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.ranked-stakes-facts > div {
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  border: 1px solid var(--eq-line);
+  border-radius: var(--eq-radius-md);
+  padding: 10px 12px;
+}
+
+.ranked-stakes-facts dt {
+  color: var(--eq-text-soft);
+  font-size: 12px;
+}
+
+.ranked-stakes-facts dd {
+  display: grid;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.ranked-stakes-facts dd strong {
+  font-size: 18px;
+}
+
+.ranked-stakes-facts dd small {
+  color: var(--eq-text-soft);
+  font-size: 12px;
+}
+
+.ranked-stakes-heading,
+.ranked-ready h2 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.ranked-stakes-outcomes {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ranked-stakes-outcomes li {
+  display: grid;
+  grid-template-columns: minmax(3.5em, auto) 1fr auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--eq-line);
+  border-radius: var(--eq-radius-md);
+  background: var(--eq-surface);
+  padding: 10px 12px;
+}
+
+.ranked-stakes-outcome {
+  font-weight: 700;
+}
+
+.ranked-stakes-after {
+  font-variant-numeric: tabular-nums;
+}
+
+.ranked-stakes-change {
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+}
+
+.ranked-stakes-change.is-up {
+  color: var(--eq-success);
+}
+
+.ranked-stakes-change.is-down {
+  color: #b3261e;
+}
+
+.ranked-stakes-change.is-even {
+  color: var(--eq-text-soft);
+}
+
+.ranked-confirm-note,
+.ranked-confirm-status {
+  margin: 0;
+  color: var(--eq-text-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ranked-confirm-changed {
+  border-color: #e0b44c;
+  background: #fff7e0;
+  color: #5c4300;
+}
+
+.ranked-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ranked-ready > .eq-button-primary {
+  justify-self: start;
 }

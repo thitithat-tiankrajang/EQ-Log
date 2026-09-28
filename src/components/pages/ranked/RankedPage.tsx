@@ -10,6 +10,7 @@ import {
 import { rankTier } from "../../../features/ranked/rating";
 import { navigate } from "../../../router";
 import { ApplicationShell } from "../../../app/shells/ApplicationShell";
+import { RankedJoinSheet } from "./RankedStakes";
 const RankedMatchPage = lazy(() =>
   import("./RankedMatchPage").then((module) => ({ default: module.RankedMatchPage })),
 );
@@ -22,7 +23,8 @@ export function RankedPage({ matchId }: { matchId?: string }) {
   const [own, setOwn] = useState<RankedRating | null>(null);
   const [tab, setTab] = useState<"rooms" | "leaderboard">("rooms");
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  // The room whose stakes are being confirmed; joining happens only in there.
+  const [joining, setJoining] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isApproved || matchId) return;
@@ -72,19 +74,6 @@ export function RankedPage({ matchId }: { matchId?: string }) {
         <RankedMatchPage key={matchId} matchId={matchId} />
       </Suspense>
     );
-
-  async function join(id: string) {
-    setBusy(true);
-    setError(null);
-    try {
-      const { match } = await rankedClient.join(id);
-      navigate({ kind: "ranked", matchId: match.id });
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "เข้าร่วมห้องไม่สำเร็จ");
-    } finally {
-      setBusy(false);
-    }
-  }
 
   return (
     <ApplicationShell title="Ranked">
@@ -159,8 +148,9 @@ export function RankedPage({ matchId }: { matchId?: string }) {
                       </span>
                       <button
                         type="button"
-                        disabled={busy || room.creatorId === userId}
-                        onClick={() => void join(room.id)}
+                        disabled={joining !== null || room.creatorId === userId}
+                        aria-haspopup="dialog"
+                        onClick={() => setJoining(room.id)}
                       >
                         เข้าร่วม
                       </button>
@@ -199,6 +189,17 @@ export function RankedPage({ matchId }: { matchId?: string }) {
           </section>
         )}
       </div>
+      {joining && (
+        <RankedJoinSheet
+          key={joining}
+          roomId={joining}
+          onClose={() => setJoining(null)}
+          onJoined={(id) => {
+            setJoining(null);
+            navigate({ kind: "ranked", matchId: id });
+          }}
+        />
+      )}
     </ApplicationShell>
   );
 }

@@ -88,3 +88,19 @@ export function rankedStakePreview(
     basis: stakes.basis,
   };
 }
+
+/**
+ * For display only: how far each result would move the player's rating, as
+ * the server's "after" minus the server's "now". No rating is computed here.
+ */
+export function rankedPreviewChanges(preview: RankedStakePreview): {
+  win: number;
+  draw: number;
+  loss: number;
+} {
+  return {
+    win: preview.after.win - preview.rating,
+    draw: preview.after.draw - preview.rating,
+    loss: preview.after.loss - preview.rating,
+  };
+}

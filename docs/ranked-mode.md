@@ -51,7 +51,9 @@ Normal game information can still support deduction when the bag is empty: every
 3. Deploy the `ranked` Supabase function. It requires the normal Supabase URL, anon key and service role key in the function environment.
 4. Verify create → join → move → replay → finish → rating on two approved test accounts before enabling the UI in production.
 
-The one-active-match authority ships in this order, each step only after the last is live: the migration `20260930110000_ranked_match_authority.sql`, then the `ranked` Edge Function that uses it, then the web client with the stakes confirmation. Between the Edge Function and that client, the current web client cannot join a room (it has no basis to send, so the server refuses with `ranked_stakes_required`); creating, readying, playing and finishing are unaffected.
+The one-active-match authority ships in this order, each step only after the last is live: the migration `20260930110000_ranked_match_authority.sql`, then the `ranked` Edge Function that uses it, then the web client with the stakes confirmation. Between the Edge Function and that client, an older web client cannot join a room (it has no basis to send, so the server refuses with `ranked_stakes_required`); creating, readying, playing and finishing are unaffected. Deploy the web client immediately after, or together with, the Edge Function. Before production, also run the Edge Function against a non-production Supabase project, `deno check` it, and confirm that supabase-js returns one row from `.rpc("ranked_stakes").single()` and `.rpc("ranked_claim_match_v2").single()`.
+
+In the web client, Join opens a confirmation showing the opponent, the player's rating now and after a win, draw or loss (the server's numbers; the change shown is only after minus now), and joins only when the player confirms, with that preview's basis. If the stakes changed, the new numbers replace the old ones and the player must confirm again. At Ready, each player sees their own stakes before the Ready button can start the match.
 
 ## Deployment status (25 September 2026)
 
