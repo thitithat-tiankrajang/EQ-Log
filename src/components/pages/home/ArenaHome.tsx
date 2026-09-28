@@ -293,7 +293,12 @@ function BotRows({ bots, onReload }: { bots: ArenaBots; onReload: () => void }) 
 function BotRow({ bot, probot }: { bot: ArenaBot; probot: ProBotStatus | null }) {
   const { t } = useLocale();
   // The plan is the row's tag; the details say where it runs.
-  const facts = bot.execution === "SERVER" ? [t("home.bots.server")] : [];
+  const facts =
+    bot.execution === "SERVER"
+      ? [t("home.bots.server")]
+      : bot.execution === "CLIENT"
+        ? [t("home.bots.device")]
+        : [];
   const notes = bot.unavailable
     ? [t(bot.unavailable === "closed" ? "home.bots.unavailable" : "home.bots.needsServer")]
     : bot.tier === "EQ Pro"

@@ -24,7 +24,7 @@ import { useRegisteredPlayersCatalog } from "../lobby/useRegisteredPlayersCatalo
 import { BotRoomPanel } from "./BotRoomPanel";
 import { CreateChooser } from "./CreateChooser";
 import { ArchBotRoomPanel } from "./ArchBotRoomPanel";
-import { useArchBotOffer } from "../../../bot/archbot/availability";
+import { useArchBotOffer, type ArchBotOffer } from "../../../bot/archbot/availability";
 import { ARCHBOT_NAME } from "../../../bot/archbot/identity";
 import { PreGameShell } from "./PreGameShell";
 import { navigate, type CreatePreset, type ReturnDestination } from "../../../router";
@@ -57,6 +57,8 @@ function playChoiceFor(preset: CreatePreset | undefined): PlayChoice | null {
       return "solo";
     case "bot":
       return "authur";
+    case "archbot":
+      return "archbot";
     case "ranked":
       return "ranked";
     default:
@@ -102,8 +104,6 @@ export function CreateRoomPage({
   const { profile, userId } = useAuth();
   const { t } = useLocale();
   const botServerAvailable = isSupabaseConfigured && isEngineApiConfigured;
-  // Offered only when the bot catalog says so; see `availability.ts`.
-  const archBotOffer = useArchBotOffer();
   const context: CreateRoute = { kind: "create", visibility, ...(returnTo ? { returnTo } : {}) };
   // A Create choice opens its settings form directly, in the space the player
   // came from; Custom (and the older bot address) still asks step by step.
@@ -310,9 +310,13 @@ export function CreateRoomPage({
       }
       title={title}
       subtitle={t("create.formSubtitle")}
-      onBack={() =>
-        direct ? onBack() : preset === "ranked" ? navigate({ kind: "ranked" }) : setPlayChoice(null)
-      }
+      onBack={() => {
+        if (direct) onBack();
+        else if (preset === "ranked") navigate({ kind: "ranked" });
+        // ArchBot is not one of Custom's opponents: its address steps back to the space it asked for.
+        else if (preset === "archbot") setDestination(null);
+        else setPlayChoice(null);
+      }}
       visibility={effectiveVisibility}
       regionName={regionName}
       variant="form"
@@ -437,11 +441,10 @@ export function CreateRoomPage({
             </div>
           </section>
         ) : playChoice === "archbot" ? (
-          <ArchBotRoomPanel
-            busy={submitting || !archBotOffer.available}
+          <ArchBotSetup
+            busy={submitting}
             onSubmit={(botSettings) => {
-              if (canCreate && !submitting && archBotOffer.available)
-                onCreate(botSettings, policy());
+              if (canCreate && !submitting) onCreate(botSettings, policy());
             }}
           />
         ) : playChoice === "authur" ? (
@@ -586,6 +589,38 @@ function DestinationCard({
       <ArrowUpRight className="eq-choice-arrow" size={18} aria-hidden="true" />
     </button>
   );
+}
+
+const ARCHBOT_OFFER_NOTE: Record<
+  Extract<ArchBotOffer, { available: false }>["reason"],
+  MessageKey
+> = {
+  loading: "create.archbot.checking",
+  not_offered: "create.archbot.unavailable",
+  unsupported: "create.archbot.unsupported",
+  catalog_error: "create.archbot.failed",
+};
+
+/**
+ * ArchBot's setup, offered only while the bot catalogue opens it and this
+ * browser can run it (see `availability.ts`); otherwise it says why. The
+ * catalogue is read here, so the rest of Create never asks for it.
+ */
+function ArchBotSetup({
+  busy,
+  onSubmit,
+}: {
+  busy: boolean;
+  onSubmit: (settings: NewGameSettings) => void;
+}) {
+  const { t } = useLocale();
+  const offer = useArchBotOffer();
+  if (!offer.available) {
+    return (
+      <p className="info-banner">{t(ARCHBOT_OFFER_NOTE[offer.reason], { bot: ARCHBOT_NAME })}</p>
+    );
+  }
+  return <ArchBotRoomPanel busy={busy} onSubmit={onSubmit} />;
 }
 
 /** The configuration a Solo Practice room starts from. */

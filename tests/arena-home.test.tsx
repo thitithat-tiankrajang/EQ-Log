@@ -64,6 +64,17 @@ const catalogRow = (overrides: Partial<CatalogBot>): CatalogBot => ({
 
 const AUTHUR: ArenaBot = arenaBots([catalogRow({})], { serverAvailable: true })[0];
 
+/** The Stage 5B bot as the Phase 3b migration opens it: ArchBot, free, on the device. */
+const ARCHBOT_ROW: Partial<CatalogBot> = {
+  bot_key: "stage5b",
+  display_name: "ArchBot",
+  engine_family: "stage5b",
+  difficulty: "stage5b64",
+  execution_type: "CLIENT",
+  access_tier: "free",
+  sort_order: 20,
+};
+
 const probot = (overrides: Partial<ProBotStatus> = {}): ProBotStatus => ({
   evaluated_at: "2026-09-28T10:00:00Z",
   plan_key: "pro",
@@ -325,6 +336,28 @@ describe("Play", () => {
     ).toEqual(["Play Authur", "Play Future Bot"]);
   });
 
+  it("offers ArchBot beside Authur: Free, on your device, with no Pro-Bot funding", () => {
+    const bots = arenaBots([catalogRow({}), catalogRow(ARCHBOT_ROW)], { serverAvailable: true });
+    renderHome({ bots: { status: "ready", bots, probot: probot() } });
+    const region = section("Play against AI");
+    expect(
+      within(region)
+        .getAllByRole("link")
+        .map((link) => link.querySelector("strong")?.textContent),
+    ).toEqual(["Play Authur", "Play ArchBot"]);
+    const archbot = within(region).getByRole("link", { name: /Play ArchBot/ });
+    // ArchBot's own free setup, returning Home.
+    expect(archbot).toHaveAttribute("href", "#/create?mode=archbot&from=home");
+    expect(archbot).toHaveTextContent("Free");
+    expect(archbot).toHaveTextContent("Plays on your device");
+    // Allowance, Credits and the game server are Authur's facts, not ArchBot's.
+    expect(archbot).not.toHaveTextContent(/Pro-Bot|Credit|game server/);
+    const authur = within(region).getByRole("link", { name: /Play Authur/ });
+    expect(authur).toHaveTextContent("EQ Pro");
+    expect(authur).toHaveTextContent("Plays on the game server");
+    expect(authur).toHaveTextContent("Pro-Bot allowance: 3 games available");
+  });
+
   it("has a loading, an error, an empty and an offline state for AI opponents", async () => {
     const user = userEvent.setup();
     const cases: Array<[ArenaBots, RegExp]> = [
@@ -381,6 +414,20 @@ describe("the bot catalogue", () => {
     expect(bots.map((bot) => [bot.name, bot.tier, bot.unavailable])).toEqual([
       ["Authur the Second", "EQ Pro", null],
     ]);
+  });
+
+  it("offers ArchBot once the catalogue opens it, with or without the game server", () => {
+    for (const serverAvailable of [true, false]) {
+      const bots = arenaBots([catalogRow({}), catalogRow(ARCHBOT_ROW)], { serverAvailable });
+      expect(bots.map((bot) => [bot.name, bot.tier, bot.execution, bot.unavailable])).toEqual([
+        ["Authur", "EQ Pro", "SERVER", serverAvailable ? null : "no_server"],
+        ["ArchBot", "Free", "CLIENT", null],
+      ]);
+    }
+    const closed = arenaBots([catalogRow({ ...ARCHBOT_ROW, new_rooms_allowed: false })], {
+      serverAvailable: true,
+    });
+    expect(closed.map((bot) => [bot.name, bot.unavailable])).toEqual([["ArchBot", "closed"]]);
   });
 
   it("reads the tier from the catalogue rather than assuming one", () => {

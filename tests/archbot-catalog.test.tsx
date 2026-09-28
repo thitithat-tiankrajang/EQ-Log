@@ -35,7 +35,9 @@ import {
   MODE_CATALOG,
 } from "../src/features/gameRecords/domain";
 import { defaultPlayTools } from "../src/playModeTools";
-import { readFileSync } from "node:fs";
+import { arenaBots } from "../src/features/arena/arenaBots";
+import { parseHash, routeToHash, type CreatePreset } from "../src/router";
+import { readdirSync, readFileSync } from "node:fs";
 import type { NewGameSettings } from "../src/game";
 
 const ENABLED: CatalogBot = {
@@ -101,42 +103,73 @@ describe("whether ArchBot is offered", () => {
   });
 });
 
-function renderCreate(onCreate = vi.fn()) {
+function renderCreate({
+  preset = "archbot",
+  onCreate = vi.fn(),
+  onBack = vi.fn(),
+}: { preset?: CreatePreset; onCreate?: () => void; onBack?: () => void } = {}) {
   return render(
     <CreateRoomPage
       canCreate
       createDisabledReason={null}
       visibility="public"
+      returnTo={{ kind: "arena" }}
       regionAvailable
       regionId="region-1"
       regionName="North"
+      preset={preset}
       submitting={false}
-      onBack={vi.fn()}
+      onBack={onBack}
       onCreate={onCreate}
       onCreateRanked={async () => undefined}
     />,
   );
 }
 
+// Home's AI opponents (the Arena) lead here; Create's own choices never offer a bot.
 describe("choosing ArchBot", () => {
-  it("does not appear while the catalog keeps it pending", async () => {
+  it("is Home's address for it, and the catalogue decides whether Home offers it", () => {
+    const [bot] = arenaBots([ENABLED], { serverAvailable: false });
+    expect(bot).toMatchObject({
+      key: "stage5b",
+      name: "ArchBot",
+      tier: "Free",
+      execution: "CLIENT",
+      unavailable: null,
+    });
+    const href = routeToHash(bot!.setup);
+    expect(href).toBe("#/create?mode=archbot&from=home");
+    expect(parseHash(href)).toEqual({
+      kind: "create",
+      visibility: "public",
+      preset: "archbot",
+      returnTo: { kind: "arena" },
+    });
+    expect(arenaBots([PENDING], { serverAvailable: true })).toEqual([]);
+    expect(arenaBots([{ ...ENABLED, enabled: false }], { serverAvailable: true })).toMatchObject([
+      { key: "stage5b", unavailable: "closed" },
+    ]);
+  });
+
+  it("is not offered while the catalog keeps it pending, and says so", async () => {
     rpc.mockResolvedValue({ data: [PENDING], error: null });
     const user = userEvent.setup();
     const view = renderCreate();
-    await user.click(view.getByRole("button", { name: /Public/ }));
+    await user.click(view.getByRole("button", { name: /^Public/ }));
     await waitFor(() => expect(rpc).toHaveBeenCalledWith("list_bots"));
-    expect(view.queryByRole("button", { name: /ArchBot/ })).not.toBeInTheDocument();
+    expect(await view.findByText("ArchBot isn't open for new games right now.")).toBeVisible();
+    expect(view.queryByRole("button", { name: "Start ArchBot match" })).not.toBeInTheDocument();
     expect(view.queryByText(/Stage 5B/)).not.toBeInTheDocument();
   });
 
-  it("appears once the catalog opens it, and creates a free ArchBot room", async () => {
+  it("is offered once the catalog opens it, and creates a free ArchBot room", async () => {
     rpc.mockResolvedValue({ data: [ENABLED], error: null });
     const onCreate = vi.fn();
     const user = userEvent.setup();
-    const view = renderCreate(onCreate);
-    await user.click(view.getByRole("button", { name: /Public/ }));
-    await user.click(await view.findByRole("button", { name: /ArchBot/ }));
-    await user.click(view.getByRole("button", { name: "Start ArchBot match" }));
+    const view = renderCreate({ onCreate });
+    await user.click(view.getByRole("button", { name: /^Public/ }));
+    expect(view.getByRole("heading", { level: 1, name: "Play vs ArchBot" })).toBeVisible();
+    await user.click(await view.findByRole("button", { name: "Start ArchBot match" }));
     expect(onCreate).toHaveBeenCalledTimes(1);
     const settings = onCreate.mock.calls[0]![0] as NewGameSettings;
     expect(settings).toMatchObject({
@@ -149,7 +182,51 @@ describe("choosing ArchBot", () => {
     // Free: no allowance, no Credit, no funding field at all.
     expect(settings.botFunding).toBeUndefined();
     expect(botKeyFor(settings)).toBe("stage5b");
+    // The space the player chose, like any bot room: invite only, no open seat.
+    expect(onCreate.mock.calls[0]![1]).toEqual({
+      accessScope: "public",
+      archivePolicy: "public",
+      joinPolicy: "invite_only",
+      regionId: null,
+    });
     expect(view.queryByText(/Stage 5|stage5b|deepTop/i)).not.toBeInTheDocument();
+  });
+
+  it("says so in a browser that cannot run it", async () => {
+    vi.stubGlobal("Worker", undefined);
+    rpc.mockResolvedValue({ data: [ENABLED], error: null });
+    const user = userEvent.setup();
+    const view = renderCreate();
+    await user.click(view.getByRole("button", { name: /^Public/ }));
+    expect(await view.findByText(/This browser can't run ArchBot/)).toBeVisible();
+    expect(view.queryByRole("button", { name: "Start ArchBot match" })).not.toBeInTheDocument();
+  });
+
+  it("steps back to the space, then to where the player came from", async () => {
+    rpc.mockResolvedValue({ data: [ENABLED], error: null });
+    const onBack = vi.fn();
+    const user = userEvent.setup();
+    const view = renderCreate({ onBack });
+    await user.click(view.getByRole("button", { name: /^Public/ }));
+    await view.findByRole("button", { name: "Start ArchBot match" });
+    await user.click(view.getByRole("button", { name: "Back" }));
+    expect(view.getByRole("heading", { level: 1, name: "Choose a space" })).toBeVisible();
+    expect(onBack).not.toHaveBeenCalled();
+    await user.click(view.getByRole("button", { name: "Back" }));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("is not one of Custom's opponents, and Create does not read the catalog for it", async () => {
+    rpc.mockResolvedValue({ data: [ENABLED], error: null });
+    const user = userEvent.setup();
+    const view = renderCreate({ preset: "custom" });
+    await user.click(view.getByRole("button", { name: /^Public/ }));
+    const cards = view
+      .getAllByRole("button")
+      .filter((button) => button.classList.contains("eq-create-choice"))
+      .map((button) => button.querySelector("strong")?.textContent);
+    expect(cards).toEqual(["Match", "Solo Practice", "Authur"]);
+    expect(rpc).not.toHaveBeenCalledWith("list_bots");
   });
 });
 
@@ -207,11 +284,22 @@ describe("ArchBot's identity in records", () => {
 });
 
 describe("the enabling migration", () => {
-  const migration = readFileSync(
-    `${process.cwd()}/supabase/migrations/20260930100000_archbot_enable.sql`,
-    "utf8",
-  );
+  const directory = `${process.cwd()}/supabase/migrations`;
+  const file = "20260930120000_archbot_enable.sql";
+  const migration = readFileSync(`${directory}/${file}`, "utf8");
   const code = migration.replace(/--[^\n]*/g, "");
+
+  it("has a version of its own, after the Platform Foundation's migrations", () => {
+    const files = readdirSync(directory)
+      .filter((name) => name.endsWith(".sql"))
+      .sort();
+    const versions = files.map((name) => name.split("_")[0]);
+    // The version is the migration's identity in the database: one per file.
+    expect(new Set(versions).size).toBe(versions.length);
+    const at = files.indexOf(file);
+    expect(at).toBeGreaterThan(files.indexOf("20260930100000_archbot_display_identity.sql"));
+    expect(at).toBeGreaterThan(files.indexOf("20260930110000_ranked_match_authority.sql"));
+  });
 
   it("opens stage5b as ArchBot, and only that", () => {
     expect(code).toMatch(

@@ -31,7 +31,9 @@ export type Route =
 /**
  * The `mode=` of a Create address. The first five are the Create choices; `bot`
  * and `ranked` are older addresses kept working for the pages that still use
- * them (the Ranked page creates its matches through `mode=ranked`).
+ * them (the Ranked page creates its matches through `mode=ranked`). `archbot`
+ * is ArchBot's setup, where Home's AI opponents send the player; like `bot`
+ * (Authur's), it is not a Create choice.
  */
 export const CREATE_PRESETS = [
   "match",
@@ -40,6 +42,7 @@ export const CREATE_PRESETS = [
   "solo",
   "custom",
   "bot",
+  "archbot",
   "ranked",
 ] as const;
 export type CreatePreset = (typeof CREATE_PRESETS)[number];

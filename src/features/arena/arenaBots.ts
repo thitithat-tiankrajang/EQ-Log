@@ -20,12 +20,21 @@ export type CatalogBot = {
  * bot added to the catalogue appears once its setup is added to this table.
  * Authur's is the existing bot-room setup (space, then the Pro-Bot panel),
  * which applies the plan, funding and board rules and asks the server again.
+ * ArchBot's (catalogue key `stage5b`) is its own free setup (space, then the
+ * ArchBot panel), which asks the catalogue again and whether this browser can
+ * run it; the server still decides the room.
  */
 const SETUP: Record<string, Route> = {
   authur_strong: {
     kind: "create",
     visibility: "public",
     preset: "bot",
+    returnTo: { kind: "arena" },
+  },
+  stage5b: {
+    kind: "create",
+    visibility: "public",
+    preset: "archbot",
     returnTo: { kind: "arena" },
   },
 };

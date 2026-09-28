@@ -64,6 +64,17 @@ const authur: CatalogBot = {
   lifecycle: "active",
   sort_order: 10,
 };
+// As the Phase 3b migration opens it: free, on the player's device.
+const archbot: CatalogBot = {
+  ...authur,
+  bot_key: "stage5b",
+  display_name: "ArchBot",
+  engine_family: "stage5b",
+  difficulty: "stage5b64",
+  execution_type: "CLIENT",
+  access_tier: "free",
+  sort_order: 20,
+};
 const probot: ProBotStatus = {
   evaluated_at: "2026-09-28T10:00:00Z",
   plan_key: "pro",
@@ -82,7 +93,11 @@ const SCENARIOS: Record<string, { games: ArenaGames; bots: ArenaBots }> = {
       rooms,
       ranked: { mine: [{ id: "ranked-1", status: "matched" }], waitingForOpponent: 2 },
     },
-    bots: { status: "ready", bots: arenaBots([authur], { serverAvailable: true }), probot },
+    bots: {
+      status: "ready",
+      bots: arenaBots([authur, archbot], { serverAvailable: true }),
+      probot,
+    },
   },
   empty: {
     games: { status: "ready", rooms: [], ranked: { mine: [], waitingForOpponent: 0 } },

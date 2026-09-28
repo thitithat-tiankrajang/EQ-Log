@@ -64,6 +64,13 @@ export const en = {
     needsOnline: "Needs the online service",
     join: "Have a code? Join a game",
     formSubtitle: "Set up your game.",
+    archbot: {
+      checking: "Checking whether {bot} can be played…",
+      unavailable: "{bot} isn't open for new games right now.",
+      unsupported:
+        "This browser can't run {bot}, which thinks on your device. Try a current browser.",
+      failed: "Couldn't check whether {bot} can be played. Try again later.",
+    },
     scope: {
       heading: "Who can watch",
       public: "Public",
@@ -123,6 +130,7 @@ export const en = {
       none: "No AI opponent is open for new games right now.",
       play: "Play {name}",
       server: "Plays on the game server",
+      device: "Plays on your device",
       unavailable: "Not available right now",
       needsServer: "Needs the game server",
       allowance: {

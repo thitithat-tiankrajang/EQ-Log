@@ -4,7 +4,8 @@
 -- Reads only, then rolls back. Never run it against production.
 --
 -- The Stage 5B bot is PRESENTED as ArchBot. Only its display data changed:
--- every identifier and every entitlement/execution fact is Phase 3's.
+-- every identifier and every entitlement/execution fact is Phase 3's. Its
+-- availability is the later Phase 3b enablement's (20260930120000_archbot_enable.sql).
 
 begin;
 
@@ -39,11 +40,14 @@ begin
     raise exception 'ArchBot is a display name, never a key';
   end if;
 
-  -- ── 3. Entitlement, execution and lifecycle are Phase 3's ──────────────────
+  -- ── 3. Entitlement and execution are Phase 3's; availability is Phase 3b's ──
   if bot.access_tier <> 'free' or bot.access_tier_status <> 'decided'
-     or bot.execution_type <> 'CLIENT' or bot.lifecycle <> 'pending'
-     or bot.enabled or bot.new_rooms_allowed or bot.sort_order <> 20 then
-    raise exception 'stage5b entitlement/execution/lifecycle changed';
+     or bot.execution_type <> 'CLIENT' or bot.sort_order <> 20 then
+    raise exception 'stage5b entitlement/execution changed';
+  end if;
+  if bot.lifecycle <> 'active' or not bot.enabled or not bot.new_rooms_allowed then
+    raise exception 'stage5b must be open as Phase 3b left it: %/%/%',
+      bot.lifecycle, bot.enabled, bot.new_rooms_allowed;
   end if;
 
   -- ── 4. The rename is audited once, and moved nothing but the name ──────────
@@ -53,8 +57,10 @@ begin
   if audits <> 1 then
     raise exception 'expected exactly one ArchBot rename audit row, found %', audits;
   end if;
+  -- The rename row itself: Phase 3b's enablement is audited too, and also ends as ArchBot.
   select * into audit_row from public.bot_catalog_audit
-   where bot_key = 'stage5b' and after ->> 'display_name' = 'ArchBot';
+   where bot_key = 'stage5b' and before ->> 'display_name' = 'Stage 5B'
+     and after ->> 'display_name' = 'ArchBot';
   if audit_row.action <> 'update' or audit_row.actor_id is not null
      or coalesce(btrim(audit_row.reason), '') = '' then
     raise exception 'the rename audit row must be an attributed update with a reason';

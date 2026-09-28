@@ -217,12 +217,19 @@ ownership inverted. That is a known engine-algo follow-up, outside Phase 3b.
 
 ## Catalog (Phase 3b)
 
-`supabase/migrations/20260930100000_archbot_enable.sql` opens ArchBot: the
+`supabase/migrations/20260930120000_archbot_enable.sql` opens ArchBot: the
 `stage5b` row becomes active, enabled and open to new rooms, named ArchBot, still
 free and CLIENT (config_version unchanged). ArchBot rooms (`stage5b_standard`,
 labelled ArchBot) offer turn log, replay, analysis and alternate lines, and no
 bot explanation — a Product Owner decision for a practice mode, not a precedent
-for Ranked.
+for Ranked. It runs after the Platform Foundation's migrations, including the
+display rename `20260930100000_archbot_display_identity.sql`.
+
+Players find ArchBot on Home, under Play against AI, which lists the bots the
+catalogue offers. Its row leads to ArchBot's own setup (`#/create?mode=archbot`:
+a space, then the free ArchBot panel), which reads the catalogue again and checks
+that this browser can run it, and says why when it cannot. Bots are not Create
+choices, so ArchBot is not one of Custom's opponents.
 
 ## Trust boundary
 

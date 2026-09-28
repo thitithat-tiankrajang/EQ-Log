@@ -1,10 +1,13 @@
-// ArchBot in the real app against an isolated local Supabase stack: a free room,
-// turns computed on the device and committed through the ordinary path, exactly
-// one commit per position through reloads and a second tab, no engine service,
-// no economy, no Stage. See tests/archbot-local/README.md.
+// ArchBot in the real app against an isolated local Supabase stack: found on Home
+// from the bot catalogue, a free room, turns computed on the device and committed
+// through the ordinary path, exactly one commit per position through reloads and
+// a second tab, a model that fails to load stopping it truthfully, the ordinary
+// board limit, no engine service, no economy, no Stage. See
+// tests/archbot-local/README.md.
 import { expect, test, type Page } from "@playwright/test";
 import { execFileSync } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 
 const API = process.env.ARCHBOT_LOCAL_API_URL ?? "http://127.0.0.1:54721";
 const DB =
@@ -33,9 +36,10 @@ async function auth(path: string, body: unknown, key: string) {
 }
 
 let userId = "";
-let session: unknown;
+let session: { access_token: string } | undefined;
 
-test.beforeAll(async () => {
+// A fresh account for every test: each holds at most three active boards.
+test.beforeEach(async () => {
   // An ephemeral, approved account on the local stack only. Never printed.
   const email = `archbot-e2e-${randomUUID()}@example.test`;
   const password = randomBytes(24).toString("base64url");
@@ -90,10 +94,19 @@ function watchNetwork(page: Page) {
   });
 }
 
+/** The player's way in: Home's AI opponents (from the bot catalogue), then a space. */
+async function openArchBotSetup(page: Page) {
+  await page.goto("/#/");
+  const bots = page.getByRole("region", { name: "Play against AI" });
+  await bots.getByRole("link", { name: /Play ArchBot/ }).click();
+  await expect(page).toHaveURL(/#\/create\?mode=archbot/);
+  await page.getByRole("button", { name: /^Public/ }).click();
+}
+
+const ownedRooms = () => sql(`select count(*) from public.room_live where owner_id = '${userId}'`);
+
 async function createArchBotRoom(page: Page): Promise<string> {
-  await page.goto("/#/create");
-  await page.getByRole("button", { name: /Public/ }).click();
-  await page.getByRole("button", { name: /ArchBot/ }).click();
+  await openArchBotSetup(page);
   await page.getByRole("radio", { name: "ArchBot" }).click(); // ArchBot starts
   await page.getByRole("button", { name: "Start ArchBot match" }).click();
   await expect
@@ -126,6 +139,16 @@ test("a free ArchBot room: ArchBot plays on the device through the normal commit
 }) => {
   watchNetwork(page);
   await signedIn(page);
+  // Home lists the catalogue's bots: ArchBot free on this device; Authur on the
+  // game server, which this stack does not have, so truthfully unavailable.
+  await page.goto("/#/");
+  const bots = page.getByRole("region", { name: "Play against AI" });
+  const archbot = bots.getByRole("link", { name: /Play ArchBot/ });
+  await expect(archbot).toContainText("Free");
+  await expect(archbot).toContainText("Plays on your device");
+  await expect(bots.getByRole("listitem").filter({ hasText: "Play Authur" })).toContainText(
+    "Needs the game server",
+  );
   const roomId = await createArchBotRoom(page);
 
   expect(room(roomId)).toMatchObject({
@@ -211,4 +234,90 @@ test("two tabs on one ArchBot room commit each ArchBot turn exactly once", async
     expect(turns[i]!.side === "B" && turns[i - 1]!.side === "B").toBe(false);
   }
   expect(serverBotCalls).toEqual([]);
+});
+
+test("a model that cannot load stops ArchBot truthfully, and it plays once the model loads", async ({
+  page,
+}) => {
+  watchNetwork(page);
+  await signedIn(page);
+  const weights = "**/models/archbot/**/weights.bin";
+  const altered = readFileSync(`${process.cwd()}/public/models/archbot/95ba8c0d/weights.bin`);
+  altered[4096] ^= 0xff;
+  let served = 0;
+  await page.route(weights, (route) => {
+    served += 1;
+    return route.fulfill({ status: 200, body: altered, contentType: "application/octet-stream" });
+  });
+  const roomId = await createArchBotRoom(page); // ArchBot starts
+  const notice = page.getByText("โหลดโมเดลของ ArchBot ไม่สำเร็จ — ยังไม่เดินหมาก กำลังลองใหม่");
+
+  // Altered weights: refused, nothing decided, nothing committed, no fallback.
+  await expect(notice).toBeVisible({ timeout: 60_000 });
+  await expect.poll(() => served, { timeout: 30_000 }).toBeGreaterThanOrEqual(2);
+  expect(botTurns(roomId)).toHaveLength(0);
+
+  // Missing weights: the same.
+  await page.unroute(weights);
+  let missing = 0;
+  await page.route(weights, (route) => {
+    missing += 1;
+    return route.fulfill({ status: 404 });
+  });
+  await expect.poll(() => missing, { timeout: 30_000 }).toBeGreaterThanOrEqual(1);
+  await expect(notice).toBeVisible();
+  expect(botTurns(roomId)).toHaveLength(0);
+
+  // The real model: ArchBot's retry loads it and the turn is committed once.
+  await page.unroute(weights);
+  await expect.poll(() => botTurns(roomId).length, { timeout: 90_000 }).toBe(1);
+  await page.waitForTimeout(3_000);
+  expect(botTurns(roomId)).toHaveLength(1);
+  const revisions = events(roomId).map((e) => e.revision);
+  expect(new Set(revisions).size).toBe(revisions.length);
+  expect(serverBotCalls).toEqual([]);
+});
+
+test("an ArchBot room is a board: at the limit the next one is refused, and nothing is charged", async ({
+  page,
+}) => {
+  await signedIn(page);
+  // Two boards made the ordinary way, through the API as the player.
+  for (let n = 0; n < 2; n += 1) {
+    const response = await fetch(`${API}/rest/v1/rpc/create_live_game`, {
+      method: "POST",
+      headers: {
+        apikey: ANON,
+        Authorization: `Bearer ${session!.access_token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        target_state: { name: `board ${n}`, gameMode: "solo", players: { A: "Me" } },
+        target_access_scope: "private",
+        target_archive_policy: "none",
+        target_region_id: null,
+        target_join_policy: "invite_only",
+        target_private_parent_id: null,
+      }),
+    });
+    expect(response.ok, await response.text()).toBe(true);
+  }
+  // The third is an ArchBot room, and fills the limit.
+  await createArchBotRoom(page);
+  expect(ownedRooms()).toBe("3");
+
+  // A fourth, another ArchBot room, is refused by the same limit.
+  await openArchBotSetup(page);
+  await page.getByRole("button", { name: "Start ArchBot match" }).click();
+  await expect(page.getByText(/maximum number of active boards/).first()).toBeVisible({
+    timeout: 30_000,
+  });
+  expect(ownedRooms()).toBe("3");
+  expect(sql(`select count(*) from public.probot_consumptions where user_id = '${userId}'`)).toBe(
+    "0",
+  );
+  expect(sql(`select count(*) from public.economy_entries where user_id = '${userId}'`)).toBe("0");
+  expect(sql(`select count(*) from public.survival_attempts where player_id = '${userId}'`)).toBe(
+    "0",
+  );
 });

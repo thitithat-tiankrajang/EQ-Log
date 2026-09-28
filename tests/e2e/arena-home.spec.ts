@@ -70,6 +70,10 @@ test("puts your games first, then live games, then ways to play, and fits the sc
     "#/create?mode=bot&from=home",
   );
   await expect(bots.getByText("EQ Pro", { exact: true })).toBeVisible();
+  const archbot = bots.getByRole("link", { name: /Play ArchBot/ });
+  await expect(archbot).toHaveAttribute("href", "#/create?mode=archbot&from=home");
+  await expect(archbot).toContainText("Free");
+  await expect(archbot).toContainText("Plays on your device");
 
   await expectFits(page);
   await expectAccessible(page);
