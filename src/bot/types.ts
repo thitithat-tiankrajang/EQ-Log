@@ -66,7 +66,7 @@ export type BotResponse = {
    * never made.
    */
   equity?: number;
-  solver: "greedy" | "sim" | "endgame" | "strong";
+  solver: "greedy" | "sim" | "endgame" | "strong" | "stage5b";
   endgameSolved: boolean;
   expectedFinalDiff?: number;
   stats: {

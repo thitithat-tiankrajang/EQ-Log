@@ -62,6 +62,10 @@ export type EngineErrorCode =
   | "cancelled"
   | "offline"
   | "bot_disabled"
+  // ArchBot, on this device. Never produced by the engine service.
+  | "archbot_unsupported"
+  | "archbot_model_unavailable"
+  | "archbot_failed"
   | "internal";
 
 export class EngineApiError extends Error {
@@ -351,7 +355,7 @@ export type BotMoveResult = {
     exchange: string[];
     score: number;
   };
-  solver: "greedy" | "sim" | "endgame" | "strong";
+  solver: "greedy" | "sim" | "endgame" | "strong" | "stage5b";
   endgameSolved: boolean;
   stats: { elapsedMs: number; nodes: number; samples: number };
   /**
