@@ -20,6 +20,8 @@ export const en = {
       en: "English",
       th: "ไทย",
     },
+    back: "Back",
+    close: "Close",
   },
   nav: {
     label: "Primary navigation",
@@ -29,7 +31,49 @@ export const en = {
     create: "Create",
     createGame: "Create game",
     ranked: "Ranked",
+    account: "Your account: {name}",
     me: "Me",
+  },
+  create: {
+    title: "Create a game",
+    intro: "Set up an unranked game, with others or on your own.",
+    choices: "What do you want to set up?",
+    choice: {
+      match: {
+        title: "Play another player",
+        description: "You take one side. Your opponent plays on their own device.",
+      },
+      host: {
+        title: "Host a game",
+        description: "Run the board for one or two players without taking a seat yourself.",
+      },
+      passplay: {
+        title: "Pass & Play / Record",
+        description:
+          "Both sides on this device. Let the app draw tiles, or enter real tiles to record a game played on a board.",
+      },
+      solo: {
+        title: "Solo practice",
+        description: "Just you. Practise and build your score.",
+      },
+      custom: {
+        title: "Custom game",
+        description: "Every option, one step at a time.",
+      },
+    },
+    needsOnline: "Needs the online service",
+    join: "Have a code? Join a game",
+    formSubtitle: "Set up your game.",
+    scope: {
+      heading: "Who can watch",
+      public: "Public",
+      publicHint: "Approved members can watch. Replays go to History.",
+      region: "Region",
+      regionHint: "Your region can watch. Replays stay there.",
+      regionUnavailable: "Ask an admin to assign your region",
+      private: "Private",
+      privateHint: "Invite only. Save or discard when done.",
+    },
   },
   me: {
     title: "Me",

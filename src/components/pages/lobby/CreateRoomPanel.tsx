@@ -35,12 +35,106 @@ function playModeFromSettings(settings: NewGameSettings): PlayMode {
   return "hotseat";
 }
 
+/** The name the creator's own seat is given. */
+export function accountUsernameOf(profile: { display_name?: string | null } | null): string {
+  return profile?.display_name?.trim() || "Your account";
+}
+
+/**
+ * The settings a play mode implies: who is seated, how tiles are drawn and
+ * whether the creator plays. Choosing a mode in the form and starting from a
+ * Create choice both come through here, so the two cannot drift apart.
+ */
+export function settingsForPlayMode(
+  settings: NewGameSettings,
+  mode: PlayMode,
+  userId: string | null,
+  accountUsername: string,
+): NewGameSettings {
+  if (mode === "hotseat" || mode === "solo") {
+    return {
+      ...settings,
+      gameMode: mode === "solo" ? "solo" : "versus",
+      playerB: mode === "solo" ? "" : settings.playerB,
+      playerBMemberId: mode === "solo" ? null : settings.playerBMemberId,
+      playerAUserId: null,
+      playerBUserId: null,
+      playerAEmail: null,
+      playerBEmail: null,
+      emailPlayMode: undefined,
+      startingSide: mode === "solo" ? "A" : settings.startingSide,
+      tileDrawMode: mode === "solo" ? "play" : settings.tileDrawMode,
+    };
+  }
+  const playerAUserId = settings.playerAUserId?.trim() || null;
+  const playerBUserId = settings.playerBUserId?.trim() || null;
+  if (mode === "hosted_solo") {
+    const creatorWasA = Boolean(userId && playerAUserId === userId);
+    return {
+      ...settings,
+      playerA: creatorWasA ? "" : settings.playerA,
+      playerB: "",
+      playerAMemberId: creatorWasA ? null : settings.playerAMemberId,
+      playerBMemberId: null,
+      playerAUserId: creatorWasA ? null : playerAUserId,
+      playerBUserId: null,
+      playerAEmail: null,
+      playerBEmail: null,
+      gameMode: "solo",
+      emailPlayMode: "hosted",
+      startingSide: "A",
+    };
+  }
+  if (mode === "hosted_email") {
+    const creatorWasA = Boolean(userId && playerAUserId === userId);
+    const creatorWasB = Boolean(userId && playerBUserId === userId);
+    return {
+      ...settings,
+      playerA: creatorWasA ? "" : settings.playerA,
+      playerB: creatorWasB ? "" : settings.playerB,
+      playerAMemberId: creatorWasA ? null : settings.playerAMemberId,
+      playerBMemberId: creatorWasB ? null : settings.playerBMemberId,
+      playerAUserId: creatorWasA ? null : playerAUserId,
+      playerBUserId: creatorWasB ? null : playerBUserId,
+      playerAEmail: null,
+      playerBEmail: null,
+      gameMode: "versus",
+      emailPlayMode: "hosted",
+    };
+  }
+  const side: Side =
+    playerBUserId === userId
+      ? "B"
+      : playerAUserId === userId
+        ? "A"
+        : playerAUserId && !playerBUserId
+          ? "B"
+          : "A";
+  const creatorAlreadyAssigned = playerAUserId === userId || playerBUserId === userId;
+  const opponentUserId = (side === "A" ? playerBUserId : playerAUserId) ?? null;
+  return {
+    ...settings,
+    playerA: side === "A" && !creatorAlreadyAssigned ? accountUsername : settings.playerA,
+    playerB: side === "B" && !creatorAlreadyAssigned ? accountUsername : settings.playerB,
+    playerAMemberId: side === "A" && !creatorAlreadyAssigned ? null : settings.playerAMemberId,
+    playerBMemberId: side === "B" && !creatorAlreadyAssigned ? null : settings.playerBMemberId,
+    playerAUserId: side === "A" ? userId : opponentUserId,
+    playerBUserId: side === "B" ? userId : opponentUserId,
+    playerAEmail: null,
+    playerBEmail: null,
+    gameMode: "versus",
+    emailPlayMode: "direct",
+    tileDrawMode: "play",
+  };
+}
+
 export function CreateRoomPanel({
   settings,
   members,
   registeredPlayers,
   busy = false,
   intent = "match",
+  initialPlayMode,
   submitLabel,
   onChange,
   onSubmit,
@@ -52,14 +146,19 @@ export function CreateRoomPanel({
   /** Which opponent the previous step chose. Decides which seating options
    *  remain open here, so the same question is never asked twice. */
   intent?: "match" | "solo";
+  /** The seating a Create choice starts from. A host's own seat is empty, so
+   *  hosting cannot be read back from the settings alone. */
+  initialPlayMode?: PlayMode;
   submitLabel?: string;
   onChange: (next: NewGameSettings) => void;
   onSubmit: () => void;
 }) {
   const { profile, userId } = useAuth();
-  const accountUsername = profile?.display_name?.trim() || "Your account";
+  const accountUsername = accountUsernameOf(profile);
   const accountPlayers = mergeAccountPlayer(registeredPlayers, userId, accountUsername);
-  const [playMode, setPlayModeState] = useState<PlayMode>(() => playModeFromSettings(settings));
+  const [playMode, setPlayModeState] = useState<PlayMode>(
+    () => initialPlayMode ?? playModeFromSettings(settings),
+  );
   const [lastOnlineRole, setLastOnlineRole] = useState<OnlineRole>(
     playMode === "hosted_email" || playMode === "hosted_solo" ? playMode : "direct_email",
   );
@@ -111,84 +210,7 @@ export function CreateRoomPanel({
     if (mode === "hosted_email" || mode === "hosted_solo" || mode === "direct_email") {
       setLastOnlineRole(mode);
     }
-    if (mode === "hotseat" || mode === "solo") {
-      onChange({
-        ...settings,
-        gameMode: mode === "solo" ? "solo" : "versus",
-        playerB: mode === "solo" ? "" : settings.playerB,
-        playerBMemberId: mode === "solo" ? null : settings.playerBMemberId,
-        playerAUserId: null,
-        playerBUserId: null,
-        playerAEmail: null,
-        playerBEmail: null,
-        emailPlayMode: undefined,
-        startingSide: mode === "solo" ? "A" : settings.startingSide,
-        tileDrawMode: mode === "solo" ? "play" : settings.tileDrawMode,
-      });
-      return;
-    }
-    const playerAUserId = settings.playerAUserId?.trim() || null;
-    const playerBUserId = settings.playerBUserId?.trim() || null;
-    if (mode === "hosted_solo") {
-      const creatorWasA = Boolean(userId && playerAUserId === userId);
-      onChange({
-        ...settings,
-        playerA: creatorWasA ? "" : settings.playerA,
-        playerB: "",
-        playerAMemberId: creatorWasA ? null : settings.playerAMemberId,
-        playerBMemberId: null,
-        playerAUserId: creatorWasA ? null : playerAUserId,
-        playerBUserId: null,
-        playerAEmail: null,
-        playerBEmail: null,
-        gameMode: "solo",
-        emailPlayMode: "hosted",
-        startingSide: "A",
-      });
-      return;
-    }
-    if (mode === "hosted_email") {
-      const creatorWasA = Boolean(userId && playerAUserId === userId);
-      const creatorWasB = Boolean(userId && playerBUserId === userId);
-      onChange({
-        ...settings,
-        playerA: creatorWasA ? "" : settings.playerA,
-        playerB: creatorWasB ? "" : settings.playerB,
-        playerAMemberId: creatorWasA ? null : settings.playerAMemberId,
-        playerBMemberId: creatorWasB ? null : settings.playerBMemberId,
-        playerAUserId: creatorWasA ? null : playerAUserId,
-        playerBUserId: creatorWasB ? null : playerBUserId,
-        playerAEmail: null,
-        playerBEmail: null,
-        gameMode: "versus",
-        emailPlayMode: "hosted",
-      });
-      return;
-    }
-    const side: Side =
-      playerBUserId === userId
-        ? "B"
-        : playerAUserId === userId
-          ? "A"
-          : playerAUserId && !playerBUserId
-            ? "B"
-            : "A";
-    const creatorAlreadyAssigned = playerAUserId === userId || playerBUserId === userId;
-    const opponentUserId = (side === "A" ? playerBUserId : playerAUserId) ?? null;
-    onChange({
-      ...settings,
-      playerA: side === "A" && !creatorAlreadyAssigned ? accountUsername : settings.playerA,
-      playerB: side === "B" && !creatorAlreadyAssigned ? accountUsername : settings.playerB,
-      playerAMemberId: side === "A" && !creatorAlreadyAssigned ? null : settings.playerAMemberId,
-      playerBMemberId: side === "B" && !creatorAlreadyAssigned ? null : settings.playerBMemberId,
-      playerAUserId: side === "A" ? userId : opponentUserId,
-      playerBUserId: side === "B" ? userId : opponentUserId,
-      playerAEmail: null,
-      playerBEmail: null,
-      gameMode: "versus",
-      emailPlayMode: "direct",
-      tileDrawMode: "play",
-    });
+    onChange(settingsForPlayMode(settings, mode, userId, accountUsername));
   }
 
   const usesOnlinePlay =

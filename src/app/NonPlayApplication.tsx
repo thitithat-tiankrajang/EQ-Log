@@ -41,7 +41,7 @@ import {
 } from "../roomScope";
 import * as localRooms from "../rooms";
 import type { RoomMeta } from "../rooms";
-import { navigate, returnDestinationFor, useRoute } from "../router";
+import { navigate, returnDestinationFor, routeToHash, useRoute } from "../router";
 import { isSupabaseConfigured } from "../supabaseClient";
 import { ApplicationShell } from "./shells/ApplicationShell";
 import { servedRoute } from "./servedRoute";
@@ -101,16 +101,21 @@ export default function NonPlayApplication() {
   );
   const roomRouteId = route.kind === "room" ? route.roomId : null;
   const roomReturnTo = route.kind === "room" ? route.returnTo : undefined;
-  const canCreateInScope = canCreateRoom && requestedScope !== null;
-  const createDisabledReason = configured
+  // Why this account cannot create at all. The space is chosen on the Create
+  // page itself, which offers Region only to an account that has one, so the
+  // page is gated by this and not by the space in its address.
+  const accountCreateDisabledReason = configured
     ? !userId
       ? "Sign in to create a room."
       : !isApproved && !hasAdminAccess
         ? "Your account must be approved before creating a room."
-        : requestedVisibility === "region" && !regionId
-          ? "An admin must assign your account to a region before you can create a region room."
-          : null
+        : null
     : null;
+  const createDisabledReason =
+    accountCreateDisabledReason ??
+    (configured && requestedVisibility === "region" && !regionId
+      ? "An admin must assign your account to a region before you can create a region room."
+      : null);
 
   const readRoom = useCallback(
     async (id: string): Promise<{ game: GameState; meta: RoomMeta } | null> => {
@@ -846,10 +851,13 @@ export default function NonPlayApplication() {
     return (
       <>
         <CreateRoomPage
-          key={route.preset ?? "create"}
-          canCreate={canCreateInScope}
-          createDisabledReason={createDisabledReason}
+          // Every Create address starts its own form, so a choice made from the
+          // (+) sheet on a Create page opens fresh in its own context.
+          key={routeToHash(route)}
+          canCreate={canCreateRoom}
+          createDisabledReason={accountCreateDisabledReason}
           visibility={route.visibility}
+          returnTo={route.returnTo}
           regionAvailable={Boolean(userId && regionId)}
           regionId={regionId}
           regionName={regionName}

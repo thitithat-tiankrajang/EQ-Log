@@ -16,7 +16,7 @@ export type Route =
   | {
       kind: "create";
       visibility: RoomVisibility;
-      preset?: "solo" | "bot" | "ranked";
+      preset?: CreatePreset;
       returnTo?: ReturnDestination;
     }
   | { kind: "join"; visibility: RoomVisibility; code?: string }
@@ -27,6 +27,26 @@ export type Route =
   | { kind: "admin"; section: AdminSection }
   | { kind: "room"; roomId: string; returnTo?: ReturnDestination }
   | { kind: "play"; roomId: string; returnTo?: ReturnDestination };
+
+/**
+ * The `mode=` of a Create address. The first five are the Create choices; `bot`
+ * and `ranked` are older addresses kept working for the pages that still use
+ * them (the Ranked page creates its matches through `mode=ranked`).
+ */
+export const CREATE_PRESETS = [
+  "match",
+  "host",
+  "passplay",
+  "solo",
+  "custom",
+  "bot",
+  "ranked",
+] as const;
+export type CreatePreset = (typeof CREATE_PRESETS)[number];
+
+function createPresetFrom(mode: string | null): CreatePreset | undefined {
+  return CREATE_PRESETS.find((preset) => preset === mode);
+}
 
 export type LobbySection = "live" | "history" | "rooms" | "members" | "stats";
 export type AdminSection = "users" | "regions" | "vision" | "survival" | "study" | "bots" | "plans";
@@ -136,14 +156,7 @@ export function parseHash(hash: string): Route {
     return {
       kind: "create",
       visibility: params.get("space") === "region" ? "region" : "public",
-      preset:
-        mode === "solo"
-          ? "solo"
-          : mode === "bot"
-            ? "bot"
-            : mode === "ranked"
-              ? "ranked"
-              : undefined,
+      preset: createPresetFrom(mode),
       ...(returnTo ? { returnTo } : {}),
     };
   }
@@ -165,14 +178,7 @@ export function parseHash(hash: string): Route {
     return {
       kind: "create",
       visibility,
-      preset:
-        mode === "solo"
-          ? "solo"
-          : mode === "bot"
-            ? "bot"
-            : mode === "ranked"
-              ? "ranked"
-              : undefined,
+      preset: createPresetFrom(mode),
       ...(returnTo ? { returnTo } : {}),
     };
   }

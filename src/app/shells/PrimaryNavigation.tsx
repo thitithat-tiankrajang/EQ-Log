@@ -1,4 +1,9 @@
+import { useCallback, useState } from "react";
 import { GraduationCap, House, Plus, Trophy, UserRound } from "lucide-react";
+import { CreateChooser } from "../../components/pages/pregame/CreateChooser";
+import { Sheet } from "../../components/ui/Sheet";
+import { isPlainClick } from "../../components/ui/isPlainClick";
+import { createContextFor } from "../../features/rooms/create/createChoices";
 import { useLocale } from "../../i18n/LocaleProvider";
 import { routeToHash, useRoute, type Route } from "../../router";
 
@@ -30,19 +35,7 @@ export function primaryDestinationFor(route: Route): PrimaryDestination | null {
 
 /** Create keeps the space the player came from, as it always has. */
 function createHrefFor(route: Route): string {
-  if (route.kind === "create") return routeToHash(route);
-  if (route.kind === "private") {
-    return routeToHash({ kind: "create", visibility: "public", returnTo: route });
-  }
-  if (route.kind === "home" && route.section === "history") {
-    return routeToHash({
-      kind: "create",
-      visibility: route.visibility,
-      returnTo: { kind: "home", visibility: route.visibility, section: "history" },
-    });
-  }
-  if (route.kind === "home" && route.visibility === "region") return "#/create?space=region";
-  return "#/create";
+  return routeToHash(route.kind === "create" ? route : createContextFor(route));
 }
 
 /**
@@ -60,6 +53,14 @@ export function PrimaryNavigation() {
   const { t } = useLocale();
   const active = primaryDestinationFor(route);
   const creating = route.kind === "create";
+  // The chooser belongs to the page it was opened on: any navigation (a
+  // choice, Back, a link elsewhere) leaves it behind.
+  const here = routeToHash(route);
+  const [chooserPage, setChooserPage] = useState<string | null>(null);
+  const choosing = chooserPage === here;
+  // Forget it once left, so returning to that page later does not reopen it.
+  if (chooserPage !== null && !choosing) setChooserPage(null);
+  const closeChooser = useCallback(() => setChooserPage(null), []);
 
   return (
     <nav className="eq-primary-nav" aria-label={t("nav.label")}>
@@ -69,12 +70,21 @@ export function PrimaryNavigation() {
       <NavItem href="#/learn" active={active === "learn"} label={t("nav.learn")}>
         <GraduationCap aria-hidden size={21} />
       </NavItem>
-      {/* An action, not a tab: it starts something rather than showing a place. */}
+      {/* An action, not a tab: it opens the Create chooser over the current page.
+          It stays a real link to the same choices, so a new tab, a bookmark or
+          a page without the sheet still reaches them at `#/create`. */}
       <a
         className={`eq-primary-nav-create${creating ? " is-active" : ""}`}
         href={createHrefFor(route)}
         aria-current={creating ? "page" : undefined}
         aria-label={t("nav.createGame")}
+        aria-haspopup="dialog"
+        aria-expanded={choosing}
+        onClick={(event) => {
+          if (!isPlainClick(event)) return;
+          event.preventDefault();
+          setChooserPage(here);
+        }}
       >
         <span>
           <Plus aria-hidden size={29} />
@@ -87,6 +97,14 @@ export function PrimaryNavigation() {
       <NavItem href="#/me" active={active === "me"} label={t("nav.me")}>
         <UserRound aria-hidden size={21} />
       </NavItem>
+      <Sheet
+        open={choosing}
+        title={t("create.title")}
+        closeLabel={t("common.close")}
+        onClose={closeChooser}
+      >
+        <CreateChooser context={createContextFor(route)} showIntro onChoose={closeChooser} />
+      </Sheet>
     </nav>
   );
 }

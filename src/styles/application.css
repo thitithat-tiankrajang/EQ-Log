@@ -936,6 +936,134 @@ body[data-route="play"] .eq-coffee-return {
   font-size: 11px;
 }
 
+/* Who can watch, asked inside a form opened from a Create choice. The spaces
+   wrap rather than scroll, so a long region name or Thai label stays whole. */
+.eq-create-scope .eq-segmented-control {
+  flex-wrap: wrap;
+  overflow: visible;
+}
+
+.eq-create-scope .eq-segmented-control button {
+  min-height: 44px;
+  flex: 1 1 auto;
+  overflow-wrap: anywhere;
+}
+
+.eq-create-scope-hint {
+  display: grid;
+  gap: 4px;
+  margin: 0;
+  color: var(--eq-text-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.eq-create-scope-hint small {
+  font-size: 11px;
+}
+
+/* The Create choices: the same list in the (+) sheet and on #/create. */
+.eq-create-chooser {
+  display: grid;
+  gap: 12px;
+}
+
+.eq-create-chooser-intro {
+  margin: 0;
+  color: var(--eq-text-soft);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.eq-create-options {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.eq-create-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  border: 1px solid var(--eq-line);
+  border-radius: var(--eq-radius-md);
+  background: var(--eq-surface);
+  color: var(--eq-text);
+  padding: 12px 14px;
+  text-decoration: none;
+}
+
+a.eq-create-option:hover {
+  border-color: var(--eq-line-strong);
+}
+
+a.eq-create-option:focus-visible,
+.eq-create-join:focus-visible {
+  outline: 2px solid var(--eq-primary);
+  outline-offset: 2px;
+}
+
+.eq-create-option[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Custom is the way into every option, not a sixth kind of game. */
+.eq-create-options > li[data-choice="custom"] .eq-create-option {
+  border-style: dashed;
+  background: transparent;
+}
+
+.eq-create-option-icon {
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--eq-primary-soft);
+  color: var(--eq-primary);
+}
+
+.eq-create-option-copy {
+  display: grid;
+  flex: 1;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.eq-create-option-copy strong {
+  font-size: 15px;
+}
+
+.eq-create-option-copy span,
+.eq-create-option-copy small {
+  color: var(--eq-text-soft);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.eq-create-option-arrow {
+  flex: none;
+  color: var(--eq-text-faint);
+}
+
+.eq-create-join {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 8px;
+  min-height: 44px;
+  color: var(--eq-primary);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
 .ui-checkbox-control {
   display: inline-flex;
   align-items: center;

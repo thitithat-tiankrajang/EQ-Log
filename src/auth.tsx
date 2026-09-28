@@ -3,6 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import { LogOut } from "lucide-react";
 import { isSupabaseConfigured, supabase } from "./supabaseClient";
 import { PROFILE_LOAD_TIMEOUT_MS } from "./constants/network";
+import { useLocale } from "./i18n/LocaleProvider";
 
 export type ProfileStatus = "pending" | "approved" | "blocked";
 
@@ -354,6 +355,7 @@ export function AccountChip() {
     signInWithGoogle,
     signOut,
   } = useAuth();
+  const { t } = useLocale();
   const [busy, setBusy] = useState(false);
   if (!configured) return null;
   if (loading)
@@ -404,7 +406,7 @@ export function AccountChip() {
   const label = profile.display_name ?? "Account";
   return (
     <div className="eq-account-chip">
-      <a className="eq-account-profile" href="#/profile" aria-label={`Open ${label}'s profile`}>
+      <a className="eq-account-profile" href="#/me" aria-label={t("nav.account", { name: label })}>
         <span className="eq-account-avatar">{label.slice(0, 1).toUpperCase()}</span>
         <span className="eq-account-name">
           {label}

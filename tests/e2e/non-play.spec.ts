@@ -13,10 +13,10 @@ test("opens a match from the lobby's game entry point", async ({ page }) => {
   await expect(page.getByRole("region", { name: "Start a game" })).toBeVisible();
   await page.getByRole("link", { name: /New game/ }).click();
   await expect(page).toHaveURL(/#\/create$/);
-  await expect(page.getByRole("heading", { level: 1, name: "Choose a space" })).toBeVisible();
-  await page.getByRole("button", { name: /Public/ }).click();
-  await page.getByRole("button", { name: /Match/ }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "Configure match" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Create a game" })).toBeVisible();
+  await page.getByRole("link", { name: /Pass & Play \/ Record/ }).click();
+  await expect(page).toHaveURL(/#\/create\?mode=passplay$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Pass & Play / Record" })).toBeVisible();
   await page.getByRole("button", { name: /Create match room/i }).click();
   await expect(page).toHaveURL(/#\/room\//);
   await expect(page.getByRole("heading", { level: 1 })).toContainText(/Player A vs Player B/i);
@@ -56,6 +56,11 @@ test("@a11y has no serious accessibility violations on the main non-Play routes"
     "#/public",
     "#/public/history",
     "#/create",
+    "#/create?mode=match",
+    "#/create?mode=host",
+    "#/create?mode=passplay",
+    "#/create?mode=solo",
+    "#/create?mode=custom",
     "#/private",
     "#/profile",
     "#/me",
@@ -79,9 +84,21 @@ test("@a11y has no serious accessibility violations on the main non-Play routes"
   // tests/bot-room-panel.test.tsx.
 
   await page.goto("/#/public");
-  await page.goto("/#/create");
-  await page.getByRole("button", { name: /Public/ }).click();
-  await page.getByRole("button", { name: /Match/ }).click();
+  await page.getByRole("link", { name: "Create game" }).click();
+  const chooser = page.getByRole("dialog", { name: "Create a game" });
+  await expect(chooser).toBeVisible();
+  // Scan the settled sheet: mid-fade colours are not the ones players read.
+  await page
+    .locator(".ui-sheet-backdrop")
+    .evaluate((element) =>
+      Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)),
+    );
+  const chooserResults = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .analyze();
+  expect(chooserResults.violations, "Create chooser").toEqual([]);
+
+  await page.goto("/#/create?mode=passplay");
   await page.getByRole("button", { name: /Create match room/i }).click();
   const waitingResults = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
@@ -94,6 +111,9 @@ test("does not overflow the viewport horizontally", async ({ page }) => {
     "#/public",
     "#/public/history",
     "#/create",
+    "#/create?mode=host",
+    "#/create?mode=passplay",
+    "#/create?mode=custom",
     "#/private",
     "#/profile",
     "#/region",
@@ -110,8 +130,10 @@ test("does not overflow the viewport horizontally", async ({ page }) => {
 
 test("keeps every action in a game-table row the same height", async ({ page }) => {
   await page.getByRole("link", { name: "Create game" }).click();
-  await page.getByRole("button", { name: /Public/ }).click();
-  await page.getByRole("button", { name: /Match/ }).click();
+  await page
+    .getByRole("dialog", { name: "Create a game" })
+    .getByRole("link", { name: /Pass & Play \/ Record/ })
+    .click();
   await page.getByRole("button", { name: /Create match room/i }).click();
   await expect(page).toHaveURL(/#\/room\//);
 
@@ -148,7 +170,7 @@ test("loads the designed bot setup form instead of browser-default controls", as
     true,
     "The bot setup form is reached only for Authur, which needs Supabase and the engine service; this suite runs local-only.",
   );
-  await page.getByRole("link", { name: "Create game" }).click();
+  await page.goto("/#/create?mode=custom");
   await page.getByRole("button", { name: /Public/ }).click();
   await page.getByRole("button", { name: /^Authur/ }).click();
 
@@ -258,9 +280,7 @@ test("uses one focus ring around search and animates dialog exit", async ({ page
   }));
   expect(focus).toEqual({ input: "none", wrapper: "solid" });
 
-  await page.goto("/#/create");
-  await page.getByRole("button", { name: /Public/ }).click();
-  await page.getByRole("button", { name: /Match/ }).click();
+  await page.goto("/#/create?mode=passplay");
   await page.getByRole("button", { name: /Create match room/i }).click();
   await page.getByRole("button", { name: /Edit/ }).click();
   const backdrop = page.locator(".ui-sheet-backdrop");
@@ -276,8 +296,7 @@ test("shows the styled coffee return control outside Play and returns to the pau
   await expect(page.getByRole("button", { name: /Return to paused game/i })).toHaveCount(0);
   await page.goto("/#/public");
   await page.getByRole("link", { name: /New game/ }).click();
-  await page.getByRole("button", { name: /^Public/ }).click();
-  await page.getByRole("button", { name: /^Match/ }).click();
+  await page.getByRole("link", { name: /Pass & Play \/ Record/ }).click();
   await page.getByRole("button", { name: /Create match room/i }).click();
   await page.getByRole("button", { name: "Start Lab" }).click();
   await expect(page).toHaveURL(/#\/play\//);

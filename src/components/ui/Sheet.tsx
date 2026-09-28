@@ -23,12 +23,15 @@ export function Sheet({
   open,
   title,
   dismissible = true,
+  closeLabel,
   onClose,
   children,
 }: {
   open: boolean;
   title: string;
   dismissible?: boolean;
+  /** The close controls' accessible name, for callers that localise it. */
+  closeLabel?: string;
   onClose: () => void;
   children: ReactNode;
 }) {
@@ -109,7 +112,7 @@ export function Sheet({
         <button
           className="ui-sheet-dismiss"
           type="button"
-          aria-label="Close dialog"
+          aria-label={closeLabel ?? "Close dialog"}
           onClick={onClose}
         />
       )}
@@ -125,7 +128,12 @@ export function Sheet({
         <header className="ui-sheet-head">
           <h2 id={titleId}>{title}</h2>
           {dismissible && (
-            <button type="button" className="ui-sheet-close" aria-label="Close" onClick={onClose}>
+            <button
+              type="button"
+              className="ui-sheet-close"
+              aria-label={closeLabel ?? "Close"}
+              onClick={onClose}
+            >
               <X size={18} />
             </button>
           )}

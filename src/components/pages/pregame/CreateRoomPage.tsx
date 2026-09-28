@@ -6,33 +6,73 @@ import {
   LockKeyhole,
   MapPin,
   Save,
-  Sparkles,
   Swords,
-  Trophy,
   UserRound,
 } from "lucide-react";
 import { useAuth } from "../../../auth";
 import type { NewGameSettings } from "../../../game";
 import { DEFAULT_NEW_GAME_SETTINGS } from "../../../constants/roomDefaults";
-import { CreateRoomPanel, TimerChips } from "../lobby/CreateRoomPanel";
+import {
+  CreateRoomPanel,
+  TimerChips,
+  accountUsernameOf,
+  settingsForPlayMode,
+} from "../lobby/CreateRoomPanel";
 import { CheckboxControl } from "../../ui/CheckboxControl";
 import { useMembersCatalog } from "../lobby/useMembersCatalog";
 import { useRegisteredPlayersCatalog } from "../lobby/useRegisteredPlayersCatalog";
 import { BotRoomPanel } from "./BotRoomPanel";
+import { CreateChooser } from "./CreateChooser";
 import { PreGameShell } from "./PreGameShell";
-import { navigate } from "../../../router";
+import { navigate, type CreatePreset, type ReturnDestination } from "../../../router";
 import { isEngineApiConfigured } from "../../../bot/engineApi";
 import { isSupabaseConfigured } from "../../../supabaseClient";
 import type { RoomVisibility } from "../../../roomScope";
 import type { CreateRoomPolicy, JoinPolicy } from "../../../remoteRooms";
 import { RANKED_TIME_OPTIONS } from "../../../features/ranked/rules";
+import {
+  initialCreateScope,
+  isDirectCreateChoice,
+  type CreateRoute,
+  type CreateScope,
+} from "../../../features/rooms/create/createChoices";
+import type { CreatePlayMode } from "../../../features/rooms/create/createRoomReadiness";
+import { useLocale } from "../../../i18n/LocaleProvider";
+import type { MessageKey } from "../../../i18n/translate";
 
-type Destination = "public" | "region" | "private";
+type Destination = CreateScope;
 type PlayChoice = "match" | "solo" | "authur" | "ranked";
+
+/** The opponent step each address answers in advance (none for Custom). */
+function playChoiceFor(preset: CreatePreset | undefined): PlayChoice | null {
+  switch (preset) {
+    case "match":
+    case "host":
+    case "passplay":
+      return "match";
+    case "solo":
+      return "solo";
+    case "bot":
+      return "authur";
+    case "ranked":
+      return "ranked";
+    default:
+      return null;
+  }
+}
+
+const DIRECT_TITLES: Record<"match" | "host" | "passplay" | "solo", MessageKey> = {
+  match: "create.choice.match.title",
+  host: "create.choice.host.title",
+  passplay: "create.choice.passplay.title",
+  solo: "create.choice.solo.title",
+};
 
 export function CreateRoomPage({
   canCreate,
   createDisabledReason,
+  visibility,
+  returnTo,
   regionAvailable,
   regionId,
   regionName,
@@ -45,39 +85,57 @@ export function CreateRoomPage({
   canCreate: boolean;
   createDisabledReason: string | null;
   visibility: RoomVisibility;
+  /** Where the player came from; with `visibility`, the context of the choices. */
+  returnTo?: ReturnDestination;
   regionAvailable: boolean;
   regionId: string | null;
   regionName: string | null;
-  preset?: "solo" | "bot" | "ranked";
+  preset?: CreatePreset;
   submitting: boolean;
   onBack: () => void;
   onCreate: (settings: NewGameSettings, policy: CreateRoomPolicy) => void;
   onCreateRanked: (minutes: number) => Promise<void>;
 }) {
-  const { userId } = useAuth();
+  const { profile, userId } = useAuth();
+  const { t } = useLocale();
   const botServerAvailable = isSupabaseConfigured && isEngineApiConfigured;
-  const [destination, setDestination] = useState<Destination | null>(
-    preset === "ranked" ? "public" : null,
-  );
-  const [playChoice, setPlayChoice] = useState<PlayChoice | null>(
-    preset === "solo"
-      ? "solo"
-      : preset === "bot"
-        ? "authur"
-        : preset === "ranked"
-          ? "ranked"
-          : null,
-  );
+  const context: CreateRoute = { kind: "create", visibility, ...(returnTo ? { returnTo } : {}) };
+  // A Create choice opens its settings form directly, in the space the player
+  // came from; Custom (and the older bot address) still asks step by step.
+  const direct = isDirectCreateChoice(preset) ? preset : null;
+  const startDestination: Destination | null =
+    preset === "ranked" ? "public" : direct ? initialCreateScope(context, regionAvailable) : null;
+  const [destination, setDestination] = useState<Destination | null>(startDestination);
+  const [playChoice, setPlayChoice] = useState<PlayChoice | null>(() => playChoiceFor(preset));
   const [rankedMinutes, setRankedMinutes] = useState(15);
   const [rankedBusy, setRankedBusy] = useState(false);
   const [rankedError, setRankedError] = useState<string | null>(null);
   const [privateSaved, setPrivateSaved] = useState(true);
-  const [joinPolicy, setJoinPolicy] = useState<JoinPolicy>("invite_only");
+  const [joinPolicy, setJoinPolicy] = useState<JoinPolicy>(
+    startDestination && startDestination !== "private" && direct ? "open" : "invite_only",
+  );
   const effectiveVisibility: RoomVisibility = destination === "region" ? "region" : "public";
   const { error, loading, members } = useMembersCatalog(userId);
   const playerDirectory = useRegisteredPlayersCatalog(Boolean(userId), effectiveVisibility);
+  // Seating registered players needs the online service, and a player seat
+  // needs the creator's own account.
+  const startPlayMode: CreatePlayMode | undefined =
+    direct === "host" && isSupabaseConfigured
+      ? "hosted_email"
+      : direct === "match" && isSupabaseConfigured && userId
+        ? "direct_email"
+        : undefined;
   const [settings, setSettings] = useState<NewGameSettings>(() =>
-    preset === "solo" ? soloSettings(DEFAULT_NEW_GAME_SETTINGS) : { ...DEFAULT_NEW_GAME_SETTINGS },
+    preset === "solo"
+      ? soloSettings(DEFAULT_NEW_GAME_SETTINGS)
+      : startPlayMode
+        ? settingsForPlayMode(
+            DEFAULT_NEW_GAME_SETTINGS,
+            startPlayMode,
+            userId,
+            accountUsernameOf(profile),
+          )
+        : { ...DEFAULT_NEW_GAME_SETTINGS },
   );
 
   function chooseDestination(next: Destination) {
@@ -126,6 +184,28 @@ export function CreateRoomPage({
     };
   }
 
+  if (!preset) {
+    return (
+      <PreGameShell
+        eyebrow={t("nav.create")}
+        title={t("create.title")}
+        subtitle={t("create.intro")}
+        onBack={onBack}
+        visibility={visibility}
+        regionName={regionName}
+        variant="form"
+        visual="glass"
+      >
+        {!canCreate && createDisabledReason && (
+          <p className="info-banner">{createDisabledReason}</p>
+        )}
+        {/* Like the old in-page steps, choosing here is not a history entry of
+            its own: Back from the chosen form returns to where Create began. */}
+        <CreateChooser context={context} disabled={!canCreate} replace />
+      </PreGameShell>
+    );
+  }
+
   if (!destination) {
     return (
       <PreGameShell
@@ -142,23 +222,23 @@ export function CreateRoomPage({
         <div className="eq-create-choice-grid">
           <DestinationCard
             icon={<Globe2 />}
-            title="Public"
-            description="Approved members can watch. Replays go to History."
+            title={t("create.scope.public")}
+            description={t("create.scope.publicHint")}
             onClick={() => chooseDestination("public")}
             disabled={!canCreate}
           />
           <DestinationCard
             icon={<MapPin />}
-            title={regionName ?? "Region"}
-            description="Your region can watch. Replays stay there."
+            title={regionName ?? t("create.scope.region")}
+            description={t("create.scope.regionHint")}
             onClick={() => chooseDestination("region")}
             disabled={!canCreate || !regionAvailable}
-            note={!regionAvailable ? "Ask an admin to assign your region" : undefined}
+            note={!regionAvailable ? t("create.scope.regionUnavailable") : undefined}
           />
           <DestinationCard
             icon={<LockKeyhole />}
-            title="Private"
-            description="Invite only. Save or discard when done."
+            title={t("create.scope.private")}
+            description={t("create.scope.privateHint")}
             onClick={() => chooseDestination("private")}
             disabled={!canCreate}
           />
@@ -200,36 +280,14 @@ export function CreateRoomPage({
             note={!botServerAvailable ? "ต้องเชื่อมต่อเซิร์ฟเวอร์เกมก่อน" : undefined}
             onClick={() => choosePlayChoice("authur")}
           />
-          <DestinationCard
-            icon={<Sparkles />}
-            title="Study"
-            description="ตั้งกระดานและเบี้ยในมือเอง แล้วให้บอทวิเคราะห์ว่าจะเล่นตาไหน"
-            onClick={() => navigate({ kind: "study" })}
-          />
-          {destination === "public" && (
-            <DestinationCard
-              icon={<Trophy />}
-              title="Ranked"
-              description="สร้างห้องจัดอันดับแบบเปิด รอผู้เล่นคนใดก็ได้"
-              disabled={!isSupabaseConfigured || !userId}
-              onClick={() => choosePlayChoice("ranked")}
-            />
-          )}
-          <DestinationCard
-            icon={<Trophy />}
-            title="Survival"
-            description="เล่นต่อจากสถานการณ์ที่กำหนดจนเอาชนะ Authur"
-            disabled={!botServerAvailable}
-            note={!botServerAvailable ? "ต้องเชื่อมต่อเซิร์ฟเวอร์เกมก่อน" : undefined}
-            onClick={() => navigate({ kind: "stage" })}
-          />
         </div>
       </PreGameShell>
     );
   }
 
-  const title =
-    playChoice === "ranked"
+  const title = direct
+    ? t(DIRECT_TITLES[direct])
+    : playChoice === "ranked"
       ? "Configure ranked match"
       : playChoice === "authur"
         ? "Play vs Authur"
@@ -238,10 +296,16 @@ export function CreateRoomPage({
           : "Configure match";
   return (
     <PreGameShell
-      eyebrow={`${destinationLabel(destination, regionName)} · ${archiveLabel(destination, privateSaved)}`}
+      eyebrow={
+        direct
+          ? t("nav.createGame")
+          : `${destinationLabel(destination, regionName)} · ${archiveLabel(destination, privateSaved)}`
+      }
       title={title}
-      subtitle="Set up your game."
-      onBack={() => (preset === "ranked" ? navigate({ kind: "ranked" }) : setPlayChoice(null))}
+      subtitle={direct ? t("create.formSubtitle") : "Set up your game."}
+      onBack={() =>
+        direct ? onBack() : preset === "ranked" ? navigate({ kind: "ranked" }) : setPlayChoice(null)
+      }
       visibility={effectiveVisibility}
       regionName={regionName}
       variant="form"
@@ -255,6 +319,15 @@ export function CreateRoomPage({
         </p>
       )}
       {playerDirectory.error && <p className="sync-banner">{playerDirectory.error}</p>}
+
+      {direct && (
+        <ScopeControl
+          value={destination}
+          regionAvailable={regionAvailable}
+          regionName={regionName}
+          onChange={chooseDestination}
+        />
+      )}
 
       {(playChoice === "match" || destination === "private") && (
         <section className="eq-create-policy" aria-labelledby="access-policy-heading">
@@ -378,6 +451,7 @@ export function CreateRoomPage({
           <CreateRoomPanel
             settings={settings}
             intent={playChoice === "solo" ? "solo" : "match"}
+            initialPlayMode={startPlayMode}
             submitLabel={playChoice === "solo" ? "Create solo room" : undefined}
             members={members}
             registeredPlayers={playerDirectory.players}
@@ -405,6 +479,69 @@ export function CreateRoomPage({
         )}
       </div>
     </PreGameShell>
+  );
+}
+
+/**
+ * Who can watch a game opened straight from a Create choice. The same three
+ * spaces as Custom's first step, asked where the rest of the settings are.
+ */
+function ScopeControl({
+  value,
+  regionAvailable,
+  regionName,
+  onChange,
+}: {
+  value: Destination;
+  regionAvailable: boolean;
+  regionName: string | null;
+  onChange: (next: Destination) => void;
+}) {
+  const { t } = useLocale();
+  const options: Array<{ value: Destination; label: string; hint: string; disabled?: boolean }> = [
+    {
+      value: "public",
+      label: t("create.scope.public"),
+      hint: t("create.scope.publicHint"),
+    },
+    {
+      value: "region",
+      label: regionName ?? t("create.scope.region"),
+      hint: t("create.scope.regionHint"),
+      disabled: !regionAvailable,
+    },
+    {
+      value: "private",
+      label: t("create.scope.private"),
+      hint: t("create.scope.privateHint"),
+    },
+  ];
+  const selected = options.find((option) => option.value === value);
+  return (
+    <section className="eq-create-policy eq-create-scope" aria-labelledby="create-scope-heading">
+      <div>
+        <h2 id="create-scope-heading">{t("create.scope.heading")}</h2>
+      </div>
+      <div className="eq-segmented-control" role="group" aria-labelledby="create-scope-heading">
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className={option.value === value ? "is-active" : ""}
+            aria-pressed={option.value === value}
+            aria-describedby={option.value === value ? "create-scope-hint" : undefined}
+            disabled={option.disabled}
+            onClick={() => onChange(option.value)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+      <p id="create-scope-hint" className="eq-create-scope-hint">
+        {selected?.hint}
+        {!regionAvailable && <small>{t("create.scope.regionUnavailable")}</small>}
+      </p>
+    </section>
   );
 }
 

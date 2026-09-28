@@ -6,7 +6,8 @@ import type { NewGameSettings } from "../src/game";
 import type { CreateRoomPolicy } from "../src/remoteRooms";
 
 // Locks the configuration each create path produces. The UI that collects
-// these answers changed; the rooms it creates must not.
+// these answers changed; the rooms it creates must not. These go through Custom,
+// the step-by-step setup that `#/create` itself used to open.
 
 vi.mock("../src/auth", () => ({
   useAuth: () => ({ profile: null, userId: null }),
@@ -35,6 +36,7 @@ async function createRoom(destination: RegExp, mode: RegExp): Promise<Created> {
       regionAvailable
       regionId="region-1"
       regionName="North"
+      preset="custom"
       submitting={false}
       onBack={vi.fn()}
       onCreate={(settings, policy) => created.push({ settings, policy })}

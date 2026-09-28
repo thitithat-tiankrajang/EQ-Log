@@ -6,7 +6,7 @@ import { useLocale } from "../../i18n/LocaleProvider";
 
 export function ApplicationShell({
   actions,
-  backLabel = "Back",
+  backLabel,
   children,
   description,
   documentTitle,
@@ -72,10 +72,10 @@ export function ApplicationShell({
                 className="eq-page-back"
                 type="button"
                 onClick={onBack}
-                aria-label={backLabel}
+                aria-label={backLabel ?? t("common.back")}
               >
                 <ArrowLeft aria-hidden="true" size={17} />
-                <span>{backLabel}</span>
+                <span>{backLabel ?? t("common.back")}</span>
               </button>
             )}
             <div className="eq-page-heading">

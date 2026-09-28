@@ -7,7 +7,7 @@ test("dragging across the rack selects exactly those exchange tiles", async ({
 
   await page.goto("/#/public");
   await page.evaluate(() => window.localStorage.clear());
-  await page.goto("/#/create");
+  await page.goto("/#/create?mode=custom");
   await page.getByRole("button", { name: /^Public/ }).click();
   await page.getByRole("button", { name: /^Match/ }).click();
   await page.locator('[data-choice-value="pass_play"]').click();
