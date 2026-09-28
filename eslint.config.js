@@ -45,6 +45,8 @@ export default tseslint.config(
       "tools/survival-generator/.vendor/**",
       "tools/survival-generator/out/**",
       "tools/study-puzzles/archive/**",
+      // The ArchBot browser harness build (playwright.archbot.config.ts).
+      "tools/archbot/bench/dist/**",
       // The offline Survival level generator. It is never bundled or deployed,
       // has its own node:test suite, and its outstanding findings (unused
       // locals in experiment scripts) are left for the Survival owner.

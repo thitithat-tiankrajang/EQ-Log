@@ -55,6 +55,13 @@ export type ArchBotAnswer = {
 
 export type ArchBotPhase = "loading_model" | "thinking";
 
+/**
+ * Legal-move count above which the worker is retired after answering, to return
+ * its memory. Ordinary positions have hundreds to a few thousand legal moves and
+ * keep the worker (and the loaded model); only blank-heavy racks reach this.
+ */
+export const ARCHBOT_RECYCLE_AFTER_MOVES = 50_000;
+
 type Pending = {
   id: number;
   key: ArchBotKey;
@@ -72,13 +79,18 @@ export class ArchBotEngine {
   #nextId = 1;
   #queue: Pending[] = [];
   #running: Pending | null = null;
+  readonly #recycleAfterMoves: number;
 
   constructor(
     private readonly options: {
       createWorker: () => ArchBotWorkerLike;
       modelPath: string;
+      /** Retire the worker after a decision over at least this many legal moves. */
+      recycleAfterMoves?: number;
     },
-  ) {}
+  ) {
+    this.#recycleAfterMoves = options.recycleAfterMoves ?? ARCHBOT_RECYCLE_AFTER_MOVES;
+  }
 
   /** Start the worker and the model download ahead of the first turn. */
   warm(): void {
@@ -185,6 +197,11 @@ export class ArchBotEngine {
     this.#running = null;
     if (message.type === "decided") {
       this.#modelReady = true;
+      // A search over a very large move set leaves the worker holding hundreds of
+      // megabytes it will not give back (measured: ~0.5 GB for a 229k-move
+      // position). Retire that worker; the next turn gets a fresh one and reloads
+      // the model from the HTTP cache. The decision itself is untouched.
+      if (message.decision.stats.moves >= this.#recycleAfterMoves) this.#killWorker();
       this.#settle(running, {
         key: running.key,
         decision: message.decision,

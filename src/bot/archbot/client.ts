@@ -37,8 +37,10 @@ export function isArchBotSupported(): boolean {
   );
 }
 
-function sharedEngine(): ArchBotEngine {
-  engine ??= new ArchBotEngine({
+/** A new ArchBot engine on the shipped worker and model. The app keeps one; the
+ *  browser benchmark (tools/archbot/bench) makes its own from the same factory. */
+export function createArchBotEngine(): ArchBotEngine {
+  return new ArchBotEngine({
     createWorker: () =>
       new Worker(new URL("./worker.ts", import.meta.url), {
         type: "module",
@@ -46,6 +48,10 @@ function sharedEngine(): ArchBotEngine {
       }) as unknown as ArchBotWorkerLike,
     modelPath: archBotModelPath(import.meta.env.BASE_URL),
   });
+}
+
+function sharedEngine(): ArchBotEngine {
+  engine ??= createArchBotEngine();
   return engine;
 }
 

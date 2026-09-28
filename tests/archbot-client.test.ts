@@ -308,6 +308,40 @@ describe("ArchBot engine host", () => {
     expect(later).toEqual(["thinking"]);
   });
 
+  it("retires the worker after a search over a huge move set, and keeps it otherwise", async () => {
+    FakeWorker.all = [];
+    const engine = new ArchBotEngine({
+      createWorker: () => new FakeWorker(),
+      modelPath: "/m/",
+      recycleAfterMoves: 1000,
+    });
+    const answer = (moves: number) =>
+      ({ ...DECISION, stats: { nodes: 1, moves } }) as unknown as ArchBotDecision;
+    const small = engine.decide({ key: key(1), request: REQUEST });
+    const worker = FakeWorker.all[0]!;
+    worker.send({
+      type: "decided",
+      id: worker.decides()[0]!.id,
+      decision: answer(999),
+      wallMs: 1,
+      modelMs: 0,
+    });
+    await small;
+    expect(worker.terminated).toBe(false);
+    const huge = engine.decide({ key: key(2), request: REQUEST });
+    worker.send({
+      type: "decided",
+      id: worker.decides()[1]!.id,
+      decision: answer(1000),
+      wallMs: 1,
+      modelMs: 0,
+    });
+    await expect(huge).resolves.toMatchObject({ key: key(2) });
+    expect(worker.terminated).toBe(true);
+    void engine.decide({ key: key(3), request: REQUEST });
+    expect(FakeWorker.all).toHaveLength(2);
+  });
+
   it("refuses immediately when asked with a signal that is already aborted", async () => {
     const engine = makeEngine();
     const controller = new AbortController();
