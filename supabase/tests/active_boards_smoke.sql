@@ -52,6 +52,13 @@ select ('00000000-0000-4000-8000-0000000007' || lpad(n::text, 2, '0'))::uuid,
 update public.profiles set status = 'approved' where id::text like '00000000-0000-4000-8000-0000000007%';
 update public.profiles set is_admin = true where id = '00000000-0000-4000-8000-000000000701';
 
+-- The global default EXECUTE revoke protects future public functions; these
+-- transaction-local test helpers opt in for the roles exercising them.
+grant execute on function pg_temp.act_as(uuid), pg_temp.act_as_service(),
+  pg_temp.act_as_owner(), pg_temp.expect(text, anyelement, anyelement),
+  pg_temp.boards(uuid), pg_temp.solo(), pg_temp.refused(text, text),
+  pg_temp.ranked_state() to authenticated, service_role;
+
 do $boards$
 declare
   admin_id constant uuid := '00000000-0000-4000-8000-000000000701';

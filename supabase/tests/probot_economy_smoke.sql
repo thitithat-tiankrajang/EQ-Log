@@ -59,6 +59,12 @@ update public.profiles set is_admin = true
  where id in ('00000000-0000-4000-8000-000000000601', '00000000-0000-4000-8000-000000000620');
 update public.profiles set status = 'pending' where id = '00000000-0000-4000-8000-000000000619';
 
+grant execute on function pg_temp.act_as(uuid), pg_temp.act_as_owner(),
+  pg_temp.expect(text, anyelement, anyelement), pg_temp.pass(uuid, text, integer, timestamptz),
+  pg_temp.units(uuid, timestamptz), pg_temp.reason(uuid, timestamptz),
+  pg_temp.spend(uuid, timestamptz, text), pg_temp.bot_state(), pg_temp.balance(uuid)
+  to authenticated;
+
 do $eco$
 declare
   admin_id constant uuid := '00000000-0000-4000-8000-000000000601';

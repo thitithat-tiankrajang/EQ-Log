@@ -1,12 +1,66 @@
-import { Component, lazy, Suspense, useEffect, type ErrorInfo, type ReactNode } from "react";
+import {
+  Component,
+  lazy,
+  Suspense,
+  useEffect,
+  useState,
+  type ErrorInfo,
+  type ReactNode,
+} from "react";
 import { useRoute } from "../router";
+import { supabase } from "../supabaseClient";
+import type { SafeArchiveReplay } from "../completedGame/archiveRead";
 
 const NonPlayApplication = lazy(() => import("./NonPlayApplication"));
 const LegacyPlayApplication = lazy(() => import("../App"));
+const ArchiveReplayPage = lazy(() => import("../components/pages/ArchiveReplayPage"));
+
+function PlayApplication() {
+  const route = useRoute();
+  const roomId = route.kind === "play" ? route.roomId : "";
+  const [room, setRoom] = useState<{
+    id: string;
+    live: boolean;
+    replay?: SafeArchiveReplay;
+  } | null>(null);
+  useEffect(() => {
+    if (!supabase) return;
+    let active = true;
+    const onArchiveReady = (event: Event) => {
+      const replay = (event as CustomEvent<SafeArchiveReplay>).detail;
+      if (active && replay?.archive.gameId === roomId) setRoom({ id: roomId, live: false, replay });
+    };
+    window.addEventListener("eq-lab:archive-replay-ready", onArchiveReady);
+    void (async () => {
+      try {
+        const { data, error } = await supabase
+          .from("room_live")
+          .select("room_id")
+          .eq("room_id", roomId)
+          .maybeSingle();
+        if (active)
+          setRoom((current) =>
+            current?.id === roomId && current.replay
+              ? current
+              : { id: roomId, live: !error && Boolean(data) },
+          );
+      } catch {
+        if (active) setRoom({ id: roomId, live: false });
+      }
+    })();
+    return () => {
+      active = false;
+      window.removeEventListener("eq-lab:archive-replay-ready", onArchiveReady);
+    };
+  }, [roomId]);
+  if (!supabase) return <LegacyPlayApplication />;
+  if (!room || room.id !== roomId) return <AppBootFallback />;
+  return room.live ? <LegacyPlayApplication /> : <ArchiveReplayPage initialReplay={room.replay} />;
+}
 
 export function AppRoot() {
   const route = useRoute();
-  const Application = route.kind === "play" ? LegacyPlayApplication : NonPlayApplication;
+  const Application = route.kind === "play" ? PlayApplication : NonPlayApplication;
 
   useEffect(() => {
     document.body.dataset.route = route.kind;

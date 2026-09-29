@@ -93,6 +93,15 @@ update public.profiles set status = 'approved' where id::text like '00000000-000
 update public.profiles set status = 'pending' where id = '00000000-0000-4000-8000-0000000c7040';
 
 -- ── 9 · The shared formula is the old formula, across a grid ───────────────
+grant execute on function pg_temp.act_as(uuid), pg_temp.act_as_anon(),
+  pg_temp.act_as_service(), pg_temp.act_as_owner(),
+  pg_temp.expect(text, anyelement, anyelement), pg_temp.refused(text, text),
+  pg_temp.waiting(uuid), pg_temp.basis(uuid, uuid), pg_temp.claim(uuid, uuid),
+  pg_temp.active(uuid), pg_temp.set_rating(uuid, integer, integer),
+  pg_temp.rating(uuid), pg_temp.finish(uuid, text),
+  pg_temp.old_formula(integer, integer, integer, integer, numeric)
+  to authenticated, anon, service_role;
+
 do $parity$
 declare
   ra int; rb int; ga int; gb int; sa numeric;

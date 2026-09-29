@@ -56,6 +56,10 @@ insert into public.survival_levels (
   'approved', 'adversarial test level', '00000000-0000-4000-8000-0000000000d2', now()
 );
 
+grant execute on function pg_temp.act_as(uuid), pg_temp.act_as_service(),
+  pg_temp.act_as_owner(), pg_temp.forged_bot_state()
+  to authenticated, service_role;
+
 do $adv$
 declare
   player constant uuid := '00000000-0000-4000-8000-0000000000d1';

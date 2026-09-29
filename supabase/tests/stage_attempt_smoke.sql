@@ -51,6 +51,13 @@ $$;
 create function pg_temp.fact(sql text) returns bigint language plpgsql security definer as $$
 declare n bigint;
 begin execute sql into n; return n; end $$;
+-- The archive privilege cutover revoked PUBLIC's default function EXECUTE.
+-- The role-switching fixture must grant its own temporary helpers explicitly.
+grant execute on function pg_temp.act_as(uuid), pg_temp.act_as_owner(),
+  pg_temp.expect(text, anyelement, anyelement), pg_temp.refused(text, text),
+  pg_temp.inventory(integer, integer), pg_temp.position(integer, integer, integer, integer),
+  pg_temp.commit(uuid, bigint, jsonb), pg_temp.consumed(uuid), pg_temp.fact(text)
+  to authenticated;
 
 insert into private.runtime_secrets (key, value) values ('room_code_secret', repeat('s', 40))
 on conflict (key) do nothing;

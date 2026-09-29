@@ -1,2 +1,17 @@
 [functions.ranked]
 entrypoint = './functions/ranked/index.js'
+
+[functions.archive-replay]
+entrypoint = './functions/archive-replay/index.js'
+
+[functions.stage-terminal]
+entrypoint = './functions/stage-terminal/index.js'
+
+[functions.save-completed-game]
+entrypoint = './functions/save-completed-game/index.js'
+
+[functions.normal-terminal]
+entrypoint = './functions/normal-terminal/index.js'
+
+[functions.migrate-saved-legacy]
+entrypoint = './functions/migrate-saved-legacy/index.js'
