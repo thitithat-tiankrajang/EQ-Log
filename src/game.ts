@@ -767,6 +767,18 @@ export function calculateTotals(logs: TurnLog[]): Record<Side, number> {
   );
 }
 
+/** Recalculate from the saved opening position, which can have a seeded score. */
+export function calculateGameTotals(game: GameState, logs: TurnLog[]): Record<Side, number> {
+  const opening = game.history[0];
+  if (!opening) return calculateTotals(logs);
+  const openingLogs = calculateTotals(opening.logs);
+  const totals = calculateTotals(logs);
+  return {
+    A: opening.scores.A - openingLogs.A + totals.A,
+    B: opening.scores.B - openingLogs.B + totals.B,
+  };
+}
+
 export function updateLogScore(logs: TurnLog[], logId: string, manualScore?: number): TurnLog[] {
   return logs.map((log) => {
     if (log.id !== logId) return log;

@@ -104,7 +104,7 @@ import {
   advanceToOpponentTurn,
   aggregatePendingExchangeReturns,
   boardWithPending,
-  calculateTotals,
+  calculateGameTotals,
   createPlaceDetail,
   deepClone,
   finalizeRefillTransition,
@@ -2531,7 +2531,13 @@ function App() {
     const ref = useThis ? selectedLog : (viewLogs[logIdx - 1] ?? null);
     // Sum finalScore per side over all logs whose state is "included" at this point.
     const upTo = useThis ? logIdx : logIdx - 1;
-    const scores: Record<Side, number> = { A: 0, B: 0 };
+    const scores: Record<Side, number> = {
+      A: game.history[0]?.scores.A ?? 0,
+      B: game.history[0]?.scores.B ?? 0,
+    };
+    for (const openingLog of game.history[0]?.logs ?? []) {
+      scores[openingLog.side] -= openingLog.finalScore;
+    }
     for (let i = 0; i <= upTo; i += 1) {
       const entry = viewLogs[i];
       if (!entry) break;
@@ -5879,7 +5885,7 @@ function App() {
         pendingExchangeReturn: aggregatePendingExchangeReturns(nextPendingBySide),
         pendingExchangeReturnBySide: nextPendingBySide,
         logs,
-        scores: calculateTotals(logs),
+        scores: calculateGameTotals(game, logs),
         status: endGameLog ? "finished" : game.status,
         timers: endGameLog ? { ...game.timers, paused: true } : game.timers,
         lastSavedAt: new Date().toISOString(),
@@ -6440,7 +6446,7 @@ function App() {
         pushActionSnapshot({
           ...base,
           logs,
-          scores: calculateTotals(logs),
+          scores: calculateGameTotals(base, logs),
           status: "finished",
           timers: { ...base.timers, paused: true },
           matchControl: {
