@@ -2,12 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { botDisabledNotice, botKeyFor, isBotDisabledMessage } from "../src/bot/catalog";
 import { EngineApiError } from "../src/bot/engineApi";
-import {
-  BOT_DISABLED_RECHECK_MS,
-  botRetryDelay,
-  isDesyncBotFailure,
-  isRetryableBotFailure,
-} from "../src/bot/botController";
+import { isDesyncBotFailure, isRetryableBotFailure } from "../src/bot/botController";
 
 const migration = readFileSync(
   `${process.cwd()}/supabase/migrations/20260927120000_bot_catalog.sql`,
@@ -45,12 +40,10 @@ describe("disabled bot on the engine path", () => {
     expect(isBotDisabledMessage("the bot_disabled flag")).toBe(false);
   });
 
-  it("keeps checking slowly so a re-enabled bot resumes by itself", () => {
+  it("stops automatic retry for an administrative policy refusal", () => {
     const error = new EngineApiError("forbidden", message);
-    expect(isRetryableBotFailure(error)).toBe(true);
+    expect(isRetryableBotFailure(error)).toBe(false);
     expect(isDesyncBotFailure(error)).toBe(false);
-    expect(botRetryDelay(error, 0)).toBe(BOT_DISABLED_RECHECK_MS);
-    expect(botRetryDelay(error, 9)).toBe(BOT_DISABLED_RECHECK_MS);
     expect(botDisabledNotice("th")).toMatch(/ปิดใช้งาน/);
     expect(botDisabledNotice("en")).toMatch(/disabled this bot/);
   });

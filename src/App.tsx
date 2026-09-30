@@ -186,9 +186,9 @@ import * as timelineStore from "./timelineStore";
 import { clearTileAssignment } from "./gameplay/tiles";
 import {
   isDesyncBotFailure,
-  botRetryDelay,
+  scheduleBotRetry,
+  BOT_MAX_ATTEMPTS,
   BOT_ESCAPE_AFTER_FAILURES,
-  isRetryableBotFailure,
   mapBotResponse,
   toBotResponse,
   warmUpBotEngine,
@@ -241,16 +241,16 @@ type ActionMode = "none" | ActionType;
 function botNoticeFor(error: unknown): string {
   if (error instanceof EngineApiError) {
     switch (error.code) {
+      case "bot_in_progress":
+      case "request_throttled":
       case "queue_full":
-        return "ขณะนี้มีการใช้งานบอทจำนวนมาก กำลังลองใหม่ให้อัตโนมัติ";
+        return "ขณะนี้มีการใช้งานบอทจำนวนมาก";
       case "offline":
-        return "ติดต่อเซิร์ฟเวอร์บอทไม่ได้ กำลังลองใหม่ให้อัตโนมัติ";
+        return "ติดต่อเซิร์ฟเวอร์บอทไม่ได้";
       case "engine_timeout":
-        return "การคำนวณของบอทใช้เวลานานเกินกำหนด — ยังไม่เดินหมาก กำลังลองใหม่";
+        return "การคำนวณของบอทใช้เวลานานเกินกำหนด — ยังไม่เดินหมาก";
       case "budget_exhausted":
-        // Engine rate limiting — temporary compute capacity, NOT the player's
-        // Pro-Bot allowance, and never described as it.
-        return "ระบบคำนวณของบอทจำกัดความถี่ชั่วคราว — ยังไม่เดินหมาก กำลังลองใหม่อัตโนมัติ";
+        return "เซิร์ฟเวอร์ปฏิเสธคำขอบอท — ยังไม่เดินหมาก กรุณาติดต่อผู้ดูแล";
       case "unauthenticated":
         return "เซสชันหมดอายุ — กรุณาเข้าสู่ระบบใหม่";
       case "unconfigured":
@@ -260,14 +260,14 @@ function botNoticeFor(error: unknown): string {
       case "archbot_unsupported":
         return "เบราว์เซอร์นี้เล่นกับ ArchBot ไม่ได้ — ArchBot คิดบนเครื่องของคุณ ลองเปิดด้วยเบราว์เซอร์รุ่นใหม่";
       case "archbot_model_unavailable":
-        return "โหลดโมเดลของ ArchBot ไม่สำเร็จ — ยังไม่เดินหมาก กำลังลองใหม่";
+        return "โหลดโมเดลของ ArchBot ไม่สำเร็จ — ยังไม่เดินหมาก";
       case "archbot_failed":
-        return "ArchBot คำนวณตานี้ไม่สำเร็จ — ยังไม่เดินหมาก กำลังลองใหม่";
+        return "ArchBot คำนวณตานี้ไม่สำเร็จ — ยังไม่เดินหมาก";
       default:
-        return "บอทคำนวณตานี้ไม่สำเร็จ — ยังไม่เดินหมาก กำลังลองใหม่";
+        return "บอทคำนวณตานี้ไม่สำเร็จ — ยังไม่เดินหมาก";
     }
   }
-  return "บอทคำนวณตานี้ไม่สำเร็จ — ยังไม่เดินหมาก กำลังลองใหม่";
+  return "บอทคำนวณตานี้ไม่สำเร็จ — ยังไม่เดินหมาก";
 }
 
 type ActionStart = {
@@ -2636,7 +2636,7 @@ function App() {
   /**
    * Consecutive engine failures on the CURRENT bot turn.
    *
-   * The retry loop below never gives up — a pass is irreversible and no amount
+   * The bounded retry loop leaves the turn intact — a pass is irreversible and no amount
    * of server trouble is evidence that passing is right — and until now the way
    * out of a wedged bot turn was that the room owner could simply play the move
    * themselves. That is gone: the human no longer acts on the bot's turn. So the
@@ -2647,6 +2647,7 @@ function App() {
    * player whose connection merely hiccuped.
    */
   const [botFailures, setBotFailures] = useState(0);
+  const botAttemptsRef = useRef({ key: "", failures: 0 });
   /**
    * The revision on which the player took the bot's turn over by hand.
    *
@@ -2868,12 +2869,16 @@ function App() {
     if (!botShouldMove || !game || !activeRoomId) return;
     const revision = game.revision ?? 0;
     const roomId = activeRoomId;
+    const attemptKey = `${roomId}:${revision}`;
+    if (botAttemptsRef.current.key !== attemptKey)
+      botAttemptsRef.current = { key: attemptKey, failures: 0 };
+    if (botAttemptsRef.current.failures >= BOT_MAX_ATTEMPTS) return;
 
     let alive = true;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
     const attempt = (tries: number) => {
-      if (!alive) return;
+      if (!alive || tries >= BOT_MAX_ATTEMPTS) return;
       const current = gameRef.current;
       if (!current || (current.revision ?? 0) !== revision) return;
       setBotNotice(null);
@@ -2938,13 +2943,20 @@ function App() {
             engineSessions.drop(session.key);
             setBotFailures((count) => count + 1);
             const error = new EngineApiError("engine_failed", "Bot move could not be applied");
-            retryTimer = setTimeout(() => attempt(tries + 1), botRetryDelay(error, tries));
+            botAttemptsRef.current.failures = tries + 1;
+            setBotNotice(botNoticeFor(error));
+            retryTimer = scheduleBotRetry(error, tries, () => attempt(tries + 1));
+            setBotNotice(`${botNoticeFor(error)} — ${retryTimer ? "กำลังลองใหม่อัตโนมัติ" : "หยุดลองใหม่อัตโนมัติ"}`);
             engineTrace.end(`apply:${roomId}:${revision}`, "rejected");
             return;
           }
           if (session.status.kind !== "failed") return;
 
-          const error = new EngineApiError(session.status.code, session.status.message);
+          const error = new EngineApiError(
+            session.status.code,
+            session.status.message,
+            session.status.detail,
+          );
           // The session settled unhappily. Forget it so the next attempt opens a
           // clean observation rather than reading this one's corpse.
           engineSessions.drop(session.key);
@@ -2957,26 +2969,17 @@ function App() {
             setBotNotice("กระดานบนเซิร์ฟเวอร์เปลี่ยนไปแล้ว — กำลังรอข้อมูลล่าสุด");
             return;
           }
-          // A disabled bot is not a malfunction: counting it would soon offer the
-          // "take over the bot's move" escape, which the server refuses anyway
-          // while the bot is off. The notice says why, and the slow re-check
-          // resumes the room by itself once an administrator re-enables it.
-          if (error.code !== "bot_disabled") setBotFailures((count) => count + 1);
-          if (!isRetryableBotFailure(error)) return;
-
-          // NOTHING here ends the turn. A pass is a scoring, irreversible move,
-          // and no amount of server trouble is evidence that passing is the
-          // right one — so the bot keeps asking, tells the player why, and waits
-          // for a human or the network to resolve it. The delay grows and then
-          // holds; it never gives up, because giving up meant giving the turn
-          // away.
+          setBotFailures((count) => count + 1);
+          botAttemptsRef.current.failures = tries + 1;
           setBotNotice(botNoticeFor(error));
-          retryTimer = setTimeout(() => attempt(tries + 1), botRetryDelay(error, tries));
+          retryTimer = scheduleBotRetry(error, tries, () => attempt(tries + 1));
+          if (!retryTimer) botAttemptsRef.current.failures = BOT_MAX_ATTEMPTS;
+          setBotNotice(`${botNoticeFor(error)} — ${retryTimer ? "กำลังลองใหม่อัตโนมัติ" : "หยุดลองใหม่อัตโนมัติ"}`);
         });
     };
 
     setBotFailures(0);
-    attempt(0);
+    attempt(botAttemptsRef.current.failures);
 
     return () => {
       alive = false;

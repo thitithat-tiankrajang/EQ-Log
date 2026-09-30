@@ -163,13 +163,17 @@ describe("overload reaches the client as a distinguishable condition", () => {
       "fetch",
       vi.fn(async () =>
         streamOf([
-          frame("error", { code: "queue_full", error: "The engine is busy. Try again shortly." }),
+          frame("error", {
+            code: "queue_full",
+            error: "The engine is busy. Try again shortly.",
+            retryAfterMs: 10000,
+          }),
         ]),
       ),
     );
     await expect(
       requestAnalysis({ gameId: "g1", expectedRevision: 7, level: "quick" }),
-    ).rejects.toMatchObject({ code: "queue_full" });
+    ).rejects.toMatchObject({ code: "queue_full", detail: { retryAfterMs: 10000 } });
     await expect(
       requestAnalysis({ gameId: "g1", expectedRevision: 7, level: "quick" }),
     ).rejects.toBeInstanceOf(EngineApiError);
@@ -183,13 +187,13 @@ describe("overload reaches the client as a distinguishable condition", () => {
         async () =>
           new Response(JSON.stringify({ code: "queue_full", error: "busy" }), {
             status: 503,
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", "Retry-After": "10" },
           }),
       ),
     );
     await expect(
       requestAnalysis({ gameId: "g1", expectedRevision: 7, level: "quick" }),
-    ).rejects.toMatchObject({ code: "queue_full" });
+    ).rejects.toMatchObject({ code: "queue_full", detail: { retryAfterMs: 10000 } });
   });
 
   it("reads a stale revision the server detected while the job waited", async () => {
@@ -297,6 +301,6 @@ describe("classifying a failed bot turn", () => {
     const { EngineApiError } = await loadApi();
     const { isRetryableBotFailure } = await import("../src/bot/botController");
     expect(isRetryableBotFailure(new EngineApiError("engine_timeout", "too long"))).toBe(true);
-    expect(isRetryableBotFailure(new EngineApiError("budget_exhausted", "spent"))).toBe(true);
+    expect(isRetryableBotFailure(new EngineApiError("budget_exhausted", "spent"))).toBe(false);
   });
 });

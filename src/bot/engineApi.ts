@@ -56,6 +56,8 @@ export type EngineErrorCode =
   | "budget_exhausted"
   | "analysis_in_progress"
   | "queue_full"
+  | "bot_in_progress"
+  | "request_throttled"
   | "engine_timeout"
   | "engine_failed"
   | "analysis_unavailable"
@@ -84,6 +86,13 @@ export class EngineApiError extends Error {
     // discovery — show the real reason instead of an engine failure.
     this.code = isBotDisabledMessage(message) ? "bot_disabled" : code;
   }
+}
+
+export function retryAfterDelay(value: string | null, now = Date.now()): number | undefined {
+  if (!value?.trim()) return undefined;
+  const seconds = Number(value);
+  const delay = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(value) - now;
+  return Number.isFinite(delay) && delay >= 0 ? delay : undefined;
 }
 
 const BASE_URL = (import.meta.env.VITE_ENGINE_API_URL ?? "").replace(/\/+$/, "");
@@ -206,18 +215,29 @@ async function runSse<T>(options: {
   // Everything decidable before the search starts still comes back as a status
   // code, so those failures are read exactly as on the plain path.
   if (!response.ok || !response.body) {
-    let payload: { code?: string; error?: string; currentRevision?: number; retryAfterMs?: number } = {};
+    let payload: {
+      code?: string;
+      error?: string;
+      currentRevision?: number;
+      retryAfterMs?: number;
+    } = {};
     try {
       payload = (await response.json()) as typeof payload;
     } catch {
       // keep the defaults
     }
+    const retryAfterMs = Math.max(
+      retryAfterDelay(response.headers.get("Retry-After")) ?? 0,
+      typeof payload.retryAfterMs === "number" && Number.isFinite(payload.retryAfterMs)
+        ? payload.retryAfterMs
+        : 0,
+    );
     throw new EngineApiError(
       (payload.code ?? "internal") as EngineErrorCode,
       payload.error ?? "The engine request failed.",
       {
         ...(payload.currentRevision != null ? { currentRevision: payload.currentRevision } : {}),
-        ...(payload.retryAfterMs != null ? { retryAfterMs: payload.retryAfterMs } : {}),
+        ...(retryAfterMs > 0 ? { retryAfterMs } : {}),
       },
     );
   }
@@ -283,11 +303,20 @@ async function runSse<T>(options: {
       return;
     }
     if (event === "error") {
-      const payload = JSON.parse(data) as { code?: string; error?: string };
+      const payload = JSON.parse(data) as {
+        code?: string;
+        error?: string;
+        retryAfterMs?: number;
+        currentRevision?: number;
+      };
       settled = true;
       throw new EngineApiError(
         (payload.code ?? "internal") as EngineErrorCode,
         payload.error ?? "The engine request failed.",
+        {
+          ...(payload.retryAfterMs != null ? { retryAfterMs: payload.retryAfterMs } : {}),
+          ...(payload.currentRevision != null ? { currentRevision: payload.currentRevision } : {}),
+        },
       );
     }
   };
@@ -847,7 +876,14 @@ export async function cancelAnalysis(options: {
         body: JSON.stringify({ expectedRevision: options.expectedRevision, level: options.level }),
       },
     );
-    const data = (await response.json().catch(() => ({}))) as { cancelled?: boolean };
+    const data = (await response.json().catch(() => ({}))) as {
+      cancelled?: boolean;
+      code?: string;
+    };
+    // The position has moved on: this cancellation cannot affect a newer job.
+    // It is a readable state-machine response, not a transport failure.
+    if (response.status === 409 && data.code === "stale_revision") return false;
+    if (!response.ok) return false;
     return Boolean(data.cancelled);
   } catch {
     return false;

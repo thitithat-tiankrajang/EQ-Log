@@ -79,79 +79,48 @@ export function toBotResponse(result: BotMoveResult): BotResponse {
   };
 }
 
-/**
- * Whether a failed bot request is worth retrying.
- *
- * **Everything is, now.** This used to answer a second, unstated question —
- * "and if not, should the bot pass?" — and every code that fell out of the list
- * became a turn the bot threw away. `turn_rule` was reachable from an ordinary
- * race (the client asking about a position the server had not been told about
- * yet) and cost the player a scoring move.
- *
- * A pass is a real, irreversible game action. Nothing about a failed HTTP
- * request is evidence that passing is the right move, so no failure produces
- * one: the bot waits, retries, and says why. The only thing that can pass is the
- * engine authoritatively choosing to.
- *
- * The distinctions that remain are about HOW to retry, not whether:
- * `stale_revision` waits for state to catch up rather than re-asking the same
- * question, because the question itself was wrong.
- */
+// At most three requests for one unchanged turn. Exhaustion leaves the turn
+// intact and the error visible; only a returned legal move can advance it.
 const BOT_RETRY_DELAYS_MS = [1_500, 4_000, 8_000] as const;
-
-/**
- * Consecutive failures on one turn before the player is offered the turn.
- *
- * The retry loop above still never stops on its own. What changes at this count
- * is only that a way out APPEARS: the human used to have one implicitly (they
- * could always play the bot's move) and no longer does, so a wedged engine would
- * otherwise mean a room nobody can advance.
- *
- * Three, matching `BOT_RETRY_DELAYS_MS`: by then the schedule has been walked
- * end to end and about thirteen seconds have passed, which is long enough that
- * the trouble is not a blip and short enough that nobody has given up yet.
- */
+export const BOT_MAX_ATTEMPTS = 3;
 export const BOT_ESCAPE_AFTER_FAILURES = 3;
-/** Ceiling on a server-supplied wait, so a wrong or hostile number cannot park
- *  the bot for an hour. Above this we fall back to the schedule and keep
- *  asking. */
-const BOT_RETRY_HONOURED_MAX_MS = 60_000;
-
-/**
- * How long to wait before asking again.
- *
- * When the server states a wait — `budget_exhausted` and `queue_full` both do —
- * that number is the answer and the schedule below is a guess. Ignoring it is
- * how a refusal that resolves itself in six seconds turned into a retry at 1.5s
- * that failed again, and again, with an error on screen the whole time.
- */
-/**
- * A disabled bot is not a failure that fixes itself in seconds, but it is not
- * permanent either: an administrator can re-enable it, and the room continues
- * from where it stopped. Checking again at this pace notices that without
- * hammering the server while the bot stays off.
- */
-export const BOT_DISABLED_RECHECK_MS = 20_000;
-
-export function botRetryDelay(error: unknown, tries: number): number {
-  if (error instanceof EngineApiError && error.code === "bot_disabled") return BOT_DISABLED_RECHECK_MS;
-  const stated = error instanceof EngineApiError ? error.detail?.retryAfterMs : undefined;
-  if (typeof stated === "number" && stated > 0 && stated <= BOT_RETRY_HONOURED_MAX_MS) {
-    // A small margin: retrying on the exact millisecond the window rolls over
-    // races the server's own clock.
-    return stated + 250;
-  }
-  return BOT_RETRY_DELAYS_MS[Math.min(tries, BOT_RETRY_DELAYS_MS.length - 1)]!;
-}
 
 export function isRetryableBotFailure(error: unknown): boolean {
-  if (!(error instanceof EngineApiError)) return true;
-  // A browser that cannot run ArchBot will not start being able to. The room
-  // says so and waits; asking again would only repeat the refusal.
-  if (error.code === "archbot_unsupported") return false;
-  // A desync is retried by re-deriving the position, not by re-sending — see
-  // `isDesyncBotFailure`. Everything else is worth asking again.
-  return !isDesyncBotFailure(error);
+  return (
+    error instanceof EngineApiError &&
+    [
+      "offline",
+      "queue_full",
+      "bot_in_progress",
+      "request_throttled",
+      "engine_timeout",
+      "engine_failed",
+      "internal",
+      "archbot_model_unavailable",
+      "archbot_failed",
+    ].includes(error.code)
+  );
+}
+
+export function botRetryDelay(error: unknown, tries: number): number {
+  const base = BOT_RETRY_DELAYS_MS[Math.min(tries, BOT_RETRY_DELAYS_MS.length - 1)]!;
+  const stated = error instanceof EngineApiError ? error.detail?.retryAfterMs : undefined;
+  // Honor long waits instead of converting them into frequent short retries.
+  return typeof stated === "number" && Number.isFinite(stated) && stated > 0
+    ? Math.max(base, Math.min(stated + 250, 2_147_483_647))
+    : base;
+}
+
+export function scheduleBotRetry(
+  error: unknown,
+  tries: number,
+  retry: () => void,
+): ReturnType<typeof setTimeout> | undefined {
+  if (!isRetryableBotFailure(error) || tries + 1 >= BOT_MAX_ATTEMPTS) return undefined;
+  const stated = error instanceof EngineApiError ? error.detail?.retryAfterMs : undefined;
+  // An unrepresentable wait stops; never retry earlier than the server asked.
+  if (typeof stated === "number" && stated > 2_147_483_397) return undefined;
+  return setTimeout(retry, botRetryDelay(error, tries));
 }
 
 /**

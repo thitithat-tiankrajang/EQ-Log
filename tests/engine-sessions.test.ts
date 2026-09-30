@@ -44,6 +44,19 @@ vi.mock("../src/bot/engineApi", async (importOriginal) => {
 });
 
 import * as engineSessions from "../src/engineSessions";
+import { EngineApiError } from "../src/bot/engineApi";
+
+it("preserves infrastructure retry timing through a failed bot session", async () => {
+  requestBotMove.mockRejectedValueOnce(
+    new EngineApiError("queue_full", "busy", { retryAfterMs: 190289 }),
+  );
+  const session = await engineSessions.observeBot({
+    roomId: "retry-room",
+    revision: 1,
+    freshlyAdmitted: true,
+  });
+  expect(session.status).toMatchObject({ kind: "failed", detail: { retryAfterMs: 190289 } });
+});
 
 const ROOM = "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa";
 

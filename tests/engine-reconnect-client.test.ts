@@ -132,6 +132,20 @@ describe("cancelling is explicit", () => {
       cancelAnalysis({ gameId: "room-1", expectedRevision: 7, level: "quick" }),
     ).resolves.toBe(false);
   });
+  it("accepts a readable stale cancellation as not cancelled without retrying", async () => {
+    const { cancelAnalysis } = await loadApi();
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ code: "stale_revision", currentRevision: 8 }), {
+          status: 409,
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(
+      cancelAnalysis({ gameId: "room-1", expectedRevision: 7, level: "quick" }),
+    ).resolves.toBe(false);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
 });
 
 describe("observing the bot's turn", () => {

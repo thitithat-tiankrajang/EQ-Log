@@ -74,7 +74,12 @@ export type EngineSessionStatus =
   | { kind: "queued"; position: number | null }
   | { kind: "running"; progress: EngineProgress | null }
   | { kind: "completed" }
-  | { kind: "failed"; code: EngineApiError["code"]; message: string };
+  | {
+      kind: "failed";
+      code: EngineApiError["code"];
+      message: string;
+      detail?: EngineApiError["detail"];
+    };
 
 export type EngineSessionKind = "bot" | "analysis";
 
@@ -395,7 +400,14 @@ function settleFailed(key: string, failure: unknown): EngineSession {
     failure instanceof EngineApiError
       ? failure
       : new EngineApiError("internal", "The engine request failed.");
-  update(key, { status: { kind: "failed", code: error.code, message: error.message } });
+  update(key, {
+    status: {
+      kind: "failed",
+      code: error.code,
+      message: error.message,
+      ...(error.detail ? { detail: error.detail } : {}),
+    },
+  });
   return get(key)!;
 }
 
