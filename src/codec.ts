@@ -427,7 +427,7 @@ type EncodedGameV2 = EncodedSnapshot & {
 
 type EncodedGameV3 = Omit<EncodedGameV2, "v"> & { v: 3 };
 
-type EncodedGame = EncodedGameV1 | EncodedGameV2 | EncodedGameV3;
+export type EncodedGame = EncodedGameV1 | EncodedGameV2 | EncodedGameV3;
 
 /** The format written today. Bumped from 2 because tile codes changed meaning
  *  from "which face" to "which physical tile". */

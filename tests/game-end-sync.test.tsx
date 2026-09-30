@@ -20,6 +20,7 @@ const mocks = vi.hoisted(() => ({
   updateRoomSession: vi.fn(),
   readGameSnapshot: vi.fn(),
   readTimeline: vi.fn(),
+  readSafeArchiveReplay: vi.fn(),
 }));
 
 const engine = vi.hoisted(() => ({
@@ -53,6 +54,10 @@ vi.mock("../src/remoteRooms", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/remoteRooms")>();
   return { ...actual, ...mocks };
 });
+
+vi.mock("../src/completedGame/client", () => ({
+  readSafeArchiveReplay: mocks.readSafeArchiveReplay,
+}));
 
 vi.mock("../src/bot/engineApi", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/bot/engineApi")>();
@@ -113,17 +118,6 @@ function payload(game: GameState) {
   };
 }
 
-/** What the finished game's archive answers with once the live row is gone. */
-function archivedPayload(game: GameState) {
-  const live = payload(game);
-  return {
-    ...live,
-    // Carries the owner (tests/archive-read-owner.test.ts pins that the read asks for it); only
-    // what an archive row genuinely lacks is missing.
-    meta: { ...live.meta, ownerName: null, status: "finished" as const },
-  };
-}
-
 describe("a game the bot ends", () => {
   beforeEach(() => {
     Object.defineProperty(HTMLElement.prototype, "scrollTo", {
@@ -143,6 +137,7 @@ describe("a game the bot ends", () => {
     mocks.subscribeToRoom.mockReturnValue(() => undefined);
     mocks.subscribeToGameCommits.mockReturnValue(() => undefined);
     mocks.updateRoomSession.mockResolvedValue(undefined);
+    mocks.readSafeArchiveReplay.mockResolvedValue({ archive: { gameId: ROOM_ID } });
     engine.attachBotMove.mockResolvedValue({ kind: "idle" });
     engine.listJobs.mockResolvedValue([]);
     engineSessions.resetForTests();
@@ -190,7 +185,7 @@ describe("a game the bot ends", () => {
     }
   });
 
-  it("stays the owner's board, and does not reopen a closed result, when the game is archived", async () => {
+  it("keeps the closed result stable while handing the archive to safe replay", async () => {
     const game = botToEndIt();
     mocks.readRoom.mockResolvedValue(payload(game));
     mocks.commitRoomState.mockResolvedValue({ outcome: "committed", revision: 13 });
@@ -234,13 +229,15 @@ describe("a game the bot ends", () => {
       fireEvent.click(screen.getByRole("button", { name: /close/i }));
       await waitFor(() => expect(screen.queryByText("Final Result")).not.toBeInTheDocument());
 
-      // Finalizing deletes the live row; Realtime reports it; the app reads the archive.
-      const finished = mocks.commitRoomState.mock.calls
-        .map(([args]) => (args as { game: GameState }).game)
-        .find((candidate) => candidate.status === "finished")!;
-      mocks.readRoom.mockResolvedValue(archivedPayload(withRevision(finished, 13) as GameState));
+      // Finalizing deletes the live row; Realtime reports it; only the trusted
+      // safe replay endpoint may read the completed archive.
+      const handoff = vi.fn();
+      window.addEventListener("eq-lab:archive-replay-ready", handoff);
       onState!({ eventType: "DELETE", old: { id: ROOM_ID }, new: {} });
-      await waitFor(() => expect(mocks.readRoom).toHaveBeenCalledTimes(2));
+      await waitFor(() => expect(mocks.readSafeArchiveReplay).toHaveBeenCalledWith(ROOM_ID));
+      await waitFor(() => expect(handoff).toHaveBeenCalledTimes(1));
+      window.removeEventListener("eq-lab:archive-replay-ready", handoff);
+      expect(mocks.readRoom).toHaveBeenCalledTimes(1);
       await new Promise((resolve) => setTimeout(resolve, 50));
 
       expect(role()).toBe(ownerRole);

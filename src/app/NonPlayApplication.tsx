@@ -224,7 +224,11 @@ export default function NonPlayApplication() {
       .then((payload) => {
         if (!active) return;
         if (!payload) {
-          setSyncError("This room is unavailable or you do not have access to it.");
+          if (remoteEnabled) {
+            navigate({ kind: "play", roomId: roomRouteId, returnTo: roomReturnTo }, true);
+          } else {
+            setSyncError("This room is unavailable or you do not have access to it.");
+          }
           return;
         }
         setActiveRoomMeta((current) => ({
@@ -246,7 +250,7 @@ export default function NonPlayApplication() {
     return () => {
       active = false;
     };
-  }, [readRoom, roomReturnTo, roomRouteId]);
+  }, [readRoom, remoteEnabled, roomReturnTo, roomRouteId]);
 
   useEffect(() => {
     if (!remoteEnabled || !roomRouteId) return;

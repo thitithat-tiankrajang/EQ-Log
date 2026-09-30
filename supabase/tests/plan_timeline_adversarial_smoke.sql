@@ -20,6 +20,8 @@ begin
 end $$;
 create function pg_temp.act_as_owner() returns void language plpgsql as $$
 begin execute 'reset role'; end $$;
+grant execute on function pg_temp.act_as(uuid), pg_temp.act_as_role(text),
+  pg_temp.act_as_owner() to anon, authenticated, service_role;
 
 insert into auth.users (id, email, aud, role) values
   ('00000000-0000-4000-8000-000000000301', 'plan-adv-admin@example.test', 'authenticated', 'authenticated'),
@@ -253,7 +255,8 @@ begin
   exception when others then if sqlerrm <> 'capability stage_plan_ceiling has a value of the wrong type' then raise; end if;
   end;
   begin
-    update public.plan_capabilities set value = '1000' where plan_key = 'free' and capability_key = 'private_drive_limit';
+    update public.plan_capabilities set status = 'undecided', value = '1000'
+      where plan_key = 'free' and capability_key = 'private_drive_limit';
     raise exception 'EXPECTED: undecided capability given a value';
   exception when check_violation then null;
   end;
@@ -264,27 +267,37 @@ begin
               'probot_weekly_allowance_cap', 'stage_plan_ceiling'] then
     raise exception 'unexpected capability set: %', (select array_agg(capability_key) from public.plan_capability_defs);
   end if;
-  -- nothing outside the plan functions reads plans: no existing feature is gated yet
+  -- Only designated plan, economy and explicit Saved functions read plans.
   if exists (
     select 1 from pg_proc p
      where p.pronamespace = 'public'::regnamespace
        and p.prosrc ~ '(plan_effective|plan_capability\(|plan_segments|plan_passes|get_my_plan)'
        and p.proname not in ('plan_effective', 'plan_capability', 'get_my_plan', 'get_my_plan_timeline',
                              'rebuild_plan_timeline', 'write_plan_segment', 'protect_plan_pass',
-                             'admin_grant_plan', 'admin_revoke_pass', 'check_plan_capability_value', 'plan_capability_value_ok',
+                             'admin_grant_plan', 'admin_revoke_pass', 'admin_revoke_pass_before_saved',
+                             'check_plan_capability_value', 'plan_capability_value_ok',
                              'plan_capability_int', 'plan_epoch_start', 'probot_allowance_at',
                              'probot_charge', 'probot_status_for',
-                             'admin_get_user_plan')) then
+                             'admin_get_user_plan', 'saved_game_usage',
+                             'save_completed_game_before_legacy_validation',
+                             'save_validated_legacy_game', 'reconcile_saved_capacity',
+                             'change_my_saved_game', 'capture_normal_terminal',
+                             'saved_migration_context', 'migrate_validated_private_item')) then
     raise exception 'a non-plan function reads plans: %', (
       select string_agg(p.proname, ', ') from pg_proc p
        where p.pronamespace = 'public'::regnamespace
          and p.prosrc ~ '(plan_effective|plan_capability\(|plan_segments|plan_passes|get_my_plan)'
          and p.proname not in ('plan_effective', 'plan_capability', 'get_my_plan', 'get_my_plan_timeline',
                                'rebuild_plan_timeline', 'write_plan_segment', 'protect_plan_pass',
-                               'admin_grant_plan', 'admin_revoke_pass', 'check_plan_capability_value', 'plan_capability_value_ok',
+                               'admin_grant_plan', 'admin_revoke_pass', 'admin_revoke_pass_before_saved',
+                               'check_plan_capability_value', 'plan_capability_value_ok',
                              'plan_capability_int', 'plan_epoch_start', 'probot_allowance_at',
                              'probot_charge', 'probot_status_for',
-                               'admin_get_user_plan'));
+                               'admin_get_user_plan', 'saved_game_usage',
+                               'save_completed_game_before_legacy_validation',
+                               'save_validated_legacy_game', 'reconcile_saved_capacity',
+                               'change_my_saved_game', 'capture_normal_terminal',
+                               'saved_migration_context', 'migrate_validated_private_item'));
   end if;
 
   raise notice 'plan timeline adversarial smoke test passed';

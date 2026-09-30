@@ -1,0 +1,747 @@
+{
+  "seed": 19761,
+  "actions": [
+    {
+      "kind": "exchange",
+      "kinds": [
+        "10",
+        "7",
+        "9",
+        "6",
+        "/",
+        "1"
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "2",
+          "row": 7,
+          "col": 3,
+          "face": "2"
+        },
+        {
+          "kind": "4",
+          "row": 7,
+          "col": 4,
+          "face": "4"
+        },
+        {
+          "kind": "=",
+          "row": 7,
+          "col": 5,
+          "face": "="
+        },
+        {
+          "kind": "2",
+          "row": 7,
+          "col": 6,
+          "face": "2"
+        },
+        {
+          "kind": "4",
+          "row": 7,
+          "col": 7,
+          "face": "4"
+        }
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "2",
+          "row": 3,
+          "col": 3,
+          "face": "2"
+        },
+        {
+          "kind": "+",
+          "row": 4,
+          "col": 3,
+          "face": "+"
+        },
+        {
+          "kind": "7",
+          "row": 5,
+          "col": 3,
+          "face": "7"
+        },
+        {
+          "kind": "+",
+          "row": 6,
+          "col": 3,
+          "face": "+"
+        },
+        {
+          "kind": "x//",
+          "row": 8,
+          "col": 3,
+          "face": "×"
+        },
+        {
+          "kind": "?",
+          "row": 9,
+          "col": 3,
+          "face": "0"
+        },
+        {
+          "kind": "=",
+          "row": 10,
+          "col": 3,
+          "face": "="
+        },
+        {
+          "kind": "9",
+          "row": 11,
+          "col": 3,
+          "face": "9"
+        }
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "0",
+          "row": 1,
+          "col": 3,
+          "face": "0"
+        },
+        {
+          "kind": "+",
+          "row": 2,
+          "col": 3,
+          "face": "+"
+        }
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "6",
+          "row": 2,
+          "col": 2,
+          "face": "6"
+        },
+        {
+          "kind": "14",
+          "row": 2,
+          "col": 4,
+          "face": "14"
+        },
+        {
+          "kind": "=",
+          "row": 2,
+          "col": 5,
+          "face": "="
+        },
+        {
+          "kind": "20",
+          "row": 2,
+          "col": 6,
+          "face": "20"
+        }
+      ]
+    },
+    {
+      "kind": "pass"
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "4",
+          "row": 2,
+          "col": 1,
+          "face": "4"
+        },
+        {
+          "kind": "x//",
+          "row": 2,
+          "col": 7,
+          "face": "×"
+        },
+        {
+          "kind": "3",
+          "row": 2,
+          "col": 8,
+          "face": "3"
+        }
+      ]
+    },
+    {
+      "kind": "pass"
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "8",
+          "row": 10,
+          "col": 2,
+          "face": "8"
+        },
+        {
+          "kind": "8",
+          "row": 10,
+          "col": 4,
+          "face": "8"
+        }
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "8",
+          "row": 0,
+          "col": 3,
+          "face": "8"
+        },
+        {
+          "kind": "5",
+          "row": 12,
+          "col": 3,
+          "face": "5"
+        },
+        {
+          "kind": "-",
+          "row": 13,
+          "col": 3,
+          "face": "-"
+        },
+        {
+          "kind": "6",
+          "row": 14,
+          "col": 3,
+          "face": "6"
+        }
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "/",
+          "row": 2,
+          "col": 9,
+          "face": "÷"
+        },
+        {
+          "kind": "1",
+          "row": 2,
+          "col": 10,
+          "face": "1"
+        }
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "?",
+          "row": 2,
+          "col": 11,
+          "face": "9"
+        },
+        {
+          "kind": "x",
+          "row": 2,
+          "col": 12,
+          "face": "×"
+        },
+        {
+          "kind": "19",
+          "row": 2,
+          "col": 13,
+          "face": "19"
+        }
+      ]
+    },
+    {
+      "kind": "pass"
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "10",
+          "row": 0,
+          "col": 0,
+          "face": "10"
+        },
+        {
+          "kind": "=",
+          "row": 0,
+          "col": 1,
+          "face": "="
+        },
+        {
+          "kind": "-",
+          "row": 0,
+          "col": 2,
+          "face": "-"
+        },
+        {
+          "kind": "2",
+          "row": 0,
+          "col": 4,
+          "face": "2"
+        },
+        {
+          "kind": "+/-",
+          "row": 0,
+          "col": 5,
+          "face": "+"
+        },
+        {
+          "kind": "9",
+          "row": 0,
+          "col": 6,
+          "face": "9"
+        },
+        {
+          "kind": "2",
+          "row": 0,
+          "col": 7,
+          "face": "2"
+        }
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "6",
+          "row": 3,
+          "col": 10,
+          "face": "6"
+        },
+        {
+          "kind": "=",
+          "row": 4,
+          "col": 10,
+          "face": "="
+        },
+        {
+          "kind": "16",
+          "row": 5,
+          "col": 10,
+          "face": "16"
+        }
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "=",
+          "row": 0,
+          "col": 8,
+          "face": "="
+        },
+        {
+          "kind": "10",
+          "row": 0,
+          "col": 9,
+          "face": "10"
+        }
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "=",
+          "row": 3,
+          "col": 8,
+          "face": "="
+        },
+        {
+          "kind": "3",
+          "row": 4,
+          "col": 8,
+          "face": "3"
+        }
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "/",
+          "row": 0,
+          "col": 10,
+          "face": "÷"
+        },
+        {
+          "kind": "1",
+          "row": 0,
+          "col": 11,
+          "face": "1"
+        }
+      ]
+    },
+    {
+      "kind": "pass"
+    },
+    {
+      "kind": "pass"
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "=",
+          "row": 8,
+          "col": 7,
+          "face": "="
+        },
+        {
+          "kind": "4",
+          "row": 9,
+          "col": 7,
+          "face": "4"
+        }
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "=",
+          "row": 0,
+          "col": 12,
+          "face": "="
+        },
+        {
+          "kind": "1",
+          "row": 0,
+          "col": 13,
+          "face": "1"
+        },
+        {
+          "kind": "0",
+          "row": 0,
+          "col": 14,
+          "face": "0"
+        }
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "x",
+          "row": 6,
+          "col": 10,
+          "face": "×"
+        },
+        {
+          "kind": "1",
+          "row": 7,
+          "col": 10,
+          "face": "1"
+        }
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "/",
+          "row": 8,
+          "col": 10,
+          "face": "÷"
+        },
+        {
+          "kind": "1",
+          "row": 9,
+          "col": 10,
+          "face": "1"
+        }
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "5",
+          "row": 12,
+          "col": 1,
+          "face": "5"
+        },
+        {
+          "kind": "=",
+          "row": 12,
+          "col": 2,
+          "face": "="
+        }
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "-",
+          "row": 10,
+          "col": 10,
+          "face": "-"
+        },
+        {
+          "kind": "0",
+          "row": 11,
+          "col": 10,
+          "face": "0"
+        }
+      ]
+    },
+    {
+      "kind": "pass"
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "x//",
+          "row": 12,
+          "col": 10,
+          "face": "×"
+        },
+        {
+          "kind": "17",
+          "row": 13,
+          "col": 10,
+          "face": "17"
+        }
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "1",
+          "row": 7,
+          "col": 1,
+          "face": "1"
+        },
+        {
+          "kind": "x",
+          "row": 7,
+          "col": 2,
+          "face": "×"
+        }
+      ]
+    },
+    {
+      "kind": "pass"
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "9",
+          "row": 14,
+          "col": 0,
+          "face": "9"
+        },
+        {
+          "kind": "?",
+          "row": 14,
+          "col": 1,
+          "face": "="
+        },
+        {
+          "kind": "3",
+          "row": 14,
+          "col": 2,
+          "face": "3"
+        },
+        {
+          "kind": "-",
+          "row": 14,
+          "col": 4,
+          "face": "-"
+        },
+        {
+          "kind": "12",
+          "row": 14,
+          "col": 5,
+          "face": "12"
+        },
+        {
+          "kind": "+/-",
+          "row": 14,
+          "col": 6,
+          "face": "-"
+        },
+        {
+          "kind": "15",
+          "row": 14,
+          "col": 7,
+          "face": "15"
+        }
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "+/-",
+          "row": 14,
+          "col": 8,
+          "face": "+"
+        },
+        {
+          "kind": "0",
+          "row": 14,
+          "col": 9,
+          "face": "0"
+        }
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "8",
+          "row": 5,
+          "col": 7,
+          "face": "8"
+        },
+        {
+          "kind": "+/-",
+          "row": 6,
+          "col": 7,
+          "face": "-"
+        }
+      ]
+    },
+    {
+      "kind": "pass"
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "+",
+          "row": 10,
+          "col": 7,
+          "face": "+"
+        },
+        {
+          "kind": "0",
+          "row": 11,
+          "col": 7,
+          "face": "0"
+        }
+      ]
+    },
+    {
+      "kind": "exchange",
+      "kinds": [
+        "18",
+        "13",
+        "7",
+        "9",
+        "6"
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "5",
+          "row": 12,
+          "col": 4,
+          "face": "5"
+        },
+        {
+          "kind": "/",
+          "row": 12,
+          "col": 5,
+          "face": "÷"
+        },
+        {
+          "kind": "11",
+          "row": 12,
+          "col": 6,
+          "face": "11"
+        }
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "7",
+          "row": 6,
+          "col": 5,
+          "face": "7"
+        },
+        {
+          "kind": "7",
+          "row": 8,
+          "col": 5,
+          "face": "7"
+        }
+      ]
+    },
+    {
+      "kind": "place",
+      "placements": [
+        {
+          "kind": "=",
+          "row": 10,
+          "col": 5,
+          "face": "="
+        },
+        {
+          "kind": "12",
+          "row": 10,
+          "col": 6,
+          "face": "12"
+        },
+        {
+          "kind": "3",
+          "row": 10,
+          "col": 8,
+          "face": "3"
+        },
+        {
+          "kind": "9",
+          "row": 10,
+          "col": 9,
+          "face": "9"
+        },
+        {
+          "kind": "?",
+          "row": 10,
+          "col": 11,
+          "face": "5"
+        },
+        {
+          "kind": "6",
+          "row": 10,
+          "col": 12,
+          "face": "6"
+        },
+        {
+          "kind": "+/-",
+          "row": 10,
+          "col": 13,
+          "face": "+"
+        },
+        {
+          "kind": "13",
+          "row": 10,
+          "col": 14,
+          "face": "13"
+        }
+      ]
+    }
+  ]
+}

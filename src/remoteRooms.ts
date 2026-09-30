@@ -10,7 +10,7 @@ import {
 import type { RoomMeta } from "./rooms";
 import { supabase } from "./supabaseClient";
 import type { RoomScope, RoomVisibility } from "./roomScope";
-import { deriveCompletion, deriveModeKey } from "./features/gameRecords/domain";
+import { deriveModeKey } from "./features/gameRecords/domain";
 import { revisionOf, withRevision } from "./gameSync";
 import { canonicalFromSnapshot, encodeCanonical } from "./domain/projection";
 import {
@@ -140,35 +140,13 @@ type LiveRoomSummaryRow = {
   has_opponent: boolean;
 };
 
-type ArchiveRoomRow = {
-  game_id: string;
-  source_owner_id?: string | null;
-  name: string;
-  player_a: string;
-  player_b: string;
-  game_mode: GameMode;
-  mode_key: string;
-  turn_number: number;
-  score_a: number;
-  score_b: number;
-  creator_side?: Side | null;
-  snapshot: unknown;
-  created_at: string;
-  finished_at: string;
-  region_id?: string | null;
-};
-
 export type RemoteRoomPayload = {
   game: GameState;
   meta: RoomMeta;
   session: LiveRoomSession;
   needsCompaction: boolean;
   needsInviteRepair: boolean;
-  /**
-   * A FINISHED game's parked lines, as the archive stored them (`snapshot.timeline`). Live games
-   * never carry them here: theirs are fetched from `game_timelines` on demand — see
-   * `readTimeline` — so opening a live room costs nothing extra.
-   */
+  /** Legacy caller compatibility; archive payloads no longer pass through readRoom. */
   archivedTimeline?: unknown;
 };
 
@@ -223,12 +201,6 @@ const LIVE_REALTIME_COLUMNS = [
   "created_at",
   "updated_at",
 ];
-// `source_owner_id` is what keeps a finished game its owner's. Without it the archive read had
-// no owner at all, so the moment a game was archived the player who had just finished it was
-// shown the spectator's board instead — every control and panel swapping under them at once.
-const ARCHIVE_READ_FIELDS =
-  "game_id,source_owner_id,name,player_a,player_b,game_mode,mode_key,turn_number,score_a,score_b,snapshot,created_at,finished_at";
-
 const latestLiveSessions = new Map<string, LiveRoomSession>();
 const liveWriteDrains = new Map<string, Promise<void>>();
 const roomWriteQueues = new Map<string, Promise<unknown>>();
@@ -308,61 +280,9 @@ export async function readRoom(id: string): Promise<RemoteRoomPayload | null> {
     return payload;
   }
 
-  const publicResult = await supabase
-    .from("public_game_snapshots")
-    .select(ARCHIVE_READ_FIELDS)
-    .eq("game_id", id)
-    .maybeSingle();
-  if (publicResult.error) throw schemaError(publicResult.error.message);
-  if (publicResult.data)
-    return payloadFromArchive(publicResult.data as unknown as ArchiveRoomRow, "public");
-
-  const regionResult = await supabase
-    .from("region_game_snapshots")
-    .select(`${ARCHIVE_READ_FIELDS},region_id`)
-    .eq("game_id", id)
-    .maybeSingle();
-  if (regionResult.error) throw schemaError(regionResult.error.message);
-  if (regionResult.data)
-    return payloadFromArchive(regionResult.data as unknown as ArchiveRoomRow, "region");
-
-  const privateResult = await supabase
-    .from("private_library_items")
-    .select(
-      "game_id,owner_id,name,game_mode,mode_key,turn_number,score_a,score_b,snapshot,created_at,updated_at",
-    )
-    .eq("item_type", "game")
-    .eq("game_id", id)
-    .is("trashed_at", null)
-    .limit(1)
-    .maybeSingle();
-  if (privateResult.error) throw schemaError(privateResult.error.message);
-  if (!privateResult.data) return null;
-  const privateRow = privateResult.data as unknown as {
-    game_id: string;
-    owner_id: string;
-    name: string;
-    game_mode: GameMode;
-    mode_key: string;
-    turn_number: number;
-    score_a: number;
-    score_b: number;
-    snapshot: unknown;
-    created_at: string;
-    updated_at: string;
-  };
-  const decoded = decodeGame(privateRow.snapshot as Parameters<typeof decodeGame>[0]);
-  return payloadFromArchive(
-    {
-      ...privateRow,
-      source_owner_id: privateRow.owner_id,
-      player_a: decoded.players.A,
-      player_b: decoded.players.B,
-      finished_at: privateRow.updated_at,
-    },
-    "public",
-    "private",
-  );
+  // Completed games are read through archive-replay. Never fetch an internal
+  // archive snapshot into a browser or reconstruct one as a live GameState.
+  return null;
 }
 
 // ── Parked lines (branches) ─────────────────────────────────────────────────────
@@ -642,15 +562,51 @@ export function commitRoomState(args: CommitStateArgs): Promise<CommitOutcome> {
     const canonical = encodeCanonical(canonicalFromSnapshot(args.game, nextRevision));
 
     if (args.game.status === "finished") {
-      const completion = deriveCompletion(args.game);
-      const { error } = await supabase.rpc("finalize_live_game", {
-        target_game_id: args.id,
-        target_state: encodeGame(withRevision(args.game, nextRevision)),
-        target_completion_kind: completion.kind,
-        target_completion_reason: completion.reason,
-        target_surrendered_side: completion.surrenderedSide,
+      // Route by the server-frozen purpose. The name fallback is only for a
+      // retry after a successful Stage capture removed the live row; the
+      // endpoint checks the real attempt and owner in either case.
+      const purpose = await supabase
+        .from("room_live")
+        .select("room_purpose")
+        .eq("room_id", args.id)
+        .maybeSingle();
+      if (purpose.error) throw describeDatabaseError(purpose.error);
+      if (
+        purpose.data?.room_purpose === "stage" ||
+        (!purpose.data && args.game.name.startsWith("Survival test · seed "))
+      ) {
+        const { error } = await supabase.functions.invoke("stage-terminal", {
+          body: {
+            gameId: args.id,
+            state: encodeGame(withRevision(args.game, nextRevision)),
+          },
+        });
+        if (error) throw describeDatabaseError(error);
+        return { outcome: "committed", revision: nextRevision };
+      }
+      const { error } = await supabase.functions.invoke("normal-terminal", {
+        body: { gameId: args.id, state: encodeGame(withRevision(args.game, nextRevision)) },
       });
-      if (error) throw describeDatabaseError(error);
+      if (error) {
+        const response = error.context;
+        const detail =
+          response instanceof Response
+            ? ((await response.json().catch(() => null)) as {
+                error?: string;
+                code?: string;
+                details?: string;
+                hint?: string;
+              } | null)
+            : null;
+        throw detail?.error
+          ? describeDatabaseError({
+              message: detail.error,
+              code: detail.code,
+              details: detail.details,
+              hint: detail.hint,
+            })
+          : describeDatabaseError(error);
+      }
       return { outcome: "committed", revision: nextRevision };
     }
 
@@ -890,43 +846,6 @@ export function payloadFromRow(row: RemoteRoomRecord): RemoteRoomPayload {
     session: parseSession((row as RemoteRoomRecord & { session?: unknown }).session),
     needsCompaction: false,
     needsInviteRepair: false,
-  };
-}
-
-function payloadFromArchive(
-  row: ArchiveRoomRow,
-  visibility: RoomVisibility,
-  accessScope: LiveAccessScope = visibility,
-): RemoteRoomPayload {
-  const game = decodeGame(row.snapshot as Parameters<typeof decodeGame>[0]);
-  const meta: RoomMeta = {
-    id: row.game_id,
-    ownerId: row.source_owner_id ?? null,
-    ownerName: null,
-    name: row.name,
-    createdAt: row.created_at,
-    updatedAt: row.finished_at,
-    playerA: row.player_a,
-    playerB: row.player_b,
-    gameMode: row.game_mode,
-    startingSide: game.startingSide,
-    turnNumber: row.turn_number,
-    scoreA: row.score_a,
-    scoreB: row.score_b,
-    status: "finished",
-    visibility,
-    regionId: row.region_id ?? null,
-    accessScope,
-    archivePolicy: accessScope === "private" ? "private" : visibility,
-  };
-  const archivedTimeline = (row.snapshot as { timeline?: unknown } | null)?.timeline;
-  return {
-    game,
-    meta,
-    session: emptyLiveSession(),
-    needsCompaction: false,
-    needsInviteRepair: false,
-    ...(archivedTimeline ? { archivedTimeline } : {}),
   };
 }
 

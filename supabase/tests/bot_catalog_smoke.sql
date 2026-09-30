@@ -47,6 +47,10 @@ update public.profiles set status = 'approved'
  where id in ('00000000-0000-4000-8000-00000000000a', '00000000-0000-4000-8000-00000000000b');
 update public.profiles set is_admin = true where id = '00000000-0000-4000-8000-00000000000b';
 
+grant execute on function pg_temp.act_as(uuid), pg_temp.act_as_anon(),
+  pg_temp.act_as_owner(), pg_temp.bot_state(jsonb)
+  to authenticated, anon;
+
 do $smoke$
 declare
   player constant uuid := '00000000-0000-4000-8000-00000000000a';

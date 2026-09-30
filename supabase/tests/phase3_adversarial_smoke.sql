@@ -57,6 +57,12 @@ select ('00000000-0000-4000-8000-0000000009' || lpad(n::text, 2, '0'))::uuid,
 update public.profiles set status = 'approved' where id::text like '00000000-0000-4000-8000-0000000009%';
 update public.profiles set is_admin = true where id = '00000000-0000-4000-8000-000000000901';
 
+grant execute on function pg_temp.act_as(uuid), pg_temp.act_as_anon(),
+  pg_temp.act_as_service(), pg_temp.act_as_owner(),
+  pg_temp.expect(text, anyelement, anyelement), pg_temp.refused(text, text),
+  pg_temp.fact(text), pg_temp.bot_state()
+  to authenticated, anon, service_role;
+
 do $adv$
 declare
   admin_id constant uuid := '00000000-0000-4000-8000-000000000901';

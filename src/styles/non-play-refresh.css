@@ -1452,6 +1452,44 @@ body:not([data-route="play"]) .eq-game-table-actions > .overflow-menu-trigger {
 .eq-mode-section {
   margin-top: 22px;
 }
+.eq-history-section {
+  margin-top: 22px;
+}
+.eq-history-list {
+  display: grid;
+  gap: 8px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+.eq-history-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 0.8fr) auto;
+  align-items: center;
+  gap: 14px;
+  border: 1px solid #d8e3f8;
+  border-radius: 12px;
+  background: #fff;
+  padding: 12px 14px;
+}
+.eq-history-item > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.eq-history-item strong,
+.eq-history-item span,
+.eq-history-item small {
+  overflow-wrap: anywhere;
+}
+.eq-history-item small {
+  color: #63728c;
+}
+@media (max-width: 640px) {
+  .eq-history-item {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .eq-mode-empty {
   display: grid;
   justify-items: center;

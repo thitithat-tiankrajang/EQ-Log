@@ -5,6 +5,11 @@
   "type": "module",
   "scripts": {
     "build:ranked": "esbuild supabase/functions/ranked/index.ts --bundle --platform=neutral --format=esm --target=es2022 --external:npm:* --outfile=supabase/functions/ranked/index.js",
+    "build:archive-replay": "esbuild supabase/functions/archive-replay/index.ts --bundle --platform=neutral --format=esm --target=es2022 --external:npm:* --outfile=supabase/functions/archive-replay/index.js",
+    "build:stage-terminal": "esbuild supabase/functions/stage-terminal/index.ts --bundle --platform=neutral --format=esm --target=es2022 --external:npm:* --outfile=supabase/functions/stage-terminal/index.js",
+    "build:save-completed-game": "esbuild supabase/functions/save-completed-game/index.ts --bundle --platform=neutral --format=esm --target=es2022 --external:npm:* --outfile=supabase/functions/save-completed-game/index.js",
+    "build:normal-terminal": "esbuild supabase/functions/normal-terminal/index.ts --bundle --platform=neutral --format=esm --target=es2022 --external:npm:* --outfile=supabase/functions/normal-terminal/index.js",
+    "build:migrate-saved-legacy": "esbuild supabase/functions/migrate-saved-legacy/index.ts --bundle --platform=neutral --format=esm --target=es2022 --external:npm:* --outfile=supabase/functions/migrate-saved-legacy/index.js",
     "dev": "vite --host 127.0.0.1 --strictPort",
     "build": "tsc -b && vite build",
     "format": "prettier --write package.json index.html public/sw.js eslint.config.js playwright.config.ts vitest.config.ts 'src/app/**/*.{ts,tsx}' 'src/features/**/*.{ts,tsx}' 'src/i18n/**/*.{ts,tsx}' src/admin.tsx src/auth.tsx src/main.tsx src/profiles.ts src/remoteRooms.ts src/roomScope.ts src/rooms.ts src/router.ts 'src/components/botstats/**/*.{ts,tsx}' 'src/components/feedback/**/*.{ts,tsx}' 'src/components/pages/**/*.{ts,tsx}' 'src/components/ui/**/*.{ts,tsx}' src/styles.css src/play-styles.css src/styles/application.css 'tests/**/*.{ts,tsx}'",
