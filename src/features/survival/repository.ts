@@ -106,26 +106,6 @@ export async function startSurvivalPractice(
   return id;
 }
 
-export async function recordSurvivalPracticeResult(
-  roomId: string,
-  playerScore: number,
-  authurScore: number,
-): Promise<void> {
-  if (!supabase) return;
-  const result = playerScore > authurScore ? "win" : playerScore < authurScore ? "loss" : "tie";
-  const { error } = await supabase
-    .from("survival_attempts")
-    .update({
-      player_score: playerScore,
-      authur_score: authurScore,
-      result,
-      finished_at: new Date().toISOString(),
-    })
-    .eq("room_id", roomId)
-    .is("finished_at", null);
-  if (error) throw error;
-}
-
 export async function listSurvivalAttemptStats(): Promise<
   Record<string, { attempts: number; wins: number }>
 > {

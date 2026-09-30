@@ -67,8 +67,8 @@ import { TilebagSheet } from "./components/mobile/TilebagSheet";
 import { ResultModal } from "./components/modals/ResultModal";
 import { ConfirmSheet, Sheet } from "./components/ui/Sheet";
 import { useAuth } from "./auth";
+import { readSafeArchiveReplay } from "./completedGame/client";
 import { AdminPage } from "./admin";
-import { recordSurvivalPracticeResult } from "./features/survival/repository";
 import { rankedClient } from "./features/ranked/client";
 import { survivalPlaytestSource, type SurvivalView } from "./features/survivalPlay/api";
 import { parseSurvivalRoomId, survivalAttemptRoomId } from "./features/survivalPlay/route";
@@ -862,8 +862,8 @@ function App() {
     : studyPuzzle
       ? defaultPlayTools("study_puzzle")
       : modeToolState.key === modeKey
-      ? modeToolState.tools
-      : defaultPlayTools("");
+        ? modeToolState.tools
+        : defaultPlayTools("");
   const modeToolsLoading = Boolean(
     !survival &&
     !studyPuzzle &&
@@ -954,13 +954,13 @@ function App() {
     : studyPuzzle
       ? { canAct: studyPuzzleCanAct, canInteract: studyPuzzleCanAct, canRefill: false }
       : getRoomActorCapabilities({
-        game,
-        emailPlayMode,
-        invitedSides,
-        isAdmin: hasAdminAccess,
-        isOwner: isActiveRoomOwner,
-        remoteEnabled,
-      });
+          game,
+          emailPlayMode,
+          invitedSides,
+          isAdmin: hasAdminAccess,
+          isOwner: isActiveRoomOwner,
+          remoteEnabled,
+        });
   const canActActiveSide = actorCapabilities.canAct;
   const canRefillActiveRack = actorCapabilities.canRefill;
   const canRefillActiveRackRef = useRef(false);
@@ -1528,24 +1528,23 @@ function App() {
         const changedId = newRecord?.id ?? oldRecord?.id;
         if (!changedId || changedId !== activeRoomIdRef.current) return;
         if (payload.eventType === "DELETE") {
-          // Finalization atomically replaces room_live with an archive snapshot.
-          // Re-read through the room adapter before treating DELETE as a cancel.
-          // Whether this tab already showed the game ending. It usually did — the finishing
-          // move is played here and opens the result at once — and a player who has since
-          // closed the result must not have it thrown back at them when the archive lands.
-          const alreadyFinished = gameRef.current ? isFinishedGame(gameRef.current) : false;
-          void remoteRooms.readRoom(changedId).then((archived) => {
-            if (archived) {
-              applyRemotePayload(archived, { allowRollback: true });
-              if (!alreadyFinished) setShowResult(true);
-              return;
-            }
-            playSnapshotCache.forget(changedId);
-            setActiveRoomId(null);
-            setGame(null);
-            navigate({ kind: "home", visibility: lobbyVisibility });
-            cancelDraftOnly();
-          });
+          // Finalization atomically replaces the live row with an archive.
+          // A completed record can only come back through the safe replay path.
+          void readSafeArchiveReplay(changedId).then(
+            (replay) => {
+              playSnapshotCache.forget(changedId);
+              window.dispatchEvent(
+                new CustomEvent("eq-lab:archive-replay-ready", { detail: replay }),
+              );
+            },
+            () => {
+              playSnapshotCache.forget(changedId);
+              setActiveRoomId(null);
+              setGame(null);
+              navigate({ kind: "home", visibility: lobbyVisibility });
+              cancelDraftOnly();
+            },
+          );
           return;
         }
         if (!payload.new) return;
@@ -1810,30 +1809,6 @@ function App() {
     remoteStateKey,
     actionMode,
     pendingPlacements.length,
-  ]);
-
-  // Practice telemetry only. Official survival results will require a server
-  // reducer so the client cannot report its own win or see Authur's hidden rack.
-  useEffect(() => {
-    if (
-      !remoteEnabled ||
-      !userId ||
-      !activeRoomId ||
-      game?.status !== "finished" ||
-      !game.name.startsWith("Survival test · seed ")
-    )
-      return;
-    void recordSurvivalPracticeResult(activeRoomId, game.scores.A, game.scores.B).catch(
-      (error: Error) => console.error("Survival practice result was not recorded", error),
-    );
-  }, [
-    activeRoomId,
-    game?.name,
-    game?.status,
-    game?.scores.A,
-    game?.scores.B,
-    remoteEnabled,
-    userId,
   ]);
 
   // Supabase live draft sync: lets spectators see pending placement/exchange state.
@@ -5773,7 +5748,11 @@ function App() {
   }
 
   /** A Study puzzle's one placement goes to the server; the puzzle ends there. */
-  function submitStudyPuzzleMove(log: TurnLog, boardAfter: BoardSnapshot, rackAfter: TileInstance[]) {
+  function submitStudyPuzzleMove(
+    log: TurnLog,
+    boardAfter: BoardSnapshot,
+    rackAfter: TileInstance[],
+  ) {
     const session = studyPuzzleRef.current;
     const placements = studyPlacementsFromLog(log);
     if (!session || studyPuzzleBusyRef.current) return;
@@ -6616,13 +6595,13 @@ function App() {
     : studyPuzzle
       ? studyTilebagView(viewGame ?? game)
       : getTilebagView({
-        game: viewGame ?? game,
-        refillNeeded,
-        reviewing,
-        selectedLog,
-        concealOpponentRack: concealDirectOpponentRack,
-        viewerSide: accountPlayerSide,
-      });
+          game: viewGame ?? game,
+          refillNeeded,
+          reviewing,
+          selectedLog,
+          concealOpponentRack: concealDirectOpponentRack,
+          viewerSide: accountPlayerSide,
+        });
   const exchangeReady = actionMode === "exchange" && exchangeDraft.outgoingIds.length > 0;
   const canPickFromTilebag =
     getTileDrawMode(game) !== "play" &&
@@ -6649,11 +6628,11 @@ function App() {
       : survival
         ? survival.humanSide
         : isEmailRoom &&
-          !emailPlayersCanSeeOpponentRack &&
-          accountPlayerSide &&
-          (isDirectEmailRoom || !hasAdminAccess)
-        ? accountPlayerSide
-        : game.activeSide;
+            !emailPlayersCanSeeOpponentRack &&
+            accountPlayerSide &&
+            (isDirectEmailRoom || !hasAdminAccess)
+          ? accountPlayerSide
+          : game.activeSide;
   // Build the 8-slot display rack from the layout so empty slots stay in
   // place when tiles leave for the board.
   const displayRack: (TileInstance | null)[] = (() => {
@@ -7273,10 +7252,10 @@ function App() {
                     ? "ส่งคำตอบแล้ว"
                     : undefined
                   : botTurnLocked
-                  ? `${botName} thinking`
-                  : botTurn
-                    ? `Manual · ${botName}`
-                    : undefined
+                    ? `${botName} thinking`
+                    : botTurn
+                      ? `Manual · ${botName}`
+                      : undefined
             }
             // A submitted Study puzzle is over: say so, rather than "analysis tools go here".
             viewOnlyMessage={

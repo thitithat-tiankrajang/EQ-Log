@@ -141,6 +141,16 @@ begin
   perform pg_temp.expect('no consumption, no ledger entry', pg_temp.consumed(player), 0::bigint);
   perform pg_temp.expect('counts as a board', public.active_board_count(player, clock_timestamp()), 1);
 
+  -- An attempt pins its sealed genesis, even against the admin seal RPC.
+  perform pg_temp.act_as(admin_id);
+  perform pg_temp.refused(format('select public.admin_seal_stage_start(%L, %L)', sealed,
+    pg_temp.position(5, 2)), 'stage_start_in_use:%');
+  perform pg_temp.refused(format('select public.admin_seal_stage_start(%L, %L)', sealed,
+    pg_temp.position(5, 1)), 'stage_start_in_use:%');
+  perform pg_temp.act_as_owner();
+  perform pg_temp.expect('used seal remains unchanged',
+    (select start_canonical -> 'turnNumber' from public.survival_levels where id = sealed), '1'::jsonb);
+
   -- replay returns the same attempt; reuse for another level conflicts
   perform pg_temp.act_as(player);
   select * into replay from public.create_stage_attempt(req, sealed, '{}');
@@ -241,16 +251,25 @@ begin
   perform pg_temp.act_as_owner();
   update public.bot_catalog set enabled = true where bot_key = 'authur_strong';
 
-  -- ── Stage attempts never enter normal bot statistics ─────────────────────
+  -- ── Old finalization cannot bypass durable Stage capture ───────────────
   perform pg_temp.act_as(admin_id);
   perform public.create_bot_folder('stage smoke', true);
   perform pg_temp.act_as(other);
   select * into replay from public.create_stage_attempt(gen_random_uuid(), sealed, '{}');
-  perform public.finalize_live_game(replay.room_id, '{"status":"finished","scores":{"A":10,"B":20}}'::jsonb,
-    'terminated', 'manual', null);
+  perform pg_temp.refused(format($q$select * from public.finalize_live_game(%L,
+    '{"status":"finished","scores":{"A":10,"B":20}}'::jsonb,
+    'terminated', 'manual', null)$q$, replay.room_id), 'stage_terminal_endpoint_required:%');
   perform pg_temp.act_as_owner();
   perform pg_temp.expect('Stage attempt not in bot statistics', pg_temp.fact(format(
     'select count(*) from public.bot_stat_games where room_id = %L', replay.room_id)), 0::bigint);
+
+  -- The wrapper still delegates an ordinary room to the previous finalizer.
+  perform pg_temp.act_as(other);
+  perform public.finalize_live_game(fake.room_id,
+    '{"status":"finished","scores":{"A":1,"B":0}}'::jsonb, 'terminated', 'manual', null);
+  perform pg_temp.act_as_owner();
+  perform pg_temp.expect('normal room finalized through wrapper', pg_temp.fact(format(
+    'select count(*) from public.room_live where room_id = %L', fake.room_id)), 0::bigint);
 
   raise notice 'stage attempt smoke test passed';
 end

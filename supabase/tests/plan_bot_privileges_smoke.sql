@@ -45,8 +45,8 @@ begin
       ('system_settings', '{postgres=arwdDxtm/postgres,service_role=rm/postgres}'),
       ('room_live', '{postgres=arwdDxtm/postgres,service_role=rwdm/postgres}'),
       ('ranked_matches', '{postgres=arwdDxtm/postgres,service_role=arwdDxtm/postgres}'),
-      ('survival_levels', '{postgres=arwdDxtm/postgres,authenticated=r/postgres}'),
-      ('survival_attempts', '{postgres=arwdDxtm/postgres,authenticated=r/postgres}')
+      ('survival_levels', '{postgres=arwdDxtm/postgres,authenticated=r/postgres,service_role=r/postgres}'),
+      ('survival_attempts', '{postgres=arwdDxtm/postgres,authenticated=r/postgres,service_role=r/postgres}')
     ) as v(tbl, acl)
   loop
     select array_agg(a::text order by a::text) into actual
@@ -55,12 +55,11 @@ begin
       problems := problems || format('table %s has %s; ', fn.tbl, actual);
     end if;
   end loop;
-  -- Column grants: survival_attempts results only; survival_levels never the sealed start.
+  -- Stage terminal capture removed the old browser result writes entirely.
   select array_agg(attname || '=' || a::text order by attname, a::text) into actual
     from pg_attribute, unnest(attacl) a
    where attrelid = 'public.survival_attempts'::regclass and attacl is not null;
-  if actual is distinct from array['authur_score=authenticated=w/postgres', 'finished_at=authenticated=w/postgres',
-                                   'player_score=authenticated=w/postgres', 'result=authenticated=w/postgres'] then
+  if actual is not null then
     problems := problems || format('survival_attempts columns %s; ', actual);
   end if;
   if exists (select 1 from pg_attribute, unnest(attacl) a
@@ -78,7 +77,7 @@ begin
   for fn in
     select * from (values
       ('create_bot_game(uuid,text,text,jsonb,text,text,uuid,text,uuid,text)', '{authenticated}'),
-      ('create_live_game(jsonb,text,text,uuid,text,uuid)', '{authenticated,service_role}'),
+      ('create_live_game(jsonb,text,text,uuid,text,uuid)', '{authenticated}'),
       ('create_live_game_core(jsonb,text,text,uuid,text,uuid,text,text,text,uuid)', '{}'),
       ('commit_live_game_command(uuid,bigint,text,text,jsonb,jsonb,text,jsonb,jsonb)', '{authenticated}'),
       ('finalize_live_game(uuid,jsonb,text,text,text)', '{authenticated,service_role}'),
