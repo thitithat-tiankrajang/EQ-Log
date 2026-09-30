@@ -9,6 +9,8 @@ import {
   type ProfileModeKey,
 } from "../../features/gameRecords/domain";
 import { listMyModeStats, type UserModeStat } from "../../features/gameRecords/repository";
+import { HistorySection } from "./profile/HistorySection";
+import { SavedSection } from "./profile/SavedSection";
 
 const AETHER_DIFFICULTIES = ["medium", "hard", "max", "super"] as const;
 
@@ -23,6 +25,7 @@ export function ProfilePage() {
   const [stats, setStats] = useState<UserModeStat[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [savedRevision, setSavedRevision] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -247,6 +250,8 @@ export function ProfilePage() {
           </section>
         </>
       )}
+      <HistorySection userId={userId} onSaved={() => setSavedRevision((current) => current + 1)} />
+      <SavedSection userId={userId} revision={savedRevision} />
     </ApplicationShell>
   );
 }

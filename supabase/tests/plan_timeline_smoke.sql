@@ -74,6 +74,14 @@ language sql as $$
   select (make_date(ty, tm, least(d, last_day)) + tod) at time zone 'Asia/Bangkok' from bounded
 $$;
 
+-- The smoke test changes session role inside its transaction. Temporary
+-- helpers need explicit EXECUTE for the simulated authenticated role.
+grant execute on function pg_temp.act_as(uuid), pg_temp.act_as_owner(),
+  pg_temp.fact(uuid,text,integer,timestamptz),
+  pg_temp.plan_at(uuid,timestamptz), pg_temp.expect(text,anyelement,anyelement),
+  pg_temp.timeline(uuid), pg_temp.segment(uuid,text),
+  pg_temp.oracle_add_months(timestamptz,integer) to authenticated;
+
 insert into auth.users (id, email, aud, role)
 select ('00000000-0000-4000-8000-0000000002' || lpad(n::text, 2, '0'))::uuid,
        'plan-' || n || '@example.test', 'authenticated', 'authenticated'
@@ -166,8 +174,8 @@ begin
   end if;
   perform pg_temp.expect('free stage ceiling', e.capabilities -> 'stage_plan_ceiling',
     '{"status":"decided","value":20}'::jsonb);
-  perform pg_temp.expect('free drive limit undecided', e.capabilities -> 'private_drive_limit',
-    '{"status":"undecided"}'::jsonb);
+  perform pg_temp.expect('free Saved limit', e.capabilities -> 'private_drive_limit',
+    '{"status":"decided","value":100}'::jsonb);
 
   -- ── Same-plan extension keeps the Jan 31 anchor ──────────────────────────
   perform pg_temp.fact(u_jan, 'plus', 1, '2027-01-31 10:00+07');
@@ -208,8 +216,8 @@ begin
   select * into e from public.plan_effective(u_year, '2027-01-15 00:00+07');
   perform pg_temp.expect('active Pro', e.plan_key, 'pro');
   perform pg_temp.expect('pro stage ceiling', e.capabilities -> 'stage_plan_ceiling', '{"status":"decided","value":50}'::jsonb);
-  perform pg_temp.expect('pro drive limit follows plus (undecided)', e.capabilities -> 'private_drive_limit',
-    '{"status":"undecided","via":["plus"]}'::jsonb);
+  perform pg_temp.expect('pro Saved limit follows plus', e.capabilities -> 'private_drive_limit',
+    '{"status":"decided","value":1000,"via":["plus"]}'::jsonb);
   perform pg_temp.fact(u_bkk, 'plus', 1, '2027-01-30 17:30Z');
   perform pg_temp.expect('Bangkok chain end', (select ends_at from public.plan_segments where user_id = u_bkk),
     '2027-02-28 00:30+07'::timestamptz);
@@ -456,9 +464,9 @@ do $caps$
 begin
   if public.plan_capability('plus', 'stage_plan_ceiling') <> '{"status":"decided","value":40}' then
     raise exception 'decided'; end if;
-  if public.plan_capability('plus', 'private_drive_limit') <> '{"status":"undecided"}' then
-    raise exception 'undecided'; end if;
-  if public.plan_capability('pro', 'private_drive_limit') <> '{"status":"undecided","via":["plus"]}' then
+  if public.plan_capability('plus', 'private_drive_limit') <> '{"status":"decided","value":1000}' then
+    raise exception 'decided Saved capacity'; end if;
+  if public.plan_capability('pro', 'private_drive_limit') <> '{"status":"decided","value":1000,"via":["plus"]}' then
     raise exception 'same_as'; end if;
   if public.plan_capability('plus', 'host_role') <> '{"status":"invalid"}' then
     raise exception 'unknown capability must be invalid'; end if;
