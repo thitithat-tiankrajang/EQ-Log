@@ -562,19 +562,15 @@ export function commitRoomState(args: CommitStateArgs): Promise<CommitOutcome> {
     const canonical = encodeCanonical(canonicalFromSnapshot(args.game, nextRevision));
 
     if (args.game.status === "finished") {
-      // Route by the server-frozen purpose. The name fallback is only for a
-      // retry after a successful Stage capture removed the live row; the
-      // endpoint checks the real attempt and owner in either case.
-      const purpose = await supabase
-        .from("room_live")
-        .select("room_purpose")
-        .eq("room_id", args.id)
-        .maybeSingle();
-      if (purpose.error) throw describeDatabaseError(purpose.error);
-      if (
-        purpose.data?.room_purpose === "stage" ||
-        (!purpose.data && args.game.name.startsWith("Survival test · seed "))
-      ) {
+      // The internal purpose column is not browser-readable. The authorized
+      // RPC also resolves lost-response retries after capture deletes the room.
+      const route = await supabase.rpc("get_game_terminal_route", {
+        target_game_id: args.id,
+      });
+      if (route.error) throw describeDatabaseError(route.error);
+      if (route.data !== "normal" && route.data !== "stage")
+        throw new Error("Game completion unavailable.");
+      if (route.data === "stage") {
         const { error } = await supabase.functions.invoke("stage-terminal", {
           body: {
             gameId: args.id,

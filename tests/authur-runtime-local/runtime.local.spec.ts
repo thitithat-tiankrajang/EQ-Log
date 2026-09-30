@@ -326,6 +326,38 @@ test("Authur multi-turn real browser/engine/commit, reload, second tab, stale re
   expect(cancel.status).toBe(409);
   expect(await cancel.json()).toMatchObject({ code: "stale_revision" });
   expect(consumptions(who.id)).toBe(1);
+
+  // The production blocker happened after real Authur gameplay, at the
+  // frontend's terminal-routing read. Exercise that exact UI-to-Edge boundary.
+  await page.getByRole("button", { name: /^(End Game|Surrender)$/ }).click();
+  await page
+    .getByRole("button", { name: /^(End game|Surrender)$/ })
+    .last()
+    .click();
+  await expect
+    .poll(() => sql(`select count(*) from public.room_live where room_id='${roomId}'`))
+    .toBe("0");
+  expect(
+    sql(
+      `select count(*) from public.game_history where source_kind='normal' and source_id='${roomId}' and participant_id='${who.id}'`,
+    ),
+  ).toBe("1");
+  expect(
+    sql(
+      `select count(*) from public.recent_game_payloads where source_id='${roomId}' and record->>'format'='1'`,
+    ),
+  ).toBe("1");
+  expect(
+    sql(
+      `select result_authority from public.game_history where source_id='${roomId}' and participant_id='${who.id}'`,
+    ),
+  ).toBe("client_reported");
+  expect(consumptions(who.id)).toBe(1);
+  expect(balance(who.id)).toBe(0);
+  await page.screenshot({
+    path: "test-results/terminal-routing-authur-completion.png",
+    fullPage: true,
+  });
 });
 
 test("real queue overload backs off once and resumes Authur without another charge", async ({

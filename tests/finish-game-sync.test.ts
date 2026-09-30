@@ -59,12 +59,9 @@ describe("finishing a game", () => {
     rpc.mockReset();
     from.mockReset();
     invoke.mockReset();
-    from.mockReturnValue({
-      select: () => ({
-        eq: () => ({
-          maybeSingle: async () => ({ data: { room_purpose: "normal" }, error: null }),
-        }),
-      }),
+    rpc.mockResolvedValue({ data: "normal", error: null });
+    from.mockImplementation(() => {
+      throw new Error("Raw terminal routing reads are forbidden.");
     });
   });
 
@@ -80,14 +77,12 @@ describe("finishing a game", () => {
       }),
     );
     expect(names).not.toContain("commit_live_game_command");
+    expect(names).toEqual(["get_game_terminal_route"]);
+    expect(from).not.toHaveBeenCalled();
   });
 
   it("routes a server-marked Stage room to trusted terminal capture", async () => {
-    from.mockReturnValue({
-      select: () => ({
-        eq: () => ({ maybeSingle: async () => ({ data: { room_purpose: "stage" }, error: null }) }),
-      }),
-    });
+    rpc.mockResolvedValue({ data: "stage", error: null });
     invoke.mockResolvedValue({ data: { outcome: "loss" }, error: null });
     await commitRoomState({ id: ROOM_ID, game: finishedGame() });
     expect(invoke).toHaveBeenCalledWith(
@@ -96,7 +91,33 @@ describe("finishing a game", () => {
         body: expect.objectContaining({ gameId: ROOM_ID }),
       }),
     );
-    expect(rpc).not.toHaveBeenCalled();
+    expect(rpc).toHaveBeenCalledWith("get_game_terminal_route", { target_game_id: ROOM_ID });
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it("never routes by a client-controlled Stage name", async () => {
+    const game = { ...finishedGame(), name: "Survival test · seed forged" };
+    invoke.mockResolvedValue({ data: { replayRetained: true }, error: null });
+    await commitRoomState({ id: ROOM_ID, game });
+    expect(invoke.mock.calls[0]?.[0]).toBe("normal-terminal");
+  });
+
+  it("stops unavailable, unauthorized and Ranked routes without a terminal write", async () => {
+    rpc.mockResolvedValue({ data: null, error: null });
+    await expect(commitRoomState({ id: ROOM_ID, game: finishedGame() })).rejects.toThrow(
+      "Game completion unavailable.",
+    );
+    expect(invoke).not.toHaveBeenCalled();
+    expect(from).not.toHaveBeenCalled();
+  });
+
+  it("preserves routing errors without falling back to another terminal", async () => {
+    rpc.mockResolvedValue({
+      data: null,
+      error: { message: "permission denied for function get_game_terminal_route", code: "42501" },
+    });
+    await expect(commitRoomState({ id: ROOM_ID, game: finishedGame() })).rejects.toThrow(/42501/);
+    expect(invoke).not.toHaveBeenCalled();
   });
 
   it("reports what the database actually refused, naming the function is not enough", async () => {
