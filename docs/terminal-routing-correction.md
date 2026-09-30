@@ -116,3 +116,32 @@ cutover. No broad raw SELECT grant or snapshot restore is an automatic fallback.
 
 Exact validation receipts and independent review results are recorded outside
 Git under `/Users/thitithat_tiankrajang/.codex/release-evidence/terminal-routing-correction`.
+
+## Validation results
+
+- Final red/green regression: the unchanged released frontend fails with exact
+  42501, although its identical direct Edge control succeeds. The correction
+  passes all four real terminal cases and nine terminal unit cases.
+- Real Supabase Storage integration: 12 passed across nine files, including
+  terminal capture, Stage, History, Recent, Saved, lifecycle and replay.
+- Frontend focused tests: 193 passed; the 13 opt-in Ranked database cases were
+  then enabled and passed, giving 206 covered cases with no final skip.
+- Real browser with the unchanged, full-strength Authur engine: three passed;
+  covers Free/Credit/Plus/Pro exactly-once economy, four actual Authur turns,
+  reload, a second tab, stale revisions, Analysis, CORS, queue overload and
+  terminal persistence. No engine boundary is mocked away.
+- Eleven SQL security/economy/lifecycle suites passed. Formatting, lint,
+  typecheck, production build and diff whitespace checks passed.
+- The initial optional Ranked run had seven five-second timeouts and a worker
+  reporting timeout while other gates ran. Its isolated one-worker rerun, with
+  an explicit 120-second local test ceiling, passed all 13 in 7.90 seconds;
+  individual cases took under two seconds. Both receipts are preserved.
+- Unrelated full-suite/wasm-mt baseline work was not rerun or changed.
+
+Independent Standards and Spec/security reviews both returned zero findings.
+
+Known pre-existing limitation: an unlinked normal game with no registered
+frozen participant has no caller-owned History receipt. Its existing terminal
+endpoint cannot positively identify a lost-response retry after live deletion.
+The route RPC preserves that boundary; this correction does not add receipts
+or change retention to extend that case.
