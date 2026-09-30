@@ -10,7 +10,7 @@ import {
 import type { RoomMeta } from "./rooms";
 import { supabase } from "./supabaseClient";
 import type { RoomScope, RoomVisibility } from "./roomScope";
-import { deriveCompletion, deriveModeKey } from "./features/gameRecords/domain";
+import { deriveModeKey } from "./features/gameRecords/domain";
 import { revisionOf, withRevision } from "./gameSync";
 import { canonicalFromSnapshot, encodeCanonical } from "./domain/projection";
 import {
@@ -562,15 +562,51 @@ export function commitRoomState(args: CommitStateArgs): Promise<CommitOutcome> {
     const canonical = encodeCanonical(canonicalFromSnapshot(args.game, nextRevision));
 
     if (args.game.status === "finished") {
-      const completion = deriveCompletion(args.game);
-      const { error } = await supabase.rpc("finalize_live_game", {
-        target_game_id: args.id,
-        target_state: encodeGame(withRevision(args.game, nextRevision)),
-        target_completion_kind: completion.kind,
-        target_completion_reason: completion.reason,
-        target_surrendered_side: completion.surrenderedSide,
+      // Route by the server-frozen purpose. The name fallback is only for a
+      // retry after a successful Stage capture removed the live row; the
+      // endpoint checks the real attempt and owner in either case.
+      const purpose = await supabase
+        .from("room_live")
+        .select("room_purpose")
+        .eq("room_id", args.id)
+        .maybeSingle();
+      if (purpose.error) throw describeDatabaseError(purpose.error);
+      if (
+        purpose.data?.room_purpose === "stage" ||
+        (!purpose.data && args.game.name.startsWith("Survival test · seed "))
+      ) {
+        const { error } = await supabase.functions.invoke("stage-terminal", {
+          body: {
+            gameId: args.id,
+            state: encodeGame(withRevision(args.game, nextRevision)),
+          },
+        });
+        if (error) throw describeDatabaseError(error);
+        return { outcome: "committed", revision: nextRevision };
+      }
+      const { error } = await supabase.functions.invoke("normal-terminal", {
+        body: { gameId: args.id, state: encodeGame(withRevision(args.game, nextRevision)) },
       });
-      if (error) throw describeDatabaseError(error);
+      if (error) {
+        const response = error.context;
+        const detail =
+          response instanceof Response
+            ? ((await response.json().catch(() => null)) as {
+                error?: string;
+                code?: string;
+                details?: string;
+                hint?: string;
+              } | null)
+            : null;
+        throw detail?.error
+          ? describeDatabaseError({
+              message: detail.error,
+              code: detail.code,
+              details: detail.details,
+              hint: detail.hint,
+            })
+          : describeDatabaseError(error);
+      }
       return { outcome: "committed", revision: nextRevision };
     }
 

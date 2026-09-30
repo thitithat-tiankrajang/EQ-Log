@@ -10,6 +10,9 @@
 
 begin;
 
+insert into private.runtime_secrets (key, value)
+values ('room_code_secret', repeat('s', 40)) on conflict (key) do nothing;
+
 insert into auth.users (id, email)
 values
   ('30000000-0000-4000-8000-000000000001', 'mv-owner@example.test'),
@@ -320,6 +323,54 @@ begin
   if archived ? 'timeline' then
     raise exception 'a stranger pulled another game''s parked lines into their library';
   end if;
+
+  -- Compact's hashed payload must already contain the parked suffix. Refuse
+  -- omission and never append the legacy `timeline` key to a Compact archive.
+  perform set_config('request.jwt.claim.sub', owner_id::text, true);
+  perform set_config('request.jwt.claims',
+    jsonb_build_object('sub', owner_id, 'role', 'authenticated')::text, true);
+  refused := false;
+  begin
+    insert into public.public_game_snapshots (
+      game_id, source_owner_id, name, player_a, player_b, game_mode, mode_key,
+      completion_kind, completion_reason, snapshot, created_at, finished_at
+    ) select l.room_id, l.owner_id, l.name, l.player_a, l.player_b, l.game_mode,
+             l.mode_key, 'terminated', 'manual', '{"format":1,"digest":"probe"}'::jsonb,
+             l.created_at, now()
+      from public.room_live l where l.room_id = room.room_id;
+  exception when sqlstate '22023' then
+    refused := true;
+  end;
+  if not refused then raise exception 'Compact archive silently omitted parked branches'; end if;
+  refused := false;
+  begin
+    insert into public.public_game_snapshots (
+      game_id, source_owner_id, name, player_a, player_b, game_mode, mode_key,
+      completion_kind, completion_reason, snapshot, created_at, finished_at
+    ) select l.room_id, l.owner_id, l.name, l.player_a, l.player_b, l.game_mode,
+             l.mode_key, 'terminated', 'manual',
+             '{"format":1,"digest":"probe","branches":{"v":1,"lines":[]}}'::jsonb,
+             l.created_at, now()
+      from public.room_live l where l.room_id = room.room_id;
+  exception when sqlstate '22023' then
+    refused := true;
+  end;
+  if not refused then raise exception 'Compact archive accepted wrong parked branches'; end if;
+  insert into public.public_game_snapshots (
+    game_id, source_owner_id, name, player_a, player_b, game_mode, mode_key,
+    completion_kind, completion_reason, snapshot, created_at, finished_at
+  ) select l.room_id, l.owner_id, l.name, l.player_a, l.player_b, l.game_mode,
+           l.mode_key, 'terminated', 'manual',
+           jsonb_build_object('format', 1, 'digest', 'probe', 'branches', t.doc),
+           l.created_at, now()
+    from public.room_live l join public.game_timelines t on t.game_id = l.room_id
+   where l.room_id = room.room_id;
+  select snapshot into archived from public.public_game_snapshots where game_id = room.room_id;
+  if archived ? 'timeline' or archived -> 'branches' is distinct from
+    (select doc from public.game_timelines where game_id = room.room_id) then
+    raise exception 'Compact archive was mutated by the legacy timeline trigger';
+  end if;
+  delete from public.public_game_snapshots where game_id = room.room_id;
 
   -- 11) Finishing carries the lines into the archive, then removes them with the live game.
   perform set_config('request.jwt.claim.sub', owner_id::text, true);

@@ -1,6 +1,6 @@
 // Ending a game is the one write a player cannot retry their way out of, and it
-// takes a different path from every other write: `finalize_live_game` instead of
-// the conditional command commit.
+// takes a different path from every other write: the normal terminal endpoint
+// instead of the conditional command commit.
 //
 // What is pinned here is not the happy path — it is what the player is TOLD when
 // it fails. A finish that reports the wrong cause sends someone to re-run a
@@ -10,11 +10,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { DEFAULT_NEW_GAME_SETTINGS } from "../src/constants/roomDefaults";
 import { createNewGame, type GameState } from "../src/game";
 
-const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }));
+const { rpc, from, invoke } = vi.hoisted(() => ({
+  rpc: vi.fn(),
+  from: vi.fn(),
+  invoke: vi.fn(),
+}));
 
 vi.mock("../src/supabaseClient", () => ({
   isSupabaseConfigured: true,
-  supabase: { rpc },
+  supabase: { rpc, from, functions: { invoke } },
 }));
 
 import { commitRoomState } from "../src/remoteRooms";
@@ -26,26 +30,73 @@ function finishedGame(): GameState {
   return { ...game, status: "finished", timers: { ...game.timers, paused: true } };
 }
 
-/** Fail the next RPC the way PostgREST reports a Postgres error. */
+/** Fail the terminal endpoint with the database error it reports. */
 function failWith(error: {
   message: string;
   code?: string;
   details?: string | null;
   hint?: string | null;
 }) {
-  rpc.mockImplementation(async () => ({ data: null, error }));
+  invoke.mockImplementation(async () => ({
+    data: null,
+    error: {
+      message: error.message,
+      context: new Response(
+        JSON.stringify({
+          error: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+        }),
+        { status: 422 },
+      ),
+    },
+  }));
 }
 
 describe("finishing a game", () => {
-  beforeEach(() => rpc.mockReset());
+  beforeEach(() => {
+    rpc.mockReset();
+    from.mockReset();
+    invoke.mockReset();
+    from.mockReturnValue({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => ({ data: { room_purpose: "normal" }, error: null }),
+        }),
+      }),
+    });
+  });
 
-  it("goes through finalize_live_game, not the command commit", async () => {
-    rpc.mockImplementation(async () => ({ data: null, error: null }));
+  it("goes through normal-terminal, not the command commit", async () => {
+    invoke.mockResolvedValue({ data: { replayRetained: true }, error: null });
     await commitRoomState({ id: ROOM_ID, game: finishedGame() });
 
     const names = rpc.mock.calls.map((call) => call[0] as string);
-    expect(names).toContain("finalize_live_game");
+    expect(invoke).toHaveBeenCalledWith(
+      "normal-terminal",
+      expect.objectContaining({
+        body: expect.objectContaining({ gameId: ROOM_ID }),
+      }),
+    );
     expect(names).not.toContain("commit_live_game_command");
+  });
+
+  it("routes a server-marked Stage room to trusted terminal capture", async () => {
+    from.mockReturnValue({
+      select: () => ({
+        eq: () => ({ maybeSingle: async () => ({ data: { room_purpose: "stage" }, error: null }) }),
+      }),
+    });
+    invoke.mockResolvedValue({ data: { outcome: "loss" }, error: null });
+    await commitRoomState({ id: ROOM_ID, game: finishedGame() });
+    expect(invoke).toHaveBeenCalledWith(
+      "stage-terminal",
+      expect.objectContaining({
+        body: expect.objectContaining({ gameId: ROOM_ID }),
+      }),
+    );
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("reports what the database actually refused, naming the function is not enough", async () => {
@@ -93,7 +144,7 @@ describe("finishing a game", () => {
 
   it("still says which migration to run when the function is genuinely absent", async () => {
     failWith({
-      message: "Could not find the function public.finalize_live_game in the schema cache",
+      message: "Could not find the function public.capture_normal_terminal in the schema cache",
       code: "PGRST202",
     });
     await expect(commitRoomState({ id: ROOM_ID, game: finishedGame() })).rejects.toThrow(
