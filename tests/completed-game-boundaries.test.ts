@@ -10,7 +10,7 @@ import {
 } from "../src/completedGame/record";
 import { projectCompletedGame } from "../src/completedGame/projection";
 import { createSurvivalTestGame } from "../src/features/survival/seededGame";
-import { stageStartCanonical } from "../src/features/survival/repository";
+import { stageStartCanonical } from "../src/features/survival/sealedStart";
 import {
   calculateTotals,
   calculateGameTotals,

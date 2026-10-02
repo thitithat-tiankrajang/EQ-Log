@@ -33,7 +33,7 @@ export function getCreateRoomReadiness({
     return { ready: true, reason: null };
   }
 
-  if (creatorAssigned) {
+  if (creatorAssigned && settings.tileDrawMode !== "manual") {
     return {
       ready: false,
       reason: "As host you can't also be a player — choose another registered user.",

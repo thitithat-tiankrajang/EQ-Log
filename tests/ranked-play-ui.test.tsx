@@ -42,6 +42,9 @@ it("uses the shared play board and rack while keeping an opponent replay rack cl
   expect(container.querySelectorAll(".rack-tile")).toHaveLength(8);
   expect(container.querySelector(".scoreboard")).not.toBeNull();
 
+  // Flush the initial revision-reset effect before selecting a historical turn,
+  // as the other interaction cases below already do. Keep all secrecy assertions.
+  await act(async () => {});
   fireEvent.click(screen.getByRole("button", { name: /เปลี่ยน 2 ตัว/ }));
   expect(screen.getByLabelText("เบี้ยคู่แข่งปิด").querySelectorAll(".rack-tile-back")).toHaveLength(
     8,

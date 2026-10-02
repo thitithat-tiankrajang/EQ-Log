@@ -29,6 +29,7 @@ export type StageTerminalSource = {
   revision: number;
   liveState: EncodedGame;
   sealedStart: StageSealedStart;
+  completionAuthority?: "client-reported" | "server-reduced";
   botKey: string;
   botConfigVersion: number;
   botDifficulty: string;
@@ -202,6 +203,7 @@ export async function prepareStageTerminal(
     seed: source.seed,
     sealedStart: source.sealedStart,
     branches: source.branches,
+    completionAuthority: source.completionAuthority,
     bot: {
       catalogId: source.botKey,
       catalogVersion: String(source.botConfigVersion),

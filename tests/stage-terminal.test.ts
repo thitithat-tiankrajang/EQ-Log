@@ -6,7 +6,7 @@ import { buildStageCompletedGameRecord } from "../src/completedGame/adapters";
 import { projectCompletedGame } from "../src/completedGame/projection";
 import { readCompletedGameRecord } from "../src/completedGame/record";
 import { prepareStageTerminal } from "../src/completedGame/stageTerminal";
-import { stageStartCanonical } from "../src/features/survival/repository";
+import { stageStartCanonical } from "../src/features/survival/sealedStart";
 import { createSurvivalTestGame } from "../src/features/survival/seededGame";
 
 const owner = "00000000-0000-4000-8000-000000000971";

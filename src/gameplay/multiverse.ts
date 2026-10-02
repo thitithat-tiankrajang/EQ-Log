@@ -31,7 +31,7 @@
 //   • Hard caps (`MULTIVERSE_LIMITS`) refuse to grow past a size the map can still show.
 import {
   aggregatePendingExchangeReturns,
-  calculateTotals,
+  calculateGameTotals,
   makeSnapshot,
   type BoardSnapshot,
   type ExchangeDetail,
@@ -348,7 +348,7 @@ export function positionBefore(
       line?.after[node.index] ?? (line && node.index === line.logs.length - 1 ? line.tip : null);
   }
   if (!committed) return null;
-  return revertTurn(committed, node.log, calculateTotals(pathTo(tree, node.parentId)));
+  return revertTurn(committed, node.log, calculateGameTotals(game, pathTo(tree, node.parentId)));
 }
 
 function revertTurn(

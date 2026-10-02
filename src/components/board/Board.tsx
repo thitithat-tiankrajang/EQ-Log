@@ -87,9 +87,14 @@ function sameBoardPicture(a: BoardProps, b: BoardProps): boolean {
   if (aa !== ba) {
     if (!aa || !ba) return false;
     if (
-      aa.row !== ba.row || aa.col !== ba.col || aa.score !== ba.score ||
-      aa.isValid !== ba.isValid || aa.orientation !== ba.orientation ||
-      aa.side !== ba.side || aa.alignX !== ba.alignX || aa.alignY !== ba.alignY
+      aa.row !== ba.row ||
+      aa.col !== ba.col ||
+      aa.score !== ba.score ||
+      aa.isValid !== ba.isValid ||
+      aa.orientation !== ba.orientation ||
+      aa.side !== ba.side ||
+      aa.alignX !== ba.alignX ||
+      aa.alignY !== ba.alignY
     ) {
       return false;
     }
@@ -123,7 +128,9 @@ function sameBoardPicture(a: BoardProps, b: BoardProps): boolean {
       const y = bp[i];
       if (
         x !== y &&
-        (x.row !== y.row || x.col !== y.col || x.tile !== y.tile ||
+        (x.row !== y.row ||
+          x.col !== y.col ||
+          x.tile !== y.tile ||
           x.assignedToken !== y.assignedToken)
       ) {
         return false;
@@ -214,9 +221,14 @@ export const Board = memo(function Board({
               const label = SLOT_LABELS[slot];
               const pending = pendingByKey.get(key);
               const isCenter = slot === "px3star";
-              const isCursor = placementCursor && placementCursor.row === rowIndex && placementCursor.col === colIndex;
+              const isCursor =
+                placementCursor &&
+                placementCursor.row === rowIndex &&
+                placementCursor.col === colIndex;
               const isScoring = scoringKeys?.has(key) ?? false;
-              const isAssignablePending = Boolean(pending && tileNeedsAssignment(pending.tile.token));
+              const isAssignablePending = Boolean(
+                pending && tileNeedsAssignment(pending.tile.token),
+              );
               const mark = cellMarks?.get(key);
               return (
                 <button
@@ -227,8 +239,13 @@ export const Board = memo(function Board({
                   } ${mark ? `marked mark-${mark.tone}` : ""}`}
                   key={key}
                   type="button"
+                  data-board-row={rowIndex}
+                  data-board-col={colIndex}
+                  data-draft-tile-id={pending?.tile.id}
                   title={
-                    isAssignablePending ? "Hold to change this tile value. Press E when selected." : mark?.label
+                    isAssignablePending
+                      ? "Hold to change this tile value. Press E when selected."
+                      : mark?.label
                   }
                   onClick={() => handleCellClick(rowIndex, colIndex, key)}
                   onDoubleClick={() => openAssignmentEditor(pending, key)}

@@ -15,3 +15,7 @@ entrypoint = './functions/normal-terminal/index.js'
 
 [functions.migrate-saved-legacy]
 entrypoint = './functions/migrate-saved-legacy/index.js'
+
+[functions.live-game]
+entrypoint = './functions/live-game/index.js'
+verify_jwt = true

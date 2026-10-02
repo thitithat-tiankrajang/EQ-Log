@@ -41,7 +41,9 @@ describe("Authur position boundary", () => {
 
   it("never sends the real opponent rack or bag to STRONG", () => {
     const game = authurGame();
+    Object.assign(game.scores, { privateBag: game.tilebag, privateRack: game.rackA });
     const request = buildAuthurRequest(game, "room-1", 5);
+    expect(Object.keys(request.scores).sort()).toEqual(["A", "B"]);
     expect(request.rack).toEqual(game.rackB.map((tile) => tile.token));
     expect(request.opponentRackCount).toBe(game.rackA.length);
     expect(request.bagCount).toBe(game.tilebag.length);

@@ -1,0 +1,4800 @@
+{
+  "verdict": "NO-GO FOR SECURITY PRODUCTION RELEASE",
+  "baseline": "34d5ae676fc460bfff02fe142b5d76354206b903",
+  "workspace": "/Users/thitithat_tiankrajang/Desktop/EQ-Lab-live-sync",
+  "countsOverlap": true,
+  "runs": {
+    "default-release": {
+      "numTotalTests": 1425,
+      "numPassedTests": 1368,
+      "numFailedTests": 1,
+      "numPendingTests": 56,
+      "cases": [
+        {
+          "file": "archbot-storage-local.test.ts",
+          "name": "finishes a production ArchBot room through server authority, Compact, History, Recent and safe Replay",
+          "status": "skipped"
+        },
+        {
+          "file": "archive-replay-local.test.ts",
+          "name": "serves only safe replay through a real local archive endpoint",
+          "status": "skipped"
+        },
+        {
+          "file": "completed-game-benchmark.test.ts",
+          "name": "reports reproducible compact-record measurements",
+          "status": "skipped"
+        },
+        {
+          "file": "completed-game-benchmark.test.ts",
+          "name": "profiles representative legal events and repeated local replay timings",
+          "status": "skipped"
+        },
+        {
+          "file": "engine-in-browser.test.ts",
+          "name": "the engine still builds both ways keeps a wasm build target that deploys into the bundled source tree",
+          "status": "failed"
+        },
+        {
+          "file": "full-super-parity.test.ts",
+          "name": "the bundled engine runs the full 160-sample schedule and matches the native reference exactly",
+          "status": "skipped"
+        },
+        {
+          "file": "game-history-local.test.ts",
+          "name": "creates one History entry per seated user under concurrent authoritative terminal commands",
+          "status": "skipped"
+        },
+        {
+          "file": "live-capabilities-local.test.ts",
+          "name": "Physical Hosted: host current racks, recording/correction/completion and full Replay",
+          "status": "skipped"
+        },
+        {
+          "file": "live-capabilities-local.test.ts",
+          "name": "Physical Hosted: A+host current racks, recording/correction/completion and full Replay",
+          "status": "skipped"
+        },
+        {
+          "file": "live-capabilities-local.test.ts",
+          "name": "Physical Hosted: B+host current racks, recording/correction/completion and full Replay",
+          "status": "skipped"
+        },
+        {
+          "file": "live-capabilities-local.test.ts",
+          "name": "Pass & Play play: rotating owner-only handoff, concealed turns and persisted full Replay",
+          "status": "skipped"
+        },
+        {
+          "file": "live-capabilities-local.test.ts",
+          "name": "Pass & Play manual: rotating owner-only handoff, concealed turns and persisted full Replay",
+          "status": "skipped"
+        },
+        {
+          "file": "live-compatibility-local.test.ts",
+          "name": "secure self-directed Solo starts from one Ready seat and preserves lifecycle/Replay",
+          "status": "skipped"
+        },
+        {
+          "file": "live-compatibility-local.test.ts",
+          "name": "secure Hosted Solo starts from one Ready seat and preserves lifecycle/Replay",
+          "status": "skipped"
+        },
+        {
+          "file": "live-compatibility-local.test.ts",
+          "name": "F10/F27: physical Hosted creation must support the required recording workflow",
+          "status": "skipped"
+        },
+        {
+          "file": "live-compatibility-local.test.ts",
+          "name": "F07: Pass & Play retains its mode identity and supports a second-player handoff",
+          "status": "skipped"
+        },
+        {
+          "file": "live-compatibility-local.test.ts",
+          "name": "legacy cutover preserves private evidence, gates old metadata writers, and protects active completion",
+          "status": "skipped"
+        },
+        {
+          "file": "live-creation-controls-local.test.ts",
+          "name": "rollout switches close Normal and Stage creation without charges or disabling existing projections",
+          "status": "skipped"
+        },
+        {
+          "file": "live-hidden-local.test.ts",
+          "name": "enforces every live access path and commits Replay only with successful persistence",
+          "status": "skipped"
+        },
+        {
+          "file": "live-milestone-s-local.test.ts",
+          "name": "waiting configuration, Unready, role-gated launch/countdown, metadata and stale revisions",
+          "status": "skipped"
+        },
+        {
+          "file": "live-milestone-s-local.test.ts",
+          "name": "Physical Hosted history edits restore both current racks privately, with undo/redo, branches, annotations and terminal lock",
+          "status": "skipped"
+        },
+        {
+          "file": "live-milestone-s-local.test.ts",
+          "name": "Direct pause request/decline/block/ack/accept/resume persists across reconnect",
+          "status": "skipped"
+        },
+        {
+          "file": "live-milestone-s-local.test.ts",
+          "name": "Stage inherited undo/redo/annotations/alternate restore retains sealed opening and private bot history",
+          "status": "skipped"
+        },
+        {
+          "file": "live-release-recovery-local.test.ts",
+          "name": "authur recovers initialization failure, crash, expired lease and lost acknowledgement without a browser or extra charge",
+          "status": "skipped"
+        },
+        {
+          "file": "live-release-recovery-local.test.ts",
+          "name": "queues a bot turn atomically with its stored revision even when Edge never enqueues, and retries transient failures",
+          "status": "skipped"
+        },
+        {
+          "file": "live-seat-timer-local.test.ts",
+          "name": "open seat and room-code joins change capability revision, invalidate Ready and preserve recipient scope",
+          "status": "skipped"
+        },
+        {
+          "file": "live-seat-timer-local.test.ts",
+          "name": "region access and the baseline private autosave retirement preserve scope without live snapshots",
+          "status": "skipped"
+        },
+        {
+          "file": "live-seat-timer-local.test.ts",
+          "name": "Authur as A starts and commits its full trusted turn before human B, with exactly one funding consumption",
+          "status": "skipped"
+        },
+        {
+          "file": "live-seat-timer-local.test.ts",
+          "name": "asymmetric clocks keep an untimed side, clamp normal overtime and pause Save & Exit for Solo",
+          "status": "skipped"
+        },
+        {
+          "file": "live-stage-progression-local.test.ts",
+          "name": "plays a repository Stage candidate to a natural win with trusted Authur, persisted progression and two-sided Replay",
+          "status": "skipped"
+        },
+        {
+          "file": "live-storage-capacity-local.test.ts",
+          "name": "authoritative private completion keeps History/Recent/Replay available when Free/Plus/Pro Saved is full",
+          "status": "skipped"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority previews the database's stakes, win, draw and loss, with a basis",
+          "status": "skipped"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority joins with a fresh basis, and the draw stake is what a draw applies",
+          "status": "skipped"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority refuses a join without a basis, and never claims on its own",
+          "status": "skipped"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority refuses stale stakes with ranked_stakes_changed and the new preview, and claims nothing",
+          "status": "skipped"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority refuses a claimant already in a Ranked match",
+          "status": "skipped"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority keeps a busy creator's room, refuses it from a stale list, and opens it again once they are free",
+          "status": "skipped"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority tells the claimant it is their own board limit",
+          "status": "skipped"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority refuses a room already taken, your own room, an expired room and a missing one",
+          "status": "skipped"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority keeps the approval gate and refuses unauthenticated requests",
+          "status": "skipped"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority never lets the body name the viewer",
+          "status": "skipped"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority resumes a match you already hold, and plays it to the end",
+          "status": "skipped"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority lets a player with several legacy matches finish them, but not acquire another",
+          "status": "skipped"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority carries each database refusal code through Edge and client unchanged",
+          "status": "skipped"
+        },
+        {
+          "file": "recent-games-local.test.ts",
+          "name": "concurrent retention converges per participant and opens only a safe retained replay",
+          "status": "skipped"
+        },
+        {
+          "file": "recent-storage-benchmark.test.ts",
+          "name": "measures shared Compact retention and safe replay response",
+          "status": "skipped"
+        },
+        {
+          "file": "saved-games-local.test.ts",
+          "name": "explicit Save survives Recent eviction and enforces concurrent capacity at the database",
+          "status": "skipped"
+        },
+        {
+          "file": "saved-lifecycle-local.test.ts",
+          "name": "new private games finish with Compact Recent while Saved is full",
+          "status": "skipped"
+        },
+        {
+          "file": "stage-terminal-local.test.ts",
+          "name": "captures a sealed Stage atomically, once, through server-authoritative live commands",
+          "status": "skipped"
+        },
+        {
+          "file": "storage-cost-corpus.test.ts",
+          "name": "measures finished bot, edit, and branch records",
+          "status": "skipped"
+        },
+        {
+          "file": "sync-performance-local.test.ts",
+          "name": "measures authenticated metadata, replay and Save paths at scale",
+          "status": "skipped"
+        },
+        {
+          "file": "sync-performance-local.test.ts",
+          "name": "measures old-compatible and new terminal requests for the same legal traces",
+          "status": "skipped"
+        },
+        {
+          "file": "sync-performance-local.test.ts",
+          "name": "keeps create, several live commits, reload and the next commit operational",
+          "status": "skipped"
+        },
+        {
+          "file": "terminal-routing-local.test.ts",
+          "name": "finishes through the real frontend when raw room purpose is denied",
+          "status": "skipped"
+        },
+        {
+          "file": "terminal-routing-local.test.ts",
+          "name": "keeps completion/reconnect retries exactly once and exposes only owned safe Replay",
+          "status": "skipped"
+        },
+        {
+          "file": "terminal-routing-local.test.ts",
+          "name": "routes a non-admin Stage and its lost-response retry without trusting the game name",
+          "status": "skipped"
+        },
+        {
+          "file": "terminal-routing-local.test.ts",
+          "name": "reveals no terminal route to spectators, pending users, anonymous clients or Ranked callers",
+          "status": "skipped"
+        }
+      ]
+    },
+    "changed-release": {
+      "numTotalTests": 71,
+      "numPassedTests": 71,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "cases": [
+        {
+          "file": "archbot-storage-local.test.ts",
+          "name": "finishes a production ArchBot room through server authority, Compact, History, Recent and safe Replay",
+          "status": "passed"
+        },
+        {
+          "file": "live-capabilities.test.ts",
+          "name": "additive Physical Host capability ordinary seat aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa has only its own rack",
+          "status": "passed"
+        },
+        {
+          "file": "live-capabilities.test.ts",
+          "name": "additive Physical Host capability ordinary seat bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb has only its own rack",
+          "status": "passed"
+        },
+        {
+          "file": "live-capabilities.test.ts",
+          "name": "additive Physical Host capability Host cccccccc-cccc-4ccc-8ccc-cccccccccccc retains both current racks when owner cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+          "status": "passed"
+        },
+        {
+          "file": "live-capabilities.test.ts",
+          "name": "additive Physical Host capability Host aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa retains both current racks when owner aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          "status": "passed"
+        },
+        {
+          "file": "live-capabilities.test.ts",
+          "name": "additive Physical Host capability Host bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb retains both current racks when owner bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          "status": "passed"
+        },
+        {
+          "file": "live-capabilities.test.ts",
+          "name": "additive Physical Host capability current-rack Host authority reveals no additional historical, ordered-bag or predictive state",
+          "status": "passed"
+        },
+        {
+          "file": "live-capabilities.test.ts",
+          "name": "additive Physical Host capability forged client role claims cannot read or invoke Physical Host authority",
+          "status": "passed"
+        },
+        {
+          "file": "live-capabilities.test.ts",
+          "name": "additive Physical Host capability manual exchange waits for recorded refill and returns outgoing tiles only after replacement",
+          "status": "passed"
+        },
+        {
+          "file": "live-capabilities.test.ts",
+          "name": "local handoff is distinct from online seats requires owner, active side, matching revision and rotating stored claim",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "normal live information boundary does not distinguish different opponent past/current/future secrets for A",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "normal live information boundary does not distinguish different opponent past/current/future secrets for B",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "normal live information boundary gives spectators neither rack nor any hidden history",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "friend live information boundary does not distinguish different opponent past/current/future secrets for A",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "friend live information boundary does not distinguish different opponent past/current/future secrets for B",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "friend live information boundary gives spectators neither rack nor any hidden history",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "ranked live information boundary does not distinguish different opponent past/current/future secrets for A",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "ranked live information boundary does not distinguish different opponent past/current/future secrets for B",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "ranked live information boundary gives spectators neither rack nor any hidden history",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "authur live information boundary does not distinguish different opponent past/current/future secrets for A",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "authur live information boundary does not distinguish different opponent past/current/future secrets for B",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "authur live information boundary gives spectators neither rack nor any hidden history",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "stage live information boundary does not distinguish different opponent past/current/future secrets for A",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "stage live information boundary does not distinguish different opponent past/current/future secrets for B",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "stage live information boundary gives spectators neither rack nor any hidden history",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "authoritative typed live actions authenticates, ignores forged seats/full state and preserves private history",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "authoritative typed live actions stale recovery, reload and a second tab all receive the same authorized projection",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "authoritative typed live actions deduplicates before reducing, and refuses unavailable physical IDs without echoing secrets",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "authoritative typed live actions does not release completion when persistence fails",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "authoritative typed live actions preserves Stage's seeded score floor and untimed clock",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "completed Replay lifecycle and full rack fidelity keeps every historical rack and exact public history (compact)",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "completed Replay lifecycle and full rack fidelity keeps every historical rack and exact public history (legacy)",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "completed Replay lifecycle and full rack fidelity allows genuinely public placed tiles without revealing their private inventory references",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-boundary.test.ts",
+          "name": "completed Replay lifecycle and full rack fidelity measures legal early/middle/late body sizes only as a secondary observation",
+          "status": "passed"
+        },
+        {
+          "file": "live-milestone-s-local.test.ts",
+          "name": "waiting configuration, Unready, role-gated launch/countdown, metadata and stale revisions",
+          "status": "passed"
+        },
+        {
+          "file": "live-milestone-s-local.test.ts",
+          "name": "Physical Hosted history edits restore both current racks privately, with undo/redo, branches, annotations and terminal lock",
+          "status": "passed"
+        },
+        {
+          "file": "live-milestone-s-local.test.ts",
+          "name": "Direct pause request/decline/block/ack/accept/resume persists across reconnect",
+          "status": "passed"
+        },
+        {
+          "file": "live-milestone-s-local.test.ts",
+          "name": "Stage inherited undo/redo/annotations/alternate restore retains sealed opening and private bot history",
+          "status": "passed"
+        },
+        {
+          "file": "live-milestone-s.test.ts",
+          "name": "private compatibility authority waiting configuration cannot inject draw policy, bot identity, mode or hidden position",
+          "status": "passed"
+        },
+        {
+          "file": "live-milestone-s.test.ts",
+          "name": "private compatibility authority undo/redo survives the real codec without restoring name or elapsed clock",
+          "status": "passed"
+        },
+        {
+          "file": "live-milestone-s.test.ts",
+          "name": "private compatibility authority only stored owner capabilities authorize editing; Direct seats cannot undo",
+          "status": "passed"
+        },
+        {
+          "file": "live-milestone-s.test.ts",
+          "name": "private compatibility authority Direct requests preserve decline/block/ack/resume semantics and actor identities",
+          "status": "passed"
+        },
+        {
+          "file": "live-milestone-s.test.ts",
+          "name": "private compatibility authority live history/practice/analysis projections are invariant under opponent historical secrets",
+          "status": "passed"
+        },
+        {
+          "file": "live-milestone-s.test.ts",
+          "name": "private compatibility authority ArchBot's current search rack is a stored normal-practice owner exception only",
+          "status": "passed"
+        },
+        {
+          "file": "live-own-analysis.test.ts",
+          "name": "authorized own-rack analysis cannot distinguish opposite hidden worlds and refuses spectator/opponent analysis",
+          "status": "passed"
+        },
+        {
+          "file": "live-projection-client.test.ts",
+          "name": "shares a browser ArchBot calculation across polls and retries its proposal/UUID after a lost acknowledgement",
+          "status": "passed"
+        },
+        {
+          "file": "live-projection-client.test.ts",
+          "name": "reuses the same command intent after a lost response and never persists a full game",
+          "status": "passed"
+        },
+        {
+          "file": "live-projection-client.test.ts",
+          "name": "conceals a late Pass & Play read, including outgoing rack history in parked lines",
+          "status": "passed"
+        },
+        {
+          "file": "live-projection-client.test.ts",
+          "name": "reconciles on reconnect, focus and revision-only notifications, without adopting event state",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "a game that never branched is one line and nothing else",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "a game that never branched does nothing when asked to continue from where it already is",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "going back, in play mode puts the game exactly where it stood before the chosen turn",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "going back, in play mode puts the game where a turn left it, and keeps everything after it",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "going back, in play mode returns to a parked line exactly as it was left",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "going back, in manual mode puts the game exactly where it stood before the chosen turn",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "going back, in manual mode puts the game where a turn left it, and keeps everything after it",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "going back, in manual mode returns to a parked line exactly as it was left",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "a line played while away is parked when going back, not lost",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "a line played while away shows as a fork with two ways on from the same turn",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "a line played while away can be walked end to end from any of its turns",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "a line played while away gives back the position it reached when it is resumed",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "a line played while away splits a parked line when entered in the middle, keeping the rest parked",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "not repeating what already exists recognizes the parked move when the same one is played again",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "not repeating what already exists does not mistake a different move for it",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "not repeating what already exists compares faces, not which physical copy of a face was used",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "pruning removes a line together with every line continuing from it",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "pruning takes descendants along",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "refusals will not continue a finished game",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "refusals will not invent a position the game never recorded",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "refusals stops growing at the limit instead of drawing an unreadable map",
+          "status": "passed"
+        },
+        {
+          "file": "multiverse.test.ts",
+          "name": "refusals reports a parked line it cannot attach instead of dropping it silently",
+          "status": "passed"
+        }
+      ]
+    },
+    "client-release": {
+      "numTotalTests": 4,
+      "numPassedTests": 4,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "cases": [
+        {
+          "file": "live-projection-client.test.ts",
+          "name": "shares a browser ArchBot calculation across polls and retries its proposal/UUID after a lost acknowledgement",
+          "status": "passed"
+        },
+        {
+          "file": "live-projection-client.test.ts",
+          "name": "reuses the same command intent after a lost response and never persists a full game",
+          "status": "passed"
+        },
+        {
+          "file": "live-projection-client.test.ts",
+          "name": "conceals a late Pass & Play read, including outgoing rack history in parked lines",
+          "status": "passed"
+        },
+        {
+          "file": "live-projection-client.test.ts",
+          "name": "reconciles on reconnect, focus and revision-only notifications, without adopting event state",
+          "status": "passed"
+        }
+      ]
+    },
+    "lifecycle": {
+      "numTotalTests": 18,
+      "numPassedTests": 17,
+      "numFailedTests": 0,
+      "numPendingTests": 1,
+      "cases": [
+        {
+          "file": "game-history-local.test.ts",
+          "name": "creates one History entry per seated user under concurrent authoritative terminal commands",
+          "status": "passed"
+        },
+        {
+          "file": "live-capabilities-local.test.ts",
+          "name": "Physical Hosted: host current racks, recording/correction/completion and full Replay",
+          "status": "passed"
+        },
+        {
+          "file": "live-capabilities-local.test.ts",
+          "name": "Physical Hosted: A+host current racks, recording/correction/completion and full Replay",
+          "status": "passed"
+        },
+        {
+          "file": "live-capabilities-local.test.ts",
+          "name": "Physical Hosted: B+host current racks, recording/correction/completion and full Replay",
+          "status": "passed"
+        },
+        {
+          "file": "live-capabilities-local.test.ts",
+          "name": "Pass & Play play: rotating owner-only handoff, concealed turns and persisted full Replay",
+          "status": "passed"
+        },
+        {
+          "file": "live-capabilities-local.test.ts",
+          "name": "Pass & Play manual: rotating owner-only handoff, concealed turns and persisted full Replay",
+          "status": "passed"
+        },
+        {
+          "file": "live-compatibility-local.test.ts",
+          "name": "secure self-directed Solo starts from one Ready seat and preserves lifecycle/Replay",
+          "status": "passed"
+        },
+        {
+          "file": "live-compatibility-local.test.ts",
+          "name": "secure Hosted Solo starts from one Ready seat and preserves lifecycle/Replay",
+          "status": "passed"
+        },
+        {
+          "file": "live-compatibility-local.test.ts",
+          "name": "F10/F27: physical Hosted creation must support the required recording workflow",
+          "status": "passed"
+        },
+        {
+          "file": "live-compatibility-local.test.ts",
+          "name": "F07: Pass & Play retains its mode identity and supports a second-player handoff",
+          "status": "passed"
+        },
+        {
+          "file": "live-compatibility-local.test.ts",
+          "name": "legacy cutover preserves private evidence, gates old metadata writers, and protects active completion",
+          "status": "passed"
+        },
+        {
+          "file": "live-storage-capacity-local.test.ts",
+          "name": "authoritative private completion keeps History/Recent/Replay available when Free/Plus/Pro Saved is full",
+          "status": "passed"
+        },
+        {
+          "file": "saved-lifecycle-local.test.ts",
+          "name": "new private games finish with Compact Recent while Saved is full",
+          "status": "skipped"
+        },
+        {
+          "file": "stage-terminal-local.test.ts",
+          "name": "captures a sealed Stage atomically, once, through server-authoritative live commands",
+          "status": "passed"
+        },
+        {
+          "file": "terminal-routing-local.test.ts",
+          "name": "finishes through the real frontend when raw room purpose is denied",
+          "status": "passed"
+        },
+        {
+          "file": "terminal-routing-local.test.ts",
+          "name": "keeps completion/reconnect retries exactly once and exposes only owned safe Replay",
+          "status": "passed"
+        },
+        {
+          "file": "terminal-routing-local.test.ts",
+          "name": "routes a non-admin Stage and its lost-response retry without trusting the game name",
+          "status": "passed"
+        },
+        {
+          "file": "terminal-routing-local.test.ts",
+          "name": "reveals no terminal route to spectators, pending users, anonymous clients or Ranked callers",
+          "status": "passed"
+        }
+      ]
+    },
+    "seats-development": {
+      "numTotalTests": 9,
+      "numPassedTests": 9,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "cases": [
+        {
+          "file": "development-recipient-routes.test.tsx",
+          "name": "Study preview renders only its player position and own rack without opening the archive or legacy App",
+          "status": "passed"
+        },
+        {
+          "file": "development-recipient-routes.test.tsx",
+          "name": "Survival playtest reconnects to the existing recipient source with one rack and public log",
+          "status": "passed"
+        },
+        {
+          "file": "live-projection-client.test.ts",
+          "name": "shares a browser ArchBot calculation across polls and retries its proposal/UUID after a lost acknowledgement",
+          "status": "passed"
+        },
+        {
+          "file": "live-projection-client.test.ts",
+          "name": "reuses the same command intent after a lost response and never persists a full game",
+          "status": "passed"
+        },
+        {
+          "file": "live-projection-client.test.ts",
+          "name": "reconciles on reconnect, focus and revision-only notifications, without adopting event state",
+          "status": "passed"
+        },
+        {
+          "file": "live-seat-timer-local.test.ts",
+          "name": "open seat and room-code joins change capability revision, invalidate Ready and preserve recipient scope",
+          "status": "passed"
+        },
+        {
+          "file": "live-seat-timer-local.test.ts",
+          "name": "region access and the baseline private autosave retirement preserve scope without live snapshots",
+          "status": "passed"
+        },
+        {
+          "file": "live-seat-timer-local.test.ts",
+          "name": "Authur as A starts and commits its full trusted turn before human B, with exactly one funding consumption",
+          "status": "passed"
+        },
+        {
+          "file": "live-seat-timer-local.test.ts",
+          "name": "asymmetric clocks keep an untimed side, clamp normal overtime and pause Save & Exit for Solo",
+          "status": "passed"
+        }
+      ]
+    },
+    "boundary-saved": {
+      "numTotalTests": 2,
+      "numPassedTests": 1,
+      "numFailedTests": 1,
+      "numPendingTests": 0,
+      "cases": [
+        {
+          "file": "live-hidden-local.test.ts",
+          "name": "enforces every live access path and commits Replay only with successful persistence",
+          "status": "passed"
+        },
+        {
+          "file": "saved-lifecycle-local.test.ts",
+          "name": "new private games finish with Compact Recent while Saved is full",
+          "status": "failed"
+        }
+      ]
+    },
+    "saved-release": {
+      "numTotalTests": 1,
+      "numPassedTests": 1,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "cases": [
+        {
+          "file": "saved-lifecycle-local.test.ts",
+          "name": "new private games finish with Compact Recent while Saved is full",
+          "status": "passed"
+        }
+      ]
+    },
+    "recovery-release": {
+      "numTotalTests": 2,
+      "numPassedTests": 2,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "cases": [
+        {
+          "file": "live-release-recovery-local.test.ts",
+          "name": "authur recovers initialization failure, crash, expired lease and lost acknowledgement without a browser or extra charge",
+          "status": "passed"
+        },
+        {
+          "file": "live-release-recovery-local.test.ts",
+          "name": "queues a bot turn atomically with its stored revision even when Edge never enqueues, and retries transient failures",
+          "status": "passed"
+        }
+      ]
+    }
+  },
+  "acceptedReuse": {
+    "eq-capability-boundary-storage": {
+      "numTotalTests": 4,
+      "numPassedTests": 4,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "cases": [
+        {
+          "file": "archive-replay-local.test.ts",
+          "name": "serves only safe replay through a real local archive endpoint",
+          "status": "passed"
+        },
+        {
+          "file": "live-hidden-local.test.ts",
+          "name": "enforces every live access path and commits Replay only with successful persistence",
+          "status": "passed"
+        },
+        {
+          "file": "recent-games-local.test.ts",
+          "name": "concurrent retention converges per participant and opens only a safe retained replay",
+          "status": "passed"
+        },
+        {
+          "file": "saved-games-local.test.ts",
+          "name": "explicit Save survives Recent eviction and enforces concurrent capacity at the database",
+          "status": "passed"
+        }
+      ]
+    },
+    "eq-capability-ranked-db-final": {
+      "numTotalTests": 13,
+      "numPassedTests": 13,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "cases": [
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority previews the database's stakes, win, draw and loss, with a basis",
+          "status": "passed"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority joins with a fresh basis, and the draw stake is what a draw applies",
+          "status": "passed"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority refuses a join without a basis, and never claims on its own",
+          "status": "passed"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority refuses stale stakes with ranked_stakes_changed and the new preview, and claims nothing",
+          "status": "passed"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority refuses a claimant already in a Ranked match",
+          "status": "passed"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority keeps a busy creator's room, refuses it from a stale list, and opens it again once they are free",
+          "status": "passed"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority tells the claimant it is their own board limit",
+          "status": "passed"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority refuses a room already taken, your own room, an expired room and a missing one",
+          "status": "passed"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority keeps the approval gate and refuses unauthenticated requests",
+          "status": "passed"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority never lets the body name the viewer",
+          "status": "passed"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority resumes a match you already hold, and plays it to the end",
+          "status": "passed"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority lets a player with several legacy matches finish them, but not acquire another",
+          "status": "passed"
+        },
+        {
+          "file": "ranked-edge-db.test.ts",
+          "name": "the Ranked Edge Function on the C7 authority carries each database refusal code through Edge and client unchanged",
+          "status": "passed"
+        }
+      ]
+    },
+    "eq-capability-recovery-final": {
+      "numTotalTests": 4,
+      "numPassedTests": 4,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "cases": [
+        {
+          "file": "live-release-recovery-local.test.ts",
+          "name": "authur recovers initialization failure, crash, expired lease and lost acknowledgement without a browser or extra charge",
+          "status": "passed",
+          "selectedForCurrentEvidence": false
+        },
+        {
+          "file": "live-release-recovery-local.test.ts",
+          "name": "stage5b recovers initialization failure, crash, expired lease and lost acknowledgement without a browser or extra charge",
+          "status": "passed",
+          "selectedForCurrentEvidence": false
+        },
+        {
+          "file": "live-release-recovery-local.test.ts",
+          "name": "queues a bot turn atomically with its stored revision even when Edge never enqueues, and retries transient failures",
+          "status": "passed",
+          "selectedForCurrentEvidence": false
+        },
+        {
+          "file": "live-stage-progression-local.test.ts",
+          "name": "plays a repository Stage candidate to a natural win with trusted Authur, persisted progression and two-sided Replay",
+          "status": "passed",
+          "selectedForCurrentEvidence": true
+        }
+      ]
+    },
+    "eq-capability-creation-closed": {
+      "numTotalTests": 1,
+      "numPassedTests": 1,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "cases": [
+        {
+          "file": "live-creation-controls-local.test.ts",
+          "name": "rollout switches close Normal and Stage creation without charges or disabling existing projections",
+          "status": "passed"
+        }
+      ]
+    },
+    "eq-capability-creation-stage-only": {
+      "numTotalTests": 1,
+      "numPassedTests": 1,
+      "numFailedTests": 0,
+      "numPendingTests": 0,
+      "cases": [
+        {
+          "file": "live-creation-controls-local.test.ts",
+          "name": "rollout switches close Normal and Stage creation without charges or disabling existing projections",
+          "status": "passed"
+        }
+      ]
+    }
+  },
+  "defaultSkipDisposition": [
+    {
+      "file": "archbot-storage-local.test.ts",
+      "name": "finishes a production ArchBot room through server authority, Compact, History, Recent and safe Replay",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "changed-release",
+      "disposition": "PASS full client chosen proposal, secrecy/retry/Storage/no rewards."
+    },
+    {
+      "file": "archive-replay-local.test.ts",
+      "name": "serves only safe replay through a real local archive endpoint",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "eq-capability-boundary-storage",
+      "disposition": "PASS reused unchanged archive endpoint."
+    },
+    {
+      "file": "completed-game-benchmark.test.ts",
+      "name": "reports reproducible compact-record measurements",
+      "status": "skipped",
+      "releaseCritical": false,
+      "evidence": "OPTIONAL not run",
+      "disposition": "Two measurement/scale cases; security lifecycle separately exercised."
+    },
+    {
+      "file": "completed-game-benchmark.test.ts",
+      "name": "profiles representative legal events and repeated local replay timings",
+      "status": "skipped",
+      "releaseCritical": false,
+      "evidence": "OPTIONAL not run",
+      "disposition": "Two measurement/scale cases; security lifecycle separately exercised."
+    },
+    {
+      "file": "full-super-parity.test.ts",
+      "name": "the bundled engine runs the full 160-sample schedule and matches the native reference exactly",
+      "status": "skipped",
+      "releaseCritical": false,
+      "evidence": "OPTIONAL not run",
+      "disposition": "Unchanged full-Super 160-sample parity; not changed security code."
+    },
+    {
+      "file": "game-history-local.test.ts",
+      "name": "creates one History entry per seated user under concurrent authoritative terminal commands",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "lifecycle",
+      "disposition": "PASS authoritative concurrent History."
+    },
+    {
+      "file": "live-capabilities-local.test.ts",
+      "name": "Physical Hosted: host current racks, recording/correction/completion and full Replay",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "lifecycle",
+      "disposition": "PASS five Physical Host/local lifecycle cases."
+    },
+    {
+      "file": "live-capabilities-local.test.ts",
+      "name": "Physical Hosted: A+host current racks, recording/correction/completion and full Replay",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "lifecycle",
+      "disposition": "PASS five Physical Host/local lifecycle cases."
+    },
+    {
+      "file": "live-capabilities-local.test.ts",
+      "name": "Physical Hosted: B+host current racks, recording/correction/completion and full Replay",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "lifecycle",
+      "disposition": "PASS five Physical Host/local lifecycle cases."
+    },
+    {
+      "file": "live-capabilities-local.test.ts",
+      "name": "Pass & Play play: rotating owner-only handoff, concealed turns and persisted full Replay",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "lifecycle",
+      "disposition": "PASS five Physical Host/local lifecycle cases."
+    },
+    {
+      "file": "live-capabilities-local.test.ts",
+      "name": "Pass & Play manual: rotating owner-only handoff, concealed turns and persisted full Replay",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "lifecycle",
+      "disposition": "PASS five Physical Host/local lifecycle cases."
+    },
+    {
+      "file": "live-compatibility-local.test.ts",
+      "name": "secure self-directed Solo starts from one Ready seat and preserves lifecycle/Replay",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "lifecycle",
+      "disposition": "PASS five Solo/Hosted/physical/local/legacy cases."
+    },
+    {
+      "file": "live-compatibility-local.test.ts",
+      "name": "secure Hosted Solo starts from one Ready seat and preserves lifecycle/Replay",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "lifecycle",
+      "disposition": "PASS five Solo/Hosted/physical/local/legacy cases."
+    },
+    {
+      "file": "live-compatibility-local.test.ts",
+      "name": "F10/F27: physical Hosted creation must support the required recording workflow",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "lifecycle",
+      "disposition": "PASS five Solo/Hosted/physical/local/legacy cases."
+    },
+    {
+      "file": "live-compatibility-local.test.ts",
+      "name": "F07: Pass & Play retains its mode identity and supports a second-player handoff",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "lifecycle",
+      "disposition": "PASS five Solo/Hosted/physical/local/legacy cases."
+    },
+    {
+      "file": "live-compatibility-local.test.ts",
+      "name": "legacy cutover preserves private evidence, gates old metadata writers, and protects active completion",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "lifecycle",
+      "disposition": "PASS five Solo/Hosted/physical/local/legacy cases."
+    },
+    {
+      "file": "live-creation-controls-local.test.ts",
+      "name": "rollout switches close Normal and Stage creation without charges or disabling existing projections",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "eq-capability-creation-closed + eq-capability-creation-stage-only",
+      "disposition": "PASS same case in both closed configurations."
+    },
+    {
+      "file": "live-hidden-local.test.ts",
+      "name": "enforces every live access path and commits Replay only with successful persistence",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "boundary-saved",
+      "disposition": "PASS real JWT/RLS/Realtime/terminal rollback case; Saved failure there replaced by saved-release."
+    },
+    {
+      "file": "live-milestone-s-local.test.ts",
+      "name": "waiting configuration, Unready, role-gated launch/countdown, metadata and stale revisions",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "changed-release",
+      "disposition": "PASS four controls/Host history/Direct pause/Stage editing cases."
+    },
+    {
+      "file": "live-milestone-s-local.test.ts",
+      "name": "Physical Hosted history edits restore both current racks privately, with undo/redo, branches, annotations and terminal lock",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "changed-release",
+      "disposition": "PASS four controls/Host history/Direct pause/Stage editing cases."
+    },
+    {
+      "file": "live-milestone-s-local.test.ts",
+      "name": "Direct pause request/decline/block/ack/accept/resume persists across reconnect",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "changed-release",
+      "disposition": "PASS four controls/Host history/Direct pause/Stage editing cases."
+    },
+    {
+      "file": "live-milestone-s-local.test.ts",
+      "name": "Stage inherited undo/redo/annotations/alternate restore retains sealed opening and private bot history",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "changed-release",
+      "disposition": "PASS four controls/Host history/Direct pause/Stage editing cases."
+    },
+    {
+      "file": "live-release-recovery-local.test.ts",
+      "name": "authur recovers initialization failure, crash, expired lease and lost acknowledgement without a browser or extra charge",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "recovery-release",
+      "disposition": "PASS two Authur crash/lease/ack/outbox cases."
+    },
+    {
+      "file": "live-release-recovery-local.test.ts",
+      "name": "queues a bot turn atomically with its stored revision even when Edge never enqueues, and retries transient failures",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "recovery-release",
+      "disposition": "PASS two Authur crash/lease/ack/outbox cases."
+    },
+    {
+      "file": "live-seat-timer-local.test.ts",
+      "name": "open seat and room-code joins change capability revision, invalidate Ready and preserve recipient scope",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "seats-development",
+      "disposition": "PASS four waiting join/region/Authur-A/timer cases."
+    },
+    {
+      "file": "live-seat-timer-local.test.ts",
+      "name": "region access and the baseline private autosave retirement preserve scope without live snapshots",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "seats-development",
+      "disposition": "PASS four waiting join/region/Authur-A/timer cases."
+    },
+    {
+      "file": "live-seat-timer-local.test.ts",
+      "name": "Authur as A starts and commits its full trusted turn before human B, with exactly one funding consumption",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "seats-development",
+      "disposition": "PASS four waiting join/region/Authur-A/timer cases."
+    },
+    {
+      "file": "live-seat-timer-local.test.ts",
+      "name": "asymmetric clocks keep an untimed side, clamp normal overtime and pause Save & Exit for Solo",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "seats-development",
+      "disposition": "PASS four waiting join/region/Authur-A/timer cases."
+    },
+    {
+      "file": "live-stage-progression-local.test.ts",
+      "name": "plays a repository Stage candidate to a natural win with trusted Authur, persisted progression and two-sided Replay",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "eq-capability-recovery-final Stage case only",
+      "disposition": "PASS reused natural win/progression; ordinary path unchanged."
+    },
+    {
+      "file": "live-storage-capacity-local.test.ts",
+      "name": "authoritative private completion keeps History/Recent/Replay available when Free/Plus/Pro Saved is full",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "lifecycle",
+      "disposition": "PASS Free/Plus/Pro Saved-full authoritative completion."
+    },
+    {
+      "file": "ranked-edge-db.test.ts",
+      "name": "the Ranked Edge Function on the C7 authority previews the database's stakes, win, draw and loss, with a basis",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "eq-capability-ranked-db-final",
+      "disposition": "PASS reused all 13 unchanged Ranked authority cases."
+    },
+    {
+      "file": "ranked-edge-db.test.ts",
+      "name": "the Ranked Edge Function on the C7 authority joins with a fresh basis, and the draw stake is what a draw applies",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "eq-capability-ranked-db-final",
+      "disposition": "PASS reused all 13 unchanged Ranked authority cases."
+    },
+    {
+      "file": "ranked-edge-db.test.ts",
+      "name": "the Ranked Edge Function on the C7 authority refuses a join without a basis, and never claims on its own",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "eq-capability-ranked-db-final",
+      "disposition": "PASS reused all 13 unchanged Ranked authority cases."
+    },
+    {
+      "file": "ranked-edge-db.test.ts",
+      "name": "the Ranked Edge Function on the C7 authority refuses stale stakes with ranked_stakes_changed and the new preview, and claims nothing",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "eq-capability-ranked-db-final",
+      "disposition": "PASS reused all 13 unchanged Ranked authority cases."
+    },
+    {
+      "file": "ranked-edge-db.test.ts",
+      "name": "the Ranked Edge Function on the C7 authority refuses a claimant already in a Ranked match",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "eq-capability-ranked-db-final",
+      "disposition": "PASS reused all 13 unchanged Ranked authority cases."
+    },
+    {
+      "file": "ranked-edge-db.test.ts",
+      "name": "the Ranked Edge Function on the C7 authority keeps a busy creator's room, refuses it from a stale list, and opens it again once they are free",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "eq-capability-ranked-db-final",
+      "disposition": "PASS reused all 13 unchanged Ranked authority cases."
+    },
+    {
+      "file": "ranked-edge-db.test.ts",
+      "name": "the Ranked Edge Function on the C7 authority tells the claimant it is their own board limit",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "eq-capability-ranked-db-final",
+      "disposition": "PASS reused all 13 unchanged Ranked authority cases."
+    },
+    {
+      "file": "ranked-edge-db.test.ts",
+      "name": "the Ranked Edge Function on the C7 authority refuses a room already taken, your own room, an expired room and a missing one",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "eq-capability-ranked-db-final",
+      "disposition": "PASS reused all 13 unchanged Ranked authority cases."
+    },
+    {
+      "file": "ranked-edge-db.test.ts",
+      "name": "the Ranked Edge Function on the C7 authority keeps the approval gate and refuses unauthenticated requests",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "eq-capability-ranked-db-final",
+      "disposition": "PASS reused all 13 unchanged Ranked authority cases."
+    },
+    {
+      "file": "ranked-edge-db.test.ts",
+      "name": "the Ranked Edge Function on the C7 authority never lets the body name the viewer",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "eq-capability-ranked-db-final",
+      "disposition": "PASS reused all 13 unchanged Ranked authority cases."
+    },
+    {
+      "file": "ranked-edge-db.test.ts",
+      "name": "the Ranked Edge Function on the C7 authority resumes a match you already hold, and plays it to the end",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "eq-capability-ranked-db-final",
+      "disposition": "PASS reused all 13 unchanged Ranked authority cases."
+    },
+    {
+      "file": "ranked-edge-db.test.ts",
+      "name": "the Ranked Edge Function on the C7 authority lets a player with several legacy matches finish them, but not acquire another",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "eq-capability-ranked-db-final",
+      "disposition": "PASS reused all 13 unchanged Ranked authority cases."
+    },
+    {
+      "file": "ranked-edge-db.test.ts",
+      "name": "the Ranked Edge Function on the C7 authority carries each database refusal code through Edge and client unchanged",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "eq-capability-ranked-db-final",
+      "disposition": "PASS reused all 13 unchanged Ranked authority cases."
+    },
+    {
+      "file": "recent-games-local.test.ts",
+      "name": "concurrent retention converges per participant and opens only a safe retained replay",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "eq-capability-boundary-storage",
+      "disposition": "PASS reused unchanged concurrent retention/Replay."
+    },
+    {
+      "file": "recent-storage-benchmark.test.ts",
+      "name": "measures shared Compact retention and safe replay response",
+      "status": "skipped",
+      "releaseCritical": false,
+      "evidence": "OPTIONAL not run",
+      "disposition": "Retention scale measurement; basic retention separately exercised."
+    },
+    {
+      "file": "saved-games-local.test.ts",
+      "name": "explicit Save survives Recent eviction and enforces concurrent capacity at the database",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "eq-capability-boundary-storage",
+      "disposition": "PASS reused unchanged explicit Save/eviction/concurrent capacity."
+    },
+    {
+      "file": "saved-lifecycle-local.test.ts",
+      "name": "new private games finish with Compact Recent while Saved is full",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "saved-release",
+      "disposition": "PASS current typed launch and complete Saved lifecycle."
+    },
+    {
+      "file": "stage-terminal-local.test.ts",
+      "name": "captures a sealed Stage atomically, once, through server-authoritative live commands",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "lifecycle",
+      "disposition": "PASS authoritative sealed Stage atomic terminal."
+    },
+    {
+      "file": "storage-cost-corpus.test.ts",
+      "name": "measures finished bot, edit, and branch records",
+      "status": "skipped",
+      "releaseCritical": false,
+      "evidence": "OPTIONAL not run",
+      "disposition": "Cost/corpus measurement; basic terminal/branches separately exercised."
+    },
+    {
+      "file": "sync-performance-local.test.ts",
+      "name": "measures authenticated metadata, replay and Save paths at scale",
+      "status": "skipped",
+      "releaseCritical": false,
+      "evidence": "OPTIONAL prohibited by current scope",
+      "disposition": "Three old Sync performance opt-ins; no Sync benchmark executed."
+    },
+    {
+      "file": "sync-performance-local.test.ts",
+      "name": "measures old-compatible and new terminal requests for the same legal traces",
+      "status": "skipped",
+      "releaseCritical": false,
+      "evidence": "OPTIONAL prohibited by current scope",
+      "disposition": "Three old Sync performance opt-ins; no Sync benchmark executed."
+    },
+    {
+      "file": "sync-performance-local.test.ts",
+      "name": "keeps create, several live commits, reload and the next commit operational",
+      "status": "skipped",
+      "releaseCritical": false,
+      "evidence": "OPTIONAL prohibited by current scope",
+      "disposition": "Three old Sync performance opt-ins; no Sync benchmark executed."
+    },
+    {
+      "file": "terminal-routing-local.test.ts",
+      "name": "finishes through the real frontend when raw room purpose is denied",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "lifecycle",
+      "disposition": "PASS four current frontend terminal/retry/ownership cases."
+    },
+    {
+      "file": "terminal-routing-local.test.ts",
+      "name": "keeps completion/reconnect retries exactly once and exposes only owned safe Replay",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "lifecycle",
+      "disposition": "PASS four current frontend terminal/retry/ownership cases."
+    },
+    {
+      "file": "terminal-routing-local.test.ts",
+      "name": "routes a non-admin Stage and its lost-response retry without trusting the game name",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "lifecycle",
+      "disposition": "PASS four current frontend terminal/retry/ownership cases."
+    },
+    {
+      "file": "terminal-routing-local.test.ts",
+      "name": "reveals no terminal route to spectators, pending users, anonymous clients or Ranked callers",
+      "status": "skipped",
+      "releaseCritical": true,
+      "evidence": "lifecycle",
+      "disposition": "PASS four current frontend terminal/retry/ownership cases."
+    }
+  ],
+  "archbotProductDecision": "Full client Stage5B64 FREE noncompetitive practice; own current bot search observation accepted, no ordered bag/draw RNG/unrelated hidden history; no material rewards or trusted ArchBot worker requirement.",
+  "browser": {
+    "totalFinalScenarios": 15,
+    "unchangedPassed": 12,
+    "authurStageLaunchPassed": 1,
+    "normalLaunchPassed": 1,
+    "failedSetupAttemptsExcluded": true,
+    "rankedBundlePassed": 1,
+    "rankedFinalEvidence": "eq-milestone-s-ranked-browser-final.log"
+  },
+  "productionPREOpen": [],
+  "rolloutGate": {
+    "readOnly": true,
+    "privateColumnChecks": 22,
+    "requiredServiceFunctions": 10,
+    "unsafeGrants": false,
+    "privateRealtimeRelations": 0,
+    "activeArchbotJobs": 0,
+    "genuineLegacyFixturePreserved": 1,
+    "syntheticAfterCutoverUnpreservedFixtures": 4,
+    "strictPreservationAbortObserved": true
+  },
+  "candidateCommitted": false,
+  "deployed": false,
+  "syncBenchmarkRun": false,
+  "candidateReview": {
+    "credentialValuesPrinted": false,
+    "temporaryDebugLoggingRemoved": true,
+    "engineModelBytesPreserved": true,
+    "bundleIdentityVerified": true,
+    "result": "No material local blocker remains; production PRE gaps stay open."
+  },
+  "secretScan": {
+    "candidateFiles": 129,
+    "actualPrivateValueHits": 0,
+    "embeddedServiceRoleJwtHits": 0,
+    "archCoreChangedFiles": [],
+    "benchmarkArtifactsAdded": []
+  },
+  "localCandidateVerdict": "GO",
+  "productionReleaseVerdict": "NOT AUTHORIZED; DEPLOY-TIME/POST GATES OPEN",
+  "bundleReview": [
+    {
+      "name": "live-game",
+      "sourceMatchesBundle": true
+    },
+    {
+      "name": "archive-replay",
+      "sourceMatchesBundle": true
+    },
+    {
+      "name": "normal-terminal",
+      "sourceMatchesBundle": true
+    },
+    {
+      "name": "stage-terminal",
+      "sourceMatchesBundle": true
+    },
+    {
+      "name": "ranked",
+      "sourceMatchesBundle": true
+    }
+  ],
+  "archbotParityReuse": {
+    "passed": 101,
+    "failed": 0,
+    "skipped": 0,
+    "evidence": "eq-release-archbot-parity-final.log",
+    "coreUnchanged": true
+  },
+  "commitDisposition": "Not created: user requests preflight closure and exact next step. Local candidate preparation can proceed; no push/merge/deployment is authorized.",
+  "productionPreflight": {
+    "updatedAt": "2026-10-01T19:15:00Z",
+    "userTimezone": "Asia/Bangkok",
+    "verdict": "PASS",
+    "connectionEvidence": {
+      "supabaseProject": "ilhtcsnndlcsyfdznoow",
+      "supabaseReadOnly": true,
+      "transactionReadOnly": "on",
+      "callable": {
+        "supabase": true,
+        "render": true,
+        "vercel": true
+      },
+      "productionRecordEvidenceRetrieved": true,
+      "credentialsPrinted": false,
+      "credentialValuesStoredInArtifacts": false,
+      "limitations": [
+        "Vercel explicit team scope 403; default connection scope project/deployment reads succeeded",
+        "Vercel source tree 404; source file 401",
+        "Render has no environment read tool",
+        "Supabase has no backup/PITR read tool",
+        "Vercel responses omit cron/auto-deploy controls"
+      ],
+      "transientReadsRecovered": true
+    },
+    "groups": {
+      "migrationLedger": {
+        "evaluation": "PASS",
+        "versions": [
+          "20260901000000",
+          "20260901000100",
+          "20260924170000",
+          "20260924170100",
+          "20260924180000",
+          "20260925120000",
+          "20260926100000",
+          "20260926100100",
+          "20260927120000",
+          "20260928110000",
+          "20260928120000",
+          "20260929100000",
+          "20260929110000",
+          "20260929120000",
+          "20260929130000",
+          "20260929140000",
+          "20260930100000",
+          "20260930110000",
+          "20260930120000",
+          "20261001101000",
+          "20261001101100",
+          "20261001101200",
+          "20261001101300",
+          "20261001101400",
+          "20261001101500",
+          "20261001101600",
+          "20261001101700",
+          "20261001101800",
+          "20261001101900",
+          "20261001102000",
+          "20261001102100",
+          "20261001102200",
+          "20261001102300",
+          "20261001102400",
+          "20261001102500",
+          "20261001102600"
+        ],
+        "candidatePendingVersions": [
+          "20261001103000",
+          "20261001103100",
+          "20261001103200",
+          "20261001103300",
+          "20261001103400",
+          "20261001103500",
+          "20261001103600",
+          "20261001103700",
+          "20261001103800"
+        ]
+      },
+      "botCatalog": {
+        "evaluation": "PASS",
+        "rows": [
+          {
+            "bot_key": "aether_easy",
+            "engine_family": "aether",
+            "difficulty": "easy",
+            "mode_key": "aether_easy",
+            "execution_type": "SERVER",
+            "access_tier": "free",
+            "lifecycle": "retired",
+            "enabled": true,
+            "new_rooms_allowed": false,
+            "config_version": 1
+          },
+          {
+            "bot_key": "aether_hard",
+            "engine_family": "aether",
+            "difficulty": "hard",
+            "mode_key": "aether_hard",
+            "execution_type": "SERVER",
+            "access_tier": "free",
+            "lifecycle": "retired",
+            "enabled": true,
+            "new_rooms_allowed": false,
+            "config_version": 1
+          },
+          {
+            "bot_key": "aether_max",
+            "engine_family": "aether",
+            "difficulty": "max",
+            "mode_key": "aether_max",
+            "execution_type": "SERVER",
+            "access_tier": "free",
+            "lifecycle": "retired",
+            "enabled": true,
+            "new_rooms_allowed": false,
+            "config_version": 1
+          },
+          {
+            "bot_key": "aether_medium",
+            "engine_family": "aether",
+            "difficulty": "medium",
+            "mode_key": "aether_medium",
+            "execution_type": "SERVER",
+            "access_tier": "free",
+            "lifecycle": "retired",
+            "enabled": true,
+            "new_rooms_allowed": false,
+            "config_version": 1
+          },
+          {
+            "bot_key": "aether_super",
+            "engine_family": "aether",
+            "difficulty": "super",
+            "mode_key": "aether_super",
+            "execution_type": "HYBRID",
+            "access_tier": "free",
+            "lifecycle": "retired",
+            "enabled": true,
+            "new_rooms_allowed": false,
+            "config_version": 1
+          },
+          {
+            "bot_key": "authur_strong",
+            "engine_family": "authur",
+            "difficulty": "super",
+            "mode_key": "authur_strong",
+            "execution_type": "SERVER",
+            "access_tier": "pro",
+            "lifecycle": "active",
+            "enabled": true,
+            "new_rooms_allowed": true,
+            "config_version": 2
+          },
+          {
+            "bot_key": "stage5b",
+            "engine_family": "stage5b",
+            "difficulty": "stage5b64",
+            "mode_key": "stage5b_standard",
+            "execution_type": "CLIENT",
+            "access_tier": "free",
+            "lifecycle": "active",
+            "enabled": true,
+            "new_rooms_allowed": true,
+            "config_version": 1
+          }
+        ]
+      },
+      "productionSettings": {
+        "evaluation": "PASS",
+        "settings": [
+          {
+            "key": "max_active_boards_per_user",
+            "value_int": 3
+          },
+          {
+            "key": "private_board_limit",
+            "value_int": 1000
+          },
+          {
+            "key": "private_folder_depth_limit",
+            "value_int": 8
+          },
+          {
+            "key": "private_folder_limit",
+            "value_int": 200
+          },
+          {
+            "key": "public_archive_limit",
+            "value_int": 100000
+          },
+          {
+            "key": "region_archive_limit",
+            "value_int": 1000
+          }
+        ],
+        "capabilities": [
+          {
+            "plan_key": "free",
+            "capability_key": "private_drive_limit",
+            "status": "decided",
+            "value": 100,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "free",
+            "capability_key": "probot_allowance_capacity",
+            "status": "decided",
+            "value": 0,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "free",
+            "capability_key": "probot_regen_minutes",
+            "status": "undecided",
+            "value": null,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "free",
+            "capability_key": "probot_weekly_allowance_cap",
+            "status": "decided",
+            "value": 0,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "free",
+            "capability_key": "stage_plan_ceiling",
+            "status": "decided",
+            "value": 20,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "plus",
+            "capability_key": "private_drive_limit",
+            "status": "decided",
+            "value": 1000,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "plus",
+            "capability_key": "probot_allowance_capacity",
+            "status": "decided",
+            "value": 3,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "plus",
+            "capability_key": "probot_regen_minutes",
+            "status": "decided",
+            "value": 30,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "plus",
+            "capability_key": "probot_weekly_allowance_cap",
+            "status": "decided",
+            "value": 30,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "plus",
+            "capability_key": "stage_plan_ceiling",
+            "status": "decided",
+            "value": 40,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "pro",
+            "capability_key": "private_drive_limit",
+            "status": "same_as",
+            "value": null,
+            "same_as_plan": "plus"
+          },
+          {
+            "plan_key": "pro",
+            "capability_key": "probot_allowance_capacity",
+            "status": "decided",
+            "value": 10,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "pro",
+            "capability_key": "probot_regen_minutes",
+            "status": "decided",
+            "value": 30,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "pro",
+            "capability_key": "probot_weekly_allowance_cap",
+            "status": "decided",
+            "value": 300,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "pro",
+            "capability_key": "stage_plan_ceiling",
+            "status": "decided",
+            "value": 50,
+            "same_as_plan": null
+          }
+        ],
+        "toolMappings": [
+          {
+            "mode_key": "aether_easy",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "aether_easy",
+            "tool_key": "bot_insight"
+          },
+          {
+            "mode_key": "aether_easy",
+            "tool_key": "multiverse"
+          },
+          {
+            "mode_key": "aether_easy",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "aether_easy",
+            "tool_key": "turn_log"
+          },
+          {
+            "mode_key": "aether_hard",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "aether_hard",
+            "tool_key": "bot_insight"
+          },
+          {
+            "mode_key": "aether_hard",
+            "tool_key": "multiverse"
+          },
+          {
+            "mode_key": "aether_hard",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "aether_hard",
+            "tool_key": "turn_log"
+          },
+          {
+            "mode_key": "aether_max",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "aether_max",
+            "tool_key": "bot_insight"
+          },
+          {
+            "mode_key": "aether_max",
+            "tool_key": "multiverse"
+          },
+          {
+            "mode_key": "aether_max",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "aether_max",
+            "tool_key": "turn_log"
+          },
+          {
+            "mode_key": "aether_medium",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "aether_medium",
+            "tool_key": "bot_insight"
+          },
+          {
+            "mode_key": "aether_medium",
+            "tool_key": "multiverse"
+          },
+          {
+            "mode_key": "aether_medium",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "aether_medium",
+            "tool_key": "turn_log"
+          },
+          {
+            "mode_key": "aether_super",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "aether_super",
+            "tool_key": "bot_insight"
+          },
+          {
+            "mode_key": "aether_super",
+            "tool_key": "multiverse"
+          },
+          {
+            "mode_key": "aether_super",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "aether_super",
+            "tool_key": "turn_log"
+          },
+          {
+            "mode_key": "authur_strong",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "authur_strong",
+            "tool_key": "bot_insight"
+          },
+          {
+            "mode_key": "authur_strong",
+            "tool_key": "multiverse"
+          },
+          {
+            "mode_key": "authur_strong",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "authur_strong",
+            "tool_key": "turn_log"
+          },
+          {
+            "mode_key": "hosted_versus",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "hosted_versus",
+            "tool_key": "multiverse"
+          },
+          {
+            "mode_key": "hosted_versus",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "hosted_versus",
+            "tool_key": "turn_log"
+          },
+          {
+            "mode_key": "local_versus",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "local_versus",
+            "tool_key": "multiverse"
+          },
+          {
+            "mode_key": "local_versus",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "local_versus",
+            "tool_key": "turn_log"
+          },
+          {
+            "mode_key": "online_versus",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "online_versus",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "online_versus",
+            "tool_key": "turn_log"
+          },
+          {
+            "mode_key": "solo_practice",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "solo_practice",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "solo_practice",
+            "tool_key": "turn_log"
+          },
+          {
+            "mode_key": "stage5b_standard",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "stage5b_standard",
+            "tool_key": "multiverse"
+          },
+          {
+            "mode_key": "stage5b_standard",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "stage5b_standard",
+            "tool_key": "turn_log"
+          }
+        ],
+        "freeRegenDisposition": "Intentional zero-allowance N/A; deployed probot_allowance_at guard verified"
+      },
+      "activeLiveGamesLegacyImpact": {
+        "evaluation": "PASS for pre-deploy preparation; see finalThreeBlockerClosure for rollout gates",
+        "rows": [
+          {
+            "room_purpose": "normal",
+            "mode_key": "aether_hard",
+            "status": "waiting",
+            "rooms": 1,
+            "private_bytes": 2205
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "aether_max",
+            "status": "paused",
+            "rooms": 1,
+            "private_bytes": 3774
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "aether_max",
+            "status": "playing",
+            "rooms": 3,
+            "private_bytes": 49115
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "aether_max",
+            "status": "waiting",
+            "rooms": 1,
+            "private_bytes": 2227
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "aether_medium",
+            "status": "playing",
+            "rooms": 1,
+            "private_bytes": 2227
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "aether_medium",
+            "status": "waiting",
+            "rooms": 1,
+            "private_bytes": 2208
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "aether_super",
+            "status": "playing",
+            "rooms": 3,
+            "private_bytes": 82465
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "local_versus",
+            "status": "paused",
+            "rooms": 5,
+            "private_bytes": 214987
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "local_versus",
+            "status": "playing",
+            "rooms": 2,
+            "private_bytes": 43210
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "local_versus",
+            "status": "waiting",
+            "rooms": 3,
+            "private_bytes": 6271
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "online_versus",
+            "status": "waiting",
+            "rooms": 1,
+            "private_bytes": 2285
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "solo_practice",
+            "status": "paused",
+            "rooms": 1,
+            "private_bytes": 51033
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "solo_practice",
+            "status": "playing",
+            "rooms": 2,
+            "private_bytes": 24112
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "stage5b_standard",
+            "status": "playing",
+            "rooms": 1,
+            "private_bytes": 2244
+          }
+        ],
+        "totalRooms": 26,
+        "playing": 12,
+        "paused": 7,
+        "waiting": 7,
+        "stateCanonicalBytes": 488363,
+        "quarantineInputBytes": {
+          "roomRows": 2544968,
+          "timelines": 25738,
+          "events": 255753,
+          "total": 2826459
+        },
+        "databaseBytes": 56118419,
+        "rankedUnfinished": 0,
+        "remaining": "DEPLOY-TIME freeze authorization/current headroom and recovery coverage",
+        "lifecycleAudit": {
+          "evaluation": "PASS for pre-deploy preparation",
+          "rooms": 26,
+          "statusCounts": {
+            "playing": 12,
+            "paused": 7,
+            "waiting": 7
+          },
+          "expired": 24,
+          "unexpiredPlaying": 2,
+          "scopeCounts": {
+            "private": 13,
+            "region": 12,
+            "public": 1
+          },
+          "legacyPrivateAutosave": 12,
+          "updatedLast24h": 1,
+          "updatedLastHour": 0,
+          "liveEventsLastHour": 0,
+          "activeConnectionPresence": "Not observable; treat two unexpired playing rooms as potentially active",
+          "aggregateRows": [
+            {
+              "observed_at": "2026-10-01 18:52:39.839691+00",
+              "room_purpose": "normal",
+              "mode_key": "aether_hard",
+              "status": "waiting",
+              "access_scope": "region",
+              "archive_policy": "region",
+              "legacy_private_autosave": false,
+              "rooms": 1,
+              "unexpired_rooms": 0,
+              "updated_last_24h": 0,
+              "updated_last_hour": 0,
+              "oldest_update": "2026-08-13 08:52:13.61487+00",
+              "newest_update": "2026-08-13 08:52:13.61487+00"
+            },
+            {
+              "observed_at": "2026-10-01 18:52:39.839691+00",
+              "room_purpose": "normal",
+              "mode_key": "aether_max",
+              "status": "paused",
+              "access_scope": "region",
+              "archive_policy": "region",
+              "legacy_private_autosave": false,
+              "rooms": 1,
+              "unexpired_rooms": 0,
+              "updated_last_24h": 0,
+              "updated_last_hour": 0,
+              "oldest_update": "2026-08-12 13:35:44.880764+00",
+              "newest_update": "2026-08-12 13:35:44.880764+00"
+            },
+            {
+              "observed_at": "2026-10-01 18:52:39.839691+00",
+              "room_purpose": "normal",
+              "mode_key": "aether_max",
+              "status": "playing",
+              "access_scope": "region",
+              "archive_policy": "region",
+              "legacy_private_autosave": false,
+              "rooms": 3,
+              "unexpired_rooms": 1,
+              "updated_last_24h": 0,
+              "updated_last_hour": 0,
+              "oldest_update": "2026-08-11 01:57:56.970644+00",
+              "newest_update": "2026-08-21 02:49:21.589967+00"
+            },
+            {
+              "observed_at": "2026-10-01 18:52:39.839691+00",
+              "room_purpose": "normal",
+              "mode_key": "aether_max",
+              "status": "waiting",
+              "access_scope": "private",
+              "archive_policy": "private",
+              "legacy_private_autosave": true,
+              "rooms": 1,
+              "unexpired_rooms": 0,
+              "updated_last_24h": 0,
+              "updated_last_hour": 0,
+              "oldest_update": "2026-09-30 15:22:15.62506+00",
+              "newest_update": "2026-09-30 15:22:15.62506+00"
+            },
+            {
+              "observed_at": "2026-10-01 18:52:39.839691+00",
+              "room_purpose": "normal",
+              "mode_key": "aether_medium",
+              "status": "playing",
+              "access_scope": "private",
+              "archive_policy": "private",
+              "legacy_private_autosave": true,
+              "rooms": 1,
+              "unexpired_rooms": 0,
+              "updated_last_24h": 0,
+              "updated_last_hour": 0,
+              "oldest_update": "2026-09-30 15:22:15.62506+00",
+              "newest_update": "2026-09-30 15:22:15.62506+00"
+            },
+            {
+              "observed_at": "2026-10-01 18:52:39.839691+00",
+              "room_purpose": "normal",
+              "mode_key": "aether_medium",
+              "status": "waiting",
+              "access_scope": "private",
+              "archive_policy": "private",
+              "legacy_private_autosave": true,
+              "rooms": 1,
+              "unexpired_rooms": 0,
+              "updated_last_24h": 0,
+              "updated_last_hour": 0,
+              "oldest_update": "2026-09-30 15:22:15.62506+00",
+              "newest_update": "2026-09-30 15:22:15.62506+00"
+            },
+            {
+              "observed_at": "2026-10-01 18:52:39.839691+00",
+              "room_purpose": "normal",
+              "mode_key": "aether_super",
+              "status": "playing",
+              "access_scope": "private",
+              "archive_policy": "private",
+              "legacy_private_autosave": true,
+              "rooms": 2,
+              "unexpired_rooms": 0,
+              "updated_last_24h": 0,
+              "updated_last_hour": 0,
+              "oldest_update": "2026-09-30 15:22:15.62506+00",
+              "newest_update": "2026-09-30 15:22:15.62506+00"
+            },
+            {
+              "observed_at": "2026-10-01 18:52:39.839691+00",
+              "room_purpose": "normal",
+              "mode_key": "aether_super",
+              "status": "playing",
+              "access_scope": "region",
+              "archive_policy": "region",
+              "legacy_private_autosave": false,
+              "rooms": 1,
+              "unexpired_rooms": 0,
+              "updated_last_24h": 0,
+              "updated_last_hour": 0,
+              "oldest_update": "2026-09-03 00:47:54.184482+00",
+              "newest_update": "2026-09-03 00:47:54.184482+00"
+            },
+            {
+              "observed_at": "2026-10-01 18:52:39.839691+00",
+              "room_purpose": "normal",
+              "mode_key": "local_versus",
+              "status": "paused",
+              "access_scope": "private",
+              "archive_policy": "private",
+              "legacy_private_autosave": true,
+              "rooms": 5,
+              "unexpired_rooms": 0,
+              "updated_last_24h": 0,
+              "updated_last_hour": 0,
+              "oldest_update": "2026-09-30 15:22:15.62506+00",
+              "newest_update": "2026-09-30 15:22:15.62506+00"
+            },
+            {
+              "observed_at": "2026-10-01 18:52:39.839691+00",
+              "room_purpose": "normal",
+              "mode_key": "local_versus",
+              "status": "playing",
+              "access_scope": "private",
+              "archive_policy": "private",
+              "legacy_private_autosave": true,
+              "rooms": 2,
+              "unexpired_rooms": 0,
+              "updated_last_24h": 0,
+              "updated_last_hour": 0,
+              "oldest_update": "2026-09-30 15:22:15.62506+00",
+              "newest_update": "2026-09-30 15:22:15.62506+00"
+            },
+            {
+              "observed_at": "2026-10-01 18:52:39.839691+00",
+              "room_purpose": "normal",
+              "mode_key": "local_versus",
+              "status": "waiting",
+              "access_scope": "region",
+              "archive_policy": "region",
+              "legacy_private_autosave": false,
+              "rooms": 2,
+              "unexpired_rooms": 0,
+              "updated_last_24h": 0,
+              "updated_last_hour": 0,
+              "oldest_update": "2026-08-12 16:30:53.241737+00",
+              "newest_update": "2026-08-17 04:25:59.455376+00"
+            },
+            {
+              "observed_at": "2026-10-01 18:52:39.839691+00",
+              "room_purpose": "normal",
+              "mode_key": "local_versus",
+              "status": "waiting",
+              "access_scope": "private",
+              "archive_policy": "none",
+              "legacy_private_autosave": false,
+              "rooms": 1,
+              "unexpired_rooms": 0,
+              "updated_last_24h": 0,
+              "updated_last_hour": 0,
+              "oldest_update": "2026-09-30 15:40:47.158458+00",
+              "newest_update": "2026-09-30 15:40:47.158458+00"
+            },
+            {
+              "observed_at": "2026-10-01 18:52:39.839691+00",
+              "room_purpose": "normal",
+              "mode_key": "online_versus",
+              "status": "waiting",
+              "access_scope": "region",
+              "archive_policy": "region",
+              "legacy_private_autosave": false,
+              "rooms": 1,
+              "unexpired_rooms": 0,
+              "updated_last_24h": 0,
+              "updated_last_hour": 0,
+              "oldest_update": "2026-08-12 16:20:53.275201+00",
+              "newest_update": "2026-08-12 16:20:53.275201+00"
+            },
+            {
+              "observed_at": "2026-10-01 18:52:39.839691+00",
+              "room_purpose": "normal",
+              "mode_key": "solo_practice",
+              "status": "paused",
+              "access_scope": "region",
+              "archive_policy": "region",
+              "legacy_private_autosave": false,
+              "rooms": 1,
+              "unexpired_rooms": 0,
+              "updated_last_24h": 0,
+              "updated_last_hour": 0,
+              "oldest_update": "2026-08-11 09:13:36.490164+00",
+              "newest_update": "2026-08-11 09:13:36.490164+00"
+            },
+            {
+              "observed_at": "2026-10-01 18:52:39.839691+00",
+              "room_purpose": "normal",
+              "mode_key": "solo_practice",
+              "status": "playing",
+              "access_scope": "region",
+              "archive_policy": "region",
+              "legacy_private_autosave": false,
+              "rooms": 2,
+              "unexpired_rooms": 0,
+              "updated_last_24h": 0,
+              "updated_last_hour": 0,
+              "oldest_update": "2026-08-22 09:07:18.515594+00",
+              "newest_update": "2026-08-23 09:11:44.219739+00"
+            },
+            {
+              "observed_at": "2026-10-01 18:52:39.839691+00",
+              "room_purpose": "normal",
+              "mode_key": "stage5b_standard",
+              "status": "playing",
+              "access_scope": "public",
+              "archive_policy": "public",
+              "legacy_private_autosave": false,
+              "rooms": 1,
+              "unexpired_rooms": 1,
+              "updated_last_24h": 1,
+              "updated_last_hour": 0,
+              "oldest_update": "2026-10-01 00:09:17.630051+00",
+              "newest_update": "2026-10-01 00:09:17.630051+00"
+            }
+          ],
+          "cohorts": [
+            {
+              "room_purpose": "normal",
+              "status": "paused",
+              "access_scope": "private",
+              "archive_policy": "private",
+              "legacy_private_autosave": true,
+              "rooms": 5
+            },
+            {
+              "room_purpose": "normal",
+              "status": "paused",
+              "access_scope": "region",
+              "archive_policy": "region",
+              "legacy_private_autosave": false,
+              "rooms": 2
+            },
+            {
+              "room_purpose": "normal",
+              "status": "playing",
+              "access_scope": "private",
+              "archive_policy": "private",
+              "legacy_private_autosave": true,
+              "rooms": 5
+            },
+            {
+              "room_purpose": "normal",
+              "status": "playing",
+              "access_scope": "public",
+              "archive_policy": "public",
+              "legacy_private_autosave": false,
+              "rooms": 1
+            },
+            {
+              "room_purpose": "normal",
+              "status": "playing",
+              "access_scope": "region",
+              "archive_policy": "region",
+              "legacy_private_autosave": false,
+              "rooms": 6
+            },
+            {
+              "room_purpose": "normal",
+              "status": "waiting",
+              "access_scope": "private",
+              "archive_policy": "none",
+              "legacy_private_autosave": false,
+              "rooms": 1
+            },
+            {
+              "room_purpose": "normal",
+              "status": "waiting",
+              "access_scope": "private",
+              "archive_policy": "private",
+              "legacy_private_autosave": true,
+              "rooms": 2
+            },
+            {
+              "room_purpose": "normal",
+              "status": "waiting",
+              "access_scope": "region",
+              "archive_policy": "region",
+              "legacy_private_autosave": false,
+              "rooms": 4
+            }
+          ],
+          "quarantineInputBytes": {
+            "roomRows": 2544968,
+            "timelines": 25738,
+            "events": 255753,
+            "total": 2826459
+          },
+          "databaseBytes": 56118419,
+          "headroom": "Payload size is a floor, not provider free space; verify total disk/WAL/index/TOAST/backup margin immediately before migrations",
+          "freezePolicy": "Preserve room/timeline/events in private quarantine; deny continuation/Ready/join; owner may abandon visible frozen row without deleting private preservation; legacy rows excluded from active quota and expiry cleanup",
+          "operatorDecision": {
+            "stage": "DEPLOY-TIME GATE",
+            "status": "PENDING; one precise decision requested asynchronously",
+            "consequence": "All 26 legacy games become permanently non-resumable; players start fresh; no fabricated trusted result/replay",
+            "authorizationInferred": false
+          }
+        }
+      },
+      "scheduledJobsCron": {
+        "evaluation": "PASS for pre-deploy preparation; see finalThreeBlockerClosure for rollout gates",
+        "databaseCronEvaluation": "PASS",
+        "jobs": [
+          {
+            "jobid": 1,
+            "jobname": "eq-completed-payload-cleanup",
+            "schedule": "*/5 * * * *",
+            "active": true,
+            "command_digest": "19af5a11409c9bd9e14b629e1186b10b",
+            "needs_authority_review": false
+          }
+        ],
+        "exactBaselineMatch": [
+          {
+            "jobid": 1,
+            "username": "postgres",
+            "database": "postgres",
+            "matches_baseline_command": true,
+            "command_digest": "19af5a11409c9bd9e14b629e1186b10b"
+          }
+        ],
+        "executeAcl": [
+          {
+            "anon_execute": false,
+            "authenticated_execute": false,
+            "service_execute": false
+          }
+        ],
+        "recentRunGroups": [
+          {
+            "status": "succeeded",
+            "runs": 288,
+            "first_run": "2026-09-30 18:35:00.1059+00",
+            "last_end": "2026-10-01 18:30:00.083139+00"
+          }
+        ],
+        "renderCronServices": 0,
+        "repositoryVercelCronDeclarations": 0,
+        "remaining": null,
+        "externalProviderEvaluation": "PASS",
+        "providerEvidence": {
+          "evaluation": "PASS for relevant pre-deploy inventory",
+          "render": {
+            "allServicesIncludingPreviews": 4,
+            "cronServices": 0,
+            "workflowServicesCliResult": null,
+            "autoDeploy": "off",
+            "branch": "main",
+            "repository": "thitithat-tiankrajang/engine-algo"
+          },
+          "vercel": {
+            "projectId": "prj_kivE4ulotuxx7gMxnQrcFcih0KRO",
+            "repository": "thitithat-tiankrajang/EQ-Log",
+            "productionBranch": "main",
+            "gitCreateDeployments": "enabled",
+            "deployHooks": [],
+            "cronDefinitions": [],
+            "cronDeploymentId": "dpl_GMsdDApHiujRfrnWm9jJiu4xrVCV",
+            "currentProductionSha": "34d5ae676fc460bfff02fe142b5d76354206b903",
+            "mainPushMutatesProduction": true,
+            "source": "Authenticated installed CLI GET /v9/projects/project-ID; sanitized fields only"
+          },
+          "additionalReads": [
+            "MCP get_git_deployment_context has empty teams; get_project omits provider controls",
+            "Vercel schedules CLI failed project retrieval; installed-command schedules endpoint GET returned404; source has no queue/schedule consumer",
+            "Render workflows list returns null/empty; service inventory has no worker/cron service",
+            "Source GitHub quality workflow has no scheduled trigger"
+          ],
+          "manualOperatorActionRequired": null,
+          "limit": "Read-time inventory of relevant connected provider schedules, not a claim about undisclosed unrelated accounts or future configuration"
+        }
+      },
+      "authurProduction": {
+        "evaluation": "PASS for pre-deploy preparation; see finalThreeBlockerClosure for rollout gates",
+        "placementEvaluation": "PASS",
+        "service": {
+          "id": "srv-d9tge0740ujc73e9jcn0",
+          "name": "math-engine-algo",
+          "region": "singapore",
+          "type": "web_service",
+          "runtime": "docker",
+          "plan": "1c-2g",
+          "instances": 1,
+          "autoDeploy": "off",
+          "branch": "main",
+          "dockerfile": "service/Dockerfile",
+          "healthCheckPath": "/health",
+          "suspended": false
+        },
+        "deployment": {
+          "id": "dep-daueppdg1s2s73clnckg",
+          "status": "live",
+          "sha": "4157839b2b230d47381e7388c4055bdf8362ea0f",
+          "finishedAt": "2026-09-30T11:05:52.37018Z"
+        },
+        "health": {
+          "ok": true,
+          "queue": {
+            "running": 0,
+            "waiting": 0,
+            "concurrency": 1,
+            "maxWaiting": 8,
+            "maxWaitMs": 120000
+          },
+          "cpu": {
+            "detected": 1,
+            "source": "cgroup-v2",
+            "parallelism": 1,
+            "concurrencySource": "env"
+          },
+          "authurBudget": "room_authorized",
+          "authurInFlight": 1,
+          "authurRequestsPerMinute": 120,
+          "clientSuper": {
+            "enabled": true,
+            "engineVersion": "super-v11",
+            "weightsVersion": "v1",
+            "adaptiveBudget": "off"
+          }
+        },
+        "metrics": {
+          "start": "2026-09-30T18:00:00Z",
+          "end": "2026-10-01T18:30:00Z",
+          "resolutionSeconds": 3600,
+          "cpuLimit": 1,
+          "memoryLimitBytes": 2147483600,
+          "sampledMemoryMinBytes": 49061890,
+          "sampledMemoryMaxBytes": 54001664,
+          "sampledCpuMax": 0.006596744,
+          "instances": 1,
+          "fullStrengthCapacityProved": false
+        },
+        "operationalLogs": {
+          "pages": 3,
+          "entries": 274,
+          "complete": true,
+          "startTime": "2026-09-30T11:05:00Z",
+          "endTime": "2026-10-01T18:35:00Z",
+          "statusCounts": {
+            "200": 146,
+            "204": 101,
+            "401": 7,
+            "404": 3,
+            "409": 2
+          },
+          "routeCounts": {
+            "/v1/games/[id]/analysis/cancel": 18,
+            "/v1/games/[id]/jobs": 196,
+            "/v1/games/[id]/analysis": 18,
+            "/v1/games/[id]/bot-move": 20,
+            "/": 2,
+            "/missing-release-smoke": 1,
+            "/v1/study/analysis": 4
+          },
+          "nonRequestCategories": {
+            "other-text": 14,
+            "startup-text": 1
+          }
+        },
+        "failureEventsSinceLatestDeploy": [],
+        "remaining": "DEPLOY-TIME private-worker startup, gateway/wiring, platform identity and monitoring; POST private commit/recovery smoke",
+        "candidateWorkerAlreadyDeployed": "Not proved and not required before authorized deployment",
+        "sameCapacityStrongEvidence": {
+          "evaluation": "PASS for pre-deploy preparation",
+          "serviceId": "srv-d9tge0740ujc73e9jcn0",
+          "serviceName": "math-engine-algo",
+          "region": "singapore",
+          "deploymentId": "dep-daueppdg1s2s73clnckg",
+          "deployedEngineSha": "4157839b2b230d47381e7388c4055bdf8362ea0f",
+          "cpu": 1,
+          "memoryBytes": 2147483600,
+          "instances": 1,
+          "searchConcurrency": 1,
+          "maxWaiting": 8,
+          "maxWaitMs": 120000,
+          "priorFullStrengthEvidence": [
+            "/Users/thitithat_tiankrajang/Desktop/Authur-Engine-Production-Release-Report.md",
+            "/Users/thitithat_tiankrajang/Desktop/Compact-Storage-Production-Release-Complete.md"
+          ],
+          "capacityReuse": "Three real Strong production replies plus subsequent Storage continued Strong turn on same 1c-2g service. Same Strong/model hashes. No duplicate load test. Sampled CPU/RSS not worst-case guarantees.",
+          "fingerprints": {
+            "strong": "1bfe583051812453cd047894243ebe9b44ad0569ce977bcf28bd7ee2b533ee49",
+            "nextTurn": "e5af04452ede84e16aea6a52cdc582363b9b2efc90708966dcfc754b8c9be966",
+            "replyOpponent": "6f502bf133ee2769a966ddc1b0cb219a54c0f7ac622aaba44c6aed5ac9632f7f",
+            "replySelf": "b2ea60519c4566825250809a832557ac2e92f92256684b850e7219eec34b331a"
+          },
+          "candidateManifestSha256": "c58e91a0ab0e8a2405baa09130d66e14a7bd94c483d64250342192b7930c4d49",
+          "candidateSource": "services/trusted-bot/Dockerfile, compose.yml, health.mjs, runtime.mjs, worker.mjs, models; src/bot/authur/strong.mjs; package.json/package-lock.json",
+          "acceptedLocalImage": "sha256:fe4207bb5740be8d3f2645e5099ecb94a1a1c33c49ab6a0f0a1c2388d173a6b4",
+          "acceptedLocalImageArchitecture": "arm64; not a production registry digest",
+          "deployedOldWorkerCompatible": "Not asserted. Existing old web service does not prove candidate private worker startup.",
+          "privateWiring": "Service JWT plus X-Live-Bot-Secret to live-game; SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY/LIVE_BOT_SECRET server only; approved local JWT/lease/recovery evidence reused",
+          "supervision": "Candidate Compose unless-stopped, 30s healthchecks, recent heartbeat, 370s graceful stop; one search child, 360s process timeout, durable database revision outbox, 10m lease, capped60s retry backoff",
+          "runtimeDifference": "Existing Authur service 30s runner deadline; candidate private wrapper 360s timeout. Not identical wrapper/time ceiling. Verify compatible production runtime and service integration during rollout.",
+          "deploymentGate": "Production-target image digest/architecture and compatible startup; secure gateway/wiring, total expensive-search concurrency1, preserved public service behavior, supervision/monitoring. Do not install no-port worker image as replacement for a web service without compatible process/health integration.",
+          "postSmoke": "Actual private committed turns and crash/lease/lost-ack recovery under maintenance before opening clients",
+          "archbotServerRequirement": false
+        }
+      },
+      "vercelProduction": {
+        "evaluation": "PASS",
+        "projectId": "prj_kivE4ulotuxx7gMxnQrcFcih0KRO",
+        "projectName": "eq-log",
+        "nodeVersion": "24.x",
+        "framework": "vite",
+        "deploymentId": "dpl_GMsdDApHiujRfrnWm9jJiu4xrVCV",
+        "status": "READY",
+        "target": "production",
+        "branch": "main",
+        "sha": "34d5ae676fc460bfff02fe142b5d76354206b903",
+        "matchesWorktreeHead": true,
+        "regions": [
+          "iad1"
+        ],
+        "domains": [
+          "eq-log.vercel.app",
+          "eq-log-thitithats-projects.vercel.app",
+          "eq-log-git-main-thitithats-projects.vercel.app"
+        ],
+        "envNames": [
+          {
+            "key": "VITE_ENGINE_API_URL",
+            "target": [
+              "preview",
+              "production"
+            ],
+            "type": "sensitive"
+          },
+          {
+            "key": "VITE_SUPABASE_URL",
+            "target": [
+              "production",
+              "preview"
+            ],
+            "type": "sensitive"
+          },
+          {
+            "key": "VITE_SUPABASE_ANON_KEY",
+            "target": [
+              "production",
+              "preview"
+            ],
+            "type": "sensitive"
+          }
+        ],
+        "providerControlsEvaluation": "PASS",
+        "currentGitControls": {
+          "projectId": "prj_kivE4ulotuxx7gMxnQrcFcih0KRO",
+          "repository": "thitithat-tiankrajang/EQ-Log",
+          "productionBranch": "main",
+          "gitCreateDeployments": "enabled",
+          "deployHooks": [],
+          "cronDefinitions": [],
+          "cronDeploymentId": "dpl_GMsdDApHiujRfrnWm9jJiu4xrVCV",
+          "currentProductionSha": "34d5ae676fc460bfff02fe142b5d76354206b903",
+          "mainPushMutatesProduction": true,
+          "source": "Authenticated installed CLI GET /v9/projects/project-ID; sanitized fields only"
+        }
+      },
+      "backupMaintenanceRestore": {
+        "evaluation": "PASS for pre-deploy preparation; see finalThreeBlockerClosure for rollout gates",
+        "backupCoverage": null,
+        "pitrStatus": null,
+        "testedRestoreEvidence": null,
+        "remaining": "DEPLOY-TIME current recovery point/headroom and maintenance authorization",
+        "reusedRecoveryEvidence": {
+          "evaluation": "PASS; duplicate restore exercise not required",
+          "sourceReport": "/Users/thitithat_tiankrajang/Desktop/Compact-Storage-Production-Release-Complete.md",
+          "receipts": "/Users/thitithat_tiankrajang/.codex/release-evidence/terminal-routing-rollout",
+          "snapshotAt": "2026-09-30T17:12:35.141198+00:00",
+          "baselineMigrationCount": 35,
+          "tableFingerprintsMatched": 93,
+          "sequencePositionsMatched": 8,
+          "archiveBytes": 5293701,
+          "archiveSha256": "17ee5ce3e49df34ef20e2dcf44f545c11fccae2a93e754c6e02677db31a89cbf",
+          "archiveHashFreshlyReverified": true,
+          "restoreSeconds": 8.784,
+          "pgRestoreExit": 0,
+          "verificationExit": 0,
+          "productionRestore": false,
+          "subsequentMigration": "20261001102600 only terminal-routing function; current 36-version baseline accounted for",
+          "pitrLastKnown": "disabled",
+          "freshness": "DEPLOY-TIME GATE: new consistent recovery point or documented reconciliation of later writes; no duplicate drill unless mechanism materially changes",
+          "cloudRto": "unmeasured; use established incident procedure"
+        }
+      }
+    },
+    "stage": {
+      "evaluation": "PASS",
+      "observedAt": "2026-10-01 18:29:24.86032+00",
+      "statusCounts": [
+        {
+          "status": "draft",
+          "levels": 10,
+          "sealed": 0,
+          "approved": 0
+        }
+      ],
+      "approvedLevels": [],
+      "sessions": {
+        "observed_at": "2026-10-01 18:29:24.86032+00",
+        "attempts_total": 3,
+        "unfinished_attempts": 0,
+        "completed_attempts": 0,
+        "stage_rooms": 0,
+        "stage_creation_requests": 0
+      },
+      "rls": [
+        {
+          "relname": "stage_completed_attempts",
+          "relrowsecurity": true,
+          "relforcerowsecurity": false
+        },
+        {
+          "relname": "survival_attempts",
+          "relrowsecurity": true,
+          "relforcerowsecurity": false
+        },
+        {
+          "relname": "survival_levels",
+          "relrowsecurity": true,
+          "relforcerowsecurity": false
+        }
+      ],
+      "policies": [
+        {
+          "tablename": "room_live",
+          "policyname": "room_live_delete",
+          "permissive": "PERMISSIVE",
+          "roles": "{public}",
+          "cmd": "DELETE",
+          "qual": "((owner_id = auth.uid()) OR is_admin())",
+          "with_check": null
+        },
+        {
+          "tablename": "room_live",
+          "policyname": "room_live_insert",
+          "permissive": "PERMISSIVE",
+          "roles": "{public}",
+          "cmd": "INSERT",
+          "qual": null,
+          "with_check": "((owner_id = auth.uid()) AND (is_approved() OR is_admin()))"
+        },
+        {
+          "tablename": "room_live",
+          "policyname": "room_live_read",
+          "permissive": "PERMISSIVE",
+          "roles": "{public}",
+          "cmd": "SELECT",
+          "qual": "can_read_live_game(room_id)",
+          "with_check": null
+        },
+        {
+          "tablename": "room_live",
+          "policyname": "room_live_update",
+          "permissive": "PERMISSIVE",
+          "roles": "{public}",
+          "cmd": "UPDATE",
+          "qual": "can_write_live_game(room_id)",
+          "with_check": "can_write_live_game(room_id)"
+        },
+        {
+          "tablename": "survival_attempts",
+          "policyname": "survival_attempt_read",
+          "permissive": "PERMISSIVE",
+          "roles": "{authenticated}",
+          "cmd": "SELECT",
+          "qual": "((player_id = auth.uid()) OR is_admin())",
+          "with_check": null
+        },
+        {
+          "tablename": "survival_levels",
+          "policyname": "survival_admin_insert",
+          "permissive": "PERMISSIVE",
+          "roles": "{authenticated}",
+          "cmd": "INSERT",
+          "qual": null,
+          "with_check": "is_admin()"
+        },
+        {
+          "tablename": "survival_levels",
+          "policyname": "survival_admin_update",
+          "permissive": "PERMISSIVE",
+          "roles": "{authenticated}",
+          "cmd": "UPDATE",
+          "qual": "is_admin()",
+          "with_check": "is_admin()"
+        },
+        {
+          "tablename": "survival_levels",
+          "policyname": "survival_read",
+          "permissive": "PERMISSIVE",
+          "roles": "{authenticated}",
+          "cmd": "SELECT",
+          "qual": "((status = 'approved'::text) OR is_admin())",
+          "with_check": null
+        }
+      ],
+      "creationGate": {
+        "wrapper": "create_stage_attempt",
+        "delegate": "create_stage_attempt_before_start_freeze",
+        "approvalOrAdmin": true,
+        "rejectsUnsealed": true,
+        "definitionDigest": "665443214436d5cde36b95186207e431"
+      },
+      "playableSmoke": "NOT APPLICABLE",
+      "keepStageClosed": true,
+      "localSecurityEvidenceRetained": true
+    },
+    "publication": [
+      {
+        "schemaname": "public",
+        "tablename": "members"
+      },
+      {
+        "schemaname": "public",
+        "tablename": "room_live"
+      }
+    ],
+    "archbotInfrastructureRequirement": false,
+    "localImplementationChanged": false,
+    "broadSuiteRerun": false,
+    "productionMutated": false,
+    "nextAction": "Freeze exact candidate inventory in existing worktree, review retained changes, create local Security candidate commit and record source/artifact digests; do not push/merge/deploy. Production rollout requires separate authorization and deploy-time gates.",
+    "remainingBlockers": [],
+    "verdictScope": "Read-only preflight and local candidate preparation only; no rollout authorized",
+    "finalThreeBlockerClosure": {
+      "verdict": "PASS",
+      "scope": "Read-only preflight and local candidate preparation only; no rollout authorized",
+      "observedAt": "2026-10-01T19:15:00Z",
+      "preDeployBlockers": [],
+      "legacy": {
+        "evaluation": "PASS for pre-deploy preparation",
+        "rooms": 26,
+        "statusCounts": {
+          "playing": 12,
+          "paused": 7,
+          "waiting": 7
+        },
+        "expired": 24,
+        "unexpiredPlaying": 2,
+        "scopeCounts": {
+          "private": 13,
+          "region": 12,
+          "public": 1
+        },
+        "legacyPrivateAutosave": 12,
+        "updatedLast24h": 1,
+        "updatedLastHour": 0,
+        "liveEventsLastHour": 0,
+        "activeConnectionPresence": "Not observable; treat two unexpired playing rooms as potentially active",
+        "aggregateRows": [
+          {
+            "observed_at": "2026-10-01 18:52:39.839691+00",
+            "room_purpose": "normal",
+            "mode_key": "aether_hard",
+            "status": "waiting",
+            "access_scope": "region",
+            "archive_policy": "region",
+            "legacy_private_autosave": false,
+            "rooms": 1,
+            "unexpired_rooms": 0,
+            "updated_last_24h": 0,
+            "updated_last_hour": 0,
+            "oldest_update": "2026-08-13 08:52:13.61487+00",
+            "newest_update": "2026-08-13 08:52:13.61487+00"
+          },
+          {
+            "observed_at": "2026-10-01 18:52:39.839691+00",
+            "room_purpose": "normal",
+            "mode_key": "aether_max",
+            "status": "paused",
+            "access_scope": "region",
+            "archive_policy": "region",
+            "legacy_private_autosave": false,
+            "rooms": 1,
+            "unexpired_rooms": 0,
+            "updated_last_24h": 0,
+            "updated_last_hour": 0,
+            "oldest_update": "2026-08-12 13:35:44.880764+00",
+            "newest_update": "2026-08-12 13:35:44.880764+00"
+          },
+          {
+            "observed_at": "2026-10-01 18:52:39.839691+00",
+            "room_purpose": "normal",
+            "mode_key": "aether_max",
+            "status": "playing",
+            "access_scope": "region",
+            "archive_policy": "region",
+            "legacy_private_autosave": false,
+            "rooms": 3,
+            "unexpired_rooms": 1,
+            "updated_last_24h": 0,
+            "updated_last_hour": 0,
+            "oldest_update": "2026-08-11 01:57:56.970644+00",
+            "newest_update": "2026-08-21 02:49:21.589967+00"
+          },
+          {
+            "observed_at": "2026-10-01 18:52:39.839691+00",
+            "room_purpose": "normal",
+            "mode_key": "aether_max",
+            "status": "waiting",
+            "access_scope": "private",
+            "archive_policy": "private",
+            "legacy_private_autosave": true,
+            "rooms": 1,
+            "unexpired_rooms": 0,
+            "updated_last_24h": 0,
+            "updated_last_hour": 0,
+            "oldest_update": "2026-09-30 15:22:15.62506+00",
+            "newest_update": "2026-09-30 15:22:15.62506+00"
+          },
+          {
+            "observed_at": "2026-10-01 18:52:39.839691+00",
+            "room_purpose": "normal",
+            "mode_key": "aether_medium",
+            "status": "playing",
+            "access_scope": "private",
+            "archive_policy": "private",
+            "legacy_private_autosave": true,
+            "rooms": 1,
+            "unexpired_rooms": 0,
+            "updated_last_24h": 0,
+            "updated_last_hour": 0,
+            "oldest_update": "2026-09-30 15:22:15.62506+00",
+            "newest_update": "2026-09-30 15:22:15.62506+00"
+          },
+          {
+            "observed_at": "2026-10-01 18:52:39.839691+00",
+            "room_purpose": "normal",
+            "mode_key": "aether_medium",
+            "status": "waiting",
+            "access_scope": "private",
+            "archive_policy": "private",
+            "legacy_private_autosave": true,
+            "rooms": 1,
+            "unexpired_rooms": 0,
+            "updated_last_24h": 0,
+            "updated_last_hour": 0,
+            "oldest_update": "2026-09-30 15:22:15.62506+00",
+            "newest_update": "2026-09-30 15:22:15.62506+00"
+          },
+          {
+            "observed_at": "2026-10-01 18:52:39.839691+00",
+            "room_purpose": "normal",
+            "mode_key": "aether_super",
+            "status": "playing",
+            "access_scope": "private",
+            "archive_policy": "private",
+            "legacy_private_autosave": true,
+            "rooms": 2,
+            "unexpired_rooms": 0,
+            "updated_last_24h": 0,
+            "updated_last_hour": 0,
+            "oldest_update": "2026-09-30 15:22:15.62506+00",
+            "newest_update": "2026-09-30 15:22:15.62506+00"
+          },
+          {
+            "observed_at": "2026-10-01 18:52:39.839691+00",
+            "room_purpose": "normal",
+            "mode_key": "aether_super",
+            "status": "playing",
+            "access_scope": "region",
+            "archive_policy": "region",
+            "legacy_private_autosave": false,
+            "rooms": 1,
+            "unexpired_rooms": 0,
+            "updated_last_24h": 0,
+            "updated_last_hour": 0,
+            "oldest_update": "2026-09-03 00:47:54.184482+00",
+            "newest_update": "2026-09-03 00:47:54.184482+00"
+          },
+          {
+            "observed_at": "2026-10-01 18:52:39.839691+00",
+            "room_purpose": "normal",
+            "mode_key": "local_versus",
+            "status": "paused",
+            "access_scope": "private",
+            "archive_policy": "private",
+            "legacy_private_autosave": true,
+            "rooms": 5,
+            "unexpired_rooms": 0,
+            "updated_last_24h": 0,
+            "updated_last_hour": 0,
+            "oldest_update": "2026-09-30 15:22:15.62506+00",
+            "newest_update": "2026-09-30 15:22:15.62506+00"
+          },
+          {
+            "observed_at": "2026-10-01 18:52:39.839691+00",
+            "room_purpose": "normal",
+            "mode_key": "local_versus",
+            "status": "playing",
+            "access_scope": "private",
+            "archive_policy": "private",
+            "legacy_private_autosave": true,
+            "rooms": 2,
+            "unexpired_rooms": 0,
+            "updated_last_24h": 0,
+            "updated_last_hour": 0,
+            "oldest_update": "2026-09-30 15:22:15.62506+00",
+            "newest_update": "2026-09-30 15:22:15.62506+00"
+          },
+          {
+            "observed_at": "2026-10-01 18:52:39.839691+00",
+            "room_purpose": "normal",
+            "mode_key": "local_versus",
+            "status": "waiting",
+            "access_scope": "region",
+            "archive_policy": "region",
+            "legacy_private_autosave": false,
+            "rooms": 2,
+            "unexpired_rooms": 0,
+            "updated_last_24h": 0,
+            "updated_last_hour": 0,
+            "oldest_update": "2026-08-12 16:30:53.241737+00",
+            "newest_update": "2026-08-17 04:25:59.455376+00"
+          },
+          {
+            "observed_at": "2026-10-01 18:52:39.839691+00",
+            "room_purpose": "normal",
+            "mode_key": "local_versus",
+            "status": "waiting",
+            "access_scope": "private",
+            "archive_policy": "none",
+            "legacy_private_autosave": false,
+            "rooms": 1,
+            "unexpired_rooms": 0,
+            "updated_last_24h": 0,
+            "updated_last_hour": 0,
+            "oldest_update": "2026-09-30 15:40:47.158458+00",
+            "newest_update": "2026-09-30 15:40:47.158458+00"
+          },
+          {
+            "observed_at": "2026-10-01 18:52:39.839691+00",
+            "room_purpose": "normal",
+            "mode_key": "online_versus",
+            "status": "waiting",
+            "access_scope": "region",
+            "archive_policy": "region",
+            "legacy_private_autosave": false,
+            "rooms": 1,
+            "unexpired_rooms": 0,
+            "updated_last_24h": 0,
+            "updated_last_hour": 0,
+            "oldest_update": "2026-08-12 16:20:53.275201+00",
+            "newest_update": "2026-08-12 16:20:53.275201+00"
+          },
+          {
+            "observed_at": "2026-10-01 18:52:39.839691+00",
+            "room_purpose": "normal",
+            "mode_key": "solo_practice",
+            "status": "paused",
+            "access_scope": "region",
+            "archive_policy": "region",
+            "legacy_private_autosave": false,
+            "rooms": 1,
+            "unexpired_rooms": 0,
+            "updated_last_24h": 0,
+            "updated_last_hour": 0,
+            "oldest_update": "2026-08-11 09:13:36.490164+00",
+            "newest_update": "2026-08-11 09:13:36.490164+00"
+          },
+          {
+            "observed_at": "2026-10-01 18:52:39.839691+00",
+            "room_purpose": "normal",
+            "mode_key": "solo_practice",
+            "status": "playing",
+            "access_scope": "region",
+            "archive_policy": "region",
+            "legacy_private_autosave": false,
+            "rooms": 2,
+            "unexpired_rooms": 0,
+            "updated_last_24h": 0,
+            "updated_last_hour": 0,
+            "oldest_update": "2026-08-22 09:07:18.515594+00",
+            "newest_update": "2026-08-23 09:11:44.219739+00"
+          },
+          {
+            "observed_at": "2026-10-01 18:52:39.839691+00",
+            "room_purpose": "normal",
+            "mode_key": "stage5b_standard",
+            "status": "playing",
+            "access_scope": "public",
+            "archive_policy": "public",
+            "legacy_private_autosave": false,
+            "rooms": 1,
+            "unexpired_rooms": 1,
+            "updated_last_24h": 1,
+            "updated_last_hour": 0,
+            "oldest_update": "2026-10-01 00:09:17.630051+00",
+            "newest_update": "2026-10-01 00:09:17.630051+00"
+          }
+        ],
+        "cohorts": [
+          {
+            "room_purpose": "normal",
+            "status": "paused",
+            "access_scope": "private",
+            "archive_policy": "private",
+            "legacy_private_autosave": true,
+            "rooms": 5
+          },
+          {
+            "room_purpose": "normal",
+            "status": "paused",
+            "access_scope": "region",
+            "archive_policy": "region",
+            "legacy_private_autosave": false,
+            "rooms": 2
+          },
+          {
+            "room_purpose": "normal",
+            "status": "playing",
+            "access_scope": "private",
+            "archive_policy": "private",
+            "legacy_private_autosave": true,
+            "rooms": 5
+          },
+          {
+            "room_purpose": "normal",
+            "status": "playing",
+            "access_scope": "public",
+            "archive_policy": "public",
+            "legacy_private_autosave": false,
+            "rooms": 1
+          },
+          {
+            "room_purpose": "normal",
+            "status": "playing",
+            "access_scope": "region",
+            "archive_policy": "region",
+            "legacy_private_autosave": false,
+            "rooms": 6
+          },
+          {
+            "room_purpose": "normal",
+            "status": "waiting",
+            "access_scope": "private",
+            "archive_policy": "none",
+            "legacy_private_autosave": false,
+            "rooms": 1
+          },
+          {
+            "room_purpose": "normal",
+            "status": "waiting",
+            "access_scope": "private",
+            "archive_policy": "private",
+            "legacy_private_autosave": true,
+            "rooms": 2
+          },
+          {
+            "room_purpose": "normal",
+            "status": "waiting",
+            "access_scope": "region",
+            "archive_policy": "region",
+            "legacy_private_autosave": false,
+            "rooms": 4
+          }
+        ],
+        "quarantineInputBytes": {
+          "roomRows": 2544968,
+          "timelines": 25738,
+          "events": 255753,
+          "total": 2826459
+        },
+        "databaseBytes": 56118419,
+        "headroom": "Payload size is a floor, not provider free space; verify total disk/WAL/index/TOAST/backup margin immediately before migrations",
+        "freezePolicy": "Preserve room/timeline/events in private quarantine; deny continuation/Ready/join; owner may abandon visible frozen row without deleting private preservation; legacy rows excluded from active quota and expiry cleanup",
+        "operatorDecision": {
+          "stage": "DEPLOY-TIME GATE",
+          "status": "PENDING; one precise decision requested asynchronously",
+          "consequence": "All 26 legacy games become permanently non-resumable; players start fresh; no fabricated trusted result/replay",
+          "authorizationInferred": false
+        }
+      },
+      "recoveryReuse": {
+        "evaluation": "PASS; duplicate restore exercise not required",
+        "sourceReport": "/Users/thitithat_tiankrajang/Desktop/Compact-Storage-Production-Release-Complete.md",
+        "receipts": "/Users/thitithat_tiankrajang/.codex/release-evidence/terminal-routing-rollout",
+        "snapshotAt": "2026-09-30T17:12:35.141198+00:00",
+        "baselineMigrationCount": 35,
+        "tableFingerprintsMatched": 93,
+        "sequencePositionsMatched": 8,
+        "archiveBytes": 5293701,
+        "archiveSha256": "17ee5ce3e49df34ef20e2dcf44f545c11fccae2a93e754c6e02677db31a89cbf",
+        "archiveHashFreshlyReverified": true,
+        "restoreSeconds": 8.784,
+        "pgRestoreExit": 0,
+        "verificationExit": 0,
+        "productionRestore": false,
+        "subsequentMigration": "20261001102600 only terminal-routing function; current 36-version baseline accounted for",
+        "pitrLastKnown": "disabled",
+        "freshness": "DEPLOY-TIME GATE: new consistent recovery point or documented reconciliation of later writes; no duplicate drill unless mechanism materially changes",
+        "cloudRto": "unmeasured; use established incident procedure"
+      },
+      "authur": {
+        "evaluation": "PASS for pre-deploy preparation",
+        "serviceId": "srv-d9tge0740ujc73e9jcn0",
+        "serviceName": "math-engine-algo",
+        "region": "singapore",
+        "deploymentId": "dep-daueppdg1s2s73clnckg",
+        "deployedEngineSha": "4157839b2b230d47381e7388c4055bdf8362ea0f",
+        "cpu": 1,
+        "memoryBytes": 2147483600,
+        "instances": 1,
+        "searchConcurrency": 1,
+        "maxWaiting": 8,
+        "maxWaitMs": 120000,
+        "priorFullStrengthEvidence": [
+          "/Users/thitithat_tiankrajang/Desktop/Authur-Engine-Production-Release-Report.md",
+          "/Users/thitithat_tiankrajang/Desktop/Compact-Storage-Production-Release-Complete.md"
+        ],
+        "capacityReuse": "Three real Strong production replies plus subsequent Storage continued Strong turn on same 1c-2g service. Same Strong/model hashes. No duplicate load test. Sampled CPU/RSS not worst-case guarantees.",
+        "fingerprints": {
+          "strong": "1bfe583051812453cd047894243ebe9b44ad0569ce977bcf28bd7ee2b533ee49",
+          "nextTurn": "e5af04452ede84e16aea6a52cdc582363b9b2efc90708966dcfc754b8c9be966",
+          "replyOpponent": "6f502bf133ee2769a966ddc1b0cb219a54c0f7ac622aaba44c6aed5ac9632f7f",
+          "replySelf": "b2ea60519c4566825250809a832557ac2e92f92256684b850e7219eec34b331a"
+        },
+        "candidateManifestSha256": "c58e91a0ab0e8a2405baa09130d66e14a7bd94c483d64250342192b7930c4d49",
+        "candidateSource": "services/trusted-bot/Dockerfile, compose.yml, health.mjs, runtime.mjs, worker.mjs, models; src/bot/authur/strong.mjs; package.json/package-lock.json",
+        "acceptedLocalImage": "sha256:fe4207bb5740be8d3f2645e5099ecb94a1a1c33c49ab6a0f0a1c2388d173a6b4",
+        "acceptedLocalImageArchitecture": "arm64; not a production registry digest",
+        "deployedOldWorkerCompatible": "Not asserted. Existing old web service does not prove candidate private worker startup.",
+        "privateWiring": "Service JWT plus X-Live-Bot-Secret to live-game; SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY/LIVE_BOT_SECRET server only; approved local JWT/lease/recovery evidence reused",
+        "supervision": "Candidate Compose unless-stopped, 30s healthchecks, recent heartbeat, 370s graceful stop; one search child, 360s process timeout, durable database revision outbox, 10m lease, capped60s retry backoff",
+        "runtimeDifference": "Existing Authur service 30s runner deadline; candidate private wrapper 360s timeout. Not identical wrapper/time ceiling. Verify compatible production runtime and service integration during rollout.",
+        "deploymentGate": "Production-target image digest/architecture and compatible startup; secure gateway/wiring, total expensive-search concurrency1, preserved public service behavior, supervision/monitoring. Do not install no-port worker image as replacement for a web service without compatible process/health integration.",
+        "postSmoke": "Actual private committed turns and crash/lease/lost-ack recovery under maintenance before opening clients",
+        "archbotServerRequirement": false
+      },
+      "providers": {
+        "evaluation": "PASS for relevant pre-deploy inventory",
+        "render": {
+          "allServicesIncludingPreviews": 4,
+          "cronServices": 0,
+          "workflowServicesCliResult": null,
+          "autoDeploy": "off",
+          "branch": "main",
+          "repository": "thitithat-tiankrajang/engine-algo"
+        },
+        "vercel": {
+          "projectId": "prj_kivE4ulotuxx7gMxnQrcFcih0KRO",
+          "repository": "thitithat-tiankrajang/EQ-Log",
+          "productionBranch": "main",
+          "gitCreateDeployments": "enabled",
+          "deployHooks": [],
+          "cronDefinitions": [],
+          "cronDeploymentId": "dpl_GMsdDApHiujRfrnWm9jJiu4xrVCV",
+          "currentProductionSha": "34d5ae676fc460bfff02fe142b5d76354206b903",
+          "mainPushMutatesProduction": true,
+          "source": "Authenticated installed CLI GET /v9/projects/project-ID; sanitized fields only"
+        },
+        "additionalReads": [
+          "MCP get_git_deployment_context has empty teams; get_project omits provider controls",
+          "Vercel schedules CLI failed project retrieval; installed-command schedules endpoint GET returned404; source has no queue/schedule consumer",
+          "Render workflows list returns null/empty; service inventory has no worker/cron service",
+          "Source GitHub quality workflow has no scheduled trigger"
+        ],
+        "manualOperatorActionRequired": null,
+        "limit": "Read-time inventory of relevant connected provider schedules, not a claim about undisclosed unrelated accounts or future configuration"
+      },
+      "deployTimeGates": [
+        "Explicit freeze/maintenance approval for all26 rooms; stop old-client writers, do not rely only on new Edge flags",
+        "Refresh counts and backup coverage/recovery point under maintenance; verify disk/WAL/index/TOAST/backup headroom and hashes",
+        "Exactly nine pending migrations; quarantine complete room/timeline/events; strict grant/publication/service/outbox checks abort on mismatch",
+        "Coordinate Vercel main auto-deploy: no incidental push/merge; only approved release order/protection",
+        "Record production-target worker image/platform digest; existing-placement compatible startup/health, one expensive search, server-only JWT/secret wiring, supervision and alert/rollback owner",
+        "Keep Stage creation disabled; verify zero newly available/active Stage cohort before conditional smoke remainsN/A"
+      ],
+      "postDeploySmoke": [
+        "Private Authur observation/valid committed turns, duplicate/lost-ack no double move/charge, worker crash/expired-lease recovery; inspect queue/lease/error metrics",
+        "Old clients and installedPWA fail closed/reload; frozen legacy restart message, fresh secure game, no invented result or raw/private quarantine exposure",
+        "Mandatory finite Normal/Hosted/Solo/Direct/Ranked/Storage recipient and terminal/replay smoke from existing §29; playable StageN/A while closed; draft/admin secrecy refusal still required",
+        "Monitor health, OOM/restarts, queue ages/attempts, terminal/retention errors and cron; stop creation/dispatch on failure and preserve privacy/completed records"
+      ],
+      "nextStep": "Freeze exact candidate inventory in existing worktree, review retained changes, create local Security candidate commit and record source/artifact digests; do not push/merge/deploy. Production rollout requires separate authorization and deploy-time gates.",
+      "mutations": {
+        "production": false,
+        "broadSuiteRerun": false,
+        "codeChanges": false,
+        "push": false,
+        "merge": false,
+        "deploy": false
+      }
+    },
+    "preDeployBlockers": [],
+    "deployTimeGates": [
+      "Explicit freeze/maintenance approval for all26 rooms; stop old-client writers, do not rely only on new Edge flags",
+      "Refresh counts and backup coverage/recovery point under maintenance; verify disk/WAL/index/TOAST/backup headroom and hashes",
+      "Exactly nine pending migrations; quarantine complete room/timeline/events; strict grant/publication/service/outbox checks abort on mismatch",
+      "Coordinate Vercel main auto-deploy: no incidental push/merge; only approved release order/protection",
+      "Record production-target worker image/platform digest; existing-placement compatible startup/health, one expensive search, server-only JWT/secret wiring, supervision and alert/rollback owner",
+      "Keep Stage creation disabled; verify zero newly available/active Stage cohort before conditional smoke remainsN/A"
+    ],
+    "postDeploySmoke": [
+      "Private Authur observation/valid committed turns, duplicate/lost-ack no double move/charge, worker crash/expired-lease recovery; inspect queue/lease/error metrics",
+      "Old clients and installedPWA fail closed/reload; frozen legacy restart message, fresh secure game, no invented result or raw/private quarantine exposure",
+      "Mandatory finite Normal/Hosted/Solo/Direct/Ranked/Storage recipient and terminal/replay smoke from existing §29; playable StageN/A while closed; draft/admin secrecy refusal still required",
+      "Monitor health, OOM/restarts, queue ages/attempts, terminal/retention errors and cron; stop creation/dispatch on failure and preserve privacy/completed records"
+    ]
+  },
+  "previousSessionProductionPreflight": {
+    "updatedAt": "2026-10-01T18:03:39.652617+00:00",
+    "userTimezone": "Asia/Bangkok",
+    "verdict": "BLOCK",
+    "connectionEvidence": {
+      "supabaseProject": "ilhtcsnndlcsyfdznoow",
+      "supabaseReadOnly": true,
+      "savedOAuthStatus": {
+        "supabase": "oAuth",
+        "render": "oAuth",
+        "vercel": "oAuth"
+      },
+      "readToolInventoryRetrieved": true,
+      "activeChatErrors": {
+        "supabase": "unknown MCP server 'supabase'",
+        "render": "unknown MCP server 'render'",
+        "vercel": "unknown MCP server 'vercel'"
+      },
+      "isolatedThreadResume": "Current chat already has an active writer; not resumed or interrupted",
+      "directRecovery": "Supabase HTTP 403 and bounded saved-authentication-access timeouts; no production records retrieved",
+      "productionRecordEvidenceRetrieved": false,
+      "credentialsPrinted": false,
+      "credentialValuesStoredInArtifacts": false
+    },
+    "stage": {
+      "observedAt": "2026-10-01T16:42:41.407264+00:00",
+      "source": "Operator returned read-only production SQL result",
+      "statusCounts": [
+        {
+          "levels": 10,
+          "sealed": 0,
+          "status": "draft",
+          "approved": 0
+        }
+      ],
+      "approvedLevels": [],
+      "stageEnablement": "BLOCK",
+      "securityReleaseScopeDecision": "B: playable Stage smoke conditional NOT APPLICABLE while unavailable; no publishing fixture required",
+      "exposureEvaluation": "NEEDS MORE EVIDENCE",
+      "remainingExposureEvidence": [
+        "production policies/function gates",
+        "current approved/sealed levels and active attempts",
+        "no ordinary production launch or development fallback",
+        "explicit keep-Stage-closed release scope and legacy preservation"
+      ],
+      "localSecurityEvidenceRetained": true,
+      "sourceTrace": [
+        "src/components/pages/survival/SurvivalPage.tsx:58",
+        "src/components/pages/survival/SurvivalPage.tsx:74",
+        "src/components/pages/survival/SurvivalPage.tsx:80",
+        "src/components/pages/survival/SurvivalPage.tsx:110",
+        "supabase/migrations/20260924180000_survival_levels.sql:38",
+        "supabase/migrations/20260929140000_room_creation_charging.sql:686",
+        "supabase/migrations/20260929140000_room_creation_charging.sql:691",
+        "supabase/functions/live-game/index.ts:199",
+        "supabase/functions/live-game/index.ts:210"
+      ]
+    },
+    "groups": {
+      "botCatalog": {
+        "evaluation": "NEEDS MORE EVIDENCE",
+        "freshProductionEvidence": null,
+        "reason": "Active-chat MCP tools unavailable; authenticated connection inventory does not prove production records"
+      },
+      "productionSettings": {
+        "evaluation": "NEEDS MORE EVIDENCE",
+        "freshProductionEvidence": null,
+        "reason": "Active-chat MCP tools unavailable; authenticated connection inventory does not prove production records"
+      },
+      "activeLiveGamesLegacyImpact": {
+        "evaluation": "NEEDS MORE EVIDENCE",
+        "freshProductionEvidence": null,
+        "reason": "Active-chat MCP tools unavailable; authenticated connection inventory does not prove production records"
+      },
+      "scheduledJobsCron": {
+        "evaluation": "NEEDS MORE EVIDENCE",
+        "freshProductionEvidence": null,
+        "reason": "Active-chat MCP tools unavailable; authenticated connection inventory does not prove production records"
+      },
+      "authurProduction": {
+        "evaluation": "NEEDS MORE EVIDENCE",
+        "freshProductionEvidence": null,
+        "reason": "Active-chat MCP tools unavailable; authenticated connection inventory does not prove production records"
+      },
+      "vercelProduction": {
+        "evaluation": "NEEDS MORE EVIDENCE",
+        "freshProductionEvidence": null,
+        "reason": "Active-chat MCP tools unavailable; authenticated connection inventory does not prove production records"
+      }
+    },
+    "authurExistingTrustedPath": "Confirmed by operator; service identity/deployment/configuration/capacity/health not independently retrieved",
+    "archbotInfrastructureRequirement": false,
+    "localImplementationChanged": false,
+    "broadSuiteRerun": false,
+    "productionMutated": false,
+    "nextAction": "Refresh/reconnect MCP tool inventory for this existing chat, retain Supabase read-only project scope, then resume evidence collection; do not transfer credentials or deploy"
+  },
+  "productionPreflightVerdict": "PASS",
+  "readOnlyPacketBeforeFinalClosure": {
+    "updatedAt": "2026-10-01T18:39:00Z",
+    "userTimezone": "Asia/Bangkok",
+    "verdict": "BLOCK",
+    "connectionEvidence": {
+      "supabaseProject": "ilhtcsnndlcsyfdznoow",
+      "supabaseReadOnly": true,
+      "transactionReadOnly": "on",
+      "callable": {
+        "supabase": true,
+        "render": true,
+        "vercel": true
+      },
+      "productionRecordEvidenceRetrieved": true,
+      "credentialsPrinted": false,
+      "credentialValuesStoredInArtifacts": false,
+      "limitations": [
+        "Vercel explicit team scope 403; default connection scope project/deployment reads succeeded",
+        "Vercel source tree 404; source file 401",
+        "Render has no environment read tool",
+        "Supabase has no backup/PITR read tool",
+        "Vercel responses omit cron/auto-deploy controls"
+      ],
+      "transientReadsRecovered": true
+    },
+    "groups": {
+      "migrationLedger": {
+        "evaluation": "PASS",
+        "versions": [
+          "20260901000000",
+          "20260901000100",
+          "20260924170000",
+          "20260924170100",
+          "20260924180000",
+          "20260925120000",
+          "20260926100000",
+          "20260926100100",
+          "20260927120000",
+          "20260928110000",
+          "20260928120000",
+          "20260929100000",
+          "20260929110000",
+          "20260929120000",
+          "20260929130000",
+          "20260929140000",
+          "20260930100000",
+          "20260930110000",
+          "20260930120000",
+          "20261001101000",
+          "20261001101100",
+          "20261001101200",
+          "20261001101300",
+          "20261001101400",
+          "20261001101500",
+          "20261001101600",
+          "20261001101700",
+          "20261001101800",
+          "20261001101900",
+          "20261001102000",
+          "20261001102100",
+          "20261001102200",
+          "20261001102300",
+          "20261001102400",
+          "20261001102500",
+          "20261001102600"
+        ],
+        "candidatePendingVersions": [
+          "20261001103000",
+          "20261001103100",
+          "20261001103200",
+          "20261001103300",
+          "20261001103400",
+          "20261001103500",
+          "20261001103600",
+          "20261001103700",
+          "20261001103800"
+        ]
+      },
+      "botCatalog": {
+        "evaluation": "PASS",
+        "rows": [
+          {
+            "bot_key": "aether_easy",
+            "engine_family": "aether",
+            "difficulty": "easy",
+            "mode_key": "aether_easy",
+            "execution_type": "SERVER",
+            "access_tier": "free",
+            "lifecycle": "retired",
+            "enabled": true,
+            "new_rooms_allowed": false,
+            "config_version": 1
+          },
+          {
+            "bot_key": "aether_hard",
+            "engine_family": "aether",
+            "difficulty": "hard",
+            "mode_key": "aether_hard",
+            "execution_type": "SERVER",
+            "access_tier": "free",
+            "lifecycle": "retired",
+            "enabled": true,
+            "new_rooms_allowed": false,
+            "config_version": 1
+          },
+          {
+            "bot_key": "aether_max",
+            "engine_family": "aether",
+            "difficulty": "max",
+            "mode_key": "aether_max",
+            "execution_type": "SERVER",
+            "access_tier": "free",
+            "lifecycle": "retired",
+            "enabled": true,
+            "new_rooms_allowed": false,
+            "config_version": 1
+          },
+          {
+            "bot_key": "aether_medium",
+            "engine_family": "aether",
+            "difficulty": "medium",
+            "mode_key": "aether_medium",
+            "execution_type": "SERVER",
+            "access_tier": "free",
+            "lifecycle": "retired",
+            "enabled": true,
+            "new_rooms_allowed": false,
+            "config_version": 1
+          },
+          {
+            "bot_key": "aether_super",
+            "engine_family": "aether",
+            "difficulty": "super",
+            "mode_key": "aether_super",
+            "execution_type": "HYBRID",
+            "access_tier": "free",
+            "lifecycle": "retired",
+            "enabled": true,
+            "new_rooms_allowed": false,
+            "config_version": 1
+          },
+          {
+            "bot_key": "authur_strong",
+            "engine_family": "authur",
+            "difficulty": "super",
+            "mode_key": "authur_strong",
+            "execution_type": "SERVER",
+            "access_tier": "pro",
+            "lifecycle": "active",
+            "enabled": true,
+            "new_rooms_allowed": true,
+            "config_version": 2
+          },
+          {
+            "bot_key": "stage5b",
+            "engine_family": "stage5b",
+            "difficulty": "stage5b64",
+            "mode_key": "stage5b_standard",
+            "execution_type": "CLIENT",
+            "access_tier": "free",
+            "lifecycle": "active",
+            "enabled": true,
+            "new_rooms_allowed": true,
+            "config_version": 1
+          }
+        ]
+      },
+      "productionSettings": {
+        "evaluation": "PASS",
+        "settings": [
+          {
+            "key": "max_active_boards_per_user",
+            "value_int": 3
+          },
+          {
+            "key": "private_board_limit",
+            "value_int": 1000
+          },
+          {
+            "key": "private_folder_depth_limit",
+            "value_int": 8
+          },
+          {
+            "key": "private_folder_limit",
+            "value_int": 200
+          },
+          {
+            "key": "public_archive_limit",
+            "value_int": 100000
+          },
+          {
+            "key": "region_archive_limit",
+            "value_int": 1000
+          }
+        ],
+        "capabilities": [
+          {
+            "plan_key": "free",
+            "capability_key": "private_drive_limit",
+            "status": "decided",
+            "value": 100,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "free",
+            "capability_key": "probot_allowance_capacity",
+            "status": "decided",
+            "value": 0,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "free",
+            "capability_key": "probot_regen_minutes",
+            "status": "undecided",
+            "value": null,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "free",
+            "capability_key": "probot_weekly_allowance_cap",
+            "status": "decided",
+            "value": 0,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "free",
+            "capability_key": "stage_plan_ceiling",
+            "status": "decided",
+            "value": 20,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "plus",
+            "capability_key": "private_drive_limit",
+            "status": "decided",
+            "value": 1000,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "plus",
+            "capability_key": "probot_allowance_capacity",
+            "status": "decided",
+            "value": 3,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "plus",
+            "capability_key": "probot_regen_minutes",
+            "status": "decided",
+            "value": 30,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "plus",
+            "capability_key": "probot_weekly_allowance_cap",
+            "status": "decided",
+            "value": 30,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "plus",
+            "capability_key": "stage_plan_ceiling",
+            "status": "decided",
+            "value": 40,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "pro",
+            "capability_key": "private_drive_limit",
+            "status": "same_as",
+            "value": null,
+            "same_as_plan": "plus"
+          },
+          {
+            "plan_key": "pro",
+            "capability_key": "probot_allowance_capacity",
+            "status": "decided",
+            "value": 10,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "pro",
+            "capability_key": "probot_regen_minutes",
+            "status": "decided",
+            "value": 30,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "pro",
+            "capability_key": "probot_weekly_allowance_cap",
+            "status": "decided",
+            "value": 300,
+            "same_as_plan": null
+          },
+          {
+            "plan_key": "pro",
+            "capability_key": "stage_plan_ceiling",
+            "status": "decided",
+            "value": 50,
+            "same_as_plan": null
+          }
+        ],
+        "toolMappings": [
+          {
+            "mode_key": "aether_easy",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "aether_easy",
+            "tool_key": "bot_insight"
+          },
+          {
+            "mode_key": "aether_easy",
+            "tool_key": "multiverse"
+          },
+          {
+            "mode_key": "aether_easy",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "aether_easy",
+            "tool_key": "turn_log"
+          },
+          {
+            "mode_key": "aether_hard",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "aether_hard",
+            "tool_key": "bot_insight"
+          },
+          {
+            "mode_key": "aether_hard",
+            "tool_key": "multiverse"
+          },
+          {
+            "mode_key": "aether_hard",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "aether_hard",
+            "tool_key": "turn_log"
+          },
+          {
+            "mode_key": "aether_max",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "aether_max",
+            "tool_key": "bot_insight"
+          },
+          {
+            "mode_key": "aether_max",
+            "tool_key": "multiverse"
+          },
+          {
+            "mode_key": "aether_max",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "aether_max",
+            "tool_key": "turn_log"
+          },
+          {
+            "mode_key": "aether_medium",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "aether_medium",
+            "tool_key": "bot_insight"
+          },
+          {
+            "mode_key": "aether_medium",
+            "tool_key": "multiverse"
+          },
+          {
+            "mode_key": "aether_medium",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "aether_medium",
+            "tool_key": "turn_log"
+          },
+          {
+            "mode_key": "aether_super",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "aether_super",
+            "tool_key": "bot_insight"
+          },
+          {
+            "mode_key": "aether_super",
+            "tool_key": "multiverse"
+          },
+          {
+            "mode_key": "aether_super",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "aether_super",
+            "tool_key": "turn_log"
+          },
+          {
+            "mode_key": "authur_strong",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "authur_strong",
+            "tool_key": "bot_insight"
+          },
+          {
+            "mode_key": "authur_strong",
+            "tool_key": "multiverse"
+          },
+          {
+            "mode_key": "authur_strong",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "authur_strong",
+            "tool_key": "turn_log"
+          },
+          {
+            "mode_key": "hosted_versus",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "hosted_versus",
+            "tool_key": "multiverse"
+          },
+          {
+            "mode_key": "hosted_versus",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "hosted_versus",
+            "tool_key": "turn_log"
+          },
+          {
+            "mode_key": "local_versus",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "local_versus",
+            "tool_key": "multiverse"
+          },
+          {
+            "mode_key": "local_versus",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "local_versus",
+            "tool_key": "turn_log"
+          },
+          {
+            "mode_key": "online_versus",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "online_versus",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "online_versus",
+            "tool_key": "turn_log"
+          },
+          {
+            "mode_key": "solo_practice",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "solo_practice",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "solo_practice",
+            "tool_key": "turn_log"
+          },
+          {
+            "mode_key": "stage5b_standard",
+            "tool_key": "analysis"
+          },
+          {
+            "mode_key": "stage5b_standard",
+            "tool_key": "multiverse"
+          },
+          {
+            "mode_key": "stage5b_standard",
+            "tool_key": "replay"
+          },
+          {
+            "mode_key": "stage5b_standard",
+            "tool_key": "turn_log"
+          }
+        ],
+        "freeRegenDisposition": "Intentional zero-allowance N/A; deployed probot_allowance_at guard verified"
+      },
+      "activeLiveGamesLegacyImpact": {
+        "evaluation": "NEEDS MORE EVIDENCE",
+        "rows": [
+          {
+            "room_purpose": "normal",
+            "mode_key": "aether_hard",
+            "status": "waiting",
+            "rooms": 1,
+            "private_bytes": 2205
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "aether_max",
+            "status": "paused",
+            "rooms": 1,
+            "private_bytes": 3774
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "aether_max",
+            "status": "playing",
+            "rooms": 3,
+            "private_bytes": 49115
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "aether_max",
+            "status": "waiting",
+            "rooms": 1,
+            "private_bytes": 2227
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "aether_medium",
+            "status": "playing",
+            "rooms": 1,
+            "private_bytes": 2227
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "aether_medium",
+            "status": "waiting",
+            "rooms": 1,
+            "private_bytes": 2208
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "aether_super",
+            "status": "playing",
+            "rooms": 3,
+            "private_bytes": 82465
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "local_versus",
+            "status": "paused",
+            "rooms": 5,
+            "private_bytes": 214987
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "local_versus",
+            "status": "playing",
+            "rooms": 2,
+            "private_bytes": 43210
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "local_versus",
+            "status": "waiting",
+            "rooms": 3,
+            "private_bytes": 6271
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "online_versus",
+            "status": "waiting",
+            "rooms": 1,
+            "private_bytes": 2285
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "solo_practice",
+            "status": "paused",
+            "rooms": 1,
+            "private_bytes": 51033
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "solo_practice",
+            "status": "playing",
+            "rooms": 2,
+            "private_bytes": 24112
+          },
+          {
+            "room_purpose": "normal",
+            "mode_key": "stage5b_standard",
+            "status": "playing",
+            "rooms": 1,
+            "private_bytes": 2244
+          }
+        ],
+        "totalRooms": 26,
+        "playing": 12,
+        "paused": 7,
+        "waiting": 7,
+        "stateCanonicalBytes": 488363,
+        "quarantineInputBytes": {
+          "roomRows": 2544968,
+          "timelines": 25738,
+          "events": 255753,
+          "total": 2826459
+        },
+        "databaseBytes": 56118419,
+        "rankedUnfinished": 0,
+        "remaining": "Freeze acceptance, maintenance boundary, backup/restore and preservation headroom"
+      },
+      "scheduledJobsCron": {
+        "evaluation": "NEEDS MORE EVIDENCE",
+        "databaseCronEvaluation": "PASS",
+        "jobs": [
+          {
+            "jobid": 1,
+            "jobname": "eq-completed-payload-cleanup",
+            "schedule": "*/5 * * * *",
+            "active": true,
+            "command_digest": "19af5a11409c9bd9e14b629e1186b10b",
+            "needs_authority_review": false
+          }
+        ],
+        "exactBaselineMatch": [
+          {
+            "jobid": 1,
+            "username": "postgres",
+            "database": "postgres",
+            "matches_baseline_command": true,
+            "command_digest": "19af5a11409c9bd9e14b629e1186b10b"
+          }
+        ],
+        "executeAcl": [
+          {
+            "anon_execute": false,
+            "authenticated_execute": false,
+            "service_execute": false
+          }
+        ],
+        "recentRunGroups": [
+          {
+            "status": "succeeded",
+            "runs": 288,
+            "first_run": "2026-09-30 18:35:00.1059+00",
+            "last_end": "2026-10-01 18:30:00.083139+00"
+          }
+        ],
+        "renderCronServices": 0,
+        "repositoryVercelCronDeclarations": 0,
+        "remaining": "Provider Vercel cron state / external scheduler completeness"
+      },
+      "authurProduction": {
+        "evaluation": "NEEDS MORE EVIDENCE",
+        "placementEvaluation": "PASS",
+        "service": {
+          "id": "srv-d9tge0740ujc73e9jcn0",
+          "name": "math-engine-algo",
+          "region": "singapore",
+          "type": "web_service",
+          "runtime": "docker",
+          "plan": "1c-2g",
+          "instances": 1,
+          "autoDeploy": "off",
+          "branch": "main",
+          "dockerfile": "service/Dockerfile",
+          "healthCheckPath": "/health",
+          "suspended": false
+        },
+        "deployment": {
+          "id": "dep-daueppdg1s2s73clnckg",
+          "status": "live",
+          "sha": "4157839b2b230d47381e7388c4055bdf8362ea0f",
+          "finishedAt": "2026-09-30T11:05:52.37018Z"
+        },
+        "health": {
+          "ok": true,
+          "queue": {
+            "running": 0,
+            "waiting": 0,
+            "concurrency": 1,
+            "maxWaiting": 8,
+            "maxWaitMs": 120000
+          },
+          "cpu": {
+            "detected": 1,
+            "source": "cgroup-v2",
+            "parallelism": 1,
+            "concurrencySource": "env"
+          },
+          "authurBudget": "room_authorized",
+          "authurInFlight": 1,
+          "authurRequestsPerMinute": 120,
+          "clientSuper": {
+            "enabled": true,
+            "engineVersion": "super-v11",
+            "weightsVersion": "v1",
+            "adaptiveBudget": "off"
+          }
+        },
+        "metrics": {
+          "start": "2026-09-30T18:00:00Z",
+          "end": "2026-10-01T18:30:00Z",
+          "resolutionSeconds": 3600,
+          "cpuLimit": 1,
+          "memoryLimitBytes": 2147483600,
+          "sampledMemoryMinBytes": 49061890,
+          "sampledMemoryMaxBytes": 54001664,
+          "sampledCpuMax": 0.006596744,
+          "instances": 1,
+          "fullStrengthCapacityProved": false
+        },
+        "operationalLogs": {
+          "pages": 3,
+          "entries": 274,
+          "complete": true,
+          "startTime": "2026-09-30T11:05:00Z",
+          "endTime": "2026-10-01T18:35:00Z",
+          "statusCounts": {
+            "200": 146,
+            "204": 101,
+            "401": 7,
+            "404": 3,
+            "409": 2
+          },
+          "routeCounts": {
+            "/v1/games/[id]/analysis/cancel": 18,
+            "/v1/games/[id]/jobs": 196,
+            "/v1/games/[id]/analysis": 18,
+            "/v1/games/[id]/bot-move": 20,
+            "/": 2,
+            "/missing-release-smoke": 1,
+            "/v1/study/analysis": 4
+          },
+          "nonRequestCategories": {
+            "other-text": 14,
+            "startup-text": 1
+          }
+        },
+        "failureEventsSinceLatestDeploy": [],
+        "remaining": [
+          "Immutable image and full Strong/model fingerprint verification",
+          "Full-strength worker headroom/runtime ceiling and existing-placement rollout plan",
+          "Private wiring/configuration presence plan and gateway mode",
+          "Supervision/alert owners"
+        ],
+        "candidateWorkerAlreadyDeployed": "Not proved and not required before authorized deployment"
+      },
+      "vercelProduction": {
+        "evaluation": "PASS",
+        "projectId": "prj_kivE4ulotuxx7gMxnQrcFcih0KRO",
+        "projectName": "eq-log",
+        "nodeVersion": "24.x",
+        "framework": "vite",
+        "deploymentId": "dpl_GMsdDApHiujRfrnWm9jJiu4xrVCV",
+        "status": "READY",
+        "target": "production",
+        "branch": "main",
+        "sha": "34d5ae676fc460bfff02fe142b5d76354206b903",
+        "matchesWorktreeHead": true,
+        "regions": [
+          "iad1"
+        ],
+        "domains": [
+          "eq-log.vercel.app",
+          "eq-log-thitithats-projects.vercel.app",
+          "eq-log-git-main-thitithats-projects.vercel.app"
+        ],
+        "envNames": [
+          {
+            "key": "VITE_ENGINE_API_URL",
+            "target": [
+              "preview",
+              "production"
+            ],
+            "type": "sensitive"
+          },
+          {
+            "key": "VITE_SUPABASE_URL",
+            "target": [
+              "production",
+              "preview"
+            ],
+            "type": "sensitive"
+          },
+          {
+            "key": "VITE_SUPABASE_ANON_KEY",
+            "target": [
+              "production",
+              "preview"
+            ],
+            "type": "sensitive"
+          }
+        ],
+        "providerControlsEvaluation": "NEEDS MORE EVIDENCE",
+        "remaining": "Current provider cron/auto-deploy controls omitted by response; main push treated as deployment risk"
+      },
+      "backupMaintenanceRestore": {
+        "evaluation": "NEEDS MORE EVIDENCE",
+        "backupCoverage": null,
+        "pitrStatus": null,
+        "testedRestoreEvidence": null,
+        "remaining": "Accountable maintenance/restore/freeze acceptance and preservation capacity"
+      }
+    },
+    "stage": {
+      "evaluation": "PASS",
+      "observedAt": "2026-10-01 18:29:24.86032+00",
+      "statusCounts": [
+        {
+          "status": "draft",
+          "levels": 10,
+          "sealed": 0,
+          "approved": 0
+        }
+      ],
+      "approvedLevels": [],
+      "sessions": {
+        "observed_at": "2026-10-01 18:29:24.86032+00",
+        "attempts_total": 3,
+        "unfinished_attempts": 0,
+        "completed_attempts": 0,
+        "stage_rooms": 0,
+        "stage_creation_requests": 0
+      },
+      "rls": [
+        {
+          "relname": "stage_completed_attempts",
+          "relrowsecurity": true,
+          "relforcerowsecurity": false
+        },
+        {
+          "relname": "survival_attempts",
+          "relrowsecurity": true,
+          "relforcerowsecurity": false
+        },
+        {
+          "relname": "survival_levels",
+          "relrowsecurity": true,
+          "relforcerowsecurity": false
+        }
+      ],
+      "policies": [
+        {
+          "tablename": "room_live",
+          "policyname": "room_live_delete",
+          "permissive": "PERMISSIVE",
+          "roles": "{public}",
+          "cmd": "DELETE",
+          "qual": "((owner_id = auth.uid()) OR is_admin())",
+          "with_check": null
+        },
+        {
+          "tablename": "room_live",
+          "policyname": "room_live_insert",
+          "permissive": "PERMISSIVE",
+          "roles": "{public}",
+          "cmd": "INSERT",
+          "qual": null,
+          "with_check": "((owner_id = auth.uid()) AND (is_approved() OR is_admin()))"
+        },
+        {
+          "tablename": "room_live",
+          "policyname": "room_live_read",
+          "permissive": "PERMISSIVE",
+          "roles": "{public}",
+          "cmd": "SELECT",
+          "qual": "can_read_live_game(room_id)",
+          "with_check": null
+        },
+        {
+          "tablename": "room_live",
+          "policyname": "room_live_update",
+          "permissive": "PERMISSIVE",
+          "roles": "{public}",
+          "cmd": "UPDATE",
+          "qual": "can_write_live_game(room_id)",
+          "with_check": "can_write_live_game(room_id)"
+        },
+        {
+          "tablename": "survival_attempts",
+          "policyname": "survival_attempt_read",
+          "permissive": "PERMISSIVE",
+          "roles": "{authenticated}",
+          "cmd": "SELECT",
+          "qual": "((player_id = auth.uid()) OR is_admin())",
+          "with_check": null
+        },
+        {
+          "tablename": "survival_levels",
+          "policyname": "survival_admin_insert",
+          "permissive": "PERMISSIVE",
+          "roles": "{authenticated}",
+          "cmd": "INSERT",
+          "qual": null,
+          "with_check": "is_admin()"
+        },
+        {
+          "tablename": "survival_levels",
+          "policyname": "survival_admin_update",
+          "permissive": "PERMISSIVE",
+          "roles": "{authenticated}",
+          "cmd": "UPDATE",
+          "qual": "is_admin()",
+          "with_check": "is_admin()"
+        },
+        {
+          "tablename": "survival_levels",
+          "policyname": "survival_read",
+          "permissive": "PERMISSIVE",
+          "roles": "{authenticated}",
+          "cmd": "SELECT",
+          "qual": "((status = 'approved'::text) OR is_admin())",
+          "with_check": null
+        }
+      ],
+      "creationGate": {
+        "wrapper": "create_stage_attempt",
+        "delegate": "create_stage_attempt_before_start_freeze",
+        "approvalOrAdmin": true,
+        "rejectsUnsealed": true,
+        "definitionDigest": "665443214436d5cde36b95186207e431"
+      },
+      "playableSmoke": "NOT APPLICABLE",
+      "keepStageClosed": true,
+      "localSecurityEvidenceRetained": true
+    },
+    "publication": [
+      {
+        "schemaname": "public",
+        "tablename": "members"
+      },
+      {
+        "schemaname": "public",
+        "tablename": "room_live"
+      }
+    ],
+    "archbotInfrastructureRequirement": false,
+    "localImplementationChanged": false,
+    "broadSuiteRerun": false,
+    "productionMutated": false,
+    "nextAction": "Close three provider/operational PRE blockers; then §27 step 2 candidate review/release commit/artifact identity and controlled rollout authorization, not executed",
+    "remainingBlockers": [
+      "Backup/PITR/tested restore/preservation headroom and 26-room freeze maintenance acceptance",
+      "Authur immutable artifact/full-strength headroom/private wiring/supervision/monitoring rollout plan on existing placement",
+      "Provider-only external scheduler inventory and current Vercel main rollout controls"
+    ]
+  },
+  "independentVerification20261002": {
+    "observedAtUtc": "2026-10-02T03:40:00Z",
+    "verdict": "BLOCK",
+    "localCandidateVerdict": "GO (unchanged)",
+    "tools": [
+      "render services list (CLI)",
+      "vercel api GET /v9/projects (CLI)",
+      "supabase db query --linked SELECT-only",
+      "supabase backups list"
+    ],
+    "mutations": "none",
+    "legacyRooms": {
+      "total": 26,
+      "createdSincePrev": 0,
+      "updatedSincePrev": 1,
+      "byLifecycle": {
+        "playing": 12,
+        "paused": 7,
+        "waiting": 7
+      },
+      "byCategory": {
+        "aether_retired": 11,
+        "local_versus": 10,
+        "solo_practice": 3,
+        "online_versus_waiting": 1,
+        "archbot_stage5b_standard": 1
+      },
+      "activeNow": "1 ArchBot practice room touched 2026-10-02T03:37Z",
+      "authurRankedStageLive": 0,
+      "dbBytes": 56192147,
+      "migrations": 36,
+      "activeCron": 1,
+      "preservationInputBytesPrev": 2826459,
+      "providerBackups": {
+        "backups": null,
+        "pitrEnabled": false,
+        "region": "ap-southeast-1"
+      },
+      "classification": "PASS technically; freeze acceptance = OPERATOR DECISION; fresh logical backup = DEPLOY-TIME"
+    },
+    "authur": {
+      "renderService": "srv-d9tge0740ujc73e9jcn0 math-engine-algo web_service engine-algo/main autoDeploy=no plan=1c-2g singapore instances=1",
+      "deployedEngineCommit": "4157839b2b230d47381e7388c4055bdf8362ea0f",
+      "byteIdentity": {
+        "strong.mjs": "1bfe583051812453cd047894243ebe9b44ad0569ce977bcf28bd7ee2b533ee49",
+        "next-turn": "e5af04452ede84e16aea6a52cdc582363b9b2efc90708966dcfc754b8c9be966",
+        "reply-opponent": "6f502bf133ee2769a966ddc1b0cb219a54c0f7ac622aaba44c6aed5ac9632f7f",
+        "reply-self": "b2ea60519c4566825250809a832557ac2e92f92256684b850e7219eec34b331a",
+        "matchesDeployedEngine": true
+      },
+      "workerPlacement": "BLOCK: no production host; engine-algo deployed commit and working tree contain no worker integration; Render has no background worker",
+      "recommendedOption": "New Render Background Worker, EQ-Log services/trusted-bot/Dockerfile, 1 CPU/2 GB, Singapore, autoDeploy off",
+      "renderShutdownNote": "Render background-worker graceful shutdown max 300s < 360s child timeout; lease reclaim covers it; pause dispatch before worker redeploys"
+    },
+    "vercel": {
+      "project": "prj_kivE4ulotuxx7gMxnQrcFcih0KRO",
+      "repo": "thitithat-tiankrajang/EQ-Log",
+      "productionBranch": "main",
+      "createDeployments": "enabled",
+      "deployHooks": [],
+      "ignoredBuildStep": false,
+      "cronDefinitions": [],
+      "productionDeployment": "dpl_GMsdDApHiujRfrnWm9jJiu4xrVCV",
+      "productionSha": "34d5ae676fc460bfff02fe142b5d76354206b903",
+      "pushToMainDeploys": true
+    },
+    "schedulers": {
+      "renderCronOrWorker": 0,
+      "githubScheduledWorkflows": 0,
+      "vercelCrons": 0,
+      "pgCronActive": 1,
+      "classification": "PASS"
+    },
+    "operatorDecisions": [
+      "Authur worker placement",
+      "Legacy 26-room freeze acceptance"
+    ]
+  },
+  "preFreezeTargetedReview20261002": {
+    "scope": "Authur/ArchBot/Analysis boundaries + human hidden-information invariants A-L",
+    "codeChanged": false,
+    "productionMutated": false,
+    "verdicts": {
+      "humanRackSecrecy": "BLOCK",
+      "futureDrawBagSecrecy": "BLOCK",
+      "liveHistoricalSecrecy": "PASS",
+      "physicalHostAuthorization": "PASS",
+      "archbotMinimumDisclosure": "PASS",
+      "authurPrivateExecution": "BLOCK (artifact confidentiality; browser channel PASS)",
+      "authurFairInformation": "PASS",
+      "analysisLiveGameIsolation": "PASS",
+      "completedReplayBoundary": "PASS",
+      "archbotClientAvailability": "PASS",
+      "analysisClientIndependence": "PASS"
+    },
+    "evidence": {
+      "browserBuild": {
+        "files": 44,
+        "sourceMaps": 0,
+        "authurCodeOrModelFingerprintHits": 0
+      },
+      "dbScanLocalCandidate": {
+        "migrations": 45,
+        "authenticatedSecurityDefinerTouchingPrivate": 18,
+        "returningPrivateState": 0,
+        "viewsTouchingPrivate": 0,
+        "readableJsonColumns": [
+          "study_positions.{board,candidates,method,rack}",
+          "survival_levels.bot_latency_ms"
+        ]
+      },
+      "rng": "Fisher-Yates over crypto.getRandomValues with rejection sampling; no seed",
+      "hostedReplayRepro": {
+        "seatedOwner": "A learned B exact current rack",
+        "unseatedHost": "player A learned B exact rack via host branch/restore",
+        "directControl": "403",
+        "patchedCapability": "both variants 403; only hosted app-drawn editHistory changes"
+      },
+      "githubVisibility": {
+        "EQ-Log": "PUBLIC",
+        "engine-algo": "PUBLIC",
+        "forks": 0,
+        "clones14d": {
+          "EQ-Log": [
+            318,
+            134
+          ],
+          "engine-algo": [
+            55,
+            41
+          ]
+        },
+        "authurInEQLogSince": "2026-09-26"
+      }
+    },
+    "proposedFix": "src/liveGame/capabilities.ts editHistory: secure && owner && (botSide || emailPlayMode === undefined || (hosted && tileDrawMode === 'manual'))"
+  },
+  "historyReplayCorrection20261002": {
+    "file": "src/liveGame/capabilities.ts",
+    "codeChanged": true,
+    "productionMutated": false,
+    "rule": "editHistory = secure && owner && (botSide ? (ArchBot practice || no bag anywhere in history) : (no emailPlayMode || hosted+manual))",
+    "modeMatrix": {
+      "direct": false,
+      "hostedAppDraw": false,
+      "hostedSoloAppDraw": false,
+      "physicalHostedManual": true,
+      "passAndPlay": true,
+      "solo": true,
+      "archbot": true,
+      "authurNormal": false,
+      "stageEndgame": true
+    },
+    "edgeBundle": {
+      "before": "f2645d6063445c77154c1e93e237f238d7c4b3c0d23b2fef0372caa04c4ec2e1",
+      "after": "e8b3305c76e8757737da4c04a6eb26817b4c3d2b683d7b448c77679ac4f50194",
+      "diff": "capability expression only"
+    },
+    "tests": {
+      "unit": {
+        "files": [
+          "tests/live-history-replay-secrecy.test.ts",
+          "tests/live-capabilities.test.ts",
+          "tests/live-hosted-administration.test.ts",
+          "tests/live-hidden-boundary.test.ts",
+          "tests/live-milestone-s.test.ts"
+        ],
+        "passed": 57,
+        "failed": 0
+      },
+      "unitMutationOldExpression": {
+        "failed": [
+          "A",
+          "B",
+          "D",
+          "G",
+          "Authur"
+        ],
+        "passed": [
+          "C",
+          "E",
+          "F",
+          "Stage",
+          "ArchBot"
+        ]
+      },
+      "local": {
+        "files": [
+          "tests/live-history-replay-local.test.ts",
+          "tests/live-milestone-s-local.test.ts",
+          "tests/live-capabilities-local.test.ts",
+          "tests/live-compatibility-local.test.ts"
+        ],
+        "passed": 17,
+        "failed": 0
+      },
+      "localMutationOldBundle": {
+        "failed": 3,
+        "of": 3
+      },
+      "tsc": "pass",
+      "eslintChanged": "pass",
+      "prettierChanged": "pass",
+      "notRerun": [
+        "broad suite",
+        "browser gate",
+        "worker/recovery gates"
+      ]
+    },
+    "verdicts": {
+      "hostedHumanRackSecrecy": "PASS",
+      "hostedFutureDrawSecrecy": "PASS",
+      "physicalHostedRegression": "PASS",
+      "authurRackSecrecyHistory": "PASS",
+      "authurFutureDrawSecrecy": "PASS",
+      "archbotBoundary": "PASS",
+      "analysisBoundary": "PASS",
+      "authurCurrentSourceConfidentiality": "HISTORICALLY DISCLOSED"
+    },
+    "authurArtifactOrigin": {
+      "privateRepo": "amath-bot-lab",
+      "labDistModelsMatchProduction": true,
+      "labVercelDeployment": false
+    },
+    "forwardArchitecture": "Private service-role-only Supabase Storage bundle + public SHA-256 pins + worker startup loader; amath-bot-lab remains private source/build boundary; no new repo/registry; not implemented"
+  },
+  "authurDeploymentDecision20261002": {
+    "choice": "B: Render Background Worker (Docker) built from private repo; Authur baked in; no runtime download",
+    "rejected": {
+      "A": "runtime Supabase Storage dependency at every start; bucket/policy/loader complexity",
+      "B-registry": "Render does not keep pulled images: registry needed at every restart; credentials; transfer limits"
+    },
+    "candidateChange": "services/trusted-bot/worker.mjs: AUTHUR_MANIFEST baked pins (four mandatory); defaults unchanged",
+    "verification": {
+      "defaultPins": "pass",
+      "correctManifest": "pass",
+      "wrongHash": "refused",
+      "missingPin": "refused",
+      "unrelatedManifest": "refused",
+      "futureBundleWithOwnManifest": "pass",
+      "futureBundleDefaultPins": "refused",
+      "eslint": "pass",
+      "prettier": "pass"
+    },
+    "additionalMonthlyServices": [],
+    "legacyFreeze": "ACCEPTED by operator 2026-10-02",
+    "readyForCandidateFreeze": true
+  },
+  "candidateFreeze20261002": {
+    "base": "34d5ae676fc460bfff02fe142b5d76354206b903",
+    "paths": 133,
+    "classification": {
+      "required build/config (justified)": 4,
+      "required Security implementation": 38,
+      "required Edge/runtime artifact": 11,
+      "required regression/release test": 52,
+      "required release documentation/evidence": 10,
+      "required Authur worker shell": 9,
+      "required migration": 9
+    },
+    "unclassified": [],
+    "freezeFix": "103600 trusted_commit_live_capability history clause aligned with Edge replay-safe rule",
+    "validation": {
+      "unit": {
+        "passed": 60,
+        "failed": 0
+      },
+      "local": {
+        "passed": 20,
+        "failed": 0
+      },
+      "dbClauseMutation": "old clause fails 3 database-level refusals; restored",
+      "tsc": "pass",
+      "lint": "pass",
+      "formatCheck": "pass",
+      "frontendBuild": "pass",
+      "edgeBundlesMatchSource": [
+        "live-game",
+        "archive-replay",
+        "normal-terminal",
+        "stage-terminal",
+        "ranked"
+      ],
+      "retainedProductionBundles": [
+        "save-completed-game",
+        "migrate-saved-legacy"
+      ],
+      "deployCheckLocal": "0 unsafe; stops only at documented synthetic legacy fixtures"
+    },
+    "scans": {
+      "localSecretValues": 0,
+      "credentialPatterns": 0,
+      "authurArtifacts": "3 disclosed model copies (same blobs as public fixtures)",
+      "frontendAuthurHits": 0,
+      "sourceMaps": 0
+    },
+    "identities": {
+      "edge": {
+        "live-game": "e8b3305c76e8757737da4c04a6eb26817b4c3d2b683d7b448c77679ac4f50194",
+        "archive-replay": "15ccf1cb8f9e255bebb425346b76e3aee31ff99dde975d53a806ea71760b1005",
+        "normal-terminal": "f07aa2c5982d6701451387683d45e09836915b4b9114de124b66b9f49849a278",
+        "stage-terminal": "c1ac075e784d143f89dd7b6e2f609bbb1f4aac227be9546b2a5fbc030f4b1255",
+        "ranked": "2d6fbf6a6d26d0ec1713b34dc910309acb7972346bef0379e739b84d6b312cc2"
+      },
+      "retainedEdge": {
+        "save-completed-game": "ef1fb5815381d25b15c37c7d8cb7124c2e49e5191a4508e29a9a10a94753cbb5",
+        "migrate-saved-legacy": "adbaeca68c76073635cf075c548782587efd5ee72ba8a3abdb74e22c4f4e43f8"
+      },
+      "workerShellManifest": "d29ced9338117b0addc48879f9eeffe57139f5630e25b14063a19701fa9275ed",
+      "localFrontendBuildManifest": "126c7975f43571e94ce1e1af29f7bf37c444da88e02ffc526c07c44ff22ee73b"
+    },
+    "productionMutations": "NONE",
+    "pushMergeDeploy": "NONE"
+  }
+}

@@ -3,13 +3,13 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const online = vi.hoisted(() => ({ configured: true }));
-const { from, rpc } = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn() }));
+const { from, rpc, invoke } = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn(), invoke: vi.fn() }));
 
 vi.mock("../src/supabaseClient", () => ({
   get isSupabaseConfigured() {
     return online.configured;
   },
-  supabase: { from, rpc },
+  supabase: { from, rpc, functions: { invoke } },
 }));
 vi.mock("../src/auth", () => ({
   useAuth: () => ({ profile: { display_name: "Ada" }, userId: "user-1" }),
@@ -450,7 +450,15 @@ describe("a bookmarked choice opens its form directly", () => {
       emailPlayMode: "hosted",
       playerAUserId: null,
       playerBUserId: null,
+      tileDrawMode: "play",
     });
+    const physical = settingsForPlayMode(
+      { ...hosted, tileDrawMode: "manual", playerAUserId: "user-1" },
+      "hosted_email",
+      "user-1",
+      "Ada",
+    );
+    expect(physical).toMatchObject({ tileDrawMode: "manual", playerAUserId: "user-1" });
     // Hosting alone is never read as a seat.
     expect([hosted.playerAUserId, hosted.playerBUserId]).not.toContain("user-1");
   });
@@ -593,7 +601,7 @@ describe("older Create addresses", () => {
 
 describe("creation failures", () => {
   it("still reach the player as the localised active-board-limit message", async () => {
-    rpc.mockReset().mockResolvedValue({
+    invoke.mockReset().mockResolvedValue({
       data: null,
       error: { message: "active_board_limit: you have 3 active boards already (limit 3)" },
     });
@@ -618,7 +626,7 @@ describe("creation failures", () => {
     await expect(attempt()).rejects.toThrow(
       "คุณมีกระดานที่กำลังเล่นครบจำนวนแล้ว — จบหรือยกเลิกเกมเดิมก่อนเริ่มเกมใหม่",
     );
-    // One creation path, unchanged: a human room is still create_live_game.
-    expect(rpc.mock.calls.map(([name]) => name)).toEqual(["create_live_game", "create_live_game"]);
+    // Both retries use the server-created live protocol.
+    expect(invoke.mock.calls.map(([name]) => name)).toEqual(["live-game", "live-game"]);
   });
 });

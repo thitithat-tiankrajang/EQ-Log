@@ -20,7 +20,7 @@ import {
 import { createSurvivalTestGame } from "../src/features/survival/seededGame";
 import { encodeMultiverse } from "../src/gameplay/multiverseCodec";
 import { buildStageCompletedGameRecord } from "../src/completedGame/adapters";
-import { stageStartCanonical } from "../src/features/survival/repository";
+import { stageStartCanonical } from "../src/features/survival/sealedStart";
 import { positionOf, type Multiverse } from "../src/gameplay/multiverse";
 import {
   finishedLegalPassGame,

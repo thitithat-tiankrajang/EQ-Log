@@ -220,6 +220,7 @@ export const Rack = memo(function Rack({
                   aria-label={`Empty rack slot ${slotNumber}`}
                   className="rack-slot"
                   type="button"
+                  data-rack-slot={index}
                   onClick={() =>
                     typing ? onSlotFocus?.(index, side) : onEmptySlotClick?.(index, side)
                   }
@@ -245,6 +246,8 @@ export const Rack = memo(function Rack({
               <button
                 className={`tile-button rack-tile ${selectionClass} ${isCarriedOver ? "carried-over" : ""}`}
                 data-tile-id={tile.id}
+                data-draft-tile-id={active && actionMode !== "exchange" ? tile.id : undefined}
+                data-rack-slot={index}
                 type="button"
                 disabled={isCarriedOver && typing === null}
                 aria-label={

@@ -68,8 +68,12 @@ export function settingsForPlayMode(
   }
   const playerAUserId = settings.playerAUserId?.trim() || null;
   const playerBUserId = settings.playerBUserId?.trim() || null;
+  // Enter Hosted with the baseline automatic default. Manual Hosted is an
+  // explicit physical capability choice and stays selected when re-entered.
+  const hostedDrawMode =
+    settings.emailPlayMode === "hosted" ? (settings.tileDrawMode ?? "play") : "play";
   if (mode === "hosted_solo") {
-    const creatorWasA = Boolean(userId && playerAUserId === userId);
+    const creatorWasA = Boolean(hostedDrawMode !== "manual" && userId && playerAUserId === userId);
     return {
       ...settings,
       playerA: creatorWasA ? "" : settings.playerA,
@@ -82,12 +86,14 @@ export function settingsForPlayMode(
       playerBEmail: null,
       gameMode: "solo",
       emailPlayMode: "hosted",
+      tileDrawMode: hostedDrawMode,
+      emailPlayersCanSeeOpponentRack: false,
       startingSide: "A",
     };
   }
   if (mode === "hosted_email") {
-    const creatorWasA = Boolean(userId && playerAUserId === userId);
-    const creatorWasB = Boolean(userId && playerBUserId === userId);
+    const creatorWasA = Boolean(hostedDrawMode !== "manual" && userId && playerAUserId === userId);
+    const creatorWasB = Boolean(hostedDrawMode !== "manual" && userId && playerBUserId === userId);
     return {
       ...settings,
       playerA: creatorWasA ? "" : settings.playerA,
@@ -100,6 +106,8 @@ export function settingsForPlayMode(
       playerBEmail: null,
       gameMode: "versus",
       emailPlayMode: "hosted",
+      tileDrawMode: hostedDrawMode,
+      emailPlayersCanSeeOpponentRack: false,
     };
   }
   const side: Side =
@@ -223,8 +231,11 @@ export function CreateRoomPanel({
   const playerDuplicate = Boolean(playerAUserId) && playerAUserId === playerBUserId;
   const creatorSide: Side = userId && playerBUserId === userId ? "B" : "A";
   const playerAIsHost =
-    (playMode === "hosted_email" || playMode === "hosted_solo") && playerAUserId === userId;
-  const playerBIsHost = playMode === "hosted_email" && playerBUserId === userId;
+    settings.tileDrawMode !== "manual" &&
+    (playMode === "hosted_email" || playMode === "hosted_solo") &&
+    playerAUserId === userId;
+  const playerBIsHost =
+    settings.tileDrawMode !== "manual" && playMode === "hosted_email" && playerBUserId === userId;
   const readiness = getCreateRoomReadiness({ mode: playMode, settings, userId });
   const submitBlocked = !readiness.ready;
   const blockedReason = readiness.reason;
@@ -251,7 +262,8 @@ export function CreateRoomPanel({
   const manualLabel = usesOnlinePlay ? TILE_DRAW_TEXT.hostEnters : TILE_DRAW_TEXT.realTiles;
   const manualDesc = usesOnlinePlay ? TILE_DRAW_TEXT.hostEntersDesc : TILE_DRAW_TEXT.realTilesDesc;
   const tileDrawSummary = tileDrawMode === "play" ? TILE_DRAW_TEXT.appDraws : manualLabel;
-  const showRackVisibility = usesOnlinePlay && !isSolo;
+  const physicalHostMode = settings.emailPlayMode === "hosted" && tileDrawMode === "manual";
+  const showRackVisibility = usesOnlinePlay && !isSolo && !physicalHostMode;
   const defaultRoomName = buildDefaultRoomName(settings, isSolo);
 
   const submitText = busy
@@ -261,7 +273,9 @@ export function CreateRoomPanel({
   function playerOptionsFor(side: Side): RegisteredPlayer[] {
     const selectedId = side === "A" ? playerAUserId : playerBUserId;
     const otherId = side === "A" ? playerBUserId : playerAUserId;
-    const hostMustStaySeparate = playMode === "hosted_email" || playMode === "hosted_solo";
+    const hostMustStaySeparate =
+      settings.tileDrawMode !== "manual" &&
+      (playMode === "hosted_email" || playMode === "hosted_solo");
     return accountPlayers.filter(
       (player) =>
         player.id === selectedId ||
@@ -292,6 +306,12 @@ export function CreateRoomPanel({
 
   return (
     <section className="create-form" aria-label="Room setup">
+      {physicalHostMode && (
+        <p role="note" className="create-locked-note">
+          The physical Host can see both current racks, including when seated as a player. Other
+          players see only their own rack. Bag order and future draws stay private.
+        </p>
+      )}
       {/* 1 · Where the players sit. Which opponent (person / alone / Aether)
              was already answered on the previous screen, so this only asks
              what that choice leaves open. */}
@@ -621,6 +641,9 @@ export function CreateRoomPanel({
                     value: "visible",
                     label: CREATE_TEXT.rackVisible,
                     description: CREATE_TEXT.rackVisibleDesc,
+                    disabled: true,
+                    disabledReason:
+                      "Non-host online players receive only their own rack during live play.",
                   },
                 ]}
                 onChange={(value) =>

@@ -21,7 +21,7 @@ vi.mock("../src/supabaseClient", () => ({
     }),
   },
 }));
-vi.mock("../src/App", () => ({ default: () => <div>Live play</div> }));
+vi.mock("../src/liveGame/LivePage", () => ({ default: () => <div>Live play</div> }));
 vi.mock("../src/app/NonPlayApplication", () => ({ default: () => <div>Non-play</div> }));
 vi.mock("../src/components/pages/ArchiveReplayPage", () => ({
   default: ({ initialReplay }: { initialReplay?: { archive: { name: string } } }) => (

@@ -28,7 +28,6 @@ import { useArchBotOffer, type ArchBotOffer } from "../../../bot/archbot/availab
 import { ARCHBOT_NAME } from "../../../bot/archbot/identity";
 import { PreGameShell } from "./PreGameShell";
 import { navigate, type CreatePreset, type ReturnDestination } from "../../../router";
-import { isEngineApiConfigured } from "../../../bot/engineApi";
 import { isSupabaseConfigured } from "../../../supabaseClient";
 import type { RoomVisibility } from "../../../roomScope";
 import type { CreateRoomPolicy, JoinPolicy } from "../../../remoteRooms";
@@ -103,7 +102,7 @@ export function CreateRoomPage({
 }) {
   const { profile, userId } = useAuth();
   const { t } = useLocale();
-  const botServerAvailable = isSupabaseConfigured && isEngineApiConfigured;
+  const botServerAvailable = isSupabaseConfigured;
   const context: CreateRoute = { kind: "create", visibility, ...(returnTo ? { returnTo } : {}) };
   // A Create choice opens its settings form directly, in the space the player
   // came from; Custom (and the older bot address) still asks step by step.

@@ -8,13 +8,14 @@ import {
 
 /** The trusted reader constructs these from database rows, never request JSON. */
 export type ArchiveCandidate = {
-  scope: "public" | "region" | "private" | "stage" | "recent" | "saved";
+  scope: "public" | "region" | "private" | "stage" | "recent" | "saved" | "ranked";
   gameId: string;
   name: string;
   ownerId: string;
   regionId?: string;
   finishedAt: string;
   snapshot: unknown;
+  participantIds?: string[];
 };
 
 export type SafeArchiveReplay = {
@@ -34,12 +35,14 @@ export type SafeArchiveReplay = {
 export async function projectFirstAuthorizedArchive(
   candidates: readonly ArchiveCandidate[],
   viewer: CompletedReplayViewer,
+  lifecycle: { live: boolean } = { live: false },
 ): Promise<SafeArchiveReplay | null> {
+  if (lifecycle.live) return null;
   for (const row of candidates) {
     const access: CompletedReplayAccess = {
       scope: row.scope === "recent" || row.scope === "saved" ? "private" : row.scope,
       ownerId: row.ownerId,
-      participantIds: [],
+      participantIds: row.participantIds ?? [],
       regionId: row.regionId,
       published: row.scope === "public" || row.scope === "region",
     };

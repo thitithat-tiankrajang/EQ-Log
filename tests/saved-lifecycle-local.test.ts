@@ -3,9 +3,8 @@
 import { execFile, execFileSync } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
 import { expect, it } from "vitest";
-import { encodeGame } from "../src/codec";
+import { decodeGame, encodeGame } from "../src/codec";
 import { buildCompletedGameRecord } from "../src/completedGame/record";
-import { encodeCanonical, canonicalFromSnapshot } from "../src/domain/projection";
 import { createNewGame, pushActionSnapshot, type GameState } from "../src/game";
 
 const workdir = process.env.LIFECYCLE_TEST_SUPABASE_WORKDIR;
@@ -63,37 +62,62 @@ local(
       startingSide: "A",
       gameMode: "solo",
     });
-    const owned: GameState = { ...prior, playerUserIds: { ...prior.playerUserIds, A: ownerId } };
-    const created = await client.rpc("create_live_game", {
-      target_state: encodeGame(owned),
-      target_access_scope: "private",
-      target_archive_policy: "private",
-      target_region_id: null,
-      target_join_policy: "invite_only",
-      target_private_parent_id: null,
+    const live = async (body: Record<string, unknown>) => {
+      const response = await fetch(`${url}/functions/v1/live-game`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          apikey: env.ANON_KEY!,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+      return { status: response.status, body: await response.json() };
+    };
+    const created = await live({
+      operation: "create",
+      requestId: crypto.randomUUID(),
+      settings: {
+        name: prior.name,
+        gameMode: "solo",
+        playerA: "Owner",
+        playerB: "",
+        playerAUserId: ownerId,
+        startingSide: "A",
+        tileDrawMode: "play",
+        untimed: true,
+      },
+      policy: {
+        accessScope: "private",
+        archivePolicy: "private",
+        joinPolicy: "invite_only",
+        regionId: null,
+      },
     });
-    if (created.error) throw created.error;
-    const roomId = created.data[0].room_id as string;
-    expect(roomId).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
-    expect(roomId).not.toBe(owned.gameId);
+    expect(created.status, "Secure Solo creation must succeed").toBe(200);
+    const roomId = created.body.id;
+    expect(roomId).not.toBe(prior.gameId);
+    let ready = await live({ operation: "read", id: roomId });
+    for (const action of [{ kind: "ready", ready: true }, { kind: "launch" }, { kind: "start" }]) {
+      if (action.kind === "start") await new Promise((resolve) => setTimeout(resolve, 3100));
+      ready = await live({
+        operation: "control",
+        id: roomId,
+        revision: ready.body.match.revision,
+        commandId: crypto.randomUUID(),
+        action,
+      });
+      expect(ready.status, JSON.stringify(ready.body)).toBe(200);
+    }
+    expect(ready.body.match.status).toBe("playing");
     const room = await service
       .from("room_live")
-      .select("archive_policy,legacy_private_autosave")
+      .select("state,archive_policy,legacy_private_autosave")
       .eq("room_id", roomId)
       .single();
-    if (room.error) throw room.error;
+    expect(room.error).toBeNull();
     expect(room.data).toMatchObject({ archive_policy: "none", legacy_private_autosave: false });
-    const first = await client.rpc("commit_live_game_command", {
-      target_game_id: roomId,
-      target_expected_revision: 0,
-      target_command_id: crypto.randomUUID(),
-      target_issued_by: "host",
-      target_command: { kind: "create" },
-      target_canonical: encodeCanonical(canonicalFromSnapshot(owned, 1)),
-      target_canonical_digest: "local-lifecycle",
-      target_state: encodeGame({ ...owned, revision: 1 }),
-    });
-    if (first.error) throw first.error;
+    const owned: GameState = decodeGame(room.data!.state);
     sql(`with ids as (select gen_random_uuid() id from generate_series(1,100)),
     h as (insert into public.game_history (source_kind,source_id,participant_id,
       game_id,participant_side,game_name,mode_key,game_mode,completed_at,result_authority)
@@ -111,15 +135,15 @@ local(
       status: "finished",
       timers: { ...owned.timers, paused: true },
     });
-    const finalState = encodeGame(finished);
-    expect(typeof finalState).toBe("object");
-    expect(JSON.parse(JSON.stringify({ gameId: roomId, state: finalState }))).toMatchObject({
-      gameId: roomId,
-      state: { v: 3 },
-    });
-    const capture = await call("normal-terminal", roomId, finalState);
-    expect(capture.status, JSON.stringify(capture.body)).toBe(200);
-    expect(capture.body.replayRetained).toBe(true);
+    const finishCommand = {
+      operation: "admin",
+      id: roomId,
+      revision: ready.body.match.revision,
+      commandId: crypto.randomUUID(),
+      action: { kind: "finish" },
+    };
+    const capture = await live(finishCommand);
+    expect(capture.status, "Secure Solo terminal capture must persist").toBe(200);
     const history = await client.rpc("list_my_game_history", { p_limit: 20 });
     expect(history.error).toBeNull();
     expect(
@@ -135,7 +159,9 @@ local(
     const replay = await call("archive-replay", roomId);
     expect(replay.status, JSON.stringify(replay.body)).toBe(200);
     expect(replay.body.archive.scope).toBe("recent");
-    expect((await call("normal-terminal", roomId, encodeGame(finished))).status).toBe(200);
+    expect((await call("normal-terminal", roomId, encodeGame(finished))).status).toBe(409);
+    expect((await live(finishCommand)).status).toBe(404);
+    expect(sql(`select count(*) from public.game_history where source_id='${roomId}'`)).toBe("1");
 
     const legacyId = crypto.randomUUID();
     const legacy = encodeGame({ ...finished, gameId: crypto.randomUUID() });

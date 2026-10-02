@@ -18,7 +18,11 @@ export type AuthurRequest = {
   noScoreTail: Side[];
 };
 
-export function buildAuthurRequest(game: GameState, roomId: string, revision: number): AuthurRequest {
+export function buildAuthurRequest(
+  game: GameState,
+  roomId: string,
+  revision: number,
+): AuthurRequest {
   const side = game.botSide;
   if (!side || game.botEngine !== "authur") throw new Error("Not an Authur game");
   const opponent = otherSide(side);
@@ -54,7 +58,7 @@ export function buildAuthurRequest(game: GameState, roomId: string, revision: nu
     opponentRackCount: getRack(game, opponent).length,
     opponentPendingCount: game.pendingExchangeReturnBySide?.[opponent]?.length ?? 0,
     bagCount: game.tilebag.length,
-    scores: { ...game.scores },
+    scores: { A: game.scores.A, B: game.scores.B },
     turnNumber: game.turnNumber,
     noScoreTail,
   };

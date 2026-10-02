@@ -186,6 +186,12 @@ export default function ArchiveReplayPage({
               ))}
             </div>
           ) : null}
+          {"racks" in selected && selected.racks ? (
+            <p>
+              Racks at this position: {replay.players.A}: {selected.racks.A.join(" ") || "empty"} ·{" "}
+              {replay.players.B}: {selected.racks.B.join(" ") || "empty"}
+            </p>
+          ) : null}
           <p>
             Final racks: {replay.players.A}: {replay.finalRacks.A.join(" ") || "empty"} ·{" "}
             {replay.players.B}: {replay.finalRacks.B.join(" ") || "empty"}

@@ -65,7 +65,7 @@ export default function NonPlayApplication() {
   const regionName = profile?.region_name ?? null;
   const accountEmail = normalizeEmail(profile?.email);
   const hasAdminAccess = remoteEnabled && Boolean(userId && profile?.is_admin);
-  const canCreateRoom = !remoteEnabled || Boolean(userId && (isApproved || hasAdminAccess));
+  const canCreateRoom = remoteEnabled && Boolean(userId && (isApproved || hasAdminAccess));
   const initialVisibility = scopedVisibility(route) ?? "public";
   const initialScope = makeRoomScope(initialVisibility, regionId);
   const [lobbyVisibility, setLobbyVisibility] = useState<RoomVisibility>(initialVisibility);
@@ -112,7 +112,7 @@ export default function NonPlayApplication() {
       : !isApproved && !hasAdminAccess
         ? "Your account must be approved before creating a room."
         : null
-    : null;
+    : "Connect to EQ Lab and sign in to play.";
   const createDisabledReason =
     accountCreateDisabledReason ??
     (configured && requestedVisibility === "region" && !regionId
@@ -345,6 +345,14 @@ export default function NonPlayApplication() {
 
   async function openRoom(id: string, expectedScope?: RoomScope | null): Promise<boolean> {
     if (expectedScope === null) return false;
+    if (!remoteEnabled) {
+      setSyncError("Connect to EQ Lab and sign in to play.");
+      return false;
+    }
+    if (remoteEnabled) {
+      navigate({ kind: "play", roomId: id });
+      return true;
+    }
     const result = await withLoading("Opening room…", () => readRoom(id));
     if (!result.ok || !result.value) return false;
     const payload = result.value;
@@ -367,6 +375,10 @@ export default function NonPlayApplication() {
     settings: NewGameSettings,
     policy: remoteRooms.CreateRoomPolicy,
   ) {
+    if (!remoteEnabled) {
+      setSyncError("Connect to EQ Lab and sign in to play.");
+      return;
+    }
     const visibility = policy.accessScope === "region" ? "region" : "public";
     const scope = makeRoomScope(visibility, regionId);
     if (!scope || !canCreateRoom) {
@@ -750,9 +762,9 @@ export default function NonPlayApplication() {
   const coffeeReturn =
     coffeeRoomId && !(route.kind === "room" && route.roomId === coffeeRoomId) ? (
       <button
-        aria-label="Return to paused game"
+        aria-label="Return to game"
         className="eq-coffee-return"
-        title="Return to paused game"
+        title="Return to game"
         type="button"
         onClick={() => {
           navigate({
@@ -768,7 +780,7 @@ export default function NonPlayApplication() {
           <Coffee size={19} />
         </span>
         <span className="eq-coffee-return-copy">
-          <small>Game paused</small>
+          <small>Board left open</small>
           <strong>Return to game</strong>
         </span>
       </button>

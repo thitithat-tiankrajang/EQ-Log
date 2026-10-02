@@ -2,6 +2,7 @@ import {
   advanceToOpponentTurn,
   boardWithPending,
   calculateTotals,
+  calculateGameTotals,
   createNewGame,
   createPlaceDetail,
   getAssignmentOptions,
@@ -72,11 +73,15 @@ export function applyRankedAction(
   side: Side,
   action: RankedAction,
   now: string,
+  policy: "ranked" | "normal" = "ranked",
 ): GameState {
-  if (game.status !== "playing" || game.roomStage !== "playing")
+  if (game.status !== "playing" || game.roomStage !== "playing" || game.timers.paused)
     throw new Error("Match is not playing.");
   if (game.activeSide !== side && action.kind !== "resign") throw new Error("It is not your turn.");
-  const settled = settleRankedClock(game, now);
+  const physical = policy === "normal" && game.tileDrawMode === "manual";
+  if (physical && game.phase === "refill" && action.kind !== "resign")
+    throw new Error("Record the physical refill first.");
+  const settled = policy === "ranked" ? settleRankedClock(game, now) : settleNormalClock(game, now);
   if (settled.status === "finished") return settled;
   if (action.kind === "resign")
     return finishRankedGame(settled, { winner: otherSide(side), reason: "resign" }, now, side);
@@ -128,9 +133,11 @@ export function applyRankedAction(
       return tile;
     });
     if (tilebagBefore.length < outgoing.length) throw new Error("Not enough tiles to exchange.");
-    const incoming = tilebagBefore.slice(0, outgoing.length);
+    const incoming = physical ? [] : tilebagBefore.slice(0, outgoing.length);
     rackAfter = [...rackBefore.filter((tile) => !unique.has(tile.id)), ...incoming];
-    tilebagAfter = shuffleTilebagQueue([...tilebagBefore.slice(outgoing.length), ...outgoing]);
+    tilebagAfter = physical
+      ? tilebagBefore
+      : shuffleTilebagQueue([...tilebagBefore.slice(outgoing.length), ...outgoing]);
     actionDetail = { outgoingTiles: outgoing, incomingTiles: incoming };
     logAction = "exchange";
   } else {
@@ -172,8 +179,19 @@ export function applyRankedAction(
       ...settled,
       board: boardAfter,
       tilebag: tilebagAfter,
+      ...(physical && action.kind === "exchange"
+        ? {
+            pendingExchangeReturnBySide: {
+              ...settled.pendingExchangeReturnBySide,
+              [side]: (actionDetail as { outgoingTiles: GameState["rackA"] }).outgoingTiles,
+            },
+            pendingExchangeReturn: (actionDetail as { outgoingTiles: GameState["rackA"] })
+              .outgoingTiles,
+          }
+        : {}),
       logs: nextLogs,
-      scores: calculateTotals(nextLogs),
+      scores:
+        policy === "ranked" ? calculateTotals(nextLogs) : calculateGameTotals(settled, nextLogs),
       status: autoEnd ? "finished" : "playing",
       timers: autoEnd ? { ...settled.timers, paused: true } : settled.timers,
     },
@@ -181,14 +199,41 @@ export function applyRankedAction(
     rackAfter,
   );
   if (!autoEnd) {
-    if (action.kind === "place") next = refillRackFromQueue(next);
-    next = advanceToOpponentTurn(next);
+    if (
+      physical &&
+      (action.kind === "place" || action.kind === "exchange") &&
+      tilebagAfter.length > 0
+    )
+      next = { ...next, phase: "refill" };
+    else {
+      if (action.kind === "place" && !physical) next = refillRackFromQueue(next);
+      next = advanceToOpponentTurn(next);
+    }
   }
   return { ...next, history: [], historyIndex: 0, lastSavedAt: now };
 }
 
+/** Normal supports untimed sides and overtime; Ranked alone ends at zero. */
+export function settleNormalClock(game: GameState, now: string): GameState {
+  if (game.timers.paused || game.timers.untimed || game.timers.sideUntimed?.[game.activeSide])
+    return game;
+  const elapsed = Math.max(
+    0,
+    Math.floor((Date.parse(now) - Date.parse(game.currentTurnStartedAt)) / 1000),
+  );
+  if (!Number.isFinite(elapsed)) throw new Error("Invalid clock.");
+  return {
+    ...game,
+    timers: {
+      ...game.timers,
+      [game.activeSide]: Math.max(game.timers.minSeconds, game.timers[game.activeSide] - elapsed),
+    },
+    currentTurnStartedAt: now,
+  };
+}
+
 export function settleRankedClock(game: GameState, now: string): GameState {
-  if (game.status !== "playing" || game.roomStage !== "playing") return game;
+  if (game.status !== "playing" || game.roomStage !== "playing" || game.timers.paused) return game;
   const elapsed = Math.max(
     0,
     Math.floor((Date.parse(now) - Date.parse(game.currentTurnStartedAt)) / 1000),

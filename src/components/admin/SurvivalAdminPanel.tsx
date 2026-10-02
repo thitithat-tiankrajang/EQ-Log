@@ -8,9 +8,7 @@ import {
   type SurvivalLevel,
 } from "../../features/survival/repository";
 import { navigate } from "../../router";
-import { supabase } from "../../supabaseClient";
-import poc from "../../../docs/survival-poc-results.json";
-import { SurvivalReplayViewer } from "./SurvivalReplayViewer";
+import { liveGameClient } from "../../liveGame/client";
 
 const SEASON = "2026-09-poc";
 
@@ -37,60 +35,14 @@ export function SurvivalAdminPanel() {
   }, []);
 
   async function importDrafts() {
-    if (!supabase || !userId) throw new Error("เชื่อมต่อฐานข้อมูลและเข้าสู่ระบบก่อน");
-    if (levels.some((level) => level.season_key === SEASON))
-      throw new Error("มีด่านของฤดูกาลนี้อยู่แล้ว จึงไม่เขียนทับการอนุมัติของแอดมิน");
-    const rows = poc.levels
-      .filter(
-        (level) =>
-          level.status === "awaiting_admin_approval" &&
-          "immediateWinningMoves" in level &&
-          level.immediateWinningMoves === 0,
-      )
-      .slice(0, 10)
-      .map((level) => ({
-        season_key: SEASON,
-        level_no: level.level,
-        seed: level.seed,
-        reference_key: "endgame-v1",
-        sample_policy: level.samplePolicy,
-        sample_count: level.trials,
-        win_count: level.wins,
-        immediate_winning_moves:
-          "immediateWinningMoves" in level ? level.immediateWinningMoves : -1,
-        shortest_winning_replay_turns: Math.min(
-          ...level.winningReplays.map((replay) => replay.actions.length),
-        ),
-        bot_latency_ms: level.authurDecisionMs,
-        winning_replays: level.winningReplays,
-        status: "draft",
-      }));
-    const { error: writeError } = await supabase.from("survival_levels").insert(rows);
-    if (writeError) throw writeError;
+    await liveGameClient.stageAdmin("import");
     await load();
   }
 
   async function approve(level: SurvivalLevel) {
-    if (!supabase || !userId) throw new Error("เข้าสู่ระบบก่อน");
-    if (level.winning_replays.length < 3) throw new Error("ต้องมี replay ที่ชนะอย่างน้อย 3 ครั้ง");
-    if (level.immediate_winning_moves !== 0 || level.shortest_winning_replay_turns < 5)
-      throw new Error("ด่านนี้ต้องไม่มีทางชนะทันที และ replay ทุกตัวอย่างต้องเล่นอย่างน้อย 5 ตา");
     const note = (notes[level.id] ?? level.admin_note).trim();
     if (!note) throw new Error("เขียนเหตุผลที่โจทย์เหมาะกับด่านนี้ก่อนอนุมัติ");
-    const { error: writeError } = await supabase
-      .from("survival_levels")
-      .update({
-        status: "approved",
-        admin_note: note,
-        approved_by: userId,
-        approved_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", level.id);
-    if (writeError) throw writeError;
-    // A level is only playable once its starting position is sealed on the
-    // server; approving seals it from the level's own seed.
-    await sealStageStart(level);
+    await liveGameClient.stageAdmin("approve", level.id, note);
     await load();
   }
 
@@ -140,11 +92,6 @@ export function SurvivalAdminPanel() {
           {error}
         </p>
       )}
-      <p>
-        Authur บนเซิร์ฟเวอร์: กลางเกมตัวอย่าง{" "}
-        {poc.serverBenchmark.find((row) => row.name === "midgame")?.wallMs} ms ต่อหมาก;
-        ต้องวัดหลายตำแหน่งก่อนตั้งงบ production
-      </p>
       <div className="eq-survival-grid">
         {levels
           .filter((level) => level.season_key === SEASON)
@@ -153,9 +100,7 @@ export function SurvivalAdminPanel() {
               className={`eq-survival-card${level.status === "approved" ? " is-approved" : ""}`}
               key={level.id}
             >
-              <span className="eq-eyebrow">
-                ด่าน {level.level_no} · seed {level.seed}
-              </span>
+              <span className="eq-eyebrow">ด่าน {level.level_no}</span>
               <h3>{level.status === "approved" ? "อนุมัติแล้ว" : "รอตรวจ"}</h3>
               <p>
                 ชนะ {level.win_count}/{level.sample_count} ครั้ง (
@@ -165,7 +110,7 @@ export function SurvivalAdminPanel() {
                 Authur p50 {level.bot_latency_ms?.p50 ?? "—"} ms · p95{" "}
                 {level.bot_latency_ms?.p95 ?? "—"} ms
               </p>
-              <p>ตัวอย่าง replay ที่ชนะ {level.winning_replays.length}/3</p>
+              <p>ตัวอย่าง replay ที่ชนะ {level.winning_replay_count}/3</p>
               <p>
                 ชนะในตาแรกได้ {level.immediate_winning_moves} ทาง · replay สั้นสุด{" "}
                 {level.shortest_winning_replay_turns} ตา
@@ -174,15 +119,6 @@ export function SurvivalAdminPanel() {
                 ผู้เล่นจริงช่วงทดลอง: {attemptStats[level.id]?.wins ?? 0}/
                 {attemptStats[level.id]?.attempts ?? 0} ชนะ (ข้อมูลยังไม่ยืนยันผลจากเซิร์ฟเวอร์)
               </p>
-              <details className="eq-survival-replays">
-                <summary>ดู replay ตัวอย่าง</summary>
-                {level.winning_replays.map((replay, index) => (
-                  <SurvivalReplayViewer
-                    key={`${replay.policy}-${replay.trial}-${index}`}
-                    replay={replay}
-                  />
-                ))}
-              </details>
               <label className="eq-field">
                 เหตุผลที่เหมาะกับด่านนี้
                 <textarea
@@ -218,7 +154,9 @@ export function SurvivalAdminPanel() {
                   </button>
                 )}
                 <span className="eq-status" data-testid={`stage-seal-${level.id}`}>
-                  {level.start_sealed_at ? "ตำแหน่งเริ่มต้นยืนยันแล้ว" : "ยังไม่ยืนยันตำแหน่งเริ่มต้น"}
+                  {level.start_sealed_at
+                    ? "ตำแหน่งเริ่มต้นยืนยันแล้ว"
+                    : "ยังไม่ยืนยันตำแหน่งเริ่มต้น"}
                 </span>
                 {level.status === "draft" && (
                   <button
@@ -226,7 +164,7 @@ export function SurvivalAdminPanel() {
                     type="button"
                     disabled={
                       busy !== null ||
-                      level.winning_replays.length < 3 ||
+                      level.winning_replay_count < 3 ||
                       level.immediate_winning_moves !== 0 ||
                       level.shortest_winning_replay_turns < 5
                     }

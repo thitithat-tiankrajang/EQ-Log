@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const engine = vi.hoisted(() => ({ configured: true }));
-const { from, rpc } = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn() }));
+const { from, rpc, invoke } = vi.hoisted(() => ({ from: vi.fn(), rpc: vi.fn(), invoke: vi.fn() }));
 
 vi.mock("../src/supabaseClient", () => ({
   isSupabaseConfigured: true,
-  supabase: { from, rpc },
+  supabase: { from, rpc, functions: { invoke } },
 }));
 vi.mock("../src/bot/engineApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../src/bot/engineApi")>()),
@@ -23,43 +23,41 @@ beforeEach(() => {
   resetActiveLocale();
   from.mockReset();
   rpc.mockReset();
+  invoke.mockReset();
 });
 
 describe("starting a Stage", () => {
   it("still asks the server for the attempt, by level and request id only", async () => {
-    rpc.mockResolvedValue({ data: null, error: { message: "stop after the attempt call" } });
+    invoke.mockResolvedValue({ data: null, error: { message: "stop after the attempt call" } });
     await expect(
-      startSurvivalPractice({ id: "level-3", seed: 4242 }, "Ada", "user-1", "request-1"),
+      startSurvivalPractice({ id: "level-3" }, "Ada", "user-1", "request-1"),
     ).rejects.toThrow("stop after the attempt call");
-    expect(rpc.mock.calls.map(([name]) => name)).toEqual(["create_stage_attempt"]);
-    const args = rpc.mock.calls[0]![1] as Record<string, unknown>;
-    expect(Object.keys(args).sort()).toEqual([
-      "target_level_id",
-      "target_request_id",
-      "target_state",
-    ]);
-    expect(args.target_level_id).toBe("level-3");
-    expect(args.target_request_id).toBe("request-1");
+    expect(invoke.mock.calls.map(([name]) => name)).toEqual(["live-game"]);
+    const args = invoke.mock.calls[0]![1].body as Record<string, unknown>;
+    expect(Object.keys(args).sort()).toEqual(["levelId", "operation", "playerName", "requestId"]);
+    expect(args.levelId).toBe("level-3");
+    expect(args.requestId).toBe("request-1");
   });
 
   it("surfaces the server's localised Stage refusal", async () => {
-    rpc.mockResolvedValue({
+    invoke.mockResolvedValue({
       data: null,
       error: { message: "stage_level_not_sealed: the level has no sealed start" },
     });
-    await expect(
-      startSurvivalPractice({ id: "level-3", seed: 4242 }, "Ada", "user-1"),
-    ).rejects.toThrow("This Stage isn't ready to play yet");
+    await expect(startSurvivalPractice({ id: "level-3" }, "Ada", "user-1")).rejects.toThrow(
+      "This Stage isn't ready to play yet",
+    );
   });
 
   it("says, in the player's language, why it cannot start", async () => {
-    await expect(startSurvivalPractice({ id: "l", seed: 1 }, "Ada", null)).rejects.toThrow(
+    await expect(startSurvivalPractice({ id: "l" }, "Ada", null)).rejects.toThrow(
       "Sign in to play a Stage.",
     );
     engine.configured = false;
     chooseLocale("th");
-    await expect(startSurvivalPractice({ id: "l", seed: 1 }, "Ada", "user-1")).rejects.toThrow(
-      "สเตจต้องเชื่อมต่อเซิร์ฟเวอร์เกมก่อน",
+    invoke.mockResolvedValue({ data: { id: "trusted-stage" }, error: null });
+    await expect(startSurvivalPractice({ id: "l" }, "Ada", "user-1")).resolves.toBe(
+      "trusted-stage",
     );
     expect(rpc).not.toHaveBeenCalled();
   });

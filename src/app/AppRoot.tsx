@@ -10,10 +10,13 @@ import {
 import { useRoute } from "../router";
 import { supabase } from "../supabaseClient";
 import type { SafeArchiveReplay } from "../completedGame/archiveRead";
+import { parseStudyPuzzleRoomId } from "../features/studyPuzzles/play";
+import { parseSurvivalRoomId } from "../features/survivalPlay/route";
 
 const NonPlayApplication = lazy(() => import("./NonPlayApplication"));
-const LegacyPlayApplication = lazy(() => import("../App"));
+const SafeLiveApplication = lazy(() => import("../liveGame/LivePage"));
 const ArchiveReplayPage = lazy(() => import("../components/pages/ArchiveReplayPage"));
+const DevelopmentSources = lazy(() => import("../liveGame/DevelopmentSources"));
 
 function PlayApplication() {
   const route = useRoute();
@@ -53,9 +56,13 @@ function PlayApplication() {
       window.removeEventListener("eq-lab:archive-replay-ready", onArchiveReady);
     };
   }, [roomId]);
-  if (!supabase) return <LegacyPlayApplication />;
+  if (!supabase) return <OnlinePlayRequired />;
   if (!room || room.id !== roomId) return <AppBootFallback />;
-  return room.live ? <LegacyPlayApplication /> : <ArchiveReplayPage initialReplay={room.replay} />;
+  return room.live ? (
+    <SafeLiveApplication roomId={roomId} />
+  ) : (
+    <ArchiveReplayPage initialReplay={room.replay} />
+  );
 }
 
 export function AppRoot() {
@@ -70,9 +77,33 @@ export function AppRoot() {
   return (
     <ApplicationErrorBoundary>
       <Suspense fallback={<AppBootFallback />}>
-        <Application />
+        {route.kind === "room" ? (
+          supabase ? (
+            <SafeLiveApplication roomId={route.roomId} />
+          ) : (
+            <OnlinePlayRequired />
+          )
+        ) : route.kind === "play" &&
+          import.meta.env.DEV &&
+          (parseStudyPuzzleRoomId(route.roomId) || parseSurvivalRoomId(route.roomId)) ? (
+          <DevelopmentSources key={route.roomId} roomId={route.roomId} />
+        ) : (
+          <Application />
+        )}
       </Suspense>
     </ApplicationErrorBoundary>
+  );
+}
+
+function OnlinePlayRequired() {
+  return (
+    <main className="eq-auth-shell">
+      <section className="eq-auth-card" role="alert">
+        <span className="eq-eyebrow">EQ Lab</span>
+        <h1>Online play is required</h1>
+        <p className="eq-auth-sub">Connect to EQ Lab and sign in to play.</p>
+      </section>
+    </main>
   );
 }
 

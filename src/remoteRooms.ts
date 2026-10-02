@@ -1,3 +1,5 @@
+import { liveGameClient } from "./liveGame/client";
+import { settingsFromWaitingGame } from "./pregame";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { decodeGame, encodeGame } from "./codec";
 import {
@@ -15,7 +17,6 @@ import { revisionOf, withRevision } from "./gameSync";
 import { canonicalFromSnapshot, encodeCanonical } from "./domain/projection";
 import {
   botDisabledNotice,
-  botKeyFor,
   economyErrorNotice,
   isBotDisabledMessage,
   type BotFunding,
@@ -170,9 +171,6 @@ export type RoomSessionEvent =
   | "delete"
   | "timeline";
 
-const LIVE_SUMMARY_FIELDS =
-  "room_id,owner_id,name,player_a,player_b,status,access_scope,archive_policy,join_policy,region_id,game_mode,mode_key,member_a_id,member_b_id,player_a_user_id,player_b_user_id,starting_side,creator_side,turn_number,score_a,score_b,created_at,updated_at,profiles:owner_id(display_name)";
-const LIVE_READ_FIELDS = `${LIVE_SUMMARY_FIELDS},state,revision,session`;
 const LIVE_REALTIME_COLUMNS = [
   "room_id",
   "owner_id",
@@ -267,22 +265,13 @@ export async function listPrivateRooms(): Promise<RoomMeta[]> {
 
 export async function readRoom(id: string): Promise<RemoteRoomPayload | null> {
   if (!supabase) return null;
-  const liveResult = await supabase
+  const { data, error } = await supabase
     .from("room_live")
-    .select(LIVE_READ_FIELDS)
+    .select("room_id")
     .eq("room_id", id)
     .maybeSingle();
-  if (liveResult.error) throw schemaError(liveResult.error.message);
-  if (liveResult.data) {
-    const payload = payloadFromRow(normalizeLiveRow(liveResult.data as unknown as LiveRoomRow));
-    const { data: roomCode } = await supabase.rpc("get_live_game_code", { target_game_id: id });
-    payload.meta.roomCode = typeof roomCode === "string" ? roomCode : null;
-    return payload;
-  }
-
-  // Completed games are read through archive-replay. Never fetch an internal
-  // archive snapshot into a browser or reconstruct one as a live GameState.
-  return null;
+  if (!data && !error) return null;
+  throw new Error("Live games require a recipient-specific live projection.");
 }
 
 // ── Parked lines (branches) ─────────────────────────────────────────────────────
@@ -432,43 +421,46 @@ export async function createRoom(
           joinPolicy: hasAssignedPlayers(game) ? "invite_only" : "open",
           regionId: null,
         });
-  const roomArgs = {
-    target_state: encodeGame(initialGame),
-    target_access_scope: resolvedPolicy.accessScope,
-    target_archive_policy: resolvedPolicy.archivePolicy,
-    target_region_id: resolvedPolicy.regionId,
-    target_join_policy: resolvedPolicy.joinPolicy,
-    target_private_parent_id: resolvedPolicy.privateParentId ?? null,
+  const created = await liveGameClient.create(
+    settingsFromWaitingGame(initialGame),
+    resolvedPolicy,
+    options?.requestId ?? crypto.randomUUID(),
+    options?.funding ?? undefined,
+  );
+  const safe = {
+    ...initialGame,
+    rackA: [],
+    rackB: [],
+    tilebag: [],
+    logs: [],
+    history: [],
+    historyIndex: 0,
   };
-  // A bot room names its bot by catalog key and nothing else: the server copies
-  // the engine, strength and tier from `bot_catalog` and overwrites the bot
-  // fields in the state. The request id makes a retry of the same confirmation
-  // return the room it already made instead of a second one.
-  const { data, error } = initialGame.botSide
-    ? await supabase.rpc("create_bot_game", {
-        target_request_id: options?.requestId ?? crypto.randomUUID(),
-        target_funding: options?.funding ?? null,
-        target_bot_key: botKeyFor(initialGame),
-        target_bot_side: initialGame.botSide,
-        ...roomArgs,
-      })
-    : await supabase.rpc("create_live_game", roomArgs);
-  if (error) throw schemaError(error.message);
-  const result = Array.isArray(data) ? data[0] : data;
-  const id = String((result as { room_id?: unknown } | null)?.room_id ?? "");
-  const roomCode = String((result as { room_code?: unknown } | null)?.room_code ?? "");
-  if (!id) throw new Error("The live game was created without an id.");
-  // Confirm the initial state and session through the same conditional write
-  // path used during play. This also repairs a room created by an older
-  // database function that returned an id before persisting its state.
-  await commitRoomState({ id, game: initialGame, session, event: "create" });
-  const payload = await readRoom(id);
-  if (!payload) throw new Error("The live game could not be loaded after creation.");
-  if (payload.meta.ownerId && payload.meta.ownerId !== ownerId) {
-    throw new Error("The live game owner did not match the signed-in account.");
-  }
-  if (roomCode) payload.meta.roomCode = roomCode;
-  return { id, meta: payload.meta, game: payload.game };
+  return {
+    id: created.id,
+    game: safe,
+    meta: {
+      id: created.id,
+      name: safe.name,
+      playerA: safe.players.A,
+      playerB: safe.players.B,
+      gameMode: safe.gameMode,
+      startingSide: safe.startingSide ?? "A",
+      turnNumber: 1,
+      scoreA: 0,
+      scoreB: 0,
+      status: "draft",
+      createdAt: safe.createdAt,
+      updatedAt: safe.createdAt,
+      ownerId,
+      roomCode: created.roomCode,
+      accessScope: resolvedPolicy.accessScope,
+      archivePolicy: resolvedPolicy.archivePolicy,
+      joinPolicy: resolvedPolicy.joinPolicy,
+      visibility: scope.visibility,
+      regionId: scope.regionId,
+    },
+  };
 }
 
 /**

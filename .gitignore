@@ -106,3 +106,11 @@ supabase/tests/*
 !supabase/tests/archbot_display_smoke.sql
 !supabase/tests/ranked_authority_smoke.sql
 !supabase/tests/ranked_authority_race.sh
+
+!supabase/functions/live-game/
+!supabase/functions/live-game/index.ts
+!supabase/functions/live-game/handler.ts
+!supabase/functions/live-game/index.js
+
+# Local, private generator inputs used by the isolated security review.
+tools/survival-generator/out/

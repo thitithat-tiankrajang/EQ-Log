@@ -1,4 +1,4 @@
-const CACHE_NAME = "eq-lab-shell-v4";
+const CACHE_NAME = "eq-lab-shell-v5-security";
 const APP_SHELL = [
   "/",
   "/index.html",

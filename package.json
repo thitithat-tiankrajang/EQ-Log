@@ -23,7 +23,8 @@
     "test:a11y": "playwright test --grep @a11y",
     "typecheck": "tsc -b",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run test:archbot-parity && npm run build",
-    "preview": "vite preview --host 127.0.0.1"
+    "preview": "vite preview --host 127.0.0.1",
+    "build:live-game": "esbuild supabase/functions/live-game/index.ts --bundle --platform=neutral --format=esm --target=es2022 --external:npm:* --outfile=supabase/functions/live-game/index.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.107.0",

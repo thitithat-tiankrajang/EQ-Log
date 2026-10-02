@@ -15,3 +15,28 @@
 @import "./styles/99-mobile-play.css" layer(legacy);
 @import "./styles/components/72-turn-log-branches.css" layer(legacy);
 @import "./styles/98-play-stability.css" layer(legacy);
+.ranked-play [data-draft-tile-id] {
+  touch-action: none;
+}
+.live-practice {
+  position: fixed;
+  inset: 1rem;
+  z-index: 9999;
+  overflow: auto;
+  overscroll-behavior: contain;
+  background: var(--panel, white);
+  --cell: clamp(18px, calc((100vw - 64px) / 15), 38px);
+}
+.live-practice .rack {
+  position: relative !important;
+  inset: auto !important;
+}
+@layer legacy {
+  @media (max-width: 759px) {
+    .ranked-play .log-rail .log-panel {
+      display: block !important;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+  }
+}

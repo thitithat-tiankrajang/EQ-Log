@@ -11,7 +11,7 @@ import {
 } from "../src/game";
 import { createSurrenderEndGameLog } from "../src/gameplay/endGame";
 import { createSurvivalTestGame } from "../src/features/survival/seededGame";
-import { stageStartCanonical } from "../src/features/survival/repository";
+import { stageStartCanonical } from "../src/features/survival/sealedStart";
 import {
   buildCapturedRankedCompletedGameRecord,
   buildStageCompletedGameRecord,
@@ -214,12 +214,20 @@ describe("completed-game blocker closure", () => {
     expect(serialized).not.toMatch(
       /tilebag|drawOrder|decisionSeed|sealedStartDigest|runtimeVersion/,
     );
-    const privateReordering = pushActionSnapshot({
+    // Reorder private inventories within the same revisions. Adding a snapshot
+    // would add a real Replay frame, which must now be preserved.
+    const privateReordering = {
       ...game,
       rackA: [...game.rackA].reverse(),
       rackB: [...game.rackB].reverse(),
       tilebag: [...game.tilebag].reverse(),
-    });
+      history: game.history.map((frame) => ({
+        ...frame,
+        rackA: [...frame.rackA].reverse(),
+        rackB: [...frame.rackB].reverse(),
+        tilebag: [...frame.tilebag].reverse(),
+      })),
+    };
     const reorderedRecord = await buildCompletedGameRecord(privateReordering);
     expect(reorderedRecord.digest).not.toBe(record.digest);
     expect(JSON.stringify(await projectCompletedGame(reorderedRecord, access, viewer))).toBe(

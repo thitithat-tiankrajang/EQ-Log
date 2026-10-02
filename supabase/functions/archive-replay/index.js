@@ -1,6 +1,3 @@
-// supabase/functions/archive-replay/index.ts
-import { createClient } from "npm:@supabase/supabase-js@2";
-
 // src/constants/gameRules.ts
 var BOARD_SIZE = 15;
 var RACK_SIZE = 8;
@@ -174,6 +171,9 @@ function otherSide(side) {
 function getGameMode(game) {
   return game.gameMode === "solo" ? "solo" : "versus";
 }
+function getTileDrawMode(game) {
+  return game.tileDrawMode ?? "manual";
+}
 function displayToken(tile) {
   if (tile.assignedToken) return normalizeDisplayToken(tile.assignedToken);
   return AMATH_TOKENS[tile.token].token;
@@ -182,6 +182,51 @@ function normalizeDisplayToken(token) {
   if (token === "/") return "\xF7";
   if (token === "x//" || token === "\xD7/\xF7") return "x/\xF7";
   return token;
+}
+function makeSnapshot(game) {
+  return deepClone({
+    commitId: crypto.randomUUID(),
+    gameId: game.gameId,
+    revision: game.revision,
+    name: game.name,
+    gameMode: getGameMode(game),
+    players: game.players,
+    playerMembers: game.playerMembers,
+    playerUserIds: game.playerUserIds,
+    playerEmails: game.playerEmails,
+    emailPlayMode: game.emailPlayMode,
+    emailPlayersCanSeeOpponentRack: game.emailPlayersCanSeeOpponentRack,
+    matchControl: game.matchControl,
+    roomStage: game.roomStage,
+    lobbyReadyBySide: game.lobbyReadyBySide,
+    lobbyLaunchAt: game.lobbyLaunchAt,
+    startingSide: game.startingSide,
+    botSide: game.botSide,
+    botEngine: game.botEngine,
+    botDifficulty: game.botDifficulty,
+    superEngineVersion: game.superEngineVersion,
+    superWeightsVersion: game.superWeightsVersion,
+    tileDrawMode: getTileDrawMode(game),
+    turnNumber: game.turnNumber,
+    activeSide: game.activeSide,
+    phase: game.phase,
+    status: game.status,
+    boardSize: game.boardSize,
+    board: game.board,
+    rackA: game.rackA,
+    rackB: game.rackB,
+    tilebag: game.tilebag,
+    pendingExchangeReturn: aggregatePendingExchangeReturns(getPendingExchangeReturnBySide(game)),
+    pendingExchangeReturnBySide: getPendingExchangeReturnBySide(game),
+    timers: game.timers,
+    scores: game.scores,
+    logs: game.logs,
+    currentTurnStartedAt: game.currentTurnStartedAt,
+    createdAt: game.createdAt
+  });
+}
+function deepClone(value) {
+  return JSON.parse(JSON.stringify(value));
 }
 
 // src/domain/inventory.ts
@@ -589,6 +634,56 @@ function decodeLog(log, version) {
 function readerFor(version) {
   return version === 3 ? readOrdinalTile : makeLegacyReader(createIdentityAllocator({ strict: false }));
 }
+function encodeSnapshot(snapshot) {
+  const pendingBySide = getPendingExchangeReturnBySide(snapshot);
+  return {
+    commitId: snapshot.commitId,
+    gameId: snapshot.gameId,
+    revision: snapshot.revision,
+    name: snapshot.name,
+    gameMode: getGameMode(snapshot),
+    players: snapshot.players,
+    playerMembers: snapshot.playerMembers,
+    playerUserIds: snapshot.playerUserIds,
+    playerEmails: snapshot.playerEmails,
+    emailPlayMode: snapshot.emailPlayMode,
+    emailPlayersCanSeeOpponentRack: snapshot.emailPlayersCanSeeOpponentRack,
+    matchControl: snapshot.matchControl,
+    roomStage: snapshot.roomStage,
+    lobbyReadyBySide: snapshot.lobbyReadyBySide,
+    lobbyLaunchAt: snapshot.lobbyLaunchAt,
+    startingSide: snapshot.startingSide,
+    botSide: snapshot.botSide,
+    botEngine: snapshot.botEngine,
+    botDifficulty: snapshot.botDifficulty,
+    faceDownCount: snapshot.faceDownCount,
+    // Which version of the parked lines this position was committed with. Tiny
+    // on purpose: the lines themselves live beside the game, not in it.
+    timelineRef: snapshot.timelineRef,
+    // The versions this game's client-side bot is pinned to. Persisted with the
+    // game so the pin survives a reload and reaches a SECOND DEVICE — which is
+    // the only way it can stop one match being played by two evaluators.
+    superEngineVersion: snapshot.superEngineVersion,
+    superWeightsVersion: snapshot.superWeightsVersion,
+    tileDrawMode: getTileDrawMode(snapshot),
+    turnNumber: snapshot.turnNumber,
+    activeSide: snapshot.activeSide,
+    phase: snapshot.phase,
+    status: snapshot.status,
+    boardSize: snapshot.boardSize,
+    timers: snapshot.timers,
+    scores: snapshot.scores,
+    currentTurnStartedAt: snapshot.currentTurnStartedAt,
+    createdAt: snapshot.createdAt,
+    board: encodeBoard(snapshot.board),
+    rackA: encodeTiles(snapshot.rackA),
+    rackB: encodeTiles(snapshot.rackB),
+    tilebag: encodeTiles(snapshot.tilebag),
+    pendingExchangeReturn: aggregatePendingExchangeReturns(pendingBySide).length > 0 ? encodeTiles(aggregatePendingExchangeReturns(pendingBySide)) : void 0,
+    pendingExchangeReturnBySide: encodePendingExchangeReturnBySide(pendingBySide),
+    logs: snapshot.logs.map(encodeLog)
+  };
+}
 function decodeSnapshot(snapshot, read, logs) {
   const pendingBySide = decodePendingExchangeReturnBySide(snapshot, read);
   return {
@@ -641,6 +736,12 @@ function decodeSnapshot(snapshot, read, logs) {
     logs
   };
 }
+function encodePendingExchangeReturnBySide(pendingBySide) {
+  const encoded = {};
+  if (pendingBySide.A.length > 0) encoded.A = encodeTiles(pendingBySide.A);
+  if (pendingBySide.B.length > 0) encoded.B = encodeTiles(pendingBySide.B);
+  return encoded.A || encoded.B ? encoded : void 0;
+}
 function decodePendingExchangeReturnBySide(snapshot, read) {
   if (snapshot.pendingExchangeReturnBySide) {
     const bySide = {
@@ -653,6 +754,24 @@ function decodePendingExchangeReturnBySide(snapshot, read) {
   if (legacyPending.length === 0) return { A: [], B: [] };
   const legacySide = snapshot.activeSide === "A" ? "B" : "A";
   return legacySide === "A" ? { A: legacyPending, B: [] } : { A: [], B: legacyPending };
+}
+function encodeHistorySnapshot(snapshot) {
+  const { logs: _logs, ...encoded } = encodeSnapshot(snapshot);
+  return { ...encoded, logCount: snapshot.logs.length };
+}
+function encodeGame(game) {
+  const historyLogCatalog = game.history.reduce(
+    (longest, snapshot) => snapshot.logs.length > longest.length ? snapshot.logs : longest,
+    game.logs
+  );
+  return {
+    v: 3,
+    ...encodeSnapshot(game),
+    history: game.history.map(encodeHistorySnapshot),
+    historyLogs: historyLogCatalog.map(encodeLog),
+    historyIndex: game.historyIndex,
+    lastSavedAt: game.lastSavedAt
+  };
 }
 function decodeGame(payload) {
   const version = payload.v ?? 1;
@@ -1523,6 +1642,38 @@ async function readCompletedGame(raw, legacyBranches) {
   }
 }
 
+// src/completedGame/adapters.ts
+async function buildRankedCompletedGameRecord(authoritativeStates) {
+  const first = authoritativeStates[0];
+  const final = authoritativeStates.at(-1);
+  if (!first || !final || first.logs.length !== 0 || final.status !== "finished")
+    throw new Error("Ranked capture requires a zero-log playing start and finished private tip.");
+  if (first.status !== "playing" || first.roomStage !== "playing")
+    throw new Error("Ranked capture must start after readiness.");
+  if (authoritativeStates.some((state) => state.gameId !== first.gameId))
+    throw new Error("Ranked capture crossed game identities.");
+  for (let index = 1; index < authoritativeStates.length; index++) {
+    const prior = authoritativeStates[index - 1];
+    const next = authoritativeStates[index];
+    const added = next.logs.length - prior.logs.length;
+    if (added < 1 || added > 2 || added === 2 && next.logs.at(-1)?.action !== "end_game")
+      throw new Error("Ranked capture is missing an authoritative action revision.");
+  }
+  const snapshots = authoritativeStates.map((state) => makeSnapshot(state));
+  const captured = {
+    ...final,
+    history: snapshots,
+    historyIndex: snapshots.length - 1
+  };
+  return buildCompletedGameRecord(captured, void 0, {
+    mode: "ranked",
+    completionAuthority: "server-reduced"
+  });
+}
+
+// supabase/functions/archive-replay/index.ts
+import { createClient } from "npm:@supabase/supabase-js@2";
+
 // src/completedGame/projection.ts
 var PUBLIC_BOT_NAMES = {
   authur: "Authur",
@@ -1594,18 +1745,21 @@ function projectDecodedGame(game, access, viewer, provenance, branches) {
     scores: { A: position.scores.A, B: position.scores.B },
     clocks: { A: position.timers.A, B: position.timers.B },
     turn: position.turnNumber,
-    side: position.activeSide
+    side: position.activeSide,
+    racks: {
+      A: position.rackA.map(displayToken).sort(),
+      B: position.rackB.map(displayToken).sort()
+    }
   }));
   visiblePositions.push({
     board: publicBoard(game.board),
     scores: { A: game.scores.A, B: game.scores.B },
     clocks: { A: game.timers.A, B: game.timers.B },
     turn: game.turnNumber,
-    side: game.activeSide
+    side: game.activeSide,
+    racks: { A: game.rackA.map(displayToken).sort(), B: game.rackB.map(displayToken).sort() }
   });
-  const projectedPositions = visiblePositions.filter(
-    (position, index) => index === 0 || JSON.stringify(position) !== JSON.stringify(visiblePositions[index - 1])
-  );
+  const projectedPositions = JSON.stringify(visiblePositions.at(-1)) === JSON.stringify(visiblePositions.at(-2)) ? visiblePositions.slice(0, -1) : visiblePositions;
   const forkPositions = /* @__PURE__ */ new Map();
   for (const log of game.logs) {
     const saved = history.find((position) => position.logs.at(-1)?.id === log.id);
@@ -1613,7 +1767,8 @@ function projectDecodedGame(game, access, viewer, provenance, branches) {
       board: publicBoard(saved?.board ?? log.boardAfter),
       scores: saved ? { A: saved.scores.A, B: saved.scores.B } : null,
       clocks: saved ? { A: saved.timers.A, B: saved.timers.B } : { A: log.timerAfter.A, B: log.timerAfter.B },
-      turn: log.turnNumber
+      turn: log.turnNumber,
+      racks: saved ? { A: saved.rackA.map(displayToken).sort(), B: saved.rackB.map(displayToken).sort() } : null
     });
   }
   for (const line of branches?.lines ?? [])
@@ -1623,7 +1778,8 @@ function projectDecodedGame(game, access, viewer, provenance, branches) {
         board: publicBoard(saved?.board ?? log.boardAfter),
         scores: saved ? { A: saved.scores.A, B: saved.scores.B } : null,
         clocks: saved ? { A: saved.timers.A, B: saved.timers.B } : { A: log.timerAfter.A, B: log.timerAfter.B },
-        turn: log.turnNumber
+        turn: log.turnNumber,
+        racks: saved ? { A: saved.rackA.map(displayToken).sort(), B: saved.rackB.map(displayToken).sort() } : null
       });
     });
   return {
@@ -1658,7 +1814,11 @@ function projectDecodedGame(game, access, viewer, provenance, branches) {
           board: publicBoard(history[0].board),
           scores: { A: history[0].scores.A, B: history[0].scores.B },
           clocks: { A: history[0].timers.A, B: history[0].timers.B },
-          turn: history[0].turnNumber
+          turn: history[0].turnNumber,
+          racks: {
+            A: history[0].rackA.map(displayToken).sort(),
+            B: history[0].rackB.map(displayToken).sort()
+          }
         };
         return {
           fromTurn: fork?.turn ?? null,
@@ -1678,18 +1838,21 @@ function projectDecodedGame(game, access, viewer, provenance, branches) {
       clockBefore: { A: log.timerBefore.A, B: log.timerBefore.B },
       clockAfter: { A: log.timerAfter.A, B: log.timerAfter.B },
       startedAt: log.startedAt,
-      endedAt: log.endedAt
+      endedAt: log.endedAt,
+      rackBefore: log.rackBefore.map(displayToken).sort(),
+      rackAfter: log.rackAfter.map(displayToken).sort()
     }))
   };
 }
 
 // src/completedGame/archiveRead.ts
-async function projectFirstAuthorizedArchive(candidates2, viewer) {
+async function projectFirstAuthorizedArchive(candidates2, viewer, lifecycle = { live: false }) {
+  if (lifecycle.live) return null;
   for (const row of candidates2) {
     const access = {
       scope: row.scope === "recent" || row.scope === "saved" ? "private" : row.scope,
       ownerId: row.ownerId,
-      participantIds: [],
+      participantIds: row.participantIds ?? [],
       regionId: row.regionId,
       published: row.scope === "public" || row.scope === "region"
     };
@@ -1726,83 +1889,17 @@ function respond(body, status = 200) {
 }
 var uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 async function candidates(gameId, userId) {
-  const found = [];
-  const publicRow = await db.from("public_game_snapshots").select("game_id,source_owner_id,name,finished_at,snapshot").eq("game_id", gameId).maybeSingle();
-  if (publicRow.error) throw publicRow.error;
-  if (publicRow.data)
-    found.push({
-      scope: "public",
-      gameId: publicRow.data.game_id,
-      ownerId: publicRow.data.source_owner_id ?? "",
-      name: publicRow.data.name,
-      finishedAt: publicRow.data.finished_at,
-      snapshot: publicRow.data.snapshot
-    });
-  const regionRow = await db.from("region_game_snapshots").select("game_id,region_id,source_owner_id,name,finished_at,snapshot").eq("game_id", gameId).maybeSingle();
-  if (regionRow.error) throw regionRow.error;
-  if (regionRow.data)
-    found.push({
-      scope: "region",
-      gameId: regionRow.data.game_id,
-      regionId: regionRow.data.region_id,
-      ownerId: regionRow.data.source_owner_id ?? "",
-      name: regionRow.data.name,
-      finishedAt: regionRow.data.finished_at,
-      snapshot: regionRow.data.snapshot
-    });
-  const privateRow = await db.from("private_library_items").select("game_id,owner_id,name,updated_at,snapshot").eq("owner_id", userId).eq("game_id", gameId).eq("item_type", "game").is("trashed_at", null).order("created_at", { ascending: true }).limit(1).maybeSingle();
-  if (privateRow.error) throw privateRow.error;
-  if (privateRow.data)
-    found.push({
-      scope: "private",
-      gameId: privateRow.data.game_id,
-      ownerId: privateRow.data.owner_id,
-      name: privateRow.data.name,
-      finishedAt: privateRow.data.updated_at,
-      snapshot: privateRow.data.snapshot
-    });
-  const recent = await db.rpc("read_recent_game_payload", {
+  const { data, error } = await db.rpc("read_completed_replay_sources", {
     p_game_id: gameId,
     p_user_id: userId
   });
-  if (recent.error) throw recent.error;
-  const retained = recent.data?.[0];
-  if (retained)
-    found.push({
-      scope: "recent",
-      gameId: retained.game_id,
-      ownerId: userId,
-      name: "Recent game",
-      finishedAt: retained.completed_at,
-      snapshot: retained.record
-    });
-  const saved = await db.rpc("read_saved_game_payload", {
-    p_game_id: gameId,
-    p_user_id: userId
-  });
-  if (saved.error) throw saved.error;
-  const savedRow = saved.data?.[0];
-  if (savedRow)
-    found.unshift({
-      scope: savedRow.source_kind === "stage" ? "stage" : "saved",
-      gameId: savedRow.game_id,
-      ownerId: userId,
-      name: "Saved game",
-      finishedAt: savedRow.completed_at,
-      snapshot: savedRow.record
-    });
-  const stageRow = await db.from("stage_completed_attempts").select("room_id,player_id,completed_at,record").eq("room_id", gameId).eq("player_id", userId).maybeSingle();
-  if (stageRow.error) throw stageRow.error;
-  if (stageRow.data)
-    found.push({
-      scope: "stage",
-      gameId: stageRow.data.room_id,
-      ownerId: stageRow.data.player_id,
-      name: "Stage attempt",
-      finishedAt: stageRow.data.completed_at,
-      snapshot: stageRow.data.record
-    });
-  return found;
+  if (error) throw error;
+  const rows = data ?? [];
+  for (const row of rows) {
+    if (row.scope !== "ranked" || !row.rankedState) continue;
+    row.snapshot = row.rankedRevisions?.[0]?.logs.length === 0 ? await buildRankedCompletedGameRecord(row.rankedRevisions) : encodeGame(row.rankedState);
+  }
+  return rows;
 }
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response(null, { headers: cors });
@@ -1826,7 +1923,8 @@ Deno.serve(async (request) => {
     };
     const result = await projectFirstAuthorizedArchive(
       await candidates(body.gameId, auth.user.id),
-      viewer
+      viewer,
+      { live: false }
     );
     if (!result) return respond({ error: "Replay unavailable." }, 404);
     return respond(result);

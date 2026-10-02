@@ -41,18 +41,19 @@ export type CompletedReplayProjection = {
   startingBoard: PublicBoardCell[];
   finalBoard: PublicBoardCell[];
   finalScores: Record<Side, number>;
-  /** Sorted face multisets: rack ordering cannot encode hidden draw order. */
+  /** Completed-game face multisets for the final summary. */
   finalRacks: Record<Side, string[]>;
   clocks: { initial: Record<Side, number>; final: Record<Side, number> };
   bot?: { displayName: string; version: string; difficulty?: string; modelLevel?: string };
   stage?: { levelId: string };
-  /** Every saved revision, projected without racks, bag or physical identities. */
+  /** Full two-seat rack history is released only by the trusted completed reader. */
   positions: Array<{
     board: PublicBoardCell[];
     scores: Record<Side, number>;
     clocks: Record<Side, number>;
     turn: number;
     side: Side;
+    racks: Record<Side, string[]>;
   }>;
   branches?: Array<{
     /** Null only when a legacy line refers to a missing fork node. */
@@ -62,6 +63,7 @@ export type CompletedReplayProjection = {
       scores: Record<Side, number> | null;
       clocks: Record<Side, number>;
       turn: number;
+      racks: Record<Side, string[]> | null;
     }>;
   }>;
   turns: Array<{
@@ -74,6 +76,8 @@ export type CompletedReplayProjection = {
     clockAfter: Record<Side, number>;
     startedAt: string;
     endedAt: string;
+    rackBefore: string[];
+    rackAfter: string[];
   }>;
 };
 
@@ -182,6 +186,10 @@ function projectDecodedGame(
     clocks: { A: position.timers.A, B: position.timers.B },
     turn: position.turnNumber,
     side: position.activeSide,
+    racks: {
+      A: position.rackA.map(displayToken).sort(),
+      B: position.rackB.map(displayToken).sort(),
+    },
   }));
   visiblePositions.push({
     board: publicBoard(game.board),
@@ -189,13 +197,15 @@ function projectDecodedGame(
     clocks: { A: game.timers.A, B: game.timers.B },
     turn: game.turnNumber,
     side: game.activeSide,
+    racks: { A: game.rackA.map(displayToken).sort(), B: game.rackB.map(displayToken).sort() },
   });
-  // A rack reorder or bag-only correction is a canonical archive fact, but it
-  // must not change what a replay viewer sees or reveal that hidden edit.
-  const projectedPositions = visiblePositions.filter(
-    (position, index) =>
-      index === 0 || JSON.stringify(position) !== JSON.stringify(visiblePositions[index - 1]),
-  );
+  // Preserve every visible completed frame, including historical rack changes.
+  // Keep each authoritative historical frame, even an unchanged terminal
+  // position; only avoid appending the current tip twice.
+  const projectedPositions =
+    JSON.stringify(visiblePositions.at(-1)) === JSON.stringify(visiblePositions.at(-2))
+      ? visiblePositions.slice(0, -1)
+      : visiblePositions;
   type BranchPosition = NonNullable<
     CompletedReplayProjection["branches"]
   >[number]["positions"][number];
@@ -209,6 +219,9 @@ function projectDecodedGame(
         ? { A: saved.timers.A, B: saved.timers.B }
         : { A: log.timerAfter.A, B: log.timerAfter.B },
       turn: log.turnNumber,
+      racks: saved
+        ? { A: saved.rackA.map(displayToken).sort(), B: saved.rackB.map(displayToken).sort() }
+        : null,
     });
   }
   for (const line of branches?.lines ?? [])
@@ -221,6 +234,9 @@ function projectDecodedGame(
           ? { A: saved.timers.A, B: saved.timers.B }
           : { A: log.timerAfter.A, B: log.timerAfter.B },
         turn: log.turnNumber,
+        racks: saved
+          ? { A: saved.rackA.map(displayToken).sort(), B: saved.rackB.map(displayToken).sort() }
+          : null,
       });
     });
   return {
@@ -267,6 +283,10 @@ function projectDecodedGame(
                   scores: { A: history[0]!.scores.A, B: history[0]!.scores.B },
                   clocks: { A: history[0]!.timers.A, B: history[0]!.timers.B },
                   turn: history[0]!.turnNumber,
+                  racks: {
+                    A: history[0]!.rackA.map(displayToken).sort(),
+                    B: history[0]!.rackB.map(displayToken).sort(),
+                  },
                 };
             return {
               fromTurn: fork?.turn ?? null,
@@ -288,6 +308,8 @@ function projectDecodedGame(
       clockAfter: { A: log.timerAfter.A, B: log.timerAfter.B },
       startedAt: log.startedAt,
       endedAt: log.endedAt,
+      rackBefore: log.rackBefore.map(displayToken).sort(),
+      rackAfter: log.rackAfter.map(displayToken).sort(),
     })),
   };
 }

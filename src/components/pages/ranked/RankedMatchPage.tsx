@@ -26,6 +26,22 @@ import { EXCHANGE_MIN_RESERVE, RACK_SIZE } from "../../../constants/gameRules";
 import { resolveRackTile, tileRequestFromStroke } from "../../../gameplay/rackResolution";
 import { resolveStudyKey } from "../../../gameplay/tileKeys";
 import { navigate } from "../../../router";
+import { analyzeOwnTurn } from "../../../liveGame/analysis";
+
+import { HostedControls } from "../../../liveGame/HostedControls";
+import type { HostedAction } from "../../../liveGame/hostedAdmin";
+import { PhysicalControls } from "../../../liveGame/PhysicalControls";
+import type { PhysicalAction } from "../../../liveGame/physical";
+import type { LiveGameView } from "../../../liveGame/projection";
+import { concealLocalView } from "../../../liveGame/client";
+import { botDisplayName } from "../../../bot/archbot/identity";
+import { WaitingControls, EditingControls } from "../../../liveGame/CompatibilityControls";
+import type { LiveControl } from "../../../liveGame/controls";
+import { STORAGE_KEYS } from "../../../constants/storage";
+import { ANALYSIS_LEVELS, type AnalysisLevel } from "../../../bot/engineApi";
+import { LivePractice } from "../../../liveGame/LivePractice";
+import { useLiveTileDrag } from "../../../liveGame/tileDrag";
+import { loadPlayTools, type PlayTool } from "../../../playModeTools";
 
 type ActionMode = "none" | "place_equation" | "exchange" | "pass";
 type Direction = "right" | "down" | "left" | "up";
@@ -93,7 +109,44 @@ function playUiGame(view: RankedMatchView, timers: Record<Side, number>): GameSt
   };
 }
 
-export function RankedMatchPage({ matchId }: { matchId: string }) {
+type MatchClient = Pick<typeof rankedClient, "read" | "action" | "ready" | "cancel"> & {
+  control?: (
+    id: string,
+    revision: number,
+    action: LiveControl,
+  ) => Promise<{ match: RankedMatchView }>;
+  administer?: (
+    id: string,
+    revision: number,
+    action: HostedAction,
+  ) => Promise<{ match: RankedMatchView }>;
+  subscribe?: (id: string, refresh: () => void) => () => void;
+  botTurn?: (id: string, revision: number) => Promise<{ match: RankedMatchView }>;
+  physical?: (
+    id: string,
+    revision: number,
+    action: PhysicalAction,
+  ) => Promise<{ match: RankedMatchView }>;
+  record?: (
+    id: string,
+    revision: number,
+    side: Side,
+    move: RankedAction,
+  ) => Promise<{ match: RankedMatchView }>;
+  handoff?: (id: string, revision: number, side: Side) => Promise<{ match: RankedMatchView }>;
+};
+
+export function RankedMatchPage({
+  matchId,
+  client = rankedClient,
+  title = "Ranked match",
+  ranked = true,
+}: {
+  matchId: string;
+  client?: MatchClient;
+  title?: string;
+  ranked?: boolean;
+}) {
   const [match, setMatch] = useState<RankedMatchView | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -106,14 +159,66 @@ export function RankedMatchPage({ matchId }: { matchId: string }) {
   const [exchangeIds, setExchangeIds] = useState<string[]>([]);
   const [selectedLogId, setSelectedLogId] = useState<string | null>(null);
   const [keyNotice, setKeyNotice] = useState<string | null>(null);
+  const [analysis, setAnalysis] = useState<string | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [botBusy, setBotBusy] = useState(false);
+  const [analysisLevel, setAnalysisLevel] = useState<AnalysisLevel>("quick");
+  const [replayPhase, setReplayPhase] = useState<"before" | "after">("after");
+  const [practice, setPractice] = useState(false);
+  const [rackOrder, setRackOrder] = useState<(string | null)[]>([]);
+  const [playTools, setPlayTools] = useState<ReadonlySet<PlayTool>>(new Set());
+  const toolMode = !ranked && match && "mode" in match ? String(match.mode) : "";
+  useEffect(() => {
+    let alive = true;
+    setPlayTools(new Set());
+    if (toolMode)
+      void loadPlayTools(toolMode === "stage" ? "authur_strong" : toolMode).then((tools) => {
+        if (alive) setPlayTools(tools);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [toolMode]);
+  const analysisAbort = useRef<AbortController | null>(null);
   const blankArmedRef = useRef(false);
   const submittingRef = useRef(false);
 
+  const botId = match?.id;
+  const botRevision = match?.revision;
+  const shouldRunBot = Boolean(match && "botTurn" in match && match.botTurn && match.yourSide);
   useEffect(() => {
+    if (!botId || botRevision === undefined || !shouldRunBot || !client.botTurn) return;
+    let alive = true;
+    setBotBusy(true);
+    void client
+      .botTurn(botId, botRevision)
+      .then(({ match: next }) => {
+        if (alive)
+          setMatch((current) => (current && current.revision > next.revision ? current : next));
+      })
+      .catch(
+        (cause) =>
+          alive &&
+          setError(
+            cause instanceof Error ? cause.message : "Bot turn unavailable. Reload and retry.",
+          ),
+      )
+      .finally(() => {
+        if (alive) setBotBusy(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [client, botId, botRevision, shouldRunBot]);
+
+  useEffect(() => {
+    analysisAbort.current?.abort();
+    setAnalyzing(false);
+    setAnalysis(null);
     let alive = true;
     const refresh = async () => {
       try {
-        const { match: next } = await rankedClient.read(matchId);
+        const { match: next } = await client.read(matchId);
         if (alive)
           setMatch((current) =>
             current?.revision && current.revision > next.revision ? current : next,
@@ -124,17 +229,24 @@ export function RankedMatchPage({ matchId }: { matchId: string }) {
       }
     };
     void refresh();
+    const unsubscribe = client.subscribe?.(matchId, () => void refresh());
     const poll = window.setInterval(() => void refresh(), 4000);
     const tick = window.setInterval(() => setClockTick(Date.now()), 1000);
     return () => {
       alive = false;
       window.clearInterval(poll);
       window.clearInterval(tick);
+      unsubscribe?.();
     };
-  }, [matchId]);
+  }, [matchId, client]);
 
   useEffect(() => {
     setMode("none");
+    analysisAbort.current?.abort();
+    setAnalysis(null);
+    setAnalyzing(false);
+    setPractice(false);
+    setRackOrder([]);
     setSelectedTileId(null);
     setSelectedCell(null);
     setSelectedPendingId(null);
@@ -145,29 +257,78 @@ export function RankedMatchPage({ matchId }: { matchId: string }) {
     setKeyNotice(null);
   }, [match?.revision]);
 
+  useEffect(() => () => analysisAbort.current?.abort(), []);
+  useEffect(() => {
+    if (
+      !client.control ||
+      !match ||
+      !("launchAt" in match) ||
+      !match.launchAt ||
+      !("canConfigure" in match && match.canConfigure)
+    )
+      return;
+    const timer = window.setTimeout(
+      () => {
+        void client.control!(match.id, match.revision, { kind: "start" })
+          .then(({ match: next }) =>
+            setMatch((current) => (current && current.revision > next.revision ? current : next)),
+          )
+          .catch((cause) => setError(String(cause)));
+      },
+      Math.max(0, Date.parse(String(match.launchAt)) - Date.now()),
+    );
+    return () => window.clearTimeout(timer);
+  }, [client, match]);
+
   const visibleTime = useCallback(
     (side: Side) => {
       if (!match) return 0;
+      const policy =
+        "clockPolicy" in match
+          ? (match.clockPolicy as { minSeconds: number; untimed: Partial<Record<Side, boolean>> })
+          : null;
       const elapsed =
-        match.status === "playing" && match.activeSide === side
+        match.status === "playing" &&
+        !("paused" in match && match.paused) &&
+        match.activeSide === side &&
+        !policy?.untimed[side]
           ? Math.max(0, Math.floor((clockTick - Date.parse(match.clockStartedAt)) / 1000))
           : 0;
-      return Math.max(0, match.timers[side] - elapsed);
+      return Math.max(policy?.minSeconds ?? 0, match.timers[side] - elapsed);
     },
     [clockTick, match],
   );
   const timers = { A: visibleTime("A"), B: visibleTime("B") };
   const uiGame = match ? playUiGame(match, timers) : null;
-  const selectedLog = match?.logs.find((log) => log.id === selectedLogId) ?? null;
+  const live = !ranked && match ? (match as LiveGameView) : null;
+  const physicalHost = Boolean(live?.hostRacks);
+  const currentRack = physicalHost ? live!.hostRacks![match!.activeSide] : (match?.yourRack ?? []);
+  const selectedLog =
+    [...(match?.logs ?? []), ...(live?.timeline?.lines.flatMap((line) => line.logs) ?? [])].find(
+      (log) => log.id === selectedLogId,
+    ) ?? null;
   const stagedIds = new Set(placements.map((item) => item.tile.id));
-  const rackSlots = match?.yourRack.map((tile) => (stagedIds.has(tile.id) ? null : tile)) ?? [];
-  const unstagedRack = match?.yourRack.filter((tile) => !stagedIds.has(tile.id)) ?? [];
+  const orderedIds = [
+    ...rackOrder.filter((id) => id === null || currentRack.some((tile) => tile.id === id)),
+    ...currentRack.filter((tile) => !rackOrder.includes(tile.id)).map((tile) => tile.id),
+  ].slice(0, RACK_SIZE);
+  const rackSlots = orderedIds.map((id) =>
+    id && !stagedIds.has(id) ? currentRack.find((tile) => tile.id === id)! : null,
+  );
+  const unstagedRack = currentRack.filter((tile) => !stagedIds.has(tile.id));
   const isMyTurn = Boolean(
-    match?.status === "playing" && match.yourSide === match.activeSide && !selectedLog,
+    match?.status === "playing" &&
+    !("paused" in match && match.paused) &&
+    !("continuationBlocked" in match && match.continuationBlocked) &&
+    (match.yourSide === match.activeSide || physicalHost) &&
+    !(live?.tileDrawMode === "manual" && live.phase === "refill") &&
+    !selectedLog,
   );
   const canExchange = Boolean(
     match &&
-    match.tilebagCount + match.rackCount[match.yourSide === "A" ? "B" : "A"] - RACK_SIZE >=
+    match.tilebagCount +
+      match.rackCount[(physicalHost ? match.activeSide : match.yourSide) === "A" ? "B" : "A"] -
+      RACK_SIZE >=
       EXCHANGE_MIN_RESERVE,
   );
   const validation = useMemo(
@@ -175,30 +336,125 @@ export function RankedMatchPage({ matchId }: { matchId: string }) {
     [match, placements],
   );
   const shownBoard =
-    selectedLog?.boardAfter ??
+    (selectedLog
+      ? replayPhase === "before"
+        ? (selectedLog.boardBefore ?? selectedLog.boardAfter)
+        : selectedLog.boardAfter
+      : null) ??
     (match ? boardWithPending(match.board, placements, match.turnNumber, match.activeSide) : null);
+
+  useLiveTileDrag(isMyTurn && !busy && mode !== "exchange" && mode !== "pass", (id, target) => {
+    const tile = currentRack.find((t) => t.id === id);
+    if (!tile) return;
+    const moving = placements.find((p) => p.tile.id === id);
+    if ("slot" in target) {
+      const ids = Array.from({ length: RACK_SIZE }, (_, index) => orderedIds[index] ?? null);
+      const from = ids.indexOf(id);
+      if (from < 0 || target.slot < 0 || target.slot >= RACK_SIZE) return;
+      ids[from] = ids[target.slot];
+      ids[target.slot] = id;
+      setRackOrder(ids);
+      setPlacements((ps) => ps.filter((p) => p.tile.id !== id));
+      setSelectedTileId(null);
+      setSelectedPendingId(null);
+      return;
+    }
+    if (match!.board[target.row]?.[target.col]) return;
+    const occupant = placements.find((p) => p.row === target.row && p.col === target.col);
+    if (moving)
+      setPlacements((ps) =>
+        ps.map((p) =>
+          p.tile.id === id
+            ? { ...p, ...target }
+            : occupant && p.tile.id === occupant.tile.id
+              ? { ...p, row: moving.row, col: moving.col }
+              : p,
+        ),
+      );
+    else if (occupant)
+      setPlacements((ps) =>
+        ps.map((p) =>
+          p === occupant ? { ...p, tile, assignedToken: getAssignmentOptions(tile.token)[0] } : p,
+        ),
+      );
+    else placeTileAt(tile, { ...target, dir: "right" });
+  });
 
   async function run(task: () => Promise<{ match: RankedMatchView }>) {
     if (submittingRef.current) return;
     submittingRef.current = true;
     setBusy(true);
     setError(null);
+    if (live?.localHandoff) {
+      analysisAbort.current?.abort();
+      setAnalysis(null);
+      setPractice(false);
+      setRackOrder([]);
+      setMatch(concealLocalView(live));
+    }
     try {
       const { match: next } = await task();
-      setMatch(next);
+      setMatch((current) => (current && current.revision > next.revision ? current : next));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "ทำรายการไม่สำเร็จ");
-      const fresh = await rankedClient.read(matchId).catch(() => null);
-      if (fresh) setMatch(fresh.match);
+      const fresh = await client.read(matchId).catch(() => null);
+      if (fresh)
+        setMatch((current) =>
+          current && current.revision > fresh.match.revision ? current : fresh.match,
+        );
     } finally {
       submittingRef.current = false;
       setBusy(false);
     }
   }
+  async function control(action: LiveControl) {
+    if (!match || !client.control) return;
+    analysisAbort.current?.abort();
+    setAnalysis(null);
+    setPractice(false);
+    cancelAction();
+    if (live?.localHandoff) setMatch(concealLocalView(live));
+    await run(() => client.control!(match.id, match.revision, action));
+  }
+  async function leaveBoard(coffee: boolean) {
+    if (!match) return;
+    analysisAbort.current?.abort();
+    cancelAction();
+    setSelectedLogId(null);
+    setPractice(false);
+    setAnalysis(null);
+    if (live?.localHandoff) setMatch(concealLocalView(live));
+    try {
+      if (!coffee && live?.canSaveExit && client.control)
+        await client.control(match.id, match.revision, { kind: "save-exit" });
+      if (coffee) window.localStorage.setItem(STORAGE_KEYS.coffeeRoom, match.id);
+      navigate({ kind: ranked ? "ranked" : "arena" });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Unable to leave the game.");
+    }
+  }
 
   async function submit(action: RankedAction) {
     if (!match) return;
-    await run(() => rankedClient.action(match.id, match.revision, action));
+    if (live?.localHandoff) {
+      analysisAbort.current?.abort();
+      setAnalysis(null);
+      setPlacements([]);
+      setSelectedLogId(null);
+      setExchangeIds([]);
+      setSelectedTileId(null);
+      setSelectedPendingId(null);
+      setSelectedCell(null);
+      setMode("none");
+      setKeyNotice(null);
+      blankArmedRef.current = false;
+      setMatch(concealLocalView(live));
+    }
+    await run(() =>
+      physicalHost && client.record
+        ? client.record(match.id, match.revision, match.activeSide, action)
+        : client.action(match.id, match.revision, action),
+    );
   }
 
   function confirmSelectedAction() {
@@ -254,8 +510,22 @@ export function RankedMatchPage({ matchId }: { matchId: string }) {
     if (mode === "exchange" || mode === "pass") return;
     const pending = placements.find((item) => item.row === row && item.col === col);
     if (pending) {
+      if (selectedPendingId && selectedPendingId !== pending.tile.id) {
+        const moving = placements.find((item) => item.tile.id === selectedPendingId)!;
+        setPlacements((items) =>
+          items.map((item) =>
+            item.tile.id === moving.tile.id
+              ? { ...item, row, col }
+              : item.tile.id === pending.tile.id
+                ? { ...item, row: moving.row, col: moving.col }
+                : item,
+          ),
+        );
+        setSelectedPendingId(null);
+        return;
+      }
       if (selectedTileId) {
-        const replacement = match.yourRack.find((item) => item.id === selectedTileId);
+        const replacement = currentRack.find((item) => item.id === selectedTileId);
         if (replacement) {
           setPlacements((items) =>
             items.map((item) =>
@@ -283,7 +553,7 @@ export function RankedMatchPage({ matchId }: { matchId: string }) {
       setSelectedPendingId(null);
       return;
     }
-    const tile = match.yourRack.find((item) => item.id === selectedTileId);
+    const tile = currentRack.find((item) => item.id === selectedTileId);
     if (!tile) {
       if (selectedCell?.row === row && selectedCell.col === col) {
         const index = DIRECTIONS.indexOf(selectedCell.dir);
@@ -307,6 +577,17 @@ export function RankedMatchPage({ matchId }: { matchId: string }) {
         ids.includes(tile.id) ? ids.filter((id) => id !== tile.id) : [...ids, tile.id],
       );
     } else {
+      if (selectedTileId && selectedTileId !== tile.id && !selectedCell) {
+        const ids = Array.from({ length: RACK_SIZE }, (_, index) => orderedIds[index] ?? null);
+        const from = ids.indexOf(selectedTileId),
+          to = ids.indexOf(tile.id);
+        if (from >= 0 && to >= 0) {
+          [ids[from], ids[to]] = [ids[to], ids[from]];
+          setRackOrder(ids);
+          setSelectedTileId(null);
+          return;
+        }
+      }
       if (selectedCell) {
         placeTileAt(tile, selectedCell);
         return;
@@ -331,7 +612,7 @@ export function RankedMatchPage({ matchId }: { matchId: string }) {
   // Board and Rack memoize their picture and require stable callback identities.
   const cellClickRef = useRef(onCellClick);
   const tileClickRef = useRef(onTileClick);
-  const emptySlotRef = useRef(() => {
+  const emptySlotRef = useRef((_index: number) => {
     if (selectedPendingId) {
       setPlacements((items) => items.filter((item) => item.tile.id !== selectedPendingId));
       setSelectedPendingId(null);
@@ -339,7 +620,17 @@ export function RankedMatchPage({ matchId }: { matchId: string }) {
   });
   cellClickRef.current = onCellClick;
   tileClickRef.current = onTileClick;
-  emptySlotRef.current = () => {
+  emptySlotRef.current = (index: number) => {
+    if (selectedTileId) {
+      const next = Array.from({ length: RACK_SIZE }, (_, i) => orderedIds[i] ?? null);
+      const from = next.indexOf(selectedTileId);
+      if (from >= 0) {
+        next[from] = next[index];
+        next[index] = selectedTileId;
+        setRackOrder(next);
+        setSelectedTileId(null);
+      }
+    }
     if (selectedPendingId) {
       setPlacements((items) => items.filter((item) => item.tile.id !== selectedPendingId));
       setSelectedPendingId(null);
@@ -350,7 +641,7 @@ export function RankedMatchPage({ matchId }: { matchId: string }) {
     [],
   );
   const onRackTileClick = useCallback((tile: TileInstance) => tileClickRef.current(tile), []);
-  const onRackEmptySlotClick = useCallback(() => emptySlotRef.current(), []);
+  const onRackEmptySlotClick = useCallback((index: number) => emptySlotRef.current(index), []);
   const onExchangeSelectTiles = useCallback(
     (ids: string[], additive: boolean) =>
       setExchangeIds((current) => (additive ? [...new Set([...current, ...ids])] : ids)),
@@ -491,9 +782,9 @@ export function RankedMatchPage({ matchId }: { matchId: string }) {
   if (!match || !uiGame)
     return (
       <PreGameShell
-        eyebrow="Ranked"
+        eyebrow={ranked ? "Ranked" : "Live game"}
         title="กำลังเปิดห้อง"
-        onBack={() => navigate({ kind: "ranked" })}
+        onBack={() => navigate({ kind: ranked ? "ranked" : "arena" })}
       >
         {error ? <p role="alert">{error}</p> : <p role="status">กำลังโหลด…</p>}
       </PreGameShell>
@@ -501,10 +792,10 @@ export function RankedMatchPage({ matchId }: { matchId: string }) {
   if (match.status === "waiting" || match.status === "matched")
     return (
       <PreGameShell
-        eyebrow="Ranked"
-        title="ห้องจัดอันดับ"
+        eyebrow={ranked ? "Ranked" : "Live game"}
+        title={title}
         subtitle={`${match.players.A} vs ${match.players.B}`}
-        onBack={() => navigate({ kind: "ranked" })}
+        onBack={() => navigate({ kind: ranked ? "ranked" : "arena" })}
         variant="waiting"
       >
         {error && (
@@ -520,15 +811,43 @@ export function RankedMatchPage({ matchId }: { matchId: string }) {
               : `A ${match.readyBySide.A ? "พร้อม" : "ยังไม่พร้อม"} · B ${match.readyBySide.B ? "พร้อม" : "ยังไม่พร้อม"}`}
           </p>
           <p>เวลา {Math.round(match.timers.A / 60)} นาทีต่อฝ่าย · กติกาแข่ง · เบี้ยคู่แข่งปิด</p>
-          {match.status === "matched" && match.yourSide && !match.readyBySide[match.yourSide] && (
+          {match.status === "matched" &&
+            ranked &&
+            match.yourSide &&
+            !match.readyBySide[match.yourSide] &&
             // Each player sees their own stakes; Ready is the confirmation.
-            <RankedReadyConfirmation
-              matchId={match.id}
-              busy={busy}
-              onReady={() => void run(() => rankedClient.ready(match.id))}
-            />
-          )}
+            (ranked ? (
+              <RankedReadyConfirmation
+                matchId={match.id}
+                busy={busy}
+                onReady={() => void run(() => client.ready(match.id))}
+              />
+            ) : (
+              <button
+                type="button"
+                className="eq-button"
+                disabled={busy}
+                onClick={() => void run(() => client.ready(match.id))}
+              >
+                Ready
+              </button>
+            ))}
           <div className="ranked-actions">
+            {live && client.control && (
+              <WaitingControls
+                key={match.revision}
+                match={live}
+                busy={busy}
+                onAction={(action) => void control(action)}
+                onLeave={() => {
+                  if (live.yourSide && live.readyBySide[live.yourSide])
+                    void client.control!(match.id, match.revision, { kind: "ready", ready: false })
+                      .then(() => navigate({ kind: "arena" }))
+                      .catch((cause) => setError(String(cause)));
+                  else navigate({ kind: "arena" });
+                }}
+              />
+            )}
             <button
               className="eq-button"
               type="button"
@@ -542,9 +861,9 @@ export function RankedMatchPage({ matchId }: { matchId: string }) {
               disabled={busy}
               onClick={() => {
                 setBusy(true);
-                void rankedClient
+                void client
                   .cancel(match.id)
-                  .then(() => navigate({ kind: "ranked" }))
+                  .then(() => navigate({ kind: ranked ? "ranked" : "arena" }))
                   .catch((cause) =>
                     setError(cause instanceof Error ? cause.message : "ยกเลิกห้องไม่สำเร็จ"),
                   )
@@ -558,19 +877,103 @@ export function RankedMatchPage({ matchId }: { matchId: string }) {
       </PreGameShell>
     );
 
-  const rackSide = match.yourSide ?? "A";
-  const replayRack = selectedLog?.side === match.yourSide ? (selectedLog.rackBefore ?? []) : [];
+  if (live?.canHandoff && !live.localConfirmed && match.status !== "finished")
+    return (
+      <PreGameShell
+        eyebrow="Pass & Play"
+        title={`Hand the device to ${match.players[match.activeSide]}`}
+        onBack={() => navigate({ kind: "arena" })}
+      >
+        <p>The previous rack is concealed. Confirm only when the next player has the device.</p>
+        <p>
+          Shared-device play cannot isolate private information from someone with unrestricted
+          device access.
+        </p>
+        {error && <p role="alert">{error}</p>}
+        <button
+          type="button"
+          disabled={busy || !client.handoff}
+          onClick={() =>
+            void run(() => client.handoff!(match.id, match.revision, match.activeSide))
+          }
+        >
+          {match.players[match.activeSide]} — confirm handoff
+        </button>
+      </PreGameShell>
+    );
+  const rackSide = physicalHost ? match.activeSide : (match.yourSide ?? "A");
+  const replayRack =
+    selectedLog?.side === match.yourSide
+      ? replayPhase === "before"
+        ? (selectedLog.rackBefore ?? [])
+        : (selectedLog.rackAfter ?? [])
+      : [];
   return (
     <main className="app-shell ranked-play">
       <header className="top-bar">
         <div className="title-block">
-          <h1>Ranked match</h1>
+          <h1>{live?.name ?? title}</h1>
           <span className="topbar-status">
             ตา {match.turnNumber} · {match.players[match.activeSide]} ·{" "}
             {match.status === "finished" ? "จบเกม" : "กำลังเล่น"}
           </span>
         </div>
         <div className="top-actions">
+          {!ranked &&
+            playTools.has("analysis") &&
+            (isMyTurn || (selectedLog?.side === match.yourSide && selectedLog?.rackBefore)) && (
+              <>
+                <label>
+                  Analysis level
+                  <select
+                    value={analysisLevel}
+                    onChange={(e) => setAnalysisLevel(e.target.value as AnalysisLevel)}
+                  >
+                    {ANALYSIS_LEVELS.map((level) => (
+                      <option key={level} value={level}>
+                        {level === "stage5b64" ? "ArchBot" : level}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  className="eq-button"
+                  disabled={busy || analyzing}
+                  onClick={() => {
+                    const controller = new AbortController();
+                    analysisAbort.current?.abort();
+                    analysisAbort.current = controller;
+                    setAnalyzing(true);
+                    void analyzeOwnTurn(match, controller.signal, {
+                      level: analysisLevel,
+                      ...(selectedLog ? { logId: selectedLog.id } : {}),
+                    })
+                      .then(({ response }) => {
+                        if (!controller.signal.aborted)
+                          setAnalysis(
+                            `Own-rack analysis: ${response.type} · ${response.score} points`,
+                          );
+                      })
+                      .catch((cause) => {
+                        if (!controller.signal.aborted)
+                          setError(
+                            cause instanceof Error ? cause.message : "Analysis unavailable.",
+                          );
+                      })
+                      .finally(() => {
+                        if (!controller.signal.aborted) setAnalyzing(false);
+                      });
+                  }}
+                >
+                  {analyzing
+                    ? "Analyzing your rack…"
+                    : selectedLog
+                      ? "Analyze my historical turn"
+                      : "Analyze my turn"}
+                </button>
+              </>
+            )}
           <span className="role-badge">ถุง {match.tilebagCount}</span>
           {match.ratingChange && (
             <span className="role-badge owner">
@@ -578,25 +981,32 @@ export function RankedMatchPage({ matchId }: { matchId: string }) {
               {match.ratingChange.after}
             </span>
           )}
-          {match.status === "playing" && (
-            <button
-              className="danger-button top-end-game"
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                if (window.confirm("ยอมแพ้เกมจัดอันดับนี้?")) void submit({ kind: "resign" });
-              }}
-            >
-              <Flag size={18} /> ยอมแพ้
-            </button>
-          )}
+          {match.status === "playing" &&
+            match.yourSide &&
+            !("continuationBlocked" in match && match.continuationBlocked) && (
+              <button
+                className="danger-button top-end-game"
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  if (window.confirm("ยอมแพ้เกมนี้?")) void submit({ kind: "resign" });
+                }}
+              >
+                <Flag size={18} /> ยอมแพ้
+              </button>
+            )}
           <button
             className="icon-button top-save-exit"
             type="button"
-            onClick={() => navigate({ kind: "ranked" })}
+            onClick={() => void leaveBoard(false)}
           >
             <LogOut size={18} /> ห้องและอันดับ
           </button>
+          {!ranked && (
+            <button type="button" disabled={busy} onClick={() => void leaveBoard(true)}>
+              Coffee Break
+            </button>
+          )}
         </div>
       </header>
       {error && (
@@ -604,9 +1014,64 @@ export function RankedMatchPage({ matchId }: { matchId: string }) {
           {error}
         </p>
       )}
+      {"continuationBlocked" in match && Boolean(match.continuationBlocked) && (
+        <p role="alert">
+          This legacy game is read-only and cannot continue after the security upgrade. Its previous
+          record is preserved privately, without a result or completed Replay. Refresh EQ Lab and
+          start a new game.
+        </p>
+      )}
+      {"paused" in match && Boolean(match.paused) && <p role="status">Game paused</p>}
+      {live && client.control && (
+        <EditingControls
+          key={`${match.revision}:${selectedLogId ?? ""}`}
+          match={live}
+          busy={busy}
+          selectedLog={selectedLog}
+          allowBranches={playTools.has("multiverse")}
+          onAction={(action) => void control(action)}
+          onSelectLog={setSelectedLogId}
+        />
+      )}
+      {!ranked && "canAdminister" in match && Boolean(match.canAdminister) && client.administer && (
+        <HostedControls
+          match={match}
+          busy={busy}
+          onAction={(action) =>
+            void run(() => client.administer!(match.id, match.revision, action))
+          }
+        />
+      )}
+      {live && client.physical && (
+        <PhysicalControls
+          match={live}
+          busy={busy}
+          onAction={(action) => void run(() => client.physical!(match.id, match.revision, action))}
+        />
+      )}
       {keyNotice && (
         <p className="sync-banner" role="status">
           {keyNotice}
+        </p>
+      )}
+      {analysis && (
+        <p className="sync-banner" role="status">
+          {analysis}
+        </p>
+      )}
+      {"botTurn" in match && Boolean(match.botTurn) && (
+        <p role="status">
+          {botDisplayName(live?.mode === "stage5b_standard" ? "stage5b" : "authur")} is thinking{" "}
+          {live?.mode === "stage5b_standard" ? "on this device" : "on the server"}…
+          {client.botTurn && (
+            <button
+              type="button"
+              disabled={busy || botBusy}
+              onClick={() => void run(() => client.botTurn!(match.id, match.revision))}
+            >
+              Retry bot turn
+            </button>
+          )}
         </p>
       )}
       {match.status === "finished" && (
@@ -656,6 +1121,21 @@ export function RankedMatchPage({ matchId }: { matchId: string }) {
             </div>
             {selectedLog && (
               <div className="ranked-log-detail">
+                <button type="button" onClick={() => setReplayPhase("before")}>
+                  Before this turn
+                </button>
+                <button type="button" onClick={() => setReplayPhase("after")}>
+                  After this turn
+                </button>
+                {playTools.has("replay") &&
+                  selectedLog.rackBefore &&
+                  selectedLog.side === match.yourSide && (
+                    <button type="button" onClick={() => setPractice(!practice)}>
+                      Practice this position
+                    </button>
+                  )}
+                {selectedLog.note && <p>{selectedLog.note}</p>}
+                {selectedLog.stars !== undefined && <p>Stars: {selectedLog.stars}</p>}
                 <button type="button" onClick={() => setSelectedLogId(null)}>
                   กลับกระดานปัจจุบัน
                 </button>
@@ -682,7 +1162,7 @@ export function RankedMatchPage({ matchId }: { matchId: string }) {
           </div>
           <div className="play-bar">
             <div className="play-caption">
-              <span className="pc-room">Ranked match</span>
+              <span className="pc-room">{title}</span>
               <span className={`pc-rack-side side-${rackSide.toLowerCase()}`}>
                 {selectedLog ? match.players[selectedLog.side] : match.players[rackSide]} Rack
               </span>
@@ -857,6 +1337,16 @@ export function RankedMatchPage({ matchId }: { matchId: string }) {
           />
         </aside>
       </div>
+      {practice &&
+        selectedLog?.rackBefore &&
+        selectedLog.boardBefore &&
+        selectedLog.side === match.yourSide && (
+          <LivePractice
+            key={`${match.revision}:${selectedLog.id}`}
+            log={selectedLog}
+            onClose={() => setPractice(false)}
+          />
+        )}
     </main>
   );
 }

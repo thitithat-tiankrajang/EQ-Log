@@ -1,0 +1,25 @@
+services:
+  trusted-bot:
+    image: ${LIVE_BOT_IMAGE:?Verified worker image reference required}
+    build:
+      context: ../..
+      dockerfile: services/trusted-bot/Dockerfile
+    restart: unless-stopped
+    init: true
+    user: node
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    environment:
+      SUPABASE_URL: ${SUPABASE_URL:?Private worker Supabase URL required}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:?Private service JWT required}
+      LIVE_BOT_SECRET: ${LIVE_BOT_SECRET:?Shared private worker secret required}
+    healthcheck:
+      test: ["CMD", "node", "services/trusted-bot/health.mjs"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    stop_grace_period: 370s

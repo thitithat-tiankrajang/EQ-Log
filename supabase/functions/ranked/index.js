@@ -483,6 +483,16 @@ function calculateTotals(logs) {
     { A: 0, B: 0 }
   );
 }
+function calculateGameTotals(game, logs) {
+  const opening = game.history[0];
+  if (!opening) return calculateTotals(logs);
+  const openingLogs = calculateTotals(opening.logs);
+  const totals = calculateTotals(logs);
+  return {
+    A: opening.scores.A - openingLogs.A + totals.A,
+    B: opening.scores.B - openingLogs.B + totals.B
+  };
+}
 function getAssignmentOptions(token) {
   if (token === "+/-") return ["+", "-"];
   if (token === "x//") return ["\xD7", "\xF7"];
@@ -1103,11 +1113,14 @@ function createRankedGame(creatorId, creatorName, minutesA, minutesB, startingSi
 function isRankedTime(value) {
   return RANKED_TIME_OPTIONS.includes(value);
 }
-function applyRankedAction(game, side, action, now) {
-  if (game.status !== "playing" || game.roomStage !== "playing")
+function applyRankedAction(game, side, action, now, policy = "ranked") {
+  if (game.status !== "playing" || game.roomStage !== "playing" || game.timers.paused)
     throw new Error("Match is not playing.");
   if (game.activeSide !== side && action.kind !== "resign") throw new Error("It is not your turn.");
-  const settled = settleRankedClock(game, now);
+  const physical = policy === "normal" && game.tileDrawMode === "manual";
+  if (physical && game.phase === "refill" && action.kind !== "resign")
+    throw new Error("Record the physical refill first.");
+  const settled = policy === "ranked" ? settleRankedClock(game, now) : settleNormalClock(game, now);
   if (settled.status === "finished") return settled;
   if (action.kind === "resign")
     return finishRankedGame(settled, { winner: otherSide(side), reason: "resign" }, now, side);
@@ -1157,9 +1170,9 @@ function applyRankedAction(game, side, action, now) {
       return tile;
     });
     if (tilebagBefore.length < outgoing.length) throw new Error("Not enough tiles to exchange.");
-    const incoming = tilebagBefore.slice(0, outgoing.length);
+    const incoming = physical ? [] : tilebagBefore.slice(0, outgoing.length);
     rackAfter = [...rackBefore.filter((tile) => !unique.has(tile.id)), ...incoming];
-    tilebagAfter = shuffleTilebagQueue([...tilebagBefore.slice(outgoing.length), ...outgoing]);
+    tilebagAfter = physical ? tilebagBefore : shuffleTilebagQueue([...tilebagBefore.slice(outgoing.length), ...outgoing]);
     actionDetail = { outgoingTiles: outgoing, incomingTiles: incoming };
     logAction = "exchange";
   } else {
@@ -1200,8 +1213,15 @@ function applyRankedAction(game, side, action, now) {
       ...settled,
       board: boardAfter,
       tilebag: tilebagAfter,
+      ...physical && action.kind === "exchange" ? {
+        pendingExchangeReturnBySide: {
+          ...settled.pendingExchangeReturnBySide,
+          [side]: actionDetail.outgoingTiles
+        },
+        pendingExchangeReturn: actionDetail.outgoingTiles
+      } : {},
       logs: nextLogs,
-      scores: calculateTotals(nextLogs),
+      scores: policy === "ranked" ? calculateTotals(nextLogs) : calculateGameTotals(settled, nextLogs),
       status: autoEnd ? "finished" : "playing",
       timers: autoEnd ? { ...settled.timers, paused: true } : settled.timers
     },
@@ -1209,13 +1229,34 @@ function applyRankedAction(game, side, action, now) {
     rackAfter
   );
   if (!autoEnd) {
-    if (action.kind === "place") next = refillRackFromQueue(next);
-    next = advanceToOpponentTurn(next);
+    if (physical && (action.kind === "place" || action.kind === "exchange") && tilebagAfter.length > 0)
+      next = { ...next, phase: "refill" };
+    else {
+      if (action.kind === "place" && !physical) next = refillRackFromQueue(next);
+      next = advanceToOpponentTurn(next);
+    }
   }
   return { ...next, history: [], historyIndex: 0, lastSavedAt: now };
 }
+function settleNormalClock(game, now) {
+  if (game.timers.paused || game.timers.untimed || game.timers.sideUntimed?.[game.activeSide])
+    return game;
+  const elapsed = Math.max(
+    0,
+    Math.floor((Date.parse(now) - Date.parse(game.currentTurnStartedAt)) / 1e3)
+  );
+  if (!Number.isFinite(elapsed)) throw new Error("Invalid clock.");
+  return {
+    ...game,
+    timers: {
+      ...game.timers,
+      [game.activeSide]: Math.max(game.timers.minSeconds, game.timers[game.activeSide] - elapsed)
+    },
+    currentTurnStartedAt: now
+  };
+}
 function settleRankedClock(game, now) {
-  if (game.status !== "playing" || game.roomStage !== "playing") return game;
+  if (game.status !== "playing" || game.roomStage !== "playing" || game.timers.paused) return game;
   const elapsed = Math.max(
     0,
     Math.floor((Date.parse(now) - Date.parse(game.currentTurnStartedAt)) / 1e3)
@@ -1268,6 +1309,26 @@ function finishRankedGame(game, result, now, losingSide) {
   };
 }
 
+// src/gameplay/publicTiles.ts
+function visibleBoard(board) {
+  return board.map(
+    (row, r) => row.map(
+      (cell, c) => cell ? {
+        side: cell.side,
+        placedTurn: cell.placedTurn,
+        tile: {
+          id: `board:${r}:${c}`,
+          token: cell.tile.token,
+          ...cell.tile.assignedToken ? { assignedToken: cell.tile.assignedToken } : {}
+        }
+      } : null
+    )
+  );
+}
+function ownTiles(tiles) {
+  return tiles.map(({ id, token }) => ({ id, token }));
+}
+
 // src/features/ranked/publicView.ts
 function rankedPublicView(id, revision, game, viewerId) {
   const yourSide = game.playerUserIds?.A === viewerId ? "A" : game.playerUserIds?.B === viewerId ? "B" : null;
@@ -1277,19 +1338,19 @@ function rankedPublicView(id, revision, game, viewerId) {
     status: game.roomStage === "waiting" ? game.playerUserIds?.B ? "matched" : "waiting" : game.status === "finished" ? "finished" : "playing",
     playerAId: game.playerUserIds?.A ?? "",
     playerBId: game.playerUserIds?.B ?? null,
-    players: game.players,
+    players: { A: game.players.A, B: game.players.B },
     startingSide: game.startingSide ?? "A",
     activeSide: game.activeSide,
     turnNumber: game.turnNumber,
-    scores: game.scores,
+    scores: { A: game.scores.A, B: game.scores.B },
     timers: { A: game.timers.A, B: game.timers.B },
     clockStartedAt: game.currentTurnStartedAt,
-    board: game.board,
+    board: visibleBoard(game.board),
     tilebagCount: game.tilebag.length,
     rackCount: { A: game.rackA.length, B: game.rackB.length },
     readyBySide: { A: game.lobbyReadyBySide?.A ?? false, B: game.lobbyReadyBySide?.B ?? false },
     yourSide,
-    yourRack: game.roomStage === "playing" ? yourSide === "A" ? game.rackA : yourSide === "B" ? game.rackB : [] : [],
+    yourRack: game.roomStage === "playing" ? yourSide === "A" ? ownTiles(game.rackA) : yourSide === "B" ? ownTiles(game.rackB) : [] : [],
     logs: game.logs.map((log) => ({
       id: log.id,
       turnNumber: log.turnNumber,
@@ -1297,8 +1358,8 @@ function rankedPublicView(id, revision, game, viewerId) {
       action: log.action,
       score: log.finalScore,
       exchangedCount: log.action === "exchange" ? log.actionDetail.outgoingTiles.length : 0,
-      boardAfter: log.boardAfter,
-      ...yourSide === log.side ? { rackBefore: log.rackBefore, rackAfter: log.rackAfter } : {}
+      boardAfter: visibleBoard(log.boardAfter),
+      ...yourSide === log.side ? { rackBefore: ownTiles(log.rackBefore), rackAfter: ownTiles(log.rackAfter) } : {}
     })),
     result: resultOf(game)
   };

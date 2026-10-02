@@ -31,6 +31,7 @@ function canonicalStageStart(game: GameState): StageSealedStart {
 export async function buildStageCompletedGameRecord(
   game: GameState,
   source: {
+    completionAuthority?: "client-reported" | "server-reduced";
     levelId: string;
     seed: number;
     sealedStart: StageSealedStart;
@@ -58,7 +59,7 @@ export async function buildStageCompletedGameRecord(
   ).join("");
   return buildCompletedGameRecord(game, source.branches, {
     mode: "stage",
-    completionAuthority: "client-reported",
+    completionAuthority: source.completionAuthority ?? "client-reported",
     stage: {
       levelId: source.levelId,
       seed: source.seed,

@@ -1,4 +1,5 @@
 import type { BoardSnapshot, GameState, Side, TileInstance, TurnLog } from "../../game";
+import { visibleBoard, ownTiles } from "../../gameplay/publicTiles";
 import { resultOf } from "./rules";
 
 export type RankedTurnView = {
@@ -9,6 +10,15 @@ export type RankedTurnView = {
   score: number;
   exchangedCount: number;
   boardAfter: BoardSnapshot;
+  boardBefore?: BoardSnapshot;
+  note?: string;
+  stars?: number;
+  analysisContext?: {
+    bagCount: number;
+    oppRackCount: number;
+    scores: Record<Side, number>;
+    noScoreStreak: number;
+  };
   rackBefore?: TileInstance[];
   rackAfter?: TileInstance[];
 };
@@ -59,14 +69,14 @@ export function rankedPublicView(
           : "playing",
     playerAId: game.playerUserIds?.A ?? "",
     playerBId: game.playerUserIds?.B ?? null,
-    players: game.players,
+    players: { A: game.players.A, B: game.players.B },
     startingSide: game.startingSide ?? "A",
     activeSide: game.activeSide,
     turnNumber: game.turnNumber,
-    scores: game.scores,
+    scores: { A: game.scores.A, B: game.scores.B },
     timers: { A: game.timers.A, B: game.timers.B },
     clockStartedAt: game.currentTurnStartedAt,
-    board: game.board,
+    board: visibleBoard(game.board),
     tilebagCount: game.tilebag.length,
     rackCount: { A: game.rackA.length, B: game.rackB.length },
     readyBySide: { A: game.lobbyReadyBySide?.A ?? false, B: game.lobbyReadyBySide?.B ?? false },
@@ -74,9 +84,9 @@ export function rankedPublicView(
     yourRack:
       game.roomStage === "playing"
         ? yourSide === "A"
-          ? game.rackA
+          ? ownTiles(game.rackA)
           : yourSide === "B"
-            ? game.rackB
+            ? ownTiles(game.rackB)
             : []
         : [],
     logs: game.logs.map((log) => ({
@@ -89,8 +99,10 @@ export function rankedPublicView(
         log.action === "exchange"
           ? (log.actionDetail as { outgoingTiles: TileInstance[] }).outgoingTiles.length
           : 0,
-      boardAfter: log.boardAfter,
-      ...(yourSide === log.side ? { rackBefore: log.rackBefore, rackAfter: log.rackAfter } : {}),
+      boardAfter: visibleBoard(log.boardAfter),
+      ...(yourSide === log.side
+        ? { rackBefore: ownTiles(log.rackBefore), rackAfter: ownTiles(log.rackAfter) }
+        : {}),
     })),
     result: resultOf(game),
   };

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { economyErrorNotice } from "../src/bot/catalog";
 import { canonicalFromSnapshot, encodeCanonical } from "../src/domain/projection";
-import { stageStartCanonical } from "../src/features/survival/repository";
+import { stageStartCanonical } from "../src/features/survival/sealedStart";
 import { createSurvivalTestGame } from "../src/features/survival/seededGame";
 
 const read = (name: string) => readFileSync(`${process.cwd()}/supabase/migrations/${name}`, "utf8");
