@@ -27,11 +27,13 @@ export function LivePractice({
   const validation = validateMove(log.boardBefore!, placements);
   return (
     <section aria-label="Own-rack live practice" className="pregame-card live-practice">
-      <h2>Practice T{log.turnNumber}</h2>
-      <button type="button" onClick={onClose}>
-        Close practice
-      </button>
-      <p>
+      <div className="live-practice-head">
+        <h2>Practice T{log.turnNumber}</h2>
+        <button type="button" className="eq-button eq-button-secondary" onClick={onClose}>
+          Close practice
+        </button>
+      </div>
+      <p className="live-tool-note">
         This draft uses your historical rack and the public board. Replacement draws are unavailable
         while the game is live.
       </p>
@@ -78,29 +80,33 @@ export function LivePractice({
         exchangeOutgoingIds={[]}
         onTileClick={(tile) => setSelected(tile)}
       />
-      <p role="status">
+      <p className="live-tool-note" role="status">
         {validation.isValid
           ? `Valid draft · ${validation.score} points`
           : validation.errors.join(" · ")}
       </p>
-      <button
-        type="button"
-        onClick={() => {
-          setPlacements([]);
-          setSelected(null);
-        }}
-      >
-        Clear practice draft
-      </button>
-      {onSubmit && (
+      <div className="live-tool-actions">
         <button
           type="button"
-          disabled={busy || !validation.isValid}
-          onClick={() => onSubmit(placements)}
+          className="eq-button eq-button-secondary"
+          onClick={() => {
+            setPlacements([]);
+            setSelected(null);
+          }}
         >
-          Submit puzzle placement
+          Clear practice draft
         </button>
-      )}
+        {onSubmit && (
+          <button
+            type="button"
+            className="eq-button eq-button-primary"
+            disabled={busy || !validation.isValid}
+            onClick={() => onSubmit(placements)}
+          >
+            Submit puzzle placement
+          </button>
+        )}
+      </div>
     </section>
   );
 }

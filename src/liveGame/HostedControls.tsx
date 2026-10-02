@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { RankedMatchView } from "../features/ranked/publicView";
 import type { HostedAction } from "./hostedAdmin";
+import { ToolSection } from "./ContextTools";
 
 export function HostedControls({
   match,
@@ -17,36 +18,37 @@ export function HostedControls({
   const solo = "mode" in match && match.mode === "solo_practice";
   if (match.status === "finished") return null;
   return (
-    <section
-      aria-label={solo ? "Practice controls" : "Tournament administration"}
-      className="pregame-card"
-    >
-      <h2>{solo ? "Practice controls" : "Tournament administration"}</h2>
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => onAction({ kind: paused ? "resume" : "pause" })}
-      >
-        {paused ? "Resume game" : "Pause game"}
-      </button>
-      <button
-        type="button"
-        disabled={busy}
-        onClick={() => {
-          if (window.confirm("Finish this game and publish its completed Replay?"))
-            onAction({ kind: "finish" });
-        }}
-      >
-        Finish game
-      </button>
+    <ToolSection title={solo ? "Practice controls" : "Tournament administration"}>
+      <div className="live-tool-actions">
+        <button
+          type="button"
+          className={`eq-button ${paused ? "eq-button-primary" : "eq-button-secondary"}`}
+          disabled={busy}
+          onClick={() => onAction({ kind: paused ? "resume" : "pause" })}
+        >
+          {paused ? "Resume game" : "Pause game"}
+        </button>
+        <button
+          type="button"
+          className="eq-button eq-button-danger"
+          disabled={busy}
+          onClick={() => {
+            if (window.confirm("Finish this game and publish its completed Replay?"))
+              onAction({ kind: "finish" });
+          }}
+        >
+          Finish game
+        </button>
+      </div>
       {paused && (
         <form
+          className="live-tool-form"
           onSubmit={(event) => {
             event.preventDefault();
             onAction({ kind: "correct-score", logId, score: Number(score) });
           }}
         >
-          <label>
+          <label className="eq-field">
             Public turn to correct
             <select value={logId} onChange={(event) => setLogId(event.target.value)}>
               <option value="">Choose a turn</option>
@@ -59,7 +61,7 @@ export function HostedControls({
                 ))}
             </select>
           </label>
-          <label>
+          <label className="eq-field">
             Corrected score
             <input
               type="number"
@@ -71,11 +73,17 @@ export function HostedControls({
               onChange={(event) => setScore(event.target.value)}
             />
           </label>
-          <button type="submit" disabled={busy || !logId || score === ""}>
-            Correct score
-          </button>
+          <div className="live-tool-actions">
+            <button
+              type="submit"
+              className="eq-button eq-button-primary"
+              disabled={busy || !logId || score === ""}
+            >
+              Correct score
+            </button>
+          </div>
         </form>
       )}
-    </section>
+    </ToolSection>
   );
 }

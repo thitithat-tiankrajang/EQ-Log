@@ -36,6 +36,8 @@ for (const mobile of [false, true])
         seen = observe(page);
       await signIn(page, a);
       await page.goto(`/#/play/${id}`);
+      // Phones keep the game tools in a Sheet opened from below the board.
+      if (mobile) await page.getByRole("button", { name: "Game tools", exact: true }).click();
       for (const side of ["A", "B"]) {
         await page.getByLabel("Physical player", { exact: true }).selectOption(side);
         await page.getByLabel("Physical tiles", { exact: true }).fill("1 + 2 = 3 4 5 6");
@@ -44,6 +46,7 @@ for (const mobile of [false, true])
           "1 · + · 2 · = · 3 · 4 · 5 · 6",
         );
       }
+      if (mobile) await page.getByRole("button", { name: "Close", exact: true }).click();
       const tiles = page.locator(".rack-tiles [data-draft-tile-id]");
       await expect(page.getByRole("button", { name: "Pass", exact: true })).toBeEnabled();
       const first = await tiles.first().getAttribute("data-draft-tile-id");
@@ -102,6 +105,7 @@ for (const mobile of [false, true])
       await page.getByRole("button", { name: "Practice this position", exact: true }).click();
       await expect(page.getByRole("region", { name: "Own-rack live practice" })).toBeVisible();
       await page.getByRole("button", { name: "Close practice", exact: true }).click();
+      await page.getByRole("button", { name: "Game menu", exact: true }).click();
       await page.getByRole("button", { name: "Coffee Break", exact: true }).click();
       await expect(page.getByRole("button", { name: "Return to game", exact: true })).toBeVisible();
       expect((await call(a, { operation: "read", id })).body.match.paused).toBe(false);

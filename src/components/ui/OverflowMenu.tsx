@@ -17,13 +17,25 @@ export type OverflowItem = {
  * actions off the card surface (smaller cards, no accidental deletes) while
  * every action still has a readable label — no icon-only buttons.
  */
-export function OverflowMenu({ label, items }: { label: string; items: OverflowItem[] }) {
+export function OverflowMenu({
+  label,
+  items,
+  triggerClassName,
+  children,
+}: {
+  label: string;
+  items: OverflowItem[];
+  /** Replaces the trigger's own style, for a bar whose buttons share one look. */
+  triggerClassName?: string;
+  /** Visible trigger text beside the icon. */
+  children?: ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <button
         type="button"
-        className="overflow-menu-trigger"
+        className={triggerClassName ?? "overflow-menu-trigger"}
         aria-label={label}
         onClick={(event) => {
           event.stopPropagation();
@@ -31,6 +43,7 @@ export function OverflowMenu({ label, items }: { label: string; items: OverflowI
         }}
       >
         <MoreHorizontal size={18} />
+        {children}
       </button>
       <Sheet open={open} title={label} onClose={() => setOpen(false)}>
         <div className="overflow-menu-items">

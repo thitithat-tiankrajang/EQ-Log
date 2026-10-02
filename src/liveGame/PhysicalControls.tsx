@@ -2,6 +2,7 @@ import { useState } from "react";
 import { AMATH_TOKENS, type Side } from "../game";
 import type { LiveGameView } from "./projection";
 import type { PhysicalAction } from "./physical";
+import { ToolSection } from "./ContextTools";
 
 export function PhysicalControls({
   match,
@@ -21,46 +22,54 @@ export function PhysicalControls({
     return null;
   const targetSide = match.hostRacks ? side : match.activeSide;
   return (
-    <section className="pregame-card" aria-label="Physical game controls">
-      <h2>Physical game controls</h2>
+    <ToolSection title="Physical game controls">
       {match.hostRacks &&
         (["A", "B"] as const).map((seat) => (
-          <p key={seat} aria-label={`Current rack ${seat}`}>
+          <p key={seat} className="live-tool-rack" aria-label={`Current rack ${seat}`}>
             {match.players[seat]}:{" "}
             {match.hostRacks![seat].map((tile) => tile.token).join(" · ") || "Empty"}
           </p>
         ))}
-      {(match.paused || match.phase === "refill") &&
-        (match.hostRacks ? match.hostRacks[targetSide] : match.yourRack).map((tile) => (
-          <button
-            key={tile.id}
-            type="button"
-            disabled={busy}
-            onClick={() => onAction({ kind: "return-tile", side: targetSide, tileId: tile.id })}
-            onKeyDown={(event) => {
-              if (!busy && ["Delete", "Backspace"].includes(event.key)) {
-                event.preventDefault();
-                onAction({ kind: "return-tile", side: targetSide, tileId: tile.id });
-              }
-            }}
-          >
-            Return {tile.token}
-          </button>
-        ))}
-      <p>Record the tiles physically drawn. Bag order and future draws stay private.</p>
-      <div aria-label="Physical tile palette">
+      {(match.paused || match.phase === "refill") && (
+        <div className="live-tool-actions">
+          {(match.hostRacks ? match.hostRacks[targetSide] : match.yourRack).map((tile) => (
+            <button
+              key={tile.id}
+              type="button"
+              className="eq-button eq-button-secondary live-tile-pick"
+              disabled={busy}
+              onClick={() => onAction({ kind: "return-tile", side: targetSide, tileId: tile.id })}
+              onKeyDown={(event) => {
+                if (!busy && ["Delete", "Backspace"].includes(event.key)) {
+                  event.preventDefault();
+                  onAction({ kind: "return-tile", side: targetSide, tileId: tile.id });
+                }
+              }}
+            >
+              Return {tile.token}
+            </button>
+          ))}
+        </div>
+      )}
+      <p className="live-tool-note">
+        Record the tiles physically drawn. Bag order and future draws stay private.
+      </p>
+      <div className="live-tile-palette" aria-label="Physical tile palette">
         {Object.keys(AMATH_TOKENS).map((token) => (
           <button
             key={token}
             type="button"
+            className="eq-button eq-button-secondary live-tile-pick"
+            aria-label={`Pick ${token}`}
             disabled={busy || tokens.trim().split(/\s+/).filter(Boolean).length >= 8}
             onClick={() => setTokens((current) => `${current} ${token}`.trim())}
           >
-            Pick {token}
+            {token}
           </button>
         ))}
       </div>
       <form
+        className="live-tool-form"
         onSubmit={(event) => {
           event.preventDefault();
           onAction({
@@ -72,7 +81,7 @@ export function PhysicalControls({
         }}
       >
         {match.hostRacks && (
-          <>
+          <div className="eq-field">
             <label htmlFor="physical-player">Physical player</label>
             <select
               id="physical-player"
@@ -82,9 +91,9 @@ export function PhysicalControls({
               <option value="A">A</option>
               <option value="B">B</option>
             </select>
-          </>
+          </div>
         )}
-        <label>
+        <label className="eq-field">
           Physical tiles
           <input
             value={tokens}
@@ -92,10 +101,12 @@ export function PhysicalControls({
             placeholder="1 2 + ="
           />
         </label>
-        <button type="submit" disabled={busy}>
-          {match.paused ? "Correct recorded rack" : "Record physical draw"}
-        </button>
+        <div className="live-tool-actions">
+          <button type="submit" className="eq-button eq-button-primary" disabled={busy}>
+            {match.paused ? "Correct recorded rack" : "Record physical draw"}
+          </button>
+        </div>
       </form>
-    </section>
+    </ToolSection>
   );
 }

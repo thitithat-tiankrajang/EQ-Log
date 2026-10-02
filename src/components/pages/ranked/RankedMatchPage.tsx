@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Flag, LogOut } from "lucide-react";
+import { Coffee, Flag, LogOut, Pause, Pencil, Play } from "lucide-react";
 import "../../../play-styles.css";
 import { Board } from "../../board/Board";
 import { Rack } from "../../board/Rack";
@@ -8,6 +8,8 @@ import { Scoreboard } from "../../game/Scoreboard";
 import { ActionPanel } from "../../actions/ActionPanel";
 import { PanelHeading } from "../../layout/PanelHeading";
 import { PreGameShell } from "../pregame/PreGameShell";
+import { OverflowMenu, type OverflowItem } from "../../ui/OverflowMenu";
+import { TextPromptSheet } from "../../ui/Sheet";
 import { RankedReadyConfirmation } from "./RankedStakes";
 import { rankedClient } from "../../../features/ranked/client";
 import { rankTier } from "../../../features/ranked/rating";
@@ -35,7 +37,12 @@ import type { PhysicalAction } from "../../../liveGame/physical";
 import type { LiveGameView } from "../../../liveGame/projection";
 import { concealLocalView } from "../../../liveGame/client";
 import { botDisplayName } from "../../../bot/archbot/identity";
-import { WaitingControls, EditingControls } from "../../../liveGame/CompatibilityControls";
+import {
+  HistoryControls,
+  PauseSheets,
+  WaitingControls,
+} from "../../../liveGame/CompatibilityControls";
+import { ContextTools, ToolSection, useMobilePlay } from "../../../liveGame/ContextTools";
 import type { LiveControl } from "../../../liveGame/controls";
 import { STORAGE_KEYS } from "../../../constants/storage";
 import { ANALYSIS_LEVELS, type AnalysisLevel } from "../../../bot/engineApi";
@@ -109,6 +116,18 @@ function playUiGame(view: RankedMatchView, timers: Record<Side, number>): GameSt
   };
 }
 
+/** The waiting room's clock line for a live room; untimed sides say so. */
+function liveClockLine(view: LiveGameView) {
+  const minutes = (side: Side) =>
+    view.clockPolicy.untimed[side] ? null : Math.round(view.timers[side] / 60);
+  const a = minutes("A"),
+    b = minutes("B");
+  if (a === null && b === null) return "ไม่จับเวลา";
+  if (a === b) return `เวลา ${a} นาทีต่อฝ่าย`;
+  const label = (value: number | null) => (value === null ? "ไม่จับเวลา" : `${value} นาที`);
+  return `เวลา A ${label(a)} · B ${label(b)}`;
+}
+
 type MatchClient = Pick<typeof rankedClient, "read" | "action" | "ready" | "cancel"> & {
   control?: (
     id: string,
@@ -166,6 +185,8 @@ export function RankedMatchPage({
   const [replayPhase, setReplayPhase] = useState<"before" | "after">("after");
   const [practice, setPractice] = useState(false);
   const [rackOrder, setRackOrder] = useState<(string | null)[]>([]);
+  const [renaming, setRenaming] = useState(false);
+  const isMobilePlay = useMobilePlay();
   const [playTools, setPlayTools] = useState<ReadonlySet<PlayTool>>(new Set());
   const toolMode = !ranked && match && "mode" in match ? String(match.mode) : "";
   useEffect(() => {
@@ -789,7 +810,35 @@ export function RankedMatchPage({
         {error ? <p role="alert">{error}</p> : <p role="status">กำลังโหลด…</p>}
       </PreGameShell>
     );
-  if (match.status === "waiting" || match.status === "matched")
+  if (match.status === "waiting" || match.status === "matched") {
+    const roomActions = (
+      <>
+        <button
+          className="eq-button eq-button-secondary"
+          type="button"
+          onClick={() => void navigator.clipboard.writeText(window.location.href)}
+        >
+          คัดลอกลิงก์
+        </button>
+        <button
+          className="eq-button eq-button-secondary"
+          type="button"
+          disabled={busy}
+          onClick={() => {
+            setBusy(true);
+            void client
+              .cancel(match.id)
+              .then(() => navigate({ kind: ranked ? "ranked" : "arena" }))
+              .catch((cause) =>
+                setError(cause instanceof Error ? cause.message : "ยกเลิกห้องไม่สำเร็จ"),
+              )
+              .finally(() => setBusy(false));
+          }}
+        >
+          ยกเลิกก่อนเริ่ม
+        </button>
+      </>
+    );
     return (
       <PreGameShell
         eyebrow={ranked ? "Ranked" : "Live game"}
@@ -803,14 +852,22 @@ export function RankedMatchPage({
             {error}
           </p>
         )}
-        <div className="pregame-card">
-          <h2>{match.status === "waiting" ? "รอผู้เล่นคนที่สอง" : "ครบสองคนแล้ว"}</h2>
-          <p>
-            {match.status === "waiting"
-              ? "ผู้เล่นที่ได้รับอนุมัติคนใดก็ได้เข้าร่วม"
-              : `A ${match.readyBySide.A ? "พร้อม" : "ยังไม่พร้อม"} · B ${match.readyBySide.B ? "พร้อม" : "ยังไม่พร้อม"}`}
-          </p>
-          <p>เวลา {Math.round(match.timers.A / 60)} นาทีต่อฝ่าย · กติกาแข่ง · เบี้ยคู่แข่งปิด</p>
+        <div className="pregame-card live-waiting-card">
+          <div className="eq-section-heading">
+            <div>
+              <h2>{match.status === "waiting" ? "รอผู้เล่นคนที่สอง" : "ครบสองคนแล้ว"}</h2>
+              <p>
+                {match.status === "waiting"
+                  ? "ผู้เล่นที่ได้รับอนุมัติคนใดก็ได้เข้าร่วม"
+                  : `A ${match.readyBySide.A ? "พร้อม" : "ยังไม่พร้อม"} · B ${match.readyBySide.B ? "พร้อม" : "ยังไม่พร้อม"}`}
+              </p>
+              <p>
+                {live
+                  ? liveClockLine(live)
+                  : `เวลา ${Math.round(match.timers.A / 60)} นาทีต่อฝ่าย · กติกาแข่ง · เบี้ยคู่แข่งปิด`}
+              </p>
+            </div>
+          </div>
           {match.status === "matched" &&
             ranked &&
             match.yourSide &&
@@ -832,50 +889,29 @@ export function RankedMatchPage({
                 Ready
               </button>
             ))}
-          <div className="ranked-actions">
-            {live && client.control && (
-              <WaitingControls
-                key={match.revision}
-                match={live}
-                busy={busy}
-                onAction={(action) => void control(action)}
-                onLeave={() => {
-                  if (live.yourSide && live.readyBySide[live.yourSide])
-                    void client.control!(match.id, match.revision, { kind: "ready", ready: false })
-                      .then(() => navigate({ kind: "arena" }))
-                      .catch((cause) => setError(String(cause)));
-                  else navigate({ kind: "arena" });
-                }}
-              />
-            )}
-            <button
-              className="eq-button"
-              type="button"
-              onClick={() => void navigator.clipboard.writeText(window.location.href)}
-            >
-              คัดลอกลิงก์
-            </button>
-            <button
-              className="eq-button"
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                setBusy(true);
-                void client
-                  .cancel(match.id)
-                  .then(() => navigate({ kind: ranked ? "ranked" : "arena" }))
-                  .catch((cause) =>
-                    setError(cause instanceof Error ? cause.message : "ยกเลิกห้องไม่สำเร็จ"),
-                  )
-                  .finally(() => setBusy(false));
+          {live && client.control ? (
+            <WaitingControls
+              key={match.revision}
+              match={live}
+              busy={busy}
+              onAction={(action) => void control(action)}
+              onLeave={() => {
+                if (live.yourSide && live.readyBySide[live.yourSide])
+                  void client.control!(match.id, match.revision, { kind: "ready", ready: false })
+                    .then(() => navigate({ kind: "arena" }))
+                    .catch((cause) => setError(String(cause)));
+                else navigate({ kind: "arena" });
               }}
             >
-              ยกเลิกก่อนเริ่ม
-            </button>
-          </div>
+              {roomActions}
+            </WaitingControls>
+          ) : (
+            <div className="ranked-actions">{roomActions}</div>
+          )}
         </div>
       </PreGameShell>
     );
+  }
 
   if (live?.canHandoff && !live.localConfirmed && match.status !== "finished")
     return (
@@ -884,21 +920,32 @@ export function RankedMatchPage({
         title={`Hand the device to ${match.players[match.activeSide]}`}
         onBack={() => navigate({ kind: "arena" })}
       >
-        <p>The previous rack is concealed. Confirm only when the next player has the device.</p>
-        <p>
-          Shared-device play cannot isolate private information from someone with unrestricted
-          device access.
-        </p>
-        {error && <p role="alert">{error}</p>}
-        <button
-          type="button"
-          disabled={busy || !client.handoff}
-          onClick={() =>
-            void run(() => client.handoff!(match.id, match.revision, match.activeSide))
-          }
-        >
-          {match.players[match.activeSide]} — confirm handoff
-        </button>
+        <div className="pregame-card live-handoff-card">
+          <div className="eq-section-heading">
+            <div>
+              <p>
+                The previous rack is concealed. Confirm only when the next player has the device.
+              </p>
+              <p>
+                Shared-device play cannot isolate private information from someone with unrestricted
+                device access.
+              </p>
+            </div>
+          </div>
+          {error && <p role="alert">{error}</p>}
+          <div className="live-tool-actions">
+            <button
+              type="button"
+              className="eq-button eq-button-primary"
+              disabled={busy || !client.handoff}
+              onClick={() =>
+                void run(() => client.handoff!(match.id, match.revision, match.activeSide))
+              }
+            >
+              {match.players[match.activeSide]} — confirm handoff
+            </button>
+          </div>
+        </div>
       </PreGameShell>
     );
   const rackSide = physicalHost ? match.activeSide : (match.yourSide ?? "A");
@@ -908,22 +955,116 @@ export function RankedMatchPage({
         ? (selectedLog.rackBefore ?? [])
         : (selectedLog.rackAfter ?? [])
       : [];
-  return (
-    <main className="app-shell ranked-play">
-      <header className="top-bar">
-        <div className="title-block">
-          <h1>{live?.name ?? title}</h1>
-          <span className="topbar-status">
-            ตา {match.turnNumber} · {match.players[match.activeSide]} ·{" "}
-            {match.status === "finished" ? "จบเกม" : "กำลังเล่น"}
-          </span>
-        </div>
-        <div className="top-actions">
-          {!ranked &&
-            playTools.has("analysis") &&
-            (isMyTurn || (selectedLog?.side === match.yourSide && selectedLog?.rackBefore)) && (
+  const paused = "paused" in match && Boolean(match.paused);
+  // Rename, direct pause and history editing exist only while the game can continue.
+  const liveTools =
+    live && client.control && !live.continuationBlocked && match.status !== "finished"
+      ? live
+      : null;
+  const pauseRequest = liveTools?.directPause ? liveTools.matchControl?.stopRequest : undefined;
+  const pauseBlocked =
+    Date.parse(liveTools?.matchControl?.stopBlockedUntilBySide?.[liveTools.yourSide!] ?? "") >
+    Date.now();
+  const gameMenu: OverflowItem[] = [
+    {
+      icon: <Coffee size={18} />,
+      label: "Coffee Break",
+      disabled: busy,
+      onSelect: () => void leaveBoard(true),
+    },
+    ...(liveTools?.directPause && !liveTools.paused
+      ? [
+          {
+            icon: <Pause size={18} />,
+            label: "Request pause",
+            disabled: busy || Boolean(pauseRequest) || pauseBlocked,
+            disabledReason: pauseRequest
+              ? "Waiting for a response"
+              : pauseBlocked
+                ? "Pause requests are blocked for now"
+                : undefined,
+            onSelect: () => void control({ kind: "request-pause" }),
+          },
+        ]
+      : []),
+    ...(liveTools?.canRename
+      ? [
+          {
+            icon: <Pencil size={18} />,
+            label: "Rename game",
+            disabled: busy,
+            onSelect: () => setRenaming(true),
+          },
+        ]
+      : []),
+    { icon: <LogOut size={18} />, label: "ห้องและอันดับ", onSelect: () => void leaveBoard(false) },
+  ];
+  const analysisTool =
+    !ranked &&
+    playTools.has("analysis") &&
+    Boolean(isMyTurn || (selectedLog?.side === match.yourSide && selectedLog?.rackBefore));
+  const historyTool = Boolean(liveTools?.canEditHistory);
+  const hostedTool = Boolean(
+    !ranked &&
+    "canAdminister" in match &&
+    match.canAdminister &&
+    client.administer &&
+    match.status !== "finished",
+  );
+  const physicalTool = Boolean(
+    live &&
+    client.physical &&
+    (live.hostRacks ||
+      (live.localHandoff && live.localConfirmed && live.tileDrawMode === "manual")),
+  );
+  const botTool = "botTurn" in match && Boolean(match.botTurn);
+  // Per-turn inputs first; history and administration after them.
+  const toolNames = [
+    physicalTool && "Physical draws",
+    (analysisTool || analysis) && "Analysis",
+    botTool && "Bot turn",
+    historyTool && "History",
+    hostedTool && "Administration",
+  ].filter((name): name is string => Boolean(name));
+  function analyzeTurn() {
+    if (!match) return;
+    const controller = new AbortController();
+    analysisAbort.current?.abort();
+    analysisAbort.current = controller;
+    setAnalyzing(true);
+    void analyzeOwnTurn(match, controller.signal, {
+      level: analysisLevel,
+      ...(selectedLog ? { logId: selectedLog.id } : {}),
+    })
+      .then(({ response }) => {
+        if (!controller.signal.aborted)
+          setAnalysis(`Own-rack analysis: ${response.type} · ${response.score} points`);
+      })
+      .catch((cause) => {
+        if (!controller.signal.aborted)
+          setError(cause instanceof Error ? cause.message : "Analysis unavailable.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setAnalyzing(false);
+      });
+  }
+  const tools =
+    toolNames.length > 0 ? (
+      <ContextTools mobile={isMobilePlay} summary={toolNames.join(" · ")}>
+        {physicalTool && live && (
+          <PhysicalControls
+            match={live}
+            busy={busy}
+            onAction={(action) =>
+              void run(() => client.physical!(match.id, match.revision, action))
+            }
+          />
+        )}
+        {(analysisTool || analysis) && (
+          <ToolSection title="Analysis">
+            {analysisTool && (
               <>
-                <label>
+                <label className="eq-field">
                   Analysis level
                   <select
                     value={analysisLevel}
@@ -936,50 +1077,195 @@ export function RankedMatchPage({
                     ))}
                   </select>
                 </label>
-                <button
-                  type="button"
-                  className="eq-button"
-                  disabled={busy || analyzing}
-                  onClick={() => {
-                    const controller = new AbortController();
-                    analysisAbort.current?.abort();
-                    analysisAbort.current = controller;
-                    setAnalyzing(true);
-                    void analyzeOwnTurn(match, controller.signal, {
-                      level: analysisLevel,
-                      ...(selectedLog ? { logId: selectedLog.id } : {}),
-                    })
-                      .then(({ response }) => {
-                        if (!controller.signal.aborted)
-                          setAnalysis(
-                            `Own-rack analysis: ${response.type} · ${response.score} points`,
-                          );
-                      })
-                      .catch((cause) => {
-                        if (!controller.signal.aborted)
-                          setError(
-                            cause instanceof Error ? cause.message : "Analysis unavailable.",
-                          );
-                      })
-                      .finally(() => {
-                        if (!controller.signal.aborted) setAnalyzing(false);
-                      });
-                  }}
-                >
-                  {analyzing
-                    ? "Analyzing your rack…"
-                    : selectedLog
-                      ? "Analyze my historical turn"
-                      : "Analyze my turn"}
-                </button>
+                <div className="live-tool-actions">
+                  <button
+                    type="button"
+                    className="eq-button eq-button-primary"
+                    disabled={busy || analyzing}
+                    onClick={analyzeTurn}
+                  >
+                    {analyzing
+                      ? "Analyzing your rack…"
+                      : selectedLog
+                        ? "Analyze my historical turn"
+                        : "Analyze my turn"}
+                  </button>
+                </div>
               </>
             )}
+            {analysis && (
+              <p className="live-tool-note" role="status">
+                {analysis}
+              </p>
+            )}
+          </ToolSection>
+        )}
+        {botTool && (
+          <ToolSection title="Bot turn">
+            <p className="live-tool-note" role="status">
+              {botDisplayName(live?.mode === "stage5b_standard" ? "stage5b" : "authur")} is thinking{" "}
+              {live?.mode === "stage5b_standard" ? "on this device" : "on the server"}…
+            </p>
+            {client.botTurn && (
+              <div className="live-tool-actions">
+                <button
+                  type="button"
+                  className="eq-button eq-button-secondary"
+                  disabled={busy || botBusy}
+                  onClick={() => void run(() => client.botTurn!(match.id, match.revision))}
+                >
+                  Retry bot turn
+                </button>
+              </div>
+            )}
+          </ToolSection>
+        )}
+        {historyTool && liveTools && (
+          <HistoryControls
+            key={`${match.revision}:${selectedLogId ?? ""}`}
+            match={liveTools}
+            busy={busy}
+            selectedLog={selectedLog}
+            allowBranches={playTools.has("multiverse")}
+            onAction={(action) => void control(action)}
+            onSelectLog={setSelectedLogId}
+          />
+        )}
+        {hostedTool && (
+          <HostedControls
+            match={match}
+            busy={busy}
+            onAction={(action) =>
+              void run(() => client.administer!(match.id, match.revision, action))
+            }
+          />
+        )}
+      </ContextTools>
+    ) : null;
+  const turnLog = (
+    <section className={isMobilePlay ? "log-panel live-mobile-log" : "log-panel"}>
+      <PanelHeading title="Turn Log" detail={`${match.logs.length} turns`} />
+      <div className="log-list">
+        <div className="turn-record-list">
+          {match.logs.map((log) => (
+            <section
+              className={`turn-record-group side-${log.side.toLowerCase()} ${selectedLogId === log.id ? "selected" : ""}`}
+              key={log.id}
+            >
+              <div className="turn-record-row">
+                <button
+                  className="turn-record-summary"
+                  type="button"
+                  aria-current={selectedLogId === log.id}
+                  onClick={() => setSelectedLogId(log.id)}
+                >
+                  <span className="trs-turn">T{log.turnNumber}</span>
+                  <span className="trs-side">{match.players[log.side]}</span>
+                  <span className="trs-action">
+                    {log.action === "place_equation"
+                      ? `วางเบี้ย · ${log.score} แต้ม`
+                      : log.action === "exchange"
+                        ? `เปลี่ยน ${log.exchangedCount} ตัว`
+                        : log.action === "pass"
+                          ? "ผ่าน"
+                          : "จบเกม"}
+                  </span>
+                  <span>ดูช็อต</span>
+                </button>
+              </div>
+            </section>
+          ))}
+        </div>
+      </div>
+      {selectedLog && (
+        <div className="ranked-log-detail">
+          <div className="live-tool-actions">
+            <button
+              type="button"
+              className="eq-button eq-button-secondary"
+              onClick={() => setReplayPhase("before")}
+            >
+              Before this turn
+            </button>
+            <button
+              type="button"
+              className="eq-button eq-button-secondary"
+              onClick={() => setReplayPhase("after")}
+            >
+              After this turn
+            </button>
+            {playTools.has("replay") &&
+              selectedLog.rackBefore &&
+              selectedLog.side === match.yourSide && (
+                <button
+                  type="button"
+                  className="eq-button eq-button-secondary"
+                  onClick={() => setPractice(!practice)}
+                >
+                  Practice this position
+                </button>
+              )}
+            <button
+              type="button"
+              className="eq-button eq-button-secondary"
+              onClick={() => setSelectedLogId(null)}
+            >
+              กลับกระดานปัจจุบัน
+            </button>
+          </div>
+          {selectedLog.note && <p>{selectedLog.note}</p>}
+          {selectedLog.stars !== undefined && <p>Stars: {selectedLog.stars}</p>}
+          <p>{selectedLog.side === match.yourSide ? "เบี้ยของคุณในตานี้" : "เบี้ยคู่แข่งถูกปิด"}</p>
+        </div>
+      )}
+    </section>
+  );
+  const tilebagPanel = (
+    <section className="tilebag-panel rail-panel">
+      <PanelHeading title="Tilebag" detail={`${match.tilebagCount} tiles`} />
+      <p>เบี้ยในถุงถูกปิดระหว่างการแข่งขัน</p>
+      <p>
+        Rack A {match.rackCount.A} · Rack B {match.rackCount.B}
+      </p>
+    </section>
+  );
+  return (
+    <main className="app-shell ranked-play">
+      <header className="top-bar">
+        <div className="title-block">
+          <h1>{live?.name ?? title}</h1>
+          <span className="topbar-status">
+            ตา {match.turnNumber} · {match.players[match.activeSide]} ·{" "}
+            {match.status === "finished" ? "จบเกม" : "กำลังเล่น"}
+          </span>
+        </div>
+        <div className="top-actions">
+          {paused && (
+            <span className="role-badge live-status-badge" role="status">
+              Game paused
+            </span>
+          )}
+          {!paused && pauseRequest && (
+            <span className="role-badge live-status-badge" role="status">
+              Pause requested
+            </span>
+          )}
           <span className="role-badge">ถุง {match.tilebagCount}</span>
           {match.ratingChange && (
             <span className="role-badge owner">
               {rankTier(match.ratingChange.after)} {match.ratingChange.before} →{" "}
               {match.ratingChange.after}
             </span>
+          )}
+          {liveTools?.directPause && liveTools.paused && (
+            <button
+              className="resume-button"
+              type="button"
+              disabled={busy}
+              onClick={() => void control({ kind: "resume-direct" })}
+            >
+              <Play size={18} /> Resume game
+            </button>
           )}
           {match.status === "playing" &&
             match.yourSide &&
@@ -995,17 +1281,22 @@ export function RankedMatchPage({
                 <Flag size={18} /> ยอมแพ้
               </button>
             )}
-          <button
-            className="icon-button top-save-exit"
-            type="button"
-            onClick={() => void leaveBoard(false)}
-          >
-            <LogOut size={18} /> ห้องและอันดับ
-          </button>
-          {!ranked && (
-            <button type="button" disabled={busy} onClick={() => void leaveBoard(true)}>
-              Coffee Break
+          {ranked ? (
+            <button
+              className="icon-button top-save-exit"
+              type="button"
+              onClick={() => void leaveBoard(false)}
+            >
+              <LogOut size={18} /> ห้องและอันดับ
             </button>
+          ) : (
+            <OverflowMenu
+              label="Game menu"
+              triggerClassName="icon-button top-game-menu"
+              items={gameMenu}
+            >
+              Game menu
+            </OverflowMenu>
           )}
         </div>
       </header>
@@ -1021,59 +1312,6 @@ export function RankedMatchPage({
           start a new game.
         </p>
       )}
-      {"paused" in match && Boolean(match.paused) && <p role="status">Game paused</p>}
-      {live && client.control && (
-        <EditingControls
-          key={`${match.revision}:${selectedLogId ?? ""}`}
-          match={live}
-          busy={busy}
-          selectedLog={selectedLog}
-          allowBranches={playTools.has("multiverse")}
-          onAction={(action) => void control(action)}
-          onSelectLog={setSelectedLogId}
-        />
-      )}
-      {!ranked && "canAdminister" in match && Boolean(match.canAdminister) && client.administer && (
-        <HostedControls
-          match={match}
-          busy={busy}
-          onAction={(action) =>
-            void run(() => client.administer!(match.id, match.revision, action))
-          }
-        />
-      )}
-      {live && client.physical && (
-        <PhysicalControls
-          match={live}
-          busy={busy}
-          onAction={(action) => void run(() => client.physical!(match.id, match.revision, action))}
-        />
-      )}
-      {keyNotice && (
-        <p className="sync-banner" role="status">
-          {keyNotice}
-        </p>
-      )}
-      {analysis && (
-        <p className="sync-banner" role="status">
-          {analysis}
-        </p>
-      )}
-      {"botTurn" in match && Boolean(match.botTurn) && (
-        <p role="status">
-          {botDisplayName(live?.mode === "stage5b_standard" ? "stage5b" : "authur")} is thinking{" "}
-          {live?.mode === "stage5b_standard" ? "on this device" : "on the server"}…
-          {client.botTurn && (
-            <button
-              type="button"
-              disabled={busy || botBusy}
-              onClick={() => void run(() => client.botTurn!(match.id, match.revision))}
-            >
-              Retry bot turn
-            </button>
-          )}
-        </p>
-      )}
       {match.status === "finished" && (
         <p className="ranked-result" role="status">
           {match.result?.winner ? `${match.players[match.result.winner]} ชนะ` : "เสมอ"}
@@ -1082,71 +1320,33 @@ export function RankedMatchPage({
             : ""}
         </p>
       )}
+      {/* A toast, as in the legacy board: a row here would push the board down. */}
+      {keyNotice && (
+        <div className="key-notice" role="status">
+          {keyNotice}
+        </div>
+      )}
+      {liveTools && (
+        <PauseSheets match={liveTools} busy={busy} onAction={(action) => void control(action)} />
+      )}
+      {liveTools?.canRename && (
+        <TextPromptSheet
+          open={renaming}
+          title="Rename game"
+          label="Game name"
+          initialValue={liveTools.name}
+          submitLabel="Rename game"
+          onCancel={() => setRenaming(false)}
+          onSubmit={(name) => {
+            setRenaming(false);
+            void control({ kind: "rename", name });
+          }}
+        />
+      )}
       <div className="workspace">
         <aside className="log-rail">
           <Scoreboard game={uiGame} />
-          <section className="log-panel">
-            <PanelHeading title="Turn Log" detail={`${match.logs.length} turns`} />
-            <div className="log-list">
-              <div className="turn-record-list">
-                {match.logs.map((log) => (
-                  <section
-                    className={`turn-record-group side-${log.side.toLowerCase()} ${selectedLogId === log.id ? "selected" : ""}`}
-                    key={log.id}
-                  >
-                    <div className="turn-record-row">
-                      <button
-                        className="turn-record-summary"
-                        type="button"
-                        aria-current={selectedLogId === log.id}
-                        onClick={() => setSelectedLogId(log.id)}
-                      >
-                        <span className="trs-turn">T{log.turnNumber}</span>
-                        <span className="trs-side">{match.players[log.side]}</span>
-                        <span className="trs-action">
-                          {log.action === "place_equation"
-                            ? `วางเบี้ย · ${log.score} แต้ม`
-                            : log.action === "exchange"
-                              ? `เปลี่ยน ${log.exchangedCount} ตัว`
-                              : log.action === "pass"
-                                ? "ผ่าน"
-                                : "จบเกม"}
-                        </span>
-                        <span>ดูช็อต</span>
-                      </button>
-                    </div>
-                  </section>
-                ))}
-              </div>
-            </div>
-            {selectedLog && (
-              <div className="ranked-log-detail">
-                <button type="button" onClick={() => setReplayPhase("before")}>
-                  Before this turn
-                </button>
-                <button type="button" onClick={() => setReplayPhase("after")}>
-                  After this turn
-                </button>
-                {playTools.has("replay") &&
-                  selectedLog.rackBefore &&
-                  selectedLog.side === match.yourSide && (
-                    <button type="button" onClick={() => setPractice(!practice)}>
-                      Practice this position
-                    </button>
-                  )}
-                {selectedLog.note && <p>{selectedLog.note}</p>}
-                {selectedLog.stars !== undefined && <p>Stars: {selectedLog.stars}</p>}
-                <button type="button" onClick={() => setSelectedLogId(null)}>
-                  กลับกระดานปัจจุบัน
-                </button>
-                <p>
-                  {selectedLog.side === match.yourSide
-                    ? "เบี้ยของคุณในตานี้"
-                    : "เบี้ยคู่แข่งถูกปิด"}
-                </p>
-              </div>
-            )}
-          </section>
+          {!isMobilePlay && turnLog}
         </aside>
         <section className="board-zone">
           <div className="board-stage">
@@ -1265,14 +1465,17 @@ export function RankedMatchPage({
             )}
           </div>
         </section>
+        {isMobilePlay && tools}
+        {isMobilePlay && turnLog}
         <aside className="right-rail">
-          <section className="tilebag-panel rail-panel">
-            <PanelHeading title="Tilebag" detail={`${match.tilebagCount} tiles`} />
-            <p>เบี้ยในถุงถูกปิดระหว่างการแข่งขัน</p>
-            <p>
-              Rack A {match.rackCount.A} · Rack B {match.rackCount.B}
-            </p>
-          </section>
+          {tools && !isMobilePlay ? (
+            <div className="live-rail-stack">
+              {tilebagPanel}
+              {tools}
+            </div>
+          ) : (
+            tilebagPanel
+          )}
           <ActionPanel
             activeRack={unstagedRack}
             actionMode={mode}

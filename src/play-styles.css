@@ -24,6 +24,7 @@
   z-index: 9999;
   overflow: auto;
   overscroll-behavior: contain;
+  padding: 16px;
   background: var(--panel, white);
   --cell: clamp(18px, calc((100vw - 64px) / 15), 38px);
 }
@@ -31,12 +32,187 @@
   position: relative !important;
   inset: auto !important;
 }
-@layer legacy {
-  @media (max-width: 759px) {
-    .ranked-play .log-rail .log-panel {
-      display: block !important;
-      max-height: 240px;
-      overflow-y: auto;
-    }
+.live-practice-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.live-practice-head h2 {
+  margin: 0;
+}
+
+/* Sheets on the board: the backdrop's click target, as the application shell
+   styles it, instead of a stray native button beside the sheet. */
+body[data-route="play"] .ui-sheet-dismiss {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
+body[data-route="play"] .ui-sheet-backdrop > .ui-sheet {
+  position: relative;
+  z-index: 1;
+}
+
+/* Live game tools sit beside the board, never above it: in the right rail on
+   desktop, in a Sheet opened from below the board on phones. Controls are the
+   shared .eq-button / .eq-field; these rules only lay the groups out. */
+.right-rail > .live-rail-stack {
+  grid-area: tilebag;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.live-rail-stack > .rail-panel {
+  flex: none;
+}
+.live-context-tools {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+.live-tools-body {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+.live-tool {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.live-tool + .live-tool {
+  padding-top: 12px;
+  border-top: 1px solid var(--eq-line);
+}
+.live-tool-title {
+  margin: 0;
+  color: var(--eq-text);
+  font-size: 13px;
+  font-weight: 800;
+}
+.live-tool-note,
+.live-tool-rack {
+  margin: 0;
+  color: var(--eq-text-soft);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.live-tool-rack {
+  color: var(--eq-text);
+  font-weight: 650;
+}
+.live-tool-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.live-tool-form {
+  display: grid;
+  gap: 10px;
+}
+.live-tool-form textarea {
+  width: 100%;
+  min-height: 72px;
+  border: 1px solid var(--eq-line-strong);
+  border-radius: var(--eq-radius-sm);
+  background: var(--eq-surface);
+  color: var(--eq-text);
+  padding: 9px 11px;
+  font: inherit;
+  resize: vertical;
+}
+.live-tool-line,
+.live-config-side {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--eq-line);
+  border-radius: var(--eq-radius-md);
+  background: var(--eq-surface);
+}
+.live-tool-line legend,
+.live-config-side legend {
+  padding: 0 4px;
+  color: var(--eq-text);
+  font-size: 12px;
+  font-weight: 800;
+}
+.live-tile-palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 6px;
+}
+.eq-button.live-tile-pick {
+  min-height: 36px;
+  padding: 4px 6px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+
+/* Waiting room and Pass & Play handoff cards. */
+.live-waiting-card,
+.live-handoff-card,
+.live-waiting-controls,
+.live-config-form {
+  display: grid;
+  gap: 14px;
+}
+.live-waiting-card .eq-section-heading,
+.live-handoff-card .eq-section-heading {
+  margin: 0;
+}
+.live-waiting-card .eq-section-heading p + p,
+.live-handoff-card .eq-section-heading p + p {
+  margin-top: 6px;
+}
+.live-config-form {
+  padding: 14px;
+  border: 1px solid var(--eq-line);
+  border-radius: var(--eq-radius-md);
+  background: var(--eq-surface-subtle);
+}
+.live-config-sides {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 12px;
+}
+
+@media (min-width: 760px) and (max-width: 1040px) {
+  /* The 30px icon-only header buttons clipped their labels; the live header
+     has room for them now that its tools moved into the rail. */
+  .ranked-play .top-actions :is(.icon-button, .danger-button, .resume-button) {
+    width: auto;
+    padding: 0 10px;
+  }
+}
+
+@media (max-width: 759px) {
+  /* Phones hide the role badges; a pause still has to be visible. */
+  .ranked-play .top-actions .live-status-badge {
+    display: inline-flex;
+    flex: 0 0 auto;
+    align-items: center;
+    white-space: nowrap;
+  }
+  /* The turn log follows the board on phones instead of pushing it down. */
+  .ranked-play .live-mobile-log {
+    box-sizing: border-box;
+    width: calc(100% - 16px);
+    margin: 0 8px;
+  }
+  .ranked-play .live-mobile-log .log-list {
+    max-height: 50dvh;
+    overflow-y: auto;
   }
 }
