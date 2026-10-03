@@ -4,6 +4,8 @@ import type { MatchClient } from "../src/liveGame/shell/model";
 import { useState } from "react";
 import { LeftoverNotes } from "../src/liveGame/shell/LeftoverNotes";
 
+// Full-screen renders on the real reducers; the first test also warms modules.
+vi.setConfig({ testTimeout: 20_000 });
 const cue = vi.hoisted(() => ({ calls: 0 }));
 vi.mock("../src/liveGame/shell/attention", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../src/liveGame/shell/attention")>();
@@ -56,6 +58,13 @@ const rackLabels = () =>
   );
 const cell = (row: number, col: number) =>
   screen.getByRole("button", { name: new RegExp(`^${"ABCDEFGHIJKLMNO"[col - 1]}${row},`) });
+/** A click carrying an explicit event time (the board reads the tap's own timestamp). */
+function tapAt(element: HTMLElement, at: number) {
+  const event = new MouseEvent("click", { bubbles: true, cancelable: true });
+  Object.defineProperty(event, "timeStamp", { value: at });
+  fireEvent(element, event);
+}
+
 const key = (k: string, code = k) => fireEvent.keyDown(window, { key: k, code });
 
 function setViewport(width: number, height: number) {
@@ -112,10 +121,11 @@ describe("ACTIVE turn", () => {
     renderScreen(createFixtureSession("active"));
     await screen.findByRole("button", { name: "Exchange" });
     await placeSevenEqualsFivePlusTwo();
-    expect(document.querySelectorAll(".lg-rack-tile.is-exposed")).toHaveLength(4);
+    // A tile on the board leaves its slot empty (no ghost).
+    expect(document.querySelectorAll(".lg-rack-tile.is-empty")).toHaveLength(4);
     fireEvent.click(screen.getByRole("button", { name: "Recall" }));
     expect(tentative()).toBe(0);
-    expect(document.querySelectorAll(".lg-rack-tile.is-exposed")).toHaveLength(0);
+    expect(document.querySelectorAll(".lg-rack-tile.is-empty")).toHaveLength(0);
   });
 
   it("keeps tentative tiles when a revision is not a new turn (a pause request arrives)", async () => {
@@ -471,9 +481,11 @@ describe("alternative tiles: direct choice, never cycling", () => {
     ]);
     fireEvent.click(within(picker).getByRole("button", { name: "Play as minus" }));
     expect(cell(7, 7)).toHaveAccessibleName(/^G7, -, chosen from \+ \/ -, your tentative tile$/);
-    // Tapping the tile again reopens the picker with the current choice marked;
-    // it does not cycle the value.
-    fireEvent.click(cell(7, 7));
+    // A single tap selects the tile (to move it); a double tap reopens the
+    // picker with the current choice marked. Nothing cycles the value.
+    tapAt(cell(7, 7), 1000);
+    expect(screen.queryByRole("dialog", { name: "Choose the sign" })).toBeNull();
+    tapAt(cell(7, 7), 1150);
     const again = screen.getByRole("dialog", { name: "Choose the sign" });
     expect(within(again).getByRole("button", { name: "Play as minus" })).toHaveAttribute(
       "aria-pressed",
@@ -492,28 +504,31 @@ describe("alternative tiles: direct choice, never cycling", () => {
     expect(screen.queryByRole("dialog", { name: "Choose the sign" })).toBeNull();
     expect(cell(7, 7)).toHaveAccessibleName(/your tentative tile/);
     expect(cell(10, 3)).toHaveAccessibleName(/empty$/);
-    expect(screen.getAllByText("Tap the tile to choose its value").length).toBeGreaterThan(0);
-    fireEvent.click(cell(7, 7));
+    expect(screen.getAllByText("Double-tap the tile to choose its value").length).toBeGreaterThan(
+      0,
+    );
+    tapAt(cell(7, 7), 5000);
+    tapAt(cell(7, 7), 5150);
     fireEvent.keyDown(screen.getByRole("dialog", { name: "Choose the sign" }), { key: "Escape" });
     expect(screen.queryByRole("dialog", { name: "Choose the sign" })).toBeNull();
-    // The cursor advanced past the tile; arrow back to it, then E.
-    key("ArrowLeft");
+    // With the arrow off, focus stays on the placed tile: E reopens its picker.
     key("e", "KeyE");
     expect(screen.getByRole("dialog", { name: "Choose the sign" })).toBeInTheDocument();
   });
 });
 
 describe("game HUD", () => {
-  it("shows both players' score, lead and clock in one scoreboard; turn and lead are separate", async () => {
+  it("shows both players' score and clock in one scoreboard; the margin once, from my side", async () => {
     renderScreen(createFixtureSession("thinking"));
     const board = await screen.findByRole("region", { name: "Score" });
     const rows = within(board).getAllByRole("group");
     expect(rows).toHaveLength(2);
-    // Nok (A) leads 25–10; Pim (B) is to move.
+    // Nok (A, me) leads 25–10; Pim (B) is to move. The margin is on my row only.
     expect(rows[0]).toHaveAccessibleName(/^Nok, You, 25 points, leads by 15, .* left$/);
-    expect(rows[1]).toHaveAccessibleName(/^Pim, 10 points, trails by 15, .* left, To move$/);
-    expect(rows[0].querySelector(".lg-sb-diff.is-lead")).toHaveTextContent("+15");
-    expect(rows[1].querySelector(".lg-sb-diff.is-trail")).toHaveTextContent("−15");
+    expect(rows[1]).toHaveAccessibleName(/^Pim, 10 points, .* left, To move$/);
+    expect(rows[0].querySelector(".lg-sb-diff.is-lead.is-mine")).toHaveTextContent("+15");
+    expect(rows[1].querySelector(".lg-sb-diff")).toHaveClass("is-none");
+    expect(rows[1].querySelector(".lg-sb-diff")).toHaveTextContent("");
     expect(rows[1]).toHaveAttribute("data-to-move", "true");
     expect(rows[0]).not.toHaveAttribute("data-to-move");
   });

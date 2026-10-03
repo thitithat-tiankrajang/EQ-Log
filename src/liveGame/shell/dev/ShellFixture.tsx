@@ -153,7 +153,120 @@ function opening(): Fixture {
   return { ...fixture, game };
 }
 
+/** Line extensions that keep any true equation true: after its last number, or before its first. */
+const APPEND: [AmathToken, AmathToken][] = [
+  ["x", "1"],
+  ["+", "0"],
+  ["-", "0"],
+  ["/", "1"],
+];
+const PREPEND: [AmathToken, AmathToken][] = [
+  ["1", "x"],
+  ["0", "+"],
+];
+
+/** Maximal runs of two or more tiles, longest first. */
+function lines(game: GameState) {
+  const size = game.board.length;
+  const out: { cells: [number, number][]; across: boolean }[] = [];
+  for (const across of [true, false])
+    for (let a = 0; a < size; a += 1) {
+      let run: [number, number][] = [];
+      for (let b = 0; b <= size; b += 1) {
+        const [row, col] = across ? [a, b] : [b, a];
+        if (b < size && game.board[row][col]) run.push([row, col]);
+        else {
+          if (run.length >= 2) out.push({ cells: run, across });
+          run = [];
+        }
+      }
+    }
+  return out.sort((x, y) => y.cells.length - x.cells.length);
+}
+
+/** One legal scoring play that lengthens an existing equation, or null. */
+function extend(game: GameState, side: Side, at: number): GameState | null {
+  const size = game.board.length;
+  const free = (row: number, col: number) =>
+    row >= 0 && col >= 0 && row < size && col < size && !game.board[row][col];
+  for (const { cells, across } of lines(game)) {
+    const [r0, c0] = cells[0];
+    const [r1, c1] = cells[cells.length - 1];
+    const step = (row: number, col: number, n: number): [number, number] =>
+      across ? [row, col + n] : [row + n, col];
+    const tries: [AmathToken, number, number][][] = [
+      ...APPEND.map(([op, digit]) => {
+        const [ra, ca] = step(r1, c1, 1);
+        const [rb, cb] = step(r1, c1, 2);
+        return [
+          [op, ra, ca],
+          [digit, rb, cb],
+        ] as [AmathToken, number, number][];
+      }),
+      ...PREPEND.map(([digit, op]) => {
+        const [ra, ca] = step(r0, c0, -2);
+        const [rb, cb] = step(r0, c0, -1);
+        return [
+          [digit, ra, ca],
+          [op, rb, cb],
+        ] as [AmathToken, number, number][];
+      }),
+    ];
+    for (const cellsToPlace of tries) {
+      if (!cellsToPlace.every(([, row, col]) => free(row, col))) continue;
+      const before = structuredClone(game);
+      try {
+        const rest = before.tilebag.slice(0, 6).map((tile) => tile.token);
+        return place(before, side, cellsToPlace, rest, at);
+      } catch {
+        // Not legal here (a cross-word, or the tokens are used up): try the next.
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * A long game for the Turn Log: the opening, then rounds of a scoring play
+ * that lengthens an equation (so one line grows long), an Exchange and a
+ * Pass — never enough scoreless turns in a row to end the game.
+ */
+function longGame(): Fixture {
+  const fixture = opening();
+  let game = fixture.game;
+  let minutes = 60;
+  for (let round = 0; round < 40 && game.status === "playing"; round += 1) {
+    const side = game.activeSide;
+    minutes -= 1;
+    const kind = round % 3;
+    if (kind === 0) {
+      const next = extend(game, side, minutes);
+      if (!next) break;
+      game = next;
+    } else if (kind === 1) {
+      const rack = side === "A" ? game.rackA : game.rackB;
+      game = applyRankedAction(
+        game,
+        side,
+        { kind: "exchange", tileIds: rack.slice(0, 2).map((tile) => tile.id) },
+        minutesAgo(minutes),
+        "normal",
+      );
+    } else game = applyRankedAction(game, side, { kind: "pass" }, minutesAgo(minutes), "normal");
+  }
+  if (game.activeSide !== "A")
+    game = applyRankedAction(game, "B", { kind: "pass" }, minutesAgo(1), "normal");
+  game.currentTurnStartedAt = minutesAgo(0.4);
+  return { ...fixture, game };
+}
+
 function build(state: string): Fixture {
+  if (state === "long") return longGame();
+  if (state === "untimed") {
+    const fixture = opening();
+    fixture.game.timers = { ...fixture.game.timers, untimed: true };
+    return fixture;
+  }
   if (state === "exchanged") {
     const fixture = direct();
     let game = place(

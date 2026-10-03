@@ -1,5 +1,5 @@
 import { useRef, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Radio } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, Radio } from "lucide-react";
 import { useLocale } from "../../i18n/LocaleProvider";
 import type { RankedTurnView } from "../../features/ranked/publicView";
 import { ANALYSIS_LEVELS, type AnalysisLevel } from "../../bot/engineApi";
@@ -23,12 +23,17 @@ export type ReviewState = {
  * RECORD TOOLS: the Turn Log and review, then — only where the server's
  * capabilities allow them — undo/redo, alternate lines, annotations and a
  * host's score correction. Reviewing never mutates the game.
+ *
+ * Reading the log is not reviewing: the live board stays live while the log
+ * is open. Only an entry's explicit "View position" control shows that turn
+ * on the board (the existing, authorized review of the recipient's own logs).
  */
 export function RecordTools({
   model,
   busy,
   review,
   onSelectLog,
+  onView = onSelectLog,
   onReviewPhase,
   onPractice,
   onControl,
@@ -38,6 +43,8 @@ export function RecordTools({
   busy: boolean;
   review: ReviewState;
   onSelectLog(id: string | null): void;
+  /** "View position" on an entry (defaults to selecting it for review). */
+  onView?: (id: string) => void;
   onReviewPhase(phase: "before" | "after"): void;
   onPractice(): void;
   onControl(action: LiveControl): void;
@@ -96,11 +103,6 @@ export function RecordTools({
               <ChevronRight size={18} aria-hidden="true" />
             </button>
           </div>
-          <p className="lg-review-note">
-            {review.log.side === model.yourSide
-              ? t("live.record.ownRack")
-              : t("live.record.closedRack")}
-          </p>
           {review.log.note && <p className="lg-review-note">{review.log.note}</p>}
           {model.caps.tools.practice &&
             review.log.side === model.yourSide &&
@@ -118,45 +120,20 @@ export function RecordTools({
         {logs.length === 0 ? (
           <p className="lg-empty">{t("live.record.noTurns")}</p>
         ) : (
-          <ol className="lg-log-list">
-            {[...logs].reverse().map((log) => {
-              const move = log.action === "end_game" ? null : moveOf(log);
-              const what = !move
-                ? t("live.record.ended")
-                : move.kind === "place"
-                  ? null
-                  : move.kind === "exchange"
-                    ? t("live.last.exchanged", { count: move.exchangedCount })
-                    : t("live.last.passed");
-              return (
-                <li key={log.id}>
-                  <button
-                    type="button"
-                    className={`lg-log-row side-${log.side.toLowerCase()}`}
-                    aria-current={review.log?.id === log.id ? "true" : undefined}
-                    onClick={() => onSelectLog(review.log?.id === log.id ? null : log.id)}
-                  >
-                    <span className="lg-log-turn">T{log.turnNumber} </span>
-                    <i className="lg-side-dot" aria-hidden="true" />
-                    <span className="lg-log-who">{model.players[log.side]} </span>
-                    <span className="lg-log-what">
-                      {move?.kind === "place" ? (
-                        <>
-                          {move.faces.length ? (
-                            <Expression faces={move.faces} />
-                          ) : (
-                            t("live.last.placed")
-                          )}
-                          <span className="lg-log-score"> +{move.score}</span>
-                        </>
-                      ) : (
-                        what
-                      )}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
+          <ol className="lg-tl">
+            {[...logs].reverse().map((log) => (
+              <TurnLogEntry
+                key={log.id}
+                log={log}
+                who={
+                  log.side === model.yourSide && model.role === "player"
+                    ? t("live.last.you")
+                    : model.players[log.side]
+                }
+                current={review.log?.id === log.id}
+                onView={() => onView(log.id)}
+              />
+            ))}
           </ol>
         )}
       </section>
@@ -175,6 +152,77 @@ export function RecordTools({
         <HostedControls match={model.live} busy={busy} onAction={onHosted} />
       )}
     </div>
+  );
+}
+
+/**
+ * One Turn Log entry, only what matters:
+ *
+ *   12  ● YOU        +24   👁
+ *       8×3=24
+ *   13  ● Pim        PASS  👁
+ *
+ * Turn number, side, player, the score change or Pass / Exchange N, and the
+ * expression on its own line. A long expression scrolls sideways inside its
+ * line (a fade marks the overflow) instead of stretching the row.
+ */
+function TurnLogEntry({
+  log,
+  who,
+  current,
+  onView,
+}: {
+  log: RankedTurnView;
+  who: string;
+  current: boolean;
+  onView(): void;
+}) {
+  const { t } = useLocale();
+  const move = log.action === "end_game" ? null : moveOf(log);
+  const kind = move?.kind ?? "end";
+  const badge =
+    kind === "place"
+      ? `+${move!.score}`
+      : kind === "exchange"
+        ? t("live.record.exchangeN", { count: move!.exchangedCount })
+        : kind === "pass"
+          ? t("live.record.pass")
+          : t("live.record.ended");
+  const spoken = `${t("live.record.turnN", { turn: log.turnNumber })}: ${who}, ${
+    kind === "place" ? `${move!.expression ?? t("live.last.placed")}, +${move!.score}` : badge
+  }`;
+  return (
+    <li
+      className={`lg-tl-entry side-${log.side.toLowerCase()} kind-${kind}${current ? " is-current" : ""}`}
+      aria-current={current ? "true" : undefined}
+    >
+      <span className="lg-visually-hidden">{spoken}</span>
+      <span className="lg-tl-turn" aria-hidden="true">
+        {log.turnNumber}
+      </span>
+      <span className="lg-tl-who" aria-hidden="true">
+        <i className="lg-side-dot" />
+        <span>{who}</span>
+      </span>
+      <span className={`lg-tl-badge is-${kind}`} aria-hidden="true">
+        {badge}
+      </span>
+      {kind === "place" && (
+        <span className="lg-tl-expr" aria-hidden="true">
+          {move!.faces.length ? <Expression faces={move!.faces} /> : t("live.last.placed")}
+        </span>
+      )}
+      <button
+        type="button"
+        className="lg-tl-view"
+        aria-pressed={current}
+        aria-label={t("live.record.viewPosition", { turn: log.turnNumber })}
+        title={t("live.record.viewPosition", { turn: log.turnNumber })}
+        onClick={onView}
+      >
+        <Eye size={17} aria-hidden="true" />
+      </button>
+    </li>
   );
 }
 

@@ -1,0 +1,17 @@
+{
+  "origin": "http://192.168.1.36:5196",
+  "backend": "http://127.0.0.1:54521",
+  "phone": {
+    "width": 390,
+    "height": 844
+  },
+  "steps": [
+    "LAN origin: genuine sign-in, UI create/join/ready/launch",
+    "select → place, board → board, board → a chosen empty slot (tile identity kept)",
+    "arrow RIGHT → escapes the placed tile → DOWN → OFF",
+    "real turns: touch Exchange 3, Pass, Pass",
+    "Notes kept focus through clock ticks and a real Realtime turn change",
+    "Turn Log opened without review; sheet peek; explicit View position → review",
+    "no loopback request from the phone origin; no hidden-information keys"
+  ]
+}

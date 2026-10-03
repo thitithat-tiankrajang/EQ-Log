@@ -12,24 +12,28 @@ import {
   VolumeX,
 } from "lucide-react";
 import { useLocale } from "../../i18n/LocaleProvider";
-import { ConfirmSheet, Sheet, TextPromptSheet } from "../../components/ui/Sheet";
+import { BottomSheet, ConfirmBottomSheet, PromptBottomSheet } from "./BottomSheet";
 import type { HostedAction } from "../hostedAdmin";
 import type { LiveControl } from "../controls";
 import type { ShellModel } from "./model";
 
-/** The mute switch sits in plain view: one press, remembered. */
+/** The mute switch sits in plain view: one press, remembered. Muted reads as a pressed, struck-through speaker. */
 export function SoundToggle({ on, onToggle }: { on: boolean; onToggle(): void }) {
   const { t } = useLocale();
   return (
     <button
       type="button"
-      className="lg-icon-btn"
+      className={`lg-icon-btn lg-ctl lg-sound-btn${on ? "" : " is-muted"}`}
       aria-pressed={!on}
       aria-label={on ? t("live.match.mute") : t("live.match.unmute")}
       title={on ? t("live.match.mute") : t("live.match.unmute")}
       onClick={onToggle}
     >
-      {on ? <Volume2 size={18} aria-hidden="true" /> : <VolumeX size={18} aria-hidden="true" />}
+      {on ? (
+        <Volume2 size={19} strokeWidth={2.2} aria-hidden="true" />
+      ) : (
+        <VolumeX size={19} strokeWidth={2.2} aria-hidden="true" />
+      )}
     </button>
   );
 }
@@ -99,21 +103,26 @@ export function MatchControls({
     <>
       <button
         type="button"
-        className="lg-icon-btn lg-match-btn"
+        className="lg-icon-btn lg-ctl lg-match-btn"
         aria-haspopup="dialog"
+        aria-expanded={open}
         aria-label={t("live.match.open")}
         onClick={() => setOpen(true)}
       >
-        <Menu size={18} aria-hidden="true" />
+        <Menu size={19} strokeWidth={2.2} aria-hidden="true" />
         <span className="lg-match-label">{t("live.match.title")}</span>
       </button>
-      <Sheet open={open} title={t("live.match.title")} onClose={() => setOpen(false)}>
+      <BottomSheet
+        open={open}
+        title={t("live.match.title")}
+        onClose={() => setOpen(false)}
+        peek={false}
+      >
         <div className="lg-menu">
           {caps.coffee && (
             <Item
               icon={<Coffee size={18} aria-hidden="true" />}
               label={t("live.match.coffee")}
-              detail={t("live.match.coffeeDetail")}
               disabled={busy}
               onSelect={close(() => onLeave(true))}
             />
@@ -127,7 +136,7 @@ export function MatchControls({
                   ? t("live.pause.waiting")
                   : pauseBlocked
                     ? t("live.match.pauseBlocked")
-                    : t("live.match.requestPauseDetail")
+                    : undefined
               }
               disabled={busy || model.pause.outgoing || pauseBlocked}
               onSelect={close(() => onControl({ kind: "request-pause" }))}
@@ -158,7 +167,6 @@ export function MatchControls({
               <Item
                 icon={<Square size={18} aria-hidden="true" />}
                 label={t("live.match.finish")}
-                detail={t("live.match.finishDetail")}
                 disabled={busy}
                 onSelect={close(() => setConfirm("finish"))}
               />
@@ -181,13 +189,6 @@ export function MatchControls({
                   ? t("live.match.backRanked")
                   : t("live.match.leave")
             }
-            detail={
-              caps.saveExit
-                ? t("live.match.saveExitDetail")
-                : model.finished
-                  ? undefined
-                  : t("live.match.leaveDetail")
-            }
             disabled={busy}
             onSelect={close(() => onLeave(false))}
           />
@@ -203,12 +204,13 @@ export function MatchControls({
             </div>
           )}
         </div>
-      </Sheet>
-      <ConfirmSheet
+      </BottomSheet>
+      <ConfirmBottomSheet
         open={confirm === "surrender"}
         title={t("live.match.surrenderTitle")}
         consequence={t("live.match.surrenderConsequence")}
         confirmLabel={t("live.match.surrender")}
+        cancelLabel={t("live.actions.cancel")}
         busy={busy}
         onCancel={() => setConfirm(null)}
         onConfirm={() => {
@@ -216,11 +218,12 @@ export function MatchControls({
           onSurrender();
         }}
       />
-      <ConfirmSheet
+      <ConfirmBottomSheet
         open={confirm === "finish"}
         title={t("live.match.finish")}
         consequence={t("live.match.finishConsequence")}
         confirmLabel={t("live.match.finish")}
+        cancelLabel={t("live.actions.cancel")}
         busy={busy}
         onCancel={() => setConfirm(null)}
         onConfirm={() => {
@@ -229,12 +232,13 @@ export function MatchControls({
         }}
       />
       {caps.rename && model.live && (
-        <TextPromptSheet
+        <PromptBottomSheet
           open={renaming}
           title={t("live.match.rename")}
           label={t("live.match.renameLabel")}
           initialValue={model.live.name}
           submitLabel={t("live.match.rename")}
+          cancelLabel={t("live.actions.cancel")}
           onCancel={() => setRenaming(false)}
           onSubmit={(name) => {
             setRenaming(false);

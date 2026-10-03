@@ -11,11 +11,18 @@ import {
 /**
  * Tile artwork, independent of UI typography.
  *
- * Operators are drawn, not typed: every operator shares one 24-unit grid, one
- * stroke weight and one optical centre, so + − × ÷ = read as a set at phone
- * size (a font's hyphen is short and thin, its slash leans and sits low, and
- * its × and ÷ rarely share a height). Numbers stay text — digits are what
- * fonts are good at — set heavy with tabular figures.
+ * A tile face is ONE SVG on a 24-unit grid that fills its tile, so the tile
+ * alone decides the scale: the main face, the point value and the corner
+ * marks keep their proportions on a 20 px board cell, a 46 px rack tile and a
+ * picker button alike. Nothing on the face has a fixed screen size, and font
+ * line boxes never position anything.
+ *
+ * Operators are drawn, not typed: + − × ÷ = share one stroke weight and one
+ * optical centre. Numbers are set on an explicit baseline derived from the
+ * tile font's cap height (Arial/Helvetica, ~0.716 em), so 7 and 17 sit on the
+ * same visual centre; two-digit faces are fitted to a fixed width
+ * (textLength), so 10–20 are as large as the tile allows whatever the font's
+ * advance widths.
  *
  * Alternative tiles have their own state language:
  *   +/− or ×/÷ not chosen yet   both options, small and neutral: "can be either"
@@ -45,7 +52,62 @@ export function normalizeFace(face: string) {
   return ALIASES[face] ?? face;
 }
 
-/** One face: a drawn operator or a set number. */
+/**
+ * Face geometry on the 24-unit tile grid. CENTRE is slightly above the middle
+ * so the face clears the point value in the bottom-right corner.
+ */
+const CENTRE = 11.6;
+const CAP = 0.716;
+const NUMBER = { one: { size: 15.4 }, two: { size: 14.2, width: 15 } } as const;
+const OPERATOR = 12;
+
+/** One face drawn into the tile grid: an operator, or a number on its cap-height baseline. */
+function FaceMark({
+  face,
+  cx = 12,
+  cy = CENTRE,
+  scale = 1,
+}: {
+  face: string;
+  cx?: number;
+  cy?: number;
+  scale?: number;
+}) {
+  const key = normalizeFace(face);
+  const stroke = STROKES[key];
+  if (stroke) {
+    const size = OPERATOR * scale;
+    return (
+      <svg
+        className="lg-glyph lg-op"
+        x={cx - size / 2}
+        y={cy - size / 2}
+        width={size}
+        height={size}
+        viewBox="0 0 24 24"
+        overflow="visible"
+      >
+        {stroke}
+      </svg>
+    );
+  }
+  const wide = key.length > 1;
+  const size = (wide ? NUMBER.two.size : NUMBER.one.size) * scale;
+  return (
+    <text
+      className={`lg-glyph lg-num${wide ? " is-wide" : ""}`}
+      x={cx}
+      y={cy + (size * CAP) / 2}
+      fontSize={size}
+      textAnchor="middle"
+      {...(wide ? { textLength: NUMBER.two.width * scale, lengthAdjust: "spacingAndGlyphs" } : {})}
+    >
+      {key}
+    </text>
+  );
+}
+
+/** One face set in running text (Last Move, Turn Log, chips): em-sized, follows the line. */
 export function Glyph({ face, className = "" }: { face: string; className?: string }) {
   const key = normalizeFace(face);
   const stroke = STROKES[key];
@@ -65,6 +127,17 @@ export function Glyph({ face, className = "" }: { face: string; className?: stri
   );
 }
 
+/** A single face filling its box on the tile grid (value picker options). */
+export function FaceArt({ face }: { face: string }) {
+  return (
+    <svg className="lg-tf" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <g className="lg-face">
+        <FaceMark face={face} cy={12} />
+      </g>
+    </svg>
+  );
+}
+
 type FaceTile = Pick<TileInstance, "token" | "assignedToken">;
 
 export function tileState(tile: FaceTile) {
@@ -74,36 +147,58 @@ export function tileState(tile: FaceTile) {
   return { options, alternative, blank: tile.token === "?", chosen };
 }
 
-/** The inside of a tile: glyph(s) and point value. */
-export function TileFace({ tile }: { tile: FaceTile }) {
+/**
+ * The inside of a tile: main face, corner mark and point value, all on the
+ * tile's own grid. `ask`: an unchosen blank placed on the board shows "?".
+ */
+export function TileFace({ tile, ask = false }: { tile: FaceTile; ask?: boolean }) {
   const { options, alternative, blank, chosen } = tileState(tile);
   const point = tilePoint(tile as TileInstance);
-  let body: ReactNode;
+  let body: ReactNode = null;
   let corner: ReactNode = null;
-  if (!alternative) body = <Glyph face={displayToken(tile as TileInstance)} />;
+  if (!alternative) body = <FaceMark face={displayToken(tile as TileInstance)} />;
   else if (chosen) {
-    body = <Glyph face={chosen} className="is-chosen" />;
+    body = <FaceMark face={chosen} />;
     corner = blank ? (
-      <span className="lg-blank-mark" />
+      <rect className="lg-blank-mark" x="2.7" y="2.7" width="3.8" height="3.8" rx="0.7" />
     ) : (
-      <span className="lg-alt-mark">
-        <Glyph face={options.map(normalizeFace).find((face) => face !== chosen) ?? ""} />
-      </span>
+      <g className="lg-alt-mark">
+        <FaceMark
+          face={options.map(normalizeFace).find((face) => face !== chosen) ?? ""}
+          cx={4.8}
+          cy={4.8}
+          scale={0.42}
+        />
+      </g>
     );
-  } else if (blank) body = null;
-  else
+  } else if (blank) {
+    if (ask)
+      body = (
+        <text
+          className="lg-ask"
+          x="12"
+          y={CENTRE + (12 * CAP) / 2}
+          fontSize="12"
+          textAnchor="middle"
+        >
+          ?
+        </text>
+      );
+  } else
     body = (
-      <span className="lg-pair">
-        <Glyph face={options[0]} />
-        <Glyph face={options[1]} />
-      </span>
+      <g className="lg-pair">
+        <FaceMark face={options[0]} cx={7.6} scale={0.66} />
+        <FaceMark face={options[1]} cx={16.4} scale={0.66} />
+      </g>
     );
   return (
-    <>
+    <svg className="lg-tf" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
       {corner}
-      <span className="lg-face">{body}</span>
-      <small className="lg-point">{point}</small>
-    </>
+      <g className="lg-face">{body}</g>
+      <text className="lg-point" x="21.5" y="21.7" fontSize="5.2" textAnchor="end">
+        {point}
+      </text>
+    </svg>
   );
 }
 

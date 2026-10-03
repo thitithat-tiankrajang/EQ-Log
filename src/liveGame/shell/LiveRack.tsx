@@ -16,16 +16,21 @@ import type { DraftMode, RackSlot } from "./useTurnDraft";
  * by selecting two tiles, or with Alt+← / Alt+→ on a focused tile. Only placing
  * a tile on the board, Exchange and Pass need the turn.
  *
- * Selection never moves a tile: a selected or exchange-marked tile stays in its
- * slot with a quiet overlay, so a player scanning or reordering fast never sees
- * the rack jump. During Exchange selection, a press that drags across the rack
- * marks (or unmarks) every tile it crosses — the first tile decides which.
+ * Selection never moves a tile: a selected tile keeps its slot and gets a warm
+ * ring (the tentative-tile colour family); an exchange-marked tile gets a
+ * slate face and a check. During Exchange selection, a press that drags across
+ * the rack marks (or unmarks) every tile it crosses — the first tile decides.
+ *
+ * A tile on the board leaves its slot EMPTY, like a physical rack. With a tile
+ * selected (from the board or the rack), empty slots show they can take it:
+ * tap one and the tile goes into exactly that slot.
  */
 export function LiveRack({
   slots,
   active,
   mode,
   selectedTileId,
+  holding = false,
   exchangeIds,
   hiddenCount,
   label,
@@ -39,6 +44,8 @@ export function LiveRack({
   active: boolean;
   mode: DraftMode;
   selectedTileId: string | null;
+  /** A tile is selected (board or rack) and empty slots can take it. */
+  holding?: boolean;
   exchangeIds: string[];
   /** Closed slots for a replayed opponent turn; no tile identities are supplied. */
   hiddenCount?: number;
@@ -110,7 +117,9 @@ export function LiveRack({
 
   return (
     <div
-      className={`lg-rack${active ? " is-active" : ""}${mode === "exchange" ? " is-exchange" : ""}`}
+      className={`lg-rack${active ? " is-active" : ""}${mode === "exchange" ? " is-exchange" : ""}${
+        holding && mode === "none" ? " is-holding" : ""
+      }`}
       role="group"
       aria-label={`${label} · ${tileCount}/${RACK_SIZE}`}
       aria-describedby="lg-rack-help"
@@ -131,16 +140,16 @@ export function LiveRack({
                 count: tilePoint(tile),
               },
             )}${selected ? `, ${t("live.rack.selected")}` : ""}${marked ? `, ${t("live.rack.marked")}` : ""}`
-          : slot.exposed
-            ? `${t("live.rack.slot", { index: index + 1 })}: ${t("live.rack.onBoard", { tile: spokenTile(slot.exposed, t) })}`
-            : `${t("live.rack.slot", { index: index + 1 })}: ${t("live.rack.empty")}`;
+          : `${t("live.rack.slot", { index: index + 1 })}: ${t("live.rack.empty")}${
+              holding && mode === "none" ? `, ${t("live.rack.putHere")}` : ""
+            }`;
         return (
           <span key={tile?.id ?? slot.exposed?.id ?? `slot-${index}`} className="lg-rack-slot">
             <button
               type="button"
-              className={`lg-rack-tile${tile ? "" : slot.exposed ? " is-exposed" : " is-empty"}${
-                selected ? " is-selected" : ""
-              }${marked ? " is-marked" : ""}`}
+              className={`lg-rack-tile${tile ? "" : " is-empty"}${
+                !tile && holding && mode === "none" ? " is-target" : ""
+              }${selected ? " is-selected" : ""}${marked ? " is-marked" : ""}`}
               tabIndex={index === focus ? 0 : -1}
               aria-label={name}
               aria-pressed={tile ? selected || marked : undefined}
@@ -157,13 +166,7 @@ export function LiveRack({
                 else onSlotClick(index);
               }}
             >
-              {tile ? (
-                <LiveTile tile={tile} size="rack" />
-              ) : slot.exposed ? (
-                <span className="lg-exposed-ghost" aria-hidden="true">
-                  <LiveTile tile={slot.exposed} size="rack" />
-                </span>
-              ) : null}
+              {tile && <LiveTile tile={tile} size="rack" />}
               {marked && (
                 <span className="lg-mark-check" aria-hidden="true">
                   ✓

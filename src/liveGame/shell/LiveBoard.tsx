@@ -5,7 +5,7 @@ import {
   type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowRight } from "lucide-react";
 import { BOARD_SIZE } from "../../constants/gameRules";
 import {
   displayToken,
@@ -19,7 +19,7 @@ import {
   type TileInstance,
 } from "../../game";
 import { useLocale } from "../../i18n/LocaleProvider";
-import type { Cursor } from "./useTurnDraft";
+import type { Arrow, Cursor } from "./useTurnDraft";
 import { TileFace, tileClass, tileState } from "./TileGlyph";
 
 /** Standard board coordinates: columns A–O, rows 1–15 (e.g. H8 is the centre). */
@@ -54,16 +54,20 @@ const SLOT_TEXT: Record<SlotType, string> = {
   ex3: "3E",
 };
 
+/** A tile: its face scales with the tile itself (see TileFace). */
 export function LiveTile({
   tile,
   size = "board",
+  ask = false,
 }: {
   tile: Pick<TileInstance, "token" | "assignedToken">;
   size?: "board" | "rack" | "mini";
+  /** An unchosen blank on the board shows "?". */
+  ask?: boolean;
 }) {
   return (
     <span className={`lg-tile lg-tile-${size} ${tileClass(tile)}`} aria-hidden="true">
-      <TileFace tile={tile} />
+      <TileFace tile={tile} ask={ask} />
     </span>
   );
 }
@@ -87,20 +91,23 @@ type BoardProps = {
   opponentTentative: OpponentTentative[];
   lastMove: ReadonlySet<string>;
   lastMoveSide: Side | null;
-  cursor: Cursor | null;
-  /** Show the placement arrow (ACTIVE) or only a focus mark (THINKING / review). */
-  placing: boolean;
+  /** The placement arrow, always on a free square (null: off). */
+  cursor: Arrow | null;
+  /** The square the player is looking at (keyboard focus). Defaults to the arrow. */
+  focus?: Cursor | null;
+  /** active: my turn; muted: prepared while waiting; none: no arrow (review, spectator). */
+  arrow: "active" | "muted" | "none";
   selectedPendingId: string | null;
   players: Record<Side, string>;
   yourSide: Side | null;
   score: { row: number; col: number; value: number } | null;
   labels: boolean;
-  /** Stable callbacks only (the board is memoized). */
-  onCellClick(row: number, col: number): void;
+  /** Stable callbacks only (the board is memoized). `at`: the tap's event time. */
+  onCellClick(row: number, col: number, at?: number): void;
   onCellFocus(row: number, col: number): void;
 };
 
-const ARROWS = { right: ArrowRight, down: ArrowDown, left: ArrowLeft, up: ArrowUp };
+const ARROWS = { right: ArrowRight, down: ArrowDown };
 
 export const LiveBoard = memo(function LiveBoard({
   board,
@@ -109,7 +116,8 @@ export const LiveBoard = memo(function LiveBoard({
   lastMove,
   lastMoveSide,
   cursor,
-  placing,
+  focus,
+  arrow,
   selectedPendingId,
   players,
   yourSide,
@@ -122,8 +130,8 @@ export const LiveBoard = memo(function LiveBoard({
   const gridRef = useRef<HTMLDivElement>(null);
   const pending = new Map(placements.map((item) => [`${item.row}:${item.col}`, item]));
   const remote = new Map(opponentTentative.map((item) => [`${item.row}:${item.col}`, item]));
-  const focusRow = cursor?.row ?? 7;
-  const focusCol = cursor?.col ?? 7;
+  const focusRow = focus?.row ?? cursor?.row ?? 7;
+  const focusCol = focus?.col ?? cursor?.col ?? 7;
 
   // Keyboard focus follows the cursor, but only when focus is already on the board.
   useEffect(() => {
@@ -149,7 +157,13 @@ export const LiveBoard = memo(function LiveBoard({
     if (shown)
       return `${where}, ${displayToken(shown.tile as TileInstance)}, ${t("live.board.opponentTentative")}`;
     const cell = board[row][col];
-    if (!cell) return `${where}${premium}, ${t("live.board.empty")}`;
+    if (!cell) {
+      const pointing =
+        arrow !== "none" && cursor?.row === row && cursor.col === col
+          ? `, ${t(cursor.dir === "down" ? "live.board.arrowDown" : "live.board.arrowRight")}`
+          : "";
+      return `${where}${premium}, ${t("live.board.empty")}${pointing}`;
+    }
     const who =
       cell.side === yourSide
         ? t("live.board.byYou")
@@ -207,9 +221,9 @@ export const LiveBoard = memo(function LiveBoard({
               const slot = slotTypeAt(r, c);
               const mine = pending.get(key);
               const shown = remote.get(key);
-              const isCursor = cursor?.row === r && cursor.col === c;
+              const isCursor = arrow !== "none" && cursor?.row === r && cursor.col === c;
               const focusable = r === focusRow && c === focusCol;
-              const Arrow = isCursor && placing && !cell && !mine ? ARROWS[cursor!.dir] : null;
+              const ArrowIcon = isCursor && !cell && !mine ? ARROWS[cursor!.dir] : null;
               const state = mine
                 ? "tentative"
                 : shown
@@ -225,7 +239,7 @@ export const LiveBoard = memo(function LiveBoard({
                     type="button"
                     className={`lg-cell lg-slot-${SLOT_KEY[slot]} is-${state}${
                       cell ? ` side-${cell.side.toLowerCase()}` : ""
-                    }${isCursor ? ` is-cursor${placing ? ` dir-${cursor!.dir}` : ""}` : ""}${
+                    }${isCursor ? ` is-cursor dir-${cursor!.dir} is-arrow-${arrow}` : ""}${
                       mine && mine.tile.id === selectedPendingId ? " is-selected" : ""
                     }`}
                     tabIndex={focusable ? 0 : -1}
@@ -233,12 +247,12 @@ export const LiveBoard = memo(function LiveBoard({
                     data-board-row={r}
                     data-board-col={c}
                     data-draft-tile-id={mine?.tile.id}
-                    onClick={() => {
+                    onClick={(event) => {
                       pointerFocus.current = false;
-                      onCellClick(r, c);
+                      onCellClick(r, c, event.timeStamp);
                     }}
                     onFocus={() => {
-                      if (!isCursor && !pointerFocus.current) onCellFocus(r, c);
+                      if (!focusable && !pointerFocus.current) onCellFocus(r, c);
                     }}
                     aria-haspopup={
                       mine && tileNeedsAssignment(mine.tile.token) ? "dialog" : undefined
@@ -248,13 +262,13 @@ export const LiveBoard = memo(function LiveBoard({
                     }}
                   >
                     {mine ? (
-                      <LiveTile tile={{ ...mine.tile, assignedToken: mine.assignedToken }} />
+                      <LiveTile tile={{ ...mine.tile, assignedToken: mine.assignedToken }} ask />
                     ) : shown ? (
                       <LiveTile tile={shown.tile} />
                     ) : cell ? (
                       <LiveTile tile={cell.tile} />
-                    ) : Arrow ? (
-                      <Arrow className="lg-cursor-arrow" aria-hidden="true" />
+                    ) : ArrowIcon ? (
+                      <ArrowIcon className="lg-cursor-arrow" aria-hidden="true" strokeWidth={2.6} />
                     ) : (
                       SLOT_TEXT[slot] && (
                         <span className="lg-premium" aria-hidden="true">

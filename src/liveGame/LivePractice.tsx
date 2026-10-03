@@ -79,7 +79,7 @@ export function LivePractice({
             lastMove={NO_MARKS}
             lastMoveSide={null}
             cursor={null}
-            placing={false}
+            arrow="none"
             selectedPendingId={null}
             players={players}
             yourSide={log.side}

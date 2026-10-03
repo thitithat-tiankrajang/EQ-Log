@@ -20,7 +20,9 @@ body:has(> #root .lg-shell) {
   background: #eef1f6;
 }
 
-.lg-shell {
+/* Tokens are shared with the bottom sheets, which are portalled outside the shell. */
+.lg-shell,
+.lg-sheet-backdrop {
   --lg-a: #c5221f;
   --lg-a-text: #a50e0e;
   --lg-a-soft: #fdecea;
@@ -47,6 +49,11 @@ body:has(> #root .lg-shell) {
   --lg-move-soft: var(--lg-a-soft);
   --lg-me: var(--lg-a);
   --lg-opp: var(--lg-b);
+  /* Selection: the warm family of tentative placement. */
+  --lg-sel: #e8930c;
+  --lg-sel-soft: #fff1d6;
+}
+.lg-shell {
   box-sizing: border-box;
   height: 100dvh;
   width: 100%;
@@ -60,7 +67,10 @@ body:has(> #root .lg-shell) {
 }
 .lg-shell *,
 .lg-shell *::before,
-.lg-shell *::after {
+.lg-shell *::after,
+.lg-sheet-backdrop *,
+.lg-sheet-backdrop *::before,
+.lg-sheet-backdrop *::after {
   box-sizing: border-box;
 }
 .lg-shell[data-to-move="b"] {
@@ -83,9 +93,13 @@ body:has(> #root .lg-shell) {
 
 /* ── Controls ─────────────────────────────────────────────────────────── */
 .lg-shell button,
+.lg-sheet-backdrop button,
 .lg-practice button {
   font: inherit;
 }
+/* Game controls: one tactile language. A light raised face (top highlight,
+   soft bottom edge) that presses in; primary actions are solid and heavier,
+   quiet ones flat. Icons share one size and stroke. */
 .lg-btn {
   display: inline-flex;
   align-items: center;
@@ -93,40 +107,67 @@ body:has(> #root .lg-shell) {
   gap: 7px;
   min-height: 44px;
   padding: 0 16px;
-  border: 1px solid var(--lg-line-strong);
-  border-radius: var(--lg-radius-sm);
-  background: var(--lg-surface);
+  border: 1px solid #c9d1de;
+  border-radius: 10px;
+  background: linear-gradient(#ffffff, #f2f5f9);
   color: var(--lg-text);
-  font-weight: 650;
+  font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
+  box-shadow:
+    0 1px 0 rgba(15, 23, 42, 0.07),
+    0 1px 2px rgba(15, 23, 42, 0.06),
+    inset 0 1px 0 #fff;
   transition:
     background-color 120ms,
     border-color 120ms,
+    box-shadow 120ms,
     transform 80ms;
 }
+.lg-btn svg {
+  flex: none;
+}
 .lg-btn:hover:not(:disabled) {
-  background: var(--lg-surface-2);
+  border-color: #b4bfcf;
 }
 .lg-btn:active:not(:disabled) {
   transform: translateY(1px);
+  background: #eef1f6;
+  box-shadow: inset 0 1px 3px rgba(15, 23, 42, 0.14);
 }
 .lg-btn:disabled {
   cursor: not-allowed;
   opacity: 0.5;
+  box-shadow: none;
 }
 .lg-btn-primary {
-  border-color: var(--lg-accent);
-  background: var(--lg-accent);
+  border-color: #2547b3;
+  background: linear-gradient(#3f68dc, #2d50c2);
   color: #fff;
+  box-shadow:
+    0 1px 0 rgba(15, 23, 42, 0.18),
+    0 2px 6px rgba(45, 80, 194, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
 .lg-btn-primary:hover:not(:disabled) {
-  background: var(--lg-accent-strong);
+  border-color: #1e3c9c;
+  background: linear-gradient(#3860d2, #2846b2);
+}
+.lg-btn-primary:active:not(:disabled) {
+  background: #2846b2;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.25);
 }
 .lg-btn-quiet {
-  border-color: transparent;
+  border-color: var(--lg-line);
   background: transparent;
-  color: var(--lg-muted);
+  color: var(--lg-text);
+  box-shadow: none;
+}
+.lg-btn-danger {
+  border-color: #9b1c2c;
+  background: linear-gradient(#c12a3c, #a91f31);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 .lg-btn-small {
   min-height: 34px;
@@ -141,17 +182,41 @@ body:has(> #root .lg-shell) {
   min-width: 44px;
   min-height: 44px;
   padding: 0 10px;
-  border: 1px solid var(--lg-line);
-  border-radius: var(--lg-radius-sm);
-  background: var(--lg-surface);
-  color: var(--lg-text);
+  border: 1px solid #c9d1de;
+  border-radius: 10px;
+  background: linear-gradient(#ffffff, #f2f5f9);
+  color: #263043;
   cursor: pointer;
+  box-shadow:
+    0 1px 0 rgba(15, 23, 42, 0.07),
+    inset 0 1px 0 #fff;
+  transition:
+    background-color 120ms,
+    border-color 120ms,
+    transform 80ms;
+}
+.lg-icon-btn:active:not(:disabled) {
+  transform: translateY(1px);
+  background: #eef1f6;
+  box-shadow: inset 0 1px 3px rgba(15, 23, 42, 0.14);
+}
+/* Pressed / open states: an inset face. Muted sound reads "pressed in". */
+.lg-ctl[aria-pressed="true"],
+.lg-ctl.is-muted {
+  background: #e9edf3;
+  color: #687387;
+  box-shadow: inset 0 1px 3px rgba(15, 23, 42, 0.16);
+}
+.lg-ctl[aria-expanded="true"] {
+  border-color: var(--lg-accent);
+  color: var(--lg-accent);
 }
 .lg-icon-btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 .lg-shell :focus-visible,
+.lg-sheet-backdrop :focus-visible,
 .lg-practice :focus-visible {
   outline: 3px solid var(--lg-focus);
   outline-offset: 2px;
@@ -311,10 +376,14 @@ body:has(> #root .lg-shell) {
   font-size: calc(var(--lg-cell) * 0.5);
 }
 .lg-cursor-arrow {
-  width: 58%;
-  height: 58%;
+  width: 64%;
+  height: 64%;
   color: var(--lg-accent);
   pointer-events: none;
+}
+/* Prepared while waiting for the turn: the same arrow, quiet. */
+.lg-cell.is-arrow-muted .lg-cursor-arrow {
+  color: #7b8597;
 }
 .lg-cell.is-cursor {
   z-index: 1;
@@ -340,36 +409,40 @@ body:has(> #root .lg-shell) {
 /* The tile's glyph is the most important object on screen. Size comes from
    --tile (board cell, rack tile, picker option); every glyph is centred in the
    same box, so digits and drawn operators share one optical centre. */
+/* The tile defines the scale. Its face is one SVG on a 24-unit grid that
+   fills the tile (TileGlyph.tsx): face, point value and corner marks keep
+   their proportions at every tile size, with no screen-size floor and no
+   font line box involved. */
 .lg-tile {
-  --tile: var(--lg-cell);
   position: relative;
-  display: grid;
-  place-items: center;
+  display: block;
   width: 100%;
   height: 100%;
-  border-radius: calc(var(--tile) * 0.14);
+  border-radius: 14%;
   background: var(--lg-tile-face);
   color: var(--lg-tile-ink);
-  font-family: var(--tile-font, Arial, "Helvetica Neue", sans-serif);
-  line-height: 1;
   user-select: none;
   box-shadow: inset 0 -1.5px 0 var(--lg-tile-edge);
 }
-.lg-tile-rack {
-  --tile: var(--lg-rack-tile);
-}
 .lg-tile-mini {
-  --tile: 26px;
   width: 26px;
   height: 26px;
 }
-.lg-face {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.lg-tf {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
-  padding-bottom: calc(var(--tile) * 0.04);
+  overflow: visible;
+  pointer-events: none;
+}
+.lg-tf text {
+  fill: currentColor;
+  font-family: var(--tile-font, Arial, "Helvetica Neue", Helvetica, sans-serif);
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.lg-tf .lg-num {
+  font-weight: 800;
 }
 .lg-glyph.lg-op {
   fill: none;
@@ -381,32 +454,12 @@ body:has(> #root .lg-shell) {
   fill: currentColor;
   stroke: none;
 }
-.lg-tile .lg-glyph.lg-num,
-.lg-picker-option .lg-glyph.lg-num {
-  font-size: calc(var(--tile) * 0.54);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  font-variant-numeric: lining-nums tabular-nums;
-}
-.lg-tile .lg-glyph.lg-num.is-wide,
-.lg-picker-option .lg-glyph.lg-num.is-wide {
-  font-size: calc(var(--tile) * 0.43);
-  letter-spacing: -0.06em;
-}
-/* Drawn operators: the same box and stroke for + − × ÷ =. */
-.lg-tile .lg-glyph.lg-op,
-.lg-picker-option .lg-glyph.lg-op {
-  width: calc(var(--tile) * 0.5);
-  height: calc(var(--tile) * 0.5);
+.lg-tf .lg-op {
   stroke-width: 3.4;
 }
-.lg-point {
-  position: absolute;
-  right: 8%;
-  bottom: 5%;
-  font-size: max(7px, calc(var(--tile) * 0.22));
+.lg-tf .lg-point {
   font-weight: 700;
-  opacity: 0.78;
+  opacity: 0.8;
 }
 .lg-tile-mini .lg-point,
 .lg-tile-mini .lg-alt-mark,
@@ -415,47 +468,30 @@ body:has(> #root .lg-shell) {
 }
 /* Alternatives — neutral "either" until chosen, then the choice in blue. */
 .lg-pair {
-  display: flex;
-  align-items: center;
-  gap: calc(var(--tile) * 0.05);
   color: var(--lg-open-ink);
 }
-.lg-tile .lg-pair .lg-glyph.lg-op {
-  width: calc(var(--tile) * 0.33);
-  height: calc(var(--tile) * 0.33);
-  stroke-width: 3.8;
+.lg-tf .lg-pair .lg-op {
+  stroke-width: 3.9;
 }
 .lg-tile.is-chosen .lg-face {
   color: var(--lg-chosen);
 }
 .lg-alt-mark {
-  position: absolute;
-  top: 7%;
-  left: 8%;
-  display: grid;
   color: var(--lg-open-ink);
-  opacity: 0.85;
+  opacity: 0.9;
 }
-.lg-tile .lg-alt-mark .lg-glyph.lg-op {
-  width: calc(var(--tile) * 0.2);
-  height: calc(var(--tile) * 0.2);
-  stroke-width: 4.2;
+.lg-tf .lg-alt-mark .lg-op {
+  stroke-width: 4.6;
 }
 .lg-blank-mark {
-  position: absolute;
-  top: 9%;
-  left: 9%;
-  width: calc(var(--tile) * 0.15);
-  height: calc(var(--tile) * 0.15);
-  border: max(1px, calc(var(--tile) * 0.03)) solid var(--lg-open-ink);
-  border-radius: 2px;
-  opacity: 0.85;
+  fill: none;
+  stroke: var(--lg-open-ink);
+  stroke-width: 0.75;
+  opacity: 0.9;
 }
 /* An unchosen blank placed on the board asks for its value. */
-.lg-cell.is-tentative .lg-tile.is-blank:not(.is-chosen) .lg-face::after {
-  content: "?";
-  color: var(--lg-open-ink);
-  font-size: calc(var(--tile) * 0.44);
+.lg-tf .lg-ask {
+  fill: var(--lg-open-ink);
   font-weight: 700;
 }
 
@@ -503,11 +539,17 @@ body:has(> #root .lg-shell) {
     inset 0 0 0 max(1.5px, calc(var(--lg-cell) * 0.06)) var(--lg-tentative),
     0 2px 4px rgba(0, 0, 0, 0.3);
 }
+/* Selected to move: the warm selection ring, a glow and a little more lift. */
+.lg-cell.is-tentative.is-selected {
+  z-index: 2;
+}
 .lg-cell.is-tentative.is-selected .lg-tile {
+  transform: translateY(-2px);
   box-shadow:
-    inset 0 0 0 max(1.5px, calc(var(--lg-cell) * 0.06)) var(--lg-accent),
-    0 0 0 2px var(--lg-accent),
-    0 2px 4px rgba(0, 0, 0, 0.3);
+    inset 0 0 0 max(1.5px, calc(var(--lg-cell) * 0.07)) var(--lg-sel),
+    0 0 0 2px var(--lg-sel),
+    0 0 10px 1px color-mix(in srgb, var(--lg-sel) 60%, transparent),
+    0 3px 6px rgba(0, 0, 0, 0.32);
 }
 .lg-cell.is-opponent-tentative .lg-tile {
   opacity: 0.72;
@@ -590,16 +632,16 @@ body:has(> #root .lg-shell) {
   padding: 0 2px 8px 4px;
   font-size: 13px;
 }
-.lg-picker-close {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  border: 1px solid #dce2ec;
-  border-radius: 8px;
-  background: #fff;
-  color: #374151;
-  cursor: pointer;
+.lg-picker.is-dock .lg-picker-head {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding-top: 0;
+  touch-action: none;
+  cursor: grab;
+}
+.lg-picker.is-dock .lg-picker-head .lg-sheet-handle {
+  align-self: center;
 }
 .lg-picker-grid {
   display: grid;
@@ -611,7 +653,7 @@ body:has(> #root .lg-shell) {
   white-space: nowrap;
 }
 .lg-picker-option {
-  --tile: var(--opt);
+  position: relative;
   display: grid;
   place-items: center;
   width: var(--opt);
@@ -663,6 +705,7 @@ body:has(> #root .lg-shell) {
   right: 8px;
   bottom: calc(8px + env(safe-area-inset-bottom));
   z-index: 60;
+  transition: transform 160ms ease-out;
 }
 .lg-picker.is-dock .lg-picker-grid,
 .lg-picker.is-inline .lg-picker-grid {
@@ -707,6 +750,7 @@ body:has(> #root .lg-shell) {
 .lg-rack-slot {
   position: relative;
   display: block;
+  overflow: visible;
   width: var(--lg-rack-tile);
   height: var(--lg-rack-tile);
 }
@@ -725,23 +769,22 @@ body:has(> #root .lg-shell) {
 .lg-rack.is-exchange .lg-rack-tile {
   cursor: pointer;
 }
+/* An empty slot — including the slot of a tile now on the board — is a recess
+   in the rack, never a ghost tile. */
 .lg-rack-tile.is-empty {
-  background: rgba(100, 116, 139, 0.14);
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.12);
+  background: rgba(100, 116, 139, 0.13);
+  box-shadow: inset 0 1px 3px rgba(15, 23, 42, 0.16);
+  cursor: default;
+}
+/* Holding a selected tile: every empty slot says "put it here" — a warm,
+   dashed recess. (No glyph: a "+" would read as a plus tile.) */
+.lg-rack-tile.is-target {
+  outline: 2px dashed var(--lg-sel);
+  outline-offset: -2px;
+  background: var(--lg-sel-soft);
+  box-shadow: inset 0 1px 3px rgba(15, 23, 42, 0.1);
   cursor: pointer;
 }
-/* The slot a tentative tile came from shows that tile faintly. */
-.lg-rack-tile.is-exposed {
-  background: rgba(100, 116, 139, 0.1);
-  cursor: pointer;
-}
-.lg-exposed-ghost {
-  display: block;
-  width: 100%;
-  height: 100%;
-  opacity: 0.32;
-}
-.lg-rack-tile.is-selected::after,
 .lg-rack-tile.is-marked::after {
   content: "";
   position: absolute;
@@ -749,10 +792,14 @@ body:has(> #root .lg-shell) {
   border-radius: inherit;
   pointer-events: none;
 }
-/* Selected (to move or swap): a light inner ring. Marked for Exchange: a slate
-   face, the glyph kept white and readable, and a check. Neither moves. */
-.lg-rack-tile.is-selected::after {
-  box-shadow: inset 0 0 0 2.5px #cbd5e1;
+/* Selected (to place, move or swap): the warm selection ring around the whole
+   tile, rounded corners included, and a soft glow. It never moves the tile.
+   Marked for Exchange: a slate face, the glyph kept white, and a check. */
+.lg-rack-tile.is-selected .lg-tile {
+  box-shadow:
+    0 0 0 2.5px var(--lg-sel),
+    0 0 9px 1px color-mix(in srgb, var(--lg-sel) 55%, transparent),
+    inset 0 -2px 0 var(--lg-tile-edge);
 }
 .lg-rack-tile.is-marked .lg-tile {
   background: #59657b;
@@ -869,7 +916,19 @@ body:has(> #root .lg-shell) {
 }
 .lg-sb-diff.is-trail,
 .lg-sb-diff.is-level {
-  color: #5b6474;
+  background: #eef1f6;
+  color: #4b5567;
+}
+/* The other row keeps the column so scores line up, but shows nothing. */
+.lg-sb-diff.is-none {
+  visibility: hidden;
+}
+/* Untimed: no clock column at all. */
+.lg-scoreboard.is-untimed .lg-sb-row {
+  grid-template-columns: 5px minmax(0, 1fr) auto auto;
+}
+.lg-sb-clock.is-none {
+  visibility: hidden;
 }
 .lg-sb-score {
   min-width: 2.4ch;
@@ -1018,6 +1077,9 @@ body:has(> #root .lg-shell) {
   column-gap: 5px;
   min-height: 30px;
   padding-right: 6px;
+}
+.lg-scoreboard.is-compact.is-untimed .lg-sb-row {
+  grid-template-columns: 4px minmax(0, 1fr) auto;
 }
 .lg-scoreboard.is-compact .lg-sb-diff {
   display: none;
@@ -1352,49 +1414,6 @@ button.lg-last {
   display: grid;
   gap: 14px;
 }
-.lg-log-list {
-  display: grid;
-  gap: 2px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-.lg-log-row {
-  display: grid;
-  grid-template-columns: 34px 10px minmax(0, 0.9fr) minmax(0, 1.4fr);
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 36px;
-  padding: 4px 8px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--lg-text);
-  text-align: left;
-  cursor: pointer;
-}
-.lg-log-row:hover {
-  background: var(--lg-surface-2);
-}
-.lg-log-row[aria-current="true"] {
-  background: #ece8ff;
-  box-shadow: inset 3px 0 0 #7a5af8;
-}
-.lg-log-turn {
-  color: var(--lg-muted);
-  font-variant-numeric: tabular-nums;
-  font-size: 12px;
-}
-.lg-log-who,
-.lg-log-what {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.lg-log-what {
-  font-weight: 650;
-}
 .lg-review {
   display: grid;
   gap: 8px;
@@ -1454,10 +1473,11 @@ button.lg-last {
   border-radius: var(--lg-radius-sm);
   background: #fffdf5;
   color: var(--lg-text);
-  font: 15px/1.5 var(--font-mono, ui-monospace, monospace);
+  /* 16px: iOS Safari zooms the page when a smaller text field is focused. */
+  font: 16px/1.5 var(--font-mono, ui-monospace, monospace);
   resize: none;
-  background-image: linear-gradient(transparent 21.5px, #efe8cf 22.5px);
-  background-size: 100% 22.5px;
+  background-image: linear-gradient(transparent 23px, #efe8cf 24px);
+  background-size: 100% 24px;
   background-attachment: local;
 }
 .lg-notes-hint {
@@ -2252,4 +2272,316 @@ body[data-route="play"] .overflow-menu-item:disabled {
     border-radius: 18px 18px 0 0;
     padding-block-end: env(safe-area-inset-bottom);
   }
+}
+
+/* ── Bottom sheets (BottomSheet.tsx) ──────────────────────────────────────
+   Portalled to <body>. The dimmed area above the sheet is the dismiss target;
+   the board shows through it (lighter at the peek height). Only the handle
+   and title row start a drag; the body scrolls on its own. */
+.lg-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  background: rgba(14, 20, 34, 0.34);
+  color: var(--lg-text);
+  font-family: var(--font-sans, Inter, system-ui, sans-serif);
+  font-size: 14px;
+  line-height: 1.35;
+  transition: background-color 200ms ease;
+  animation: lg-fade-in 180ms ease-out;
+  touch-action: none;
+}
+.lg-sheet-backdrop.is-peek {
+  background: rgba(14, 20, 34, 0.1);
+}
+/* Once dismissed, the sliding-out sheet no longer intercepts touches: the
+   player's next tap reaches the board. (The dismissing tap itself was consumed.) */
+.lg-sheet-backdrop[data-state="closing"] {
+  background: rgba(14, 20, 34, 0);
+  pointer-events: none;
+}
+.lg-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  margin-inline: auto;
+  overflow: hidden;
+  border: 1px solid #d3d9e3;
+  border-bottom: 0;
+  border-radius: 18px 18px 0 0;
+  background: #fff;
+  box-shadow: 0 -12px 40px rgba(14, 20, 34, 0.22);
+  padding-bottom: env(safe-area-inset-bottom);
+  outline: none;
+  transition:
+    height 240ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    transform 200ms ease-in;
+  animation: lg-sheet-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.lg-sheet[data-state="dragging"] {
+  transition: none;
+}
+.lg-sheet[data-state="closing"] {
+  transform: translateY(105%);
+}
+.lg-sheet-grab {
+  flex: none;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 7px 16px 9px;
+  border-bottom: 1px solid #eef1f5;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.lg-sheet[data-state="dragging"] .lg-sheet-grab {
+  cursor: grabbing;
+}
+.lg-sheet-handle {
+  display: block;
+  width: 40px;
+  height: 5px;
+  border-radius: 3px;
+  background: #c4ccd8;
+}
+.lg-sheet-grab h2 {
+  justify-self: start;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 750;
+}
+.lg-sheet-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+.lg-sheet-content {
+  padding: 10px 14px 16px;
+}
+@keyframes lg-sheet-in {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes lg-fade-in {
+  from {
+    background-color: rgba(14, 20, 34, 0);
+  }
+}
+/* Tabs inside a sheet: one scroller (the sheet body); the tab row stays put. */
+.lg-sheet .lg-tabs {
+  height: auto;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+}
+.lg-sheet .lg-tablist {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  margin: -10px -14px 10px;
+  padding: 0 6px;
+  background: #fff;
+}
+.lg-sheet .lg-tabpanel {
+  overflow: visible;
+  padding: 0;
+}
+.lg-sheet .lg-notes textarea {
+  min-height: 180px;
+}
+.lg-sheet-text {
+  margin: 0 0 14px;
+  color: var(--lg-text);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.lg-sheet-actions {
+  display: grid;
+  gap: 8px;
+}
+.lg-sheet-form {
+  display: grid;
+  gap: 14px;
+}
+.lg-sheet-field {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--lg-muted);
+}
+.lg-sheet-field input {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--lg-line-strong);
+  border-radius: 10px;
+  color: var(--lg-text);
+  font: 16px var(--font-sans, system-ui, sans-serif);
+}
+.lg-sheet .lg-menu-item small {
+  font-size: 12px;
+}
+
+/* ── Turn Log (TurnLogEntry) ──────────────────────────────────────────── */
+.lg-tl {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lg-tl-entry {
+  --side: var(--lg-a);
+  --side-text: var(--lg-a-text);
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) auto 38px;
+  grid-template-areas:
+    "turn who badge view"
+    ". expr expr view";
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 1px;
+  min-height: 46px;
+  padding: 6px 6px 6px 10px;
+  border: 1px solid var(--lg-line);
+  border-radius: 10px;
+  background: var(--lg-surface);
+  box-shadow: inset 3px 0 0 var(--side);
+}
+/* Pass, Exchange, end of game: one line. */
+.lg-tl-entry:not(.kind-place) {
+  grid-template-areas: "turn who badge view";
+  min-height: 0;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+.lg-tl-entry:not(.kind-place) .lg-tl-view {
+  width: 34px;
+  height: 34px;
+}
+.lg-tl-entry.side-b {
+  --side: var(--lg-b);
+  --side-text: var(--lg-b-text);
+}
+.lg-tl-entry.is-current {
+  border-color: #c9bdfd;
+  background: #f6f3ff;
+}
+.lg-tl-turn {
+  grid-area: turn;
+  color: var(--lg-muted);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.lg-tl-who {
+  grid-area: who;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.lg-tl-who span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lg-tl-who .lg-side-dot {
+  flex: none;
+  background: var(--side);
+}
+.lg-tl-badge {
+  grid-area: badge;
+  justify-self: end;
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.lg-tl-badge.is-place {
+  color: var(--side-text);
+}
+.lg-tl-badge.is-pass,
+.lg-tl-badge.is-exchange,
+.lg-tl-badge.is-end {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #eef1f6;
+  color: #4b5567;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+/* A long expression scrolls inside its own line; the row never stretches. */
+.lg-tl-expr {
+  grid-area: expr;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 1px 0 2px;
+  font-family: var(--tile-font, Arial, sans-serif);
+  font-size: 17px;
+  font-weight: 800;
+  white-space: nowrap;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent);
+  mask-image: linear-gradient(90deg, #000 calc(100% - 16px), transparent);
+  touch-action: pan-x pan-y;
+}
+.lg-tl-expr::-webkit-scrollbar {
+  display: none;
+}
+.lg-tl-expr .lg-expr {
+  padding-right: 16px;
+}
+.lg-tl-view {
+  grid-area: view;
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 1px solid var(--lg-line);
+  border-radius: 9px;
+  background: var(--lg-surface-2);
+  color: #4b5567;
+  cursor: pointer;
+}
+.lg-tl-view[aria-pressed="true"] {
+  border-color: #7a5af8;
+  background: #7a5af8;
+  color: #fff;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lg-sheet,
+  .lg-sheet-backdrop,
+  .lg-picker.is-dock {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+.lg-sheet-dismiss {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: default;
 }

@@ -14,7 +14,7 @@ test("mobile own-rack practice replaces the tools sheet and closes with pointer 
 }) => {
   await open(page, "thinking", PHONE);
   await page.getByRole("button", { name: "Record, bag, notes and tools" }).click();
-  await page.locator(".lg-log-row").last().click();
+  await page.locator(".lg-tl-view").last().click();
   await page.getByRole("button", { name: "Before", exact: true }).click();
   await page.getByRole("button", { name: "Practice this position", exact: true }).click();
   const practice = page.getByRole("dialog", { name: "Own-rack live practice" });

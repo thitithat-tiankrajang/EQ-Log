@@ -2,7 +2,7 @@ import { useId, useState, type ReactNode } from "react";
 import { AlertTriangle, Pause, Repeat2, SkipForward, WifiOff } from "lucide-react";
 import { AMATH_TOKENS, type AmathToken, type Side, type TileInstance } from "../../game";
 import { useLocale } from "../../i18n/LocaleProvider";
-import { Sheet } from "../../components/ui/Sheet";
+import { ConfirmBottomSheet } from "./BottomSheet";
 import type { LiveControl } from "../controls";
 import { TOKEN_ORDER, unseenPool, type LastMove } from "./derive";
 import { LiveTile } from "./LiveBoard";
@@ -76,34 +76,24 @@ export function EventLine({
             ⋯
           </button>
         </span>
-        <Sheet
+        <ConfirmBottomSheet
           open={blockOpen}
           title={t("live.pause.blockTitle")}
-          onClose={() => setBlockOpen(false)}
-        >
-          <p className="ui-confirm-consequence">{t("live.pause.blockConsequence")}</p>
-          <div className="ui-sheet-actions">
-            <button
-              type="button"
-              className="ui-button-danger"
-              disabled={busy}
-              onClick={() => {
-                setBlockOpen(false);
-                onControl({
-                  kind: "respond-pause",
-                  requestId: incoming.id,
-                  accept: false,
-                  blockFiveMinutes: true,
-                });
-              }}
-            >
-              {t("live.pause.block")}
-            </button>
-            <button type="button" className="ui-button-ghost" onClick={() => setBlockOpen(false)}>
-              {t("live.actions.cancel")}
-            </button>
-          </div>
-        </Sheet>
+          consequence={t("live.pause.blockConsequence")}
+          confirmLabel={t("live.pause.block")}
+          cancelLabel={t("live.actions.cancel")}
+          busy={busy}
+          onCancel={() => setBlockOpen(false)}
+          onConfirm={() => {
+            setBlockOpen(false);
+            onControl({
+              kind: "respond-pause",
+              requestId: incoming.id,
+              accept: false,
+              blockFiveMinutes: true,
+            });
+          }}
+        />
       </div>
     );
   if (model.paused && !model.finished)
@@ -295,7 +285,6 @@ export function TileBagPanel({ model }: { model: ShellModel }) {
           <strong>{pool.total}</strong> {label}
         </span>
       </div>
-      <p className="lg-bag-note">{model.hostRacks ? t("live.bag.hostNote") : t("live.bag.note")}</p>
       {GROUPS.map((group) => (
         <ul className="lg-bag-grid" key={group.key} aria-label={t(`live.bag.group.${group.key}`)}>
           {group.tokens.map((token) => {

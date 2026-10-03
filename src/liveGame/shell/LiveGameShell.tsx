@@ -4,7 +4,6 @@ import { RACK_SIZE } from "../../constants/gameRules";
 import type { BoardSnapshot } from "../../game";
 import { rankTier } from "../../features/ranked/rating";
 import { useLocale } from "../../i18n/LocaleProvider";
-import { Sheet } from "../../components/ui/Sheet";
 import type { AnalysisLevel } from "../../bot/engineApi";
 import type { HostedAction } from "../hostedAdmin";
 import type { LiveControl } from "../controls";
@@ -24,6 +23,7 @@ import {
 } from "./panels";
 import { Scoreboard } from "./Scoreboard";
 import { FacePicker } from "./FacePicker";
+import { BottomSheet, type SheetSnap } from "./BottomSheet";
 import {
   GameTools,
   PanelTabs,
@@ -50,7 +50,7 @@ export type ShellHandlers = {
   onAnalysisLevel(level: AnalysisLevel): void;
   onAnalyze(): void;
   onRetryBot?: () => void;
-  onCellClick(row: number, col: number): void;
+  onCellClick(row: number, col: number, at?: number): void;
   onCellFocus(row: number, col: number): void;
 };
 
@@ -137,7 +137,13 @@ export function LiveGameShell({
 }) {
   const { t } = useLocale();
   const [moreOpen, setMoreOpen] = useState(false);
+  const [moreSnap, setMoreSnap] = useState<SheetSnap>("full");
   const [tab, setTab] = useState("record");
+  const openMore = (next: string) => {
+    setTab(next);
+    setMoreSnap("full");
+    setMoreOpen(true);
+  };
   const stack = layout.mode === "stack" || layout.mode === "stack-landscape";
   const reviewing = Boolean(review.log);
   const bottom = model.perspective.bottom;
@@ -175,8 +181,15 @@ export function LiveGameShell({
         opponentTentative={NO_OPPONENT_TENTATIVE}
         lastMove={lastMoveKeys}
         lastMoveSide={reviewing ? null : (model.lastMove?.side ?? null)}
-        cursor={draft.cursor}
-        placing={canPlay && draft.mode === "none"}
+        cursor={reviewing ? null : draft.cursor}
+        focus={draft.focus}
+        arrow={
+          reviewing || draft.mode !== "none" || model.finished || !model.rackSide
+            ? "none"
+            : canPlay
+              ? "active"
+              : "muted"
+        }
         selectedPendingId={draft.selectedPendingId}
         players={model.players}
         yourSide={model.yourSide}
@@ -244,6 +257,7 @@ export function LiveGameShell({
         active={canPlay}
         mode={draft.mode}
         selectedTileId={draft.selectedTileId}
+        holding={Boolean(draft.selectedTileId || draft.selectedPendingId)}
         exchangeIds={draft.exchangeIds}
         label={
           model.role === "physical-host"
@@ -281,20 +295,12 @@ export function LiveGameShell({
       players={model.players}
       yourSide={model.yourSide}
       compact={stack}
-      onOpen={(id) => {
-        handlers.onSelectLog(id);
-        if (stack) {
-          setTab("record");
-          setMoreOpen(true);
-        }
-      }}
+      // Opening the log shows what happened; the board stays live.
+      onOpen={() => (stack ? openMore("record") : setTab("record"))}
     />
   );
   const fullBag = layout.mode === "duo" && layout.board >= 640;
-  const openBag = () => {
-    setTab("bag");
-    setMoreOpen(true);
-  };
+  const openBag = () => openMore("bag");
   const unseen = (
     <UnseenStrip
       model={model}
@@ -348,6 +354,12 @@ export function LiveGameShell({
           busy={busy}
           review={review}
           onSelectLog={handlers.onSelectLog}
+          onView={(id) => {
+            // Show that position on the board; on a phone, lower the sheet to
+            // its peek height so the board is in view.
+            handlers.onSelectLog(id);
+            if (stack) setMoreSnap("peek");
+          }}
           onReviewPhase={handlers.onReviewPhase}
           onPractice={() => {
             setMoreOpen(false);
@@ -502,24 +514,32 @@ export function LiveGameShell({
     );
 
   const more = (
-    <Sheet open={moreOpen} title={t("live.more.title")} onClose={() => setMoreOpen(false)}>
+    <BottomSheet
+      open={moreOpen}
+      title={t("live.more.title")}
+      onClose={() => setMoreOpen(false)}
+      snap={moreSnap}
+      onSnapChange={setMoreSnap}
+      className="is-more"
+    >
       <PanelTabs
         tabs={tabsWithNotes}
         selected={tab}
         onSelect={setTab}
         label={t("live.more.title")}
       />
-    </Sheet>
+    </BottomSheet>
   );
   const moreButton = (
     <button
       type="button"
-      className="lg-icon-btn lg-more-btn"
+      className="lg-icon-btn lg-ctl lg-more-btn"
       aria-haspopup="dialog"
+      aria-expanded={moreOpen}
       aria-label={t("live.more.open")}
-      onClick={() => setMoreOpen(true)}
+      onClick={() => openMore(tab)}
     >
-      <LayoutGrid size={18} aria-hidden="true" />
+      <LayoutGrid size={19} strokeWidth={2.2} aria-hidden="true" />
       <span>{t("live.more.short")}</span>
     </button>
   );
@@ -585,7 +605,7 @@ export function LiveGameShell({
         {tight ? (
           <button
             type="button"
-            className="lg-icon-btn lg-more-btn is-unseen"
+            className="lg-icon-btn lg-ctl lg-more-btn is-unseen"
             aria-haspopup="dialog"
             aria-label={t("live.more.openUnseen", { count: unseenSummary(model).total })}
             onClick={openBag}

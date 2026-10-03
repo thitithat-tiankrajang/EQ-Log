@@ -1,0 +1,214 @@
+[
+  {
+    "id": "03-two-digit-closeup",
+    "label": "10–20 close-up (rack 14, board 12), 3×",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "04-tiny-board-points",
+    "label": "Tiny board (320×460) tile point values, 3×"
+  },
+  {
+    "id": "02-tiny-board",
+    "label": "Height-constrained phone (320×460)",
+    "viewport": {
+      "width": 320,
+      "height": 460
+    }
+  },
+  {
+    "id": "01-phone-live",
+    "label": "Normal live game (390×844)",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "14-my-perspective-lead",
+    "label": "Margin once, from my side",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "15-controls",
+    "label": "Game controls (HUD + action bar)",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "15b-hud-controls",
+    "label": "HUD sound + menu",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "05-selected-rack-tile",
+    "label": "Selected rack tile (warm ring)",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "06-selected-board-tile",
+    "label": "Selected tentative board tile; empty slot shows it can take it",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "09a-return-holding",
+    "label": "Holding a board tile: empty slots are targets",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "09b-returned-to-slot",
+    "label": "Board tile returned into the chosen slot (7)",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "10-arrow-right",
+    "label": "Arrow RIGHT",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "11-arrow-down",
+    "label": "Arrow DOWN",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "12-arrow-escaped",
+    "label": "Arrow moved past the placed tile (G11 → G12)",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "07-alternative-selected",
+    "label": "Assigned alternative selected for movement (single tap)",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "08-alternative-picker-edit",
+    "label": "FacePicker after an explicit double tap",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "16-more-expanded",
+    "label": "More sheet, expanded",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "18-turn-log-many",
+    "label": "Turn Log, many entries",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "19-long-expression",
+    "label": "Long expression entry (scrolls inside its line)",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "17-more-peek",
+    "label": "More sheet at peek: the board stays in view",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "18b-view-position",
+    "label": "View position: review on the board, sheet at peek",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "20-notes-focused",
+    "label": "Notes: focused textarea, typing",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "13-timerless-hud",
+    "label": "Untimed game: no clock at all",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "13b-timerless-full",
+    "label": "Untimed game (390×844)",
+    "viewport": {
+      "width": 390,
+      "height": 844
+    }
+  },
+  {
+    "id": "21-desktop-long",
+    "label": "Desktop 1440×790, long game, Turn Log in the gutter",
+    "viewport": {
+      "width": 1440,
+      "height": 790
+    }
+  },
+  {
+    "id": "22-desktop-selection",
+    "label": "Desktop: tentative tile selected, empty slot target",
+    "viewport": {
+      "width": 1440,
+      "height": 790
+    }
+  },
+  {
+    "id": "23-desktop-short",
+    "label": "Desktop 1280×690",
+    "viewport": {
+      "width": 1280,
+      "height": 690
+    }
+  }
+]

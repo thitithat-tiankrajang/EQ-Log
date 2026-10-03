@@ -224,7 +224,7 @@ const VIEWS: View[] = [
     state: "thinking",
     prepare: async (page) => {
       await page.getByRole("button", { name: "Record, bag, notes and tools" }).click();
-      await page.locator(".lg-log-row").last().click();
+      await page.locator(".lg-tl-view").last().click();
       await page.getByRole("button", { name: "Before", exact: true }).click();
       await page.getByRole("button", { name: "Practice this position", exact: true }).click();
       await page.getByRole("dialog", { name: "Own-rack live practice" }).waitFor();
@@ -238,7 +238,7 @@ for (const view of VIEWS) {
     await view.prepare?.(page);
     await page.waitForTimeout(250);
     const geometry = await measure(page);
-    const sheetOpen = (await page.locator(".ui-sheet").count()) > 0;
+    const sheetOpen = (await page.locator(".ui-sheet, .lg-sheet").count()) > 0;
     if (!sheetOpen) expectSoundGeometry(geometry);
     const turn = await page.locator(".lg-shell").getAttribute("data-turn");
     await page.screenshot({ path: join(OUT, `${view.id}.png`) });

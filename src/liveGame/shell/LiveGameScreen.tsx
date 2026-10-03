@@ -18,7 +18,12 @@ import type { LiveControl } from "../controls";
 import type { LiveGameView } from "../projection";
 import { useLiveTileDrag } from "../tileDrag";
 import { LivePractice } from "../LivePractice";
-import { playTurnCue, useBackgroundTurnSignal, useSoundPreference } from "./attention";
+import {
+  playPlaceSound,
+  playTurnCue,
+  useBackgroundTurnSignal,
+  useSoundPreference,
+} from "./attention";
 import { computeLiveLayout } from "./layout";
 import { LiveGameShell, type ShellHandlers } from "./LiveGameShell";
 import { toShellModel, type MatchClient, type ShellModel } from "./model";
@@ -29,7 +34,21 @@ import { useWorkspaceUser } from "./workspaceUser";
 
 const NO_TOOLS: ReadonlySet<PlayTool> = new Set();
 
-/** Viewport size, including the visual viewport on phones (address bar shown or hidden). */
+function editingText() {
+  const element = document.activeElement as HTMLElement | null;
+  return Boolean(
+    element &&
+    (element.tagName === "TEXTAREA" || element.tagName === "INPUT" || element.isContentEditable),
+  );
+}
+
+/**
+ * Viewport size, including the visual viewport on phones (address bar shown or
+ * hidden). While a text field has focus, a height-only change is the on-screen
+ * keyboard, not a new screen: it is ignored, so the layout never switches
+ * (e.g. portrait stack → landscape) under the keyboard and remounts the very
+ * field being typed in. The real size is read again when the field blurs.
+ */
 export function useViewport() {
   const read = () => ({
     width: window.visualViewport?.width ?? window.innerWidth,
@@ -43,16 +62,19 @@ export function useViewport() {
       frame = requestAnimationFrame(() =>
         setSize((current) => {
           const next = read();
+          if (editingText() && next.width === current.width) return current;
           return current.width === next.width && current.height === next.height ? current : next;
         }),
       );
     };
     window.addEventListener("resize", update);
     window.visualViewport?.addEventListener("resize", update);
+    document.addEventListener("focusout", update);
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("resize", update);
       window.visualViewport?.removeEventListener("resize", update);
+      document.removeEventListener("focusout", update);
     };
   }, []);
   return size;
@@ -252,6 +274,8 @@ export function LiveGameScreen({
     turnKey: model?.turnKey ?? "",
     bagCount: model?.bagCount ?? 0,
     onSubmit: submit,
+    // Only this player's own placements; never a projection update.
+    onPlace: sound.on ? playPlaceSound : undefined,
   });
   useLiveTileDrag(Boolean(model?.rackSide && !busy && !reviewing && !model.finished), draft.onDrop);
 
@@ -352,7 +376,7 @@ export function LiveGameScreen({
   const draftRef = useRef(draft);
   draftRef.current = draft;
   const onCellClick = useCallback(
-    (row: number, col: number) => draftRef.current.onCellClick(row, col),
+    (row: number, col: number, at?: number) => draftRef.current.onCellClick(row, col, at),
     [],
   );
   const onCellFocus = useCallback(

@@ -11,8 +11,15 @@ import type { RankedAction } from "../../features/ranked/rules";
 import { resolveRackTile, tileRequestFromStroke } from "../../gameplay/rackResolution";
 import { resolveStudyKey } from "../../gameplay/tileKeys";
 
-export type Direction = "right" | "down" | "left" | "up";
-export type Cursor = { row: number; col: number; dir: Direction };
+/** The placement arrow points right or down. */
+export type Direction = "right" | "down";
+/**
+ * The board cursor: the square the player is looking at (keyboard focus) and
+ * the placement arrow there. dir "off": the player turned the arrow off; the
+ * square stays the focus position.
+ */
+export type Cursor = { row: number; col: number; dir: Direction | "off" };
+export type Arrow = { row: number; col: number; dir: Direction };
 export type DraftMode = "none" | "exchange" | "pass";
 export type RackSlot = { tile: TileInstance | null; exposed: TileInstance | null };
 export type KeyNotice =
@@ -21,20 +28,20 @@ export type KeyNotice =
   | { kind: "viaBlank"; face: string }
   | { kind: "viaChoice"; face: string };
 
-const DIRECTIONS: Direction[] = ["right", "down", "left", "up"];
+/** Two taps within this window on the same tentative tile open its value picker. */
+export const DOUBLE_TAP_MS = 400;
 
+/** The next free square after `cursor` in its direction, or null at the board edge. */
 function advance(
-  cursor: Cursor,
+  cursor: Arrow,
   board: BoardSnapshot,
   placements: PendingPlacement[],
-): Cursor | null {
+): Arrow | null {
   let { row, col } = cursor;
   const taken = new Set(placements.map((item) => `${item.row}:${item.col}`));
   for (;;) {
     if (cursor.dir === "right") col += 1;
-    else if (cursor.dir === "left") col -= 1;
-    else if (cursor.dir === "down") row += 1;
-    else row -= 1;
+    else row += 1;
     if (row < 0 || col < 0 || row >= board.length || col >= board.length) return null;
     if (!board[row][col] && !taken.has(`${row}:${col}`)) return { row, col, dir: cursor.dir };
   }
@@ -52,9 +59,34 @@ function inEditable(target: EventTarget | null) {
 }
 
 /**
- * The local turn draft: tentative tiles, the board cursor, the rack selection
- * and the Exchange / Pass choice. Purely local — nothing here is sent until
+ * The local turn draft: tentative tiles, the board cursor, the selection and
+ * the Exchange / Pass choice. Purely local — nothing here is sent until
  * Commit, Exchange or Pass, and then only the typed action.
+ *
+ * Interaction model — like moving physical tiles: select a tile, then the
+ * place it goes. One selection at a time, from the rack or from the board.
+ *
+ *   NORMAL (my turn)
+ *     rack tile        arrow showing → placed at the arrow; else select it
+ *                      (another rack tile selected → the two swap slots;
+ *                       a board tile selected → the selection moves here)
+ *     board tentative  rack tile selected → takes that square, the board
+ *                      tile goes home; board tile selected → they swap;
+ *                      nothing selected → select it. A second tap on the
+ *                      same alternative tile within DOUBLE_TAP_MS opens its
+ *                      value picker (a single tap never does).
+ *     empty square     selection → it goes there; else the arrow: RIGHT on a
+ *                      new square, then DOWN, then OFF on the same square
+ *     empty rack slot  board tile selected → it returns into THAT slot;
+ *                      rack tile selected → it moves into that slot
+ *   EXCHANGE           only the rack responds: tap or drag marks tiles
+ *   PASS               nothing on the board or rack responds
+ *   VALUE PICKER OPEN  any board or rack tap only closes it (never moves)
+ *   THINKING           rack reorder; the arrow can be prepared on empty squares
+ *
+ * The arrow is never drawn under a tile: placing on its square advances it,
+ * and a square that becomes occupied any other way pushes it forward (off at
+ * the board edge).
  *
  * A new TURN (or line of play) clears the draft. Any other new revision — a
  * pause request, an annotation, a rename — only drops what became impossible,
@@ -69,6 +101,7 @@ export function useTurnDraft({
   turnKey,
   bagCount,
   onSubmit,
+  onPlace,
 }: {
   board: BoardSnapshot | null;
   rack: TileInstance[];
@@ -79,22 +112,25 @@ export function useTurnDraft({
   turnKey: string;
   bagCount: number;
   onSubmit(action: RankedAction): void;
+  /** One physical placement on the board (a tile put down or moved), for the sound. */
+  onPlace?: () => void;
 }) {
   const [placements, setPlacements] = useState<PendingPlacement[]>([]);
-  const [cursor, setCursor] = useState<Cursor | null>(null);
-  const [selectedTileId, setSelectedTileId] = useState<string | null>(null);
-  const [selectedPendingId, setSelectedPendingId] = useState<string | null>(null);
+  const [rawCursor, setCursor] = useState<Cursor | null>(null);
+  const [selected, setSelected] = useState<{ kind: "rack" | "board"; id: string } | null>(null);
   const [exchangeIds, setExchangeIds] = useState<string[]>([]);
   const [mode, setMode] = useState<DraftMode>("none");
   const [keyNotice, setKeyNotice] = useState<KeyNotice | null>(null);
   /** The tentative tile whose alternative value is being chosen (FacePicker). */
   const [pickerId, setPickerId] = useState<string | null>(null);
   const blankArmed = useRef(false);
+  const lastTap = useRef<{ id: string; at: number } | null>(null);
+  const placeSound = useRef(onPlace);
+  placeSound.current = onPlace;
 
   const reset = useCallback(() => {
     setPlacements([]);
-    setSelectedTileId(null);
-    setSelectedPendingId(null);
+    setSelected(null);
     setExchangeIds([]);
     setMode("none");
     setKeyNotice(null);
@@ -133,9 +169,34 @@ export function useTurnDraft({
     () => (board && livePlacements.length ? validateMove(board, livePlacements) : null),
     [board, livePlacements],
   );
+  const selectedTileId =
+    selected?.kind === "rack" && unstaged.some((tile) => tile.id === selected.id)
+      ? selected.id
+      : null;
+  const selectedPendingId =
+    selected?.kind === "board" && staged.has(selected.id) ? selected.id : null;
+  const occupied = (row: number, col: number, items: PendingPlacement[] = livePlacements) =>
+    Boolean(board?.[row]?.[col]) || items.some((item) => item.row === row && item.col === col);
+  // The arrow is drawn on a free square only: from a square that is occupied
+  // (a tile placed or moved there, an opponent's commit) it moves on in its
+  // direction, and disappears at the board edge.
+  const cursor: Arrow | null = useMemo(() => {
+    if (!rawCursor || rawCursor.dir === "off" || !board) return null;
+    const arrow = { row: rawCursor.row, col: rawCursor.col, dir: rawCursor.dir };
+    const taken =
+      board[arrow.row]?.[arrow.col] ||
+      livePlacements.some((item) => item.row === arrow.row && item.col === arrow.col);
+    return taken ? advance(arrow, board, livePlacements) : arrow;
+  }, [rawCursor, board, livePlacements]);
+  /** After the tiles change: an arrow now under a tile moves on (off at the edge). */
+  const settleCursor = (next: PendingPlacement[]) => {
+    if (!board || !cursor || !occupied(cursor.row, cursor.col, next)) return;
+    const moved = advance(cursor, board, next);
+    setCursor(moved ?? { row: cursor.row, col: cursor.col, dir: "off" });
+  };
 
   const placeTileAt = useCallback(
-    (tile: TileInstance, at: Cursor, assignedToken?: string) => {
+    (tile: TileInstance, at: Arrow, assignedToken?: string) => {
       if (!board || !canPlay || mode !== "none") return;
       if (board[at.row]?.[at.col]) return;
       if (
@@ -153,14 +214,19 @@ export function useTurnDraft({
       };
       const next = [...livePlacements, placement];
       setPlacements(next);
-      setSelectedTileId(null);
       // Opening the picker does not select the tile: dismissing the picker by
       // tapping elsewhere must never move it.
-      setSelectedPendingId(null);
+      setSelected(null);
       setPickerId(!assignedToken && tileNeedsAssignment(tile.token) ? tile.id : null);
-      setCursor(advance(at, board, next) ?? at);
+      // The arrow (if showing) moves past the tile just placed; it is never
+      // covered, and an arrow the player turned off stays off.
+      if (cursor) {
+        const moved = advance({ row: at.row, col: at.col, dir: cursor.dir }, board, next);
+        setCursor(moved ?? { row: at.row, col: at.col, dir: "off" });
+      } else setCursor({ row: at.row, col: at.col, dir: "off" }); // focus follows, no arrow
+      placeSound.current?.();
     },
-    [board, canPlay, mode, livePlacements],
+    [board, canPlay, mode, livePlacements, cursor],
   );
 
   const swapSlots = useCallback(
@@ -177,79 +243,93 @@ export function useTurnDraft({
   const recallTile = useCallback((id: string) => {
     setPickerId((current) => (current === id ? null : current));
     setPlacements((items) => items.filter((item) => item.tile.id !== id));
-    setSelectedPendingId(null);
+    setSelected(null);
   }, []);
 
-  function onCellClick(row: number, col: number) {
+  /** The arrow on an empty square: RIGHT on a new square, then DOWN, then OFF, then RIGHT. */
+  function arrowTap(row: number, col: number) {
+    if (cursor?.row === row && cursor.col === col)
+      setCursor({ row, col, dir: cursor.dir === "right" ? "down" : "off" });
+    else setCursor({ row, col, dir: cursor?.dir ?? "right" });
+  }
+
+  /** `at`: when the tap happened (event time), so a slow render never splits a double tap. */
+  function onCellClick(row: number, col: number, at?: number) {
     if (!board) return;
+    const tapped = lastTap.current;
+    lastTap.current = null;
     if (pickerId) {
-      // Light dismiss: with the value picker open, a tap elsewhere only closes
-      // it — unless it is on another tentative alternative tile, which switches.
-      const other = livePlacements.find(
-        (item) =>
-          item.row === row &&
-          item.col === col &&
-          item.tile.id !== pickerId &&
-          tileNeedsAssignment(item.tile.token),
-      );
-      setSelectedPendingId(null);
-      setPickerId(other && canPlay ? other.tile.id : null);
+      // Light dismiss: with the value picker open, a tap only closes it.
+      setPickerId(null);
       return;
     }
-    if (!canPlay || mode !== "none") {
-      // THINKING and modes: the board is for looking. The cursor marks the square.
-      setCursor((current) => ({ row, col, dir: current?.dir ?? "right" }));
+    if (mode !== "none") return;
+    if (!canPlay) {
+      // THINKING: the board is for looking; the arrow can be prepared.
+      if (!occupied(row, col)) arrowTap(row, col);
       return;
     }
     const pending = livePlacements.find((item) => item.row === row && item.col === col);
     if (pending) {
-      if (selectedPendingId && selectedPendingId !== pending.tile.id) {
+      const id = pending.tile.id;
+      if (selectedPendingId && selectedPendingId !== id) {
+        // Two tentative tiles trade squares.
         const moving = livePlacements.find((item) => item.tile.id === selectedPendingId)!;
         setPlacements((items) =>
           items.map((item) =>
             item.tile.id === moving.tile.id
               ? { ...item, row, col }
-              : item.tile.id === pending.tile.id
+              : item.tile.id === id
                 ? { ...item, row: moving.row, col: moving.col }
                 : item,
           ),
         );
-        setSelectedPendingId(null);
+        setSelected(null);
+        placeSound.current?.();
         return;
       }
       const replacement = selectedTileId ? rack.find((item) => item.id === selectedTileId) : null;
       if (replacement) {
+        // The rack tile takes the square; the board tile goes back to its slot.
         setPlacements((items) =>
           items.map((item) =>
             item === pending ? { ...item, tile: replacement, assignedToken: undefined } : item,
           ),
         );
-        setSelectedTileId(null);
+        setSelected(null);
         if (tileNeedsAssignment(replacement.token)) setPickerId(replacement.id);
-      } else if (tileNeedsAssignment(pending.tile.token)) {
-        // One tap on an alternative tile opens its value picker. (Drag moves it.)
-        setSelectedPendingId(null);
-        setPickerId(pending.tile.id);
-      } else setSelectedPendingId((id) => (id === pending.tile.id ? null : pending.tile.id));
+        placeSound.current?.();
+        return;
+      }
+      const now = at ?? performance.now();
+      if (
+        tapped?.id === id &&
+        now - tapped.at <= DOUBLE_TAP_MS &&
+        tileNeedsAssignment(pending.tile.token)
+      ) {
+        // Second tap on the same alternative tile: edit its value.
+        setSelected(null);
+        setPickerId(id);
+        return;
+      }
+      lastTap.current = { id, at: now };
+      setSelected(selectedPendingId === id ? null : { kind: "board", id });
       return;
     }
-    if (board[row]?.[col]) {
-      setCursor((current) => ({ row, col, dir: current?.dir ?? "right" }));
-      return;
-    }
+    if (board[row]?.[col]) return;
     if (selectedPendingId) {
-      setPlacements((items) =>
-        items.map((item) => (item.tile.id === selectedPendingId ? { ...item, row, col } : item)),
+      const next = livePlacements.map((item) =>
+        item.tile.id === selectedPendingId ? { ...item, row, col } : item,
       );
-      setSelectedPendingId(null);
+      setPlacements(next);
+      setSelected(null);
+      settleCursor(next);
+      placeSound.current?.();
       return;
     }
-    const tile = rack.find((item) => item.id === selectedTileId);
+    const tile = selectedTileId ? rack.find((item) => item.id === selectedTileId) : null;
     if (!tile) {
-      if (cursor?.row === row && cursor.col === col) {
-        const index = DIRECTIONS.indexOf(cursor.dir);
-        setCursor({ row, col, dir: DIRECTIONS[(index + 1) % DIRECTIONS.length] });
-      } else setCursor({ row, col, dir: cursor?.dir ?? "right" });
+      arrowTap(row, col);
       return;
     }
     placeTileAt(tile, { row, col, dir: cursor?.dir ?? "right" });
@@ -272,36 +352,37 @@ export function useTurnDraft({
     if (selectedTileId && selectedTileId !== tile.id) {
       const from = slotOf(selectedTileId),
         to = slotOf(tile.id);
-      if (from >= 0 && to >= 0 && !(canPlay && cursor && !board?.[cursor.row]?.[cursor.col])) {
-        swapSlots(from, to);
-        setSelectedTileId(null);
-        return;
-      }
+      if (from >= 0 && to >= 0) swapSlots(from, to);
+      setSelected(null);
+      return;
     }
-    if (canPlay && cursor && board && !board[cursor.row]?.[cursor.col]) {
+    if (selectedTileId === tile.id) {
+      setSelected(null);
+      return;
+    }
+    if (!selectedPendingId && canPlay && cursor && board) {
       placeTileAt(tile, cursor);
       return;
     }
-    setSelectedTileId((id) => (id === tile.id ? null : tile.id));
-    setSelectedPendingId(null);
+    setSelected({ kind: "rack", id: tile.id });
   }
 
+  /** A slot with no tile in it (empty, or the home of a tile now on the board). */
   function onSlotClick(index: number) {
-    setPickerId(null);
-    const slot = slots[index];
-    if (slot?.exposed) {
-      recallTile(slot.exposed.id);
+    if (pickerId) {
+      setPickerId(null);
       return;
     }
-    if (selectedPendingId) {
-      recallTile(selectedPendingId);
-      return;
-    }
-    if (selectedTileId) {
-      const from = slotOf(selectedTileId);
-      if (from >= 0) swapSlots(from, index);
-      setSelectedTileId(null);
-    }
+    if (mode !== "none" || index < 0 || index >= RACK_SIZE) return;
+    const moving = selectedPendingId ?? selectedTileId;
+    if (!moving) return;
+    // The selected tile goes into THIS slot. Whatever home the slot held (a
+    // tile still on the board) moves to the selected tile's old slot, so every
+    // tile keeps exactly one slot.
+    const from = slotOf(moving);
+    if (from >= 0) swapSlots(from, index);
+    if (selectedPendingId) recallTile(selectedPendingId);
+    setSelected(null);
   }
 
   /** Pointer drag: rack→rack reorders (any state); onto the board only while ACTIVE. */
@@ -312,32 +393,35 @@ export function useTurnDraft({
       const from = slotOf(id);
       if (from >= 0) swapSlots(from, target.slot);
       if (livePlacements.some((p) => p.tile.id === id)) recallTile(id);
-      setSelectedTileId(null);
+      setSelected(null);
       return;
     }
     if (!board || !canPlay || mode !== "none" || board[target.row]?.[target.col]) return;
     setPickerId(null);
     const moving = livePlacements.find((p) => p.tile.id === id);
     const occupant = livePlacements.find((p) => p.row === target.row && p.col === target.col);
-    if (moving)
-      setPlacements((items) =>
-        items.map((p) =>
-          p.tile.id === id
-            ? { ...p, ...target }
-            : occupant && p.tile.id === occupant.tile.id
-              ? { ...p, row: moving.row, col: moving.col }
-              : p,
-        ),
+    setSelected(null);
+    if (moving) {
+      const next = livePlacements.map((p) =>
+        p.tile.id === id
+          ? { ...p, ...target }
+          : occupant && p.tile.id === occupant.tile.id
+            ? { ...p, row: moving.row, col: moving.col }
+            : p,
       );
-    else if (occupant) {
+      setPlacements(next);
+      settleCursor(next);
+      placeSound.current?.();
+    } else if (occupant) {
       setPlacements((items) =>
         items.map((p) => (p === occupant ? { ...p, tile, assignedToken: undefined } : p)),
       );
       if (tileNeedsAssignment(tile.token)) setPickerId(tile.id);
+      placeSound.current?.();
     } else placeTileAt(tile, { ...target, dir: cursor?.dir ?? "right" });
   }
 
-  /** Open the direct value picker for a tentative alternative tile (E, or a tap). */
+  /** Open the direct value picker for a tentative alternative tile (E, or a double tap). */
   const editFace = useCallback(
     (tileId: string) => {
       const target = livePlacements.find((item) => item.tile.id === tileId);
@@ -356,7 +440,7 @@ export function useTurnDraft({
       ),
     );
     setPickerId(null);
-    setSelectedPendingId(null);
+    setSelected(null);
   }, []);
   const closePicker = useCallback(() => setPickerId(null), []);
   /** Exchange selection by tap or by dragging across the rack. */
@@ -390,15 +474,17 @@ export function useTurnDraft({
   function confirmPass() {
     if (canPlay && mode === "pass") onSubmit({ kind: "pass" });
   }
+  /** Every tentative tile back to its slot (no sound); a showing arrow returns to where the play began. */
   function recallAll() {
+    const first = livePlacements[0];
     setPickerId(null);
     setPlacements([]);
-    setSelectedPendingId(null);
+    setSelected(null);
     setKeyNotice(null);
+    if (first && cursor) setCursor({ row: first.row, col: first.col, dir: cursor.dir });
   }
   function startExchange() {
     recallAll();
-    setSelectedTileId(null);
     setExchangeIds([]);
     setMode("exchange");
   }
@@ -416,8 +502,10 @@ export function useTurnDraft({
   keyRef.current = (event: KeyboardEvent) => {
     if (!board || inEditable(event.target) || event.metaKey || event.ctrlKey || event.altKey)
       return;
-    // The value picker handles its own keys (arrows, Enter, Escape).
-    if ((event.target as HTMLElement | null)?.closest?.("[data-face-picker]")) return;
+    // The value picker handles its own keys (arrows, Enter, Escape); an open
+    // sheet owns the keyboard too — its buttons never type tiles.
+    if ((event.target as HTMLElement | null)?.closest?.("[data-face-picker], [role='dialog']"))
+      return;
     const consumed = () => {
       event.preventDefault();
       // Keep focus inside the board grid so screen readers follow the cursor.
@@ -426,12 +514,12 @@ export function useTurnDraft({
     };
     const action = resolveStudyKey(event, blankArmed.current);
     if (action?.kind === "move") {
-      if (!cursor) return;
+      if (!rawCursor) return;
       consumed();
-      const row = cursor.row + (action.dir === "down" ? 1 : action.dir === "up" ? -1 : 0);
-      const col = cursor.col + (action.dir === "right" ? 1 : action.dir === "left" ? -1 : 0);
+      const row = rawCursor.row + (action.dir === "down" ? 1 : action.dir === "up" ? -1 : 0);
+      const col = rawCursor.col + (action.dir === "right" ? 1 : action.dir === "left" ? -1 : 0);
       if (row >= 0 && col >= 0 && row < board.length && col < board.length)
-        setCursor({ row, col, dir: cursor.dir });
+        setCursor({ row, col, dir: rawCursor.dir });
       return;
     }
     if (!canPlay) return;
@@ -439,16 +527,19 @@ export function useTurnDraft({
       const last =
         event.key === "Backspace"
           ? livePlacements.at(-1)
-          : livePlacements.find((item) => item.row === cursor?.row && item.col === cursor?.col);
+          : livePlacements.find(
+              (item) => item.row === rawCursor?.row && item.col === rawCursor?.col,
+            );
       if (!last) return;
       consumed();
       recallTile(last.tile.id);
-      setCursor({ row: last.row, col: last.col, dir: last.cursorDir ?? cursor?.dir ?? "right" });
+      const dir: Direction = last.cursorDir === "down" ? "down" : "right";
+      setCursor({ row: last.row, col: last.col, dir: cursor?.dir ?? dir });
       return;
     }
     // E (or Enter on an alternative tile under the cursor) opens its value picker.
     const atCursor = livePlacements.find(
-      (item) => item.row === cursor?.row && item.col === cursor?.col,
+      (item) => item.row === rawCursor?.row && item.col === rawCursor?.col,
     );
     const faceTarget = selectedPendingId ?? atCursor?.tile.id ?? null;
     if ((event.key === "e" || event.key === "E") && faceTarget) {
@@ -488,13 +579,9 @@ export function useTurnDraft({
       return;
     }
     if (action.kind === "toggleDirection") {
-      if (!cursor) return;
+      if (!rawCursor) return;
       consumed();
-      const directions = action.cycleAll ? DIRECTIONS : DIRECTIONS.slice(0, 2);
-      setCursor({
-        ...cursor,
-        dir: directions[(directions.indexOf(cursor.dir) + 1) % directions.length],
-      });
+      setCursor({ ...rawCursor, dir: rawCursor.dir === "right" ? "down" : "right" });
       return;
     }
     if (action.kind !== "tile" && action.kind !== "bareBlank") return;
@@ -527,7 +614,10 @@ export function useTurnDraft({
 
   return {
     placements: livePlacements,
+    /** The placement arrow, on a free square (null when off or nowhere free). */
     cursor,
+    /** The square the player is looking at (keyboard focus), arrow or not. */
+    focus: rawCursor,
     setCursor,
     selectedTileId,
     selectedPendingId,

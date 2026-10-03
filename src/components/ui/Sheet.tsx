@@ -39,6 +39,10 @@ export function Sheet({
   const restoreFocusRef = useRef<HTMLElement | null>(null);
   const titleId = useId();
   const [present, setPresent] = useState(open);
+  // Callers pass inline handlers; the open/focus effect must not re-run (and
+  // move focus) whenever the parent re-renders, e.g. on a clock tick.
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
 
   useEffect(() => {
     if (open) {
@@ -71,7 +75,7 @@ export function Sheet({
     const onKey = (event: KeyboardEvent) => {
       if (dismissible && event.key === "Escape") {
         event.preventDefault();
-        onClose();
+        closeRef.current();
         return;
       }
       if (event.key !== "Tab" || !dialogRef.current) return;
@@ -103,7 +107,7 @@ export function Sheet({
       window.removeEventListener("keydown", onKey);
       restoreFocusRef.current?.focus();
     };
-  }, [dismissible, open, onClose]);
+  }, [dismissible, open]);
 
   if ((!open && !present) || (!open && document.body.dataset.route === "play")) return null;
   return createPortal(

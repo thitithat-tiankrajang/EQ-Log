@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
  * Turn attention outside the board: one short "your turn" cue, the tab title
- * and favicon while the tab is hidden. Nothing here carries game content — no
- * tile, rack or score ever reaches the title, the favicon or a sound.
+ * and favicon while the tab is hidden, and the local tile-placement sound.
+ * Nothing here carries game content — no tile, rack or score ever reaches the
+ * title, the favicon or a sound.
  */
 
 export const SOUND_KEY = "eq-lab:live-sound:v1";
@@ -60,6 +61,67 @@ export function playTurnCue(now = Date.now()) {
     oscillator.start(at);
     oscillator.stop(at + 0.17);
   });
+  return true;
+}
+
+let noise: AudioBuffer | null = null;
+let lastPlace = 0;
+/**
+ * Tile placement: a light foam/plastic tile touching acrylic, ~70 ms, quiet.
+ * Synthesized on the device (no audio asset, nothing to license): a short
+ * band-passed noise tick for the contact, under a soft low "tock" whose pitch
+ * drops slightly, like a light tile settling. A small random detune keeps
+ * fast typing from sounding mechanical. At most one per 45 ms, so a burst of
+ * placements never stacks into a roar.
+ */
+export function playPlaceSound(now = Date.now()) {
+  if (now - lastPlace < 45) return false;
+  lastPlace = now;
+  if (!audio || audio.state !== "running") return false;
+  const context = audio;
+  const start = context.currentTime + 0.002;
+  const detune = 1 + (Math.random() - 0.5) * 0.08;
+  if (!noise || noise.sampleRate !== context.sampleRate) {
+    noise = context.createBuffer(1, Math.ceil(context.sampleRate * 0.03), context.sampleRate);
+    const data = noise.getChannelData(0);
+    for (let index = 0; index < data.length; index += 1) data[index] = Math.random() * 2 - 1;
+  }
+  const out = context.createGain();
+  out.gain.value = 0.9;
+  out.connect(context.destination);
+  // Contact: a soft, slightly bright tick.
+  const tick = context.createBufferSource();
+  tick.buffer = noise;
+  const band = context.createBiquadFilter();
+  band.type = "bandpass";
+  band.frequency.value = 2600 * detune;
+  band.Q.value = 0.8;
+  const tickGain = context.createGain();
+  tickGain.gain.setValueAtTime(0.0001, start);
+  tickGain.gain.exponentialRampToValueAtTime(0.045, start + 0.002);
+  tickGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.022);
+  tick.connect(band);
+  band.connect(tickGain);
+  tickGain.connect(out);
+  tick.start(start);
+  tick.stop(start + 0.03);
+  // Body: a light, damped plastic "tock".
+  const body = context.createOscillator();
+  body.type = "triangle";
+  body.frequency.setValueAtTime(360 * detune, start);
+  body.frequency.exponentialRampToValueAtTime(250 * detune, start + 0.045);
+  const soft = context.createBiquadFilter();
+  soft.type = "lowpass";
+  soft.frequency.value = 1500;
+  const bodyGain = context.createGain();
+  bodyGain.gain.setValueAtTime(0.0001, start);
+  bodyGain.gain.exponentialRampToValueAtTime(0.05, start + 0.003);
+  bodyGain.gain.exponentialRampToValueAtTime(0.0001, start + 0.07);
+  body.connect(soft);
+  soft.connect(bodyGain);
+  bodyGain.connect(out);
+  body.start(start);
+  body.stop(start + 0.08);
   return true;
 }
 

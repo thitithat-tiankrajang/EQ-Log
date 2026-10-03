@@ -50,7 +50,8 @@ for (const mobile of [false, true])
           "1 · + · 2 · = · 3 · 4 · 5 · 6",
         );
       }
-      if (mobile) await page.getByRole("button", { name: "Close", exact: true }).click();
+      // Sheets have no close button: tap the dimmed area above the sheet.
+      if (mobile) await page.locator(".lg-sheet-dismiss").click({ position: { x: 20, y: 20 } });
       const tiles = page.locator(".lg-rack [data-draft-tile-id]");
       await expect(page.getByRole("button", { name: "Pass", exact: true })).toBeEnabled();
       const first = await tiles.first().getAttribute("data-draft-tile-id");
@@ -103,8 +104,9 @@ for (const mobile of [false, true])
           .getByRole("button", { name: "Record, bag, notes and tools", exact: true })
           .click();
       await page.getByRole("tab", { name: "Record", exact: true }).click();
-      await expect(page.locator(".lg-log-row")).toHaveCount(1);
-      await page.locator(".lg-log-row").click();
+      await expect(page.locator(".lg-tl-entry")).toHaveCount(1);
+      // Reading the log is not review; "View position" is the explicit entry.
+      await page.locator(".lg-tl-view").click();
       await page.getByRole("button", { name: "Before", exact: true }).click();
       await page.getByRole("button", { name: "Practice this position", exact: true }).click();
       await expect(page.getByRole("dialog", { name: "Own-rack live practice" })).toBeVisible();

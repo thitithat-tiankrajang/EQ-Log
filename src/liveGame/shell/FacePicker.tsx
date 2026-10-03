@@ -1,8 +1,7 @@
-import { useEffect, useRef, type CSSProperties } from "react";
-import { X } from "lucide-react";
+import { useEffect, useRef, useState, type CSSProperties, type PointerEvent } from "react";
 import { getAssignmentOptions, type TileInstance } from "../../game";
 import { useLocale } from "../../i18n/LocaleProvider";
-import { Glyph, normalizeFace } from "./TileGlyph";
+import { FaceArt, normalizeFace } from "./TileGlyph";
 
 /**
  * Direct choice of an alternative tile's value: one tap, never cycling.
@@ -10,10 +9,11 @@ import { Glyph, normalizeFace } from "./TileGlyph";
  *  +/−, ×/÷   two large buttons
  *  blank      every legal value at once (0–9, 10–20, + − × ÷ =)
  *
- * Not a modal: the board stays visible and usable. On desktop it is anchored
- * beside the tile; on a phone it docks over the rack/actions area, where
- * buttons can be thumb-sized. Escape or the close button dismisses it; tapping
- * elsewhere on the board also closes it (the turn draft owns that).
+ * Not a modal: the board stays visible. On desktop it is anchored beside the
+ * tile; on a phone it docks over the rack/actions area, where buttons can be
+ * thumb-sized, with a handle: swipe it down to dismiss. There is no close
+ * button: Escape, a swipe, or a tap anywhere else closes it — a tap on the
+ * board or rack only closes it (the turn draft owns that), never moves a tile.
  */
 export function FacePicker({
   tile,
@@ -37,6 +37,42 @@ export function FacePicker({
   const blank = tile.token === "?";
   const current = tile.assignedToken ? normalizeFace(tile.assignedToken) : null;
   const columns = blank ? 7 : 2;
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  const [pull, setPull] = useState(0);
+  const swipe = useRef<{ pointer: number; y: number; t: number } | null>(null);
+
+  // A press anywhere outside the picker, the board and the rack closes it.
+  // (Board and rack taps close it through the turn draft, without moving.)
+  useEffect(() => {
+    const onDown = (event: globalThis.PointerEvent) => {
+      const target = event.target as Element | null;
+      if (!target?.closest || target.closest("[data-face-picker], [data-live-board], .lg-rack"))
+        return;
+      closeRef.current();
+    };
+    document.addEventListener("pointerdown", onDown, true);
+    return () => document.removeEventListener("pointerdown", onDown, true);
+  }, []);
+  const onSwipeDown = (event: PointerEvent<HTMLDivElement>) => {
+    swipe.current = { pointer: event.pointerId, y: event.clientY, t: event.timeStamp };
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {}
+  };
+  const onSwipeMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (swipe.current?.pointer !== event.pointerId) return;
+    setPull(Math.max(0, event.clientY - swipe.current.y));
+  };
+  const onSwipeEnd = (event: PointerEvent<HTMLDivElement>) => {
+    const start = swipe.current;
+    if (start?.pointer !== event.pointerId) return;
+    swipe.current = null;
+    const distance = event.clientY - start.y;
+    const speed = distance / Math.max(1, event.timeStamp - start.t);
+    setPull(0);
+    if (distance > 44 || (distance > 12 && speed > 0.6)) onClose();
+  };
 
   // Move focus into the picker so keyboard users can choose at once.
   useEffect(() => {
@@ -85,10 +121,11 @@ export function FacePicker({
   }, []);
 
   const below = !anchor || anchor.row < boardCells - 5;
-  const style =
-    anchor && placement === "anchor"
-      ? ({ "--r": anchor.row, "--c": anchor.col, "--cols": columns } as CSSProperties)
-      : ({ "--cols": columns } as CSSProperties);
+  const style = {
+    "--cols": columns,
+    ...(anchor && placement === "anchor" ? { "--r": anchor.row, "--c": anchor.col } : {}),
+    ...(pull ? { transform: `translateY(${pull}px)`, transition: "none" } : {}),
+  } as CSSProperties;
   return (
     <div
       ref={ref}
@@ -101,16 +138,19 @@ export function FacePicker({
       aria-label={blank ? t("live.picker.blank") : t("live.picker.choice")}
       data-face-picker
     >
-      <div className="lg-picker-head">
+      <div
+        className="lg-picker-head"
+        {...(placement === "dock"
+          ? {
+              onPointerDown: onSwipeDown,
+              onPointerMove: onSwipeMove,
+              onPointerUp: onSwipeEnd,
+              onPointerCancel: onSwipeEnd,
+            }
+          : {})}
+      >
+        {placement === "dock" && <span className="lg-sheet-handle" aria-hidden="true" />}
         <strong>{blank ? t("live.picker.blank") : t("live.picker.choice")}</strong>
-        <button
-          type="button"
-          className="lg-picker-close"
-          aria-label={t("live.picker.close")}
-          onClick={onClose}
-        >
-          <X size={16} aria-hidden="true" />
-        </button>
       </div>
       <div className="lg-picker-grid" role="group">
         {options.map((option) => {
@@ -125,7 +165,7 @@ export function FacePicker({
               aria-label={t("live.picker.option", { face: spokenFace(face, t) })}
               onClick={() => onChoose(option)}
             >
-              <Glyph face={face} />
+              <FaceArt face={face} />
             </button>
           );
         })}

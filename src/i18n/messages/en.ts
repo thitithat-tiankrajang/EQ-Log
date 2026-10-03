@@ -324,7 +324,7 @@ export const en = {
   },
   live: {
     picker: {
-      needed: "Tap the tile to choose its value",
+      needed: "Double-tap the tile to choose its value",
       blank: "Blank: choose its value",
       choice: "Choose the sign",
       close: "Close",
@@ -373,6 +373,8 @@ export const en = {
       blankOpen: "blank, value not chosen",
       choiceAs: "{face}, chosen from {options}",
       choiceOpen: "{options} tile, sign not chosen",
+      arrowRight: "placement arrow, right",
+      arrowDown: "placement arrow, down",
       label: "Board, 15 by 15. Arrow keys move.",
       cell: "Row {row}, column {col}",
       empty: "empty",
@@ -403,9 +405,10 @@ export const en = {
       slot: "Slot {index}",
       empty: "empty",
       onBoard: "on the board: {tile}",
+      putHere: "put the selected tile here",
       selected: "selected",
       marked: "marked to exchange",
-      help: "Select two tiles to swap them, or press Alt with an arrow key to move the focused tile.",
+      help: "Select a tile, then where it goes: another tile swaps with it, an empty slot takes it. Alt with an arrow key moves the focused tile.",
     },
     card: {
       label: "{name}",
@@ -509,9 +512,9 @@ export const en = {
     },
     notes: {
       title: "Private notes",
-      placeholder: "Scratch paper — only you can see this.",
-      private: "Saved on this device only. Never sent to your opponent or to EQ Lab.",
-      memoryOnly: "Kept on this screen only, so a shared device does not reveal it later.",
+      placeholder: "Scratch paper",
+      private: "Only on this device",
+      memoryOnly: "This screen only",
       finished: "Kept until you leave this result, then deleted.",
     },
     tabs: {
@@ -540,6 +543,10 @@ export const en = {
       ownRack: "Your rack in this turn is shown.",
       closedRack: "The opponent's rack stays closed.",
       practice: "Practice this position",
+      pass: "Pass",
+      exchangeN: "Exchange {count}",
+      turnN: "Turn {turn}",
+      viewPosition: "View position, turn {turn}",
     },
     tools: {
       analysis: "Analysis",
