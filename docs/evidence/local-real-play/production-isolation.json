@@ -1,0 +1,13 @@
+{
+  "build": "production with disposable VITE variables",
+  "files": 42,
+  "findings": {
+    "devLogin": [],
+    "secrets": [],
+    "authur": [],
+    "sourceMaps": [],
+    "fixtureOrExecutor": []
+  },
+  "productionLogin": true,
+  "localFormAbsent": true
+}

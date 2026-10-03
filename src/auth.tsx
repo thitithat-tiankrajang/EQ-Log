@@ -1,9 +1,26 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  lazy,
+  Suspense,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { Session } from "@supabase/supabase-js";
 import { LogOut } from "lucide-react";
 import { isSupabaseConfigured, supabase } from "./supabaseClient";
 import { PROFILE_LOAD_TIMEOUT_MS } from "./constants/network";
 import { useLocale } from "./i18n/LocaleProvider";
+
+// This import is eliminated from production builds, even when built with local env.
+const LocalPasswordSignIn =
+  import.meta.env.DEV &&
+  import.meta.env.VITE_SUPABASE_URL === "http://127.0.0.1:54521" &&
+  ["127.0.0.1", "localhost", "[::1]"].includes(window.location.hostname)
+    ? lazy(() => import("./dev/LocalPasswordSignIn"))
+    : null;
 
 export type ProfileStatus = "pending" | "approved" | "blocked";
 
@@ -267,6 +284,11 @@ function SignInRequired() {
     <AuthShell>
       <h1>Sign in required</h1>
       <p className="eq-auth-sub">Sign in with an approved member account to access games.</p>
+      {LocalPasswordSignIn && (
+        <Suspense fallback={<p role="status">Loading local sign-in…</p>}>
+          <LocalPasswordSignIn />
+        </Suspense>
+      )}
       <button
         className="eq-button eq-button-primary"
         type="button"

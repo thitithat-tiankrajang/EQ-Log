@@ -1,0 +1,31 @@
+{
+  "base": "http://127.0.0.1:5192",
+  "backend": "disposable Milestone-S",
+  "freshUIAuth": true,
+  "uiCreate": true,
+  "uiJoin": true,
+  "readyLaunch": true,
+  "actions": [
+    "A exchange 1",
+    "B pass",
+    "A pass",
+    "B reconnect + pass"
+  ],
+  "revisions": [
+    5,
+    6,
+    7,
+    8
+  ],
+  "ownRackVerified": true,
+  "opponentRackAbsent": true,
+  "futureBagAbsent": true,
+  "privateRealtime": true,
+  "resize": [
+    "1280x560",
+    "390x844"
+  ],
+  "refresh": true,
+  "reconnect": true,
+  "loginAxe": "pass"
+}

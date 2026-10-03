@@ -1,0 +1,33 @@
+{
+  "inheritedHead": "ed40e61e2bfe999e6a32e5c661b8cc89ff686d25",
+  "scope": "development local authentication and manual workflow only",
+  "format": "pass (affected files)",
+  "eslint": "pass (affected code/tests/tooling)",
+  "typecheck": "pass",
+  "productionBuild": "pass with disposable public frontend variables",
+  "focusedUnitTests": {
+    "files": 6,
+    "passed": 43
+  },
+  "newRealBrowserTests": {
+    "passed": 2,
+    "durationSeconds": 21.1,
+    "log": "test-results/local-realplay-final.log"
+  },
+  "existingSecurityBrowserSpecs": {
+    "passed": 2,
+    "durationSeconds": 50.2,
+    "specs": [
+      "two browsers: public/private Normal, exchange, reconnect/reload/second tab/stale and completion",
+      "full-strength trusted Authur and Stage: real bot move, concurrent retry, reload and terminal Replay"
+    ],
+    "assertionsChanged": false
+  },
+  "interactiveAccountsHelper": "pass: genuine new local accounts, hidden password + confirmation, no echo",
+  "foreignProvisioningBackend": "refused before network/DB operation",
+  "productionArtifacts": "42 files, zero dev auth/secrets/Authur/fixture/source map hits",
+  "authoritySemanticsChanged": false,
+  "productionModified": false,
+  "phaseBStarted": false,
+  "productVisualApproval": "STILL WAITING"
+}

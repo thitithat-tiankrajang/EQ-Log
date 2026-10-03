@@ -138,8 +138,11 @@ if (process.argv[1]?.endsWith("/phase-a/local.mjs")) {
       child.once("exit", (code) => {
         process.exitCode = code ?? 0;
       });
+    } else if (process.argv[2] === "accounts") {
+      const { provisionManualPlayers } = await import("./local-accounts.mjs");
+      await provisionManualPlayers(localEnvironment());
     } else if (process.argv[2] === "demo") await demo();
-    else throw new Error("Usage: node tools/phase-a/local.mjs app|demo");
+    else throw new Error("Usage: node tools/phase-a/local.mjs app|accounts|demo");
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;

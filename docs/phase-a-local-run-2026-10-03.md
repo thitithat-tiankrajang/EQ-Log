@@ -12,9 +12,9 @@ This worktree has **no `.env` file**, and the inspected shell had neither fronte
 
 The Vite-served environment of both inherited servers, **5173 and 5191**, was also inspected without printing keys: both have neither Supabase frontend variable set. Their missing Login is therefore explained by unconfigured local-only mode.
 
-The configured normal app was tested in a fresh isolated Chromium context: its first screen was **Sign in required**, with **Sign in with Google**. Google OAuth is disabled on the disposable backend. The helper below authenticates generated disposable accounts against its real GoTrue password endpoint and installs those real sessions into separate browser contexts. It does not mock auth or change AuthGate.
+The configured normal app now offers **Sign in locally** in development when both the frontend and the disposable API are on loopback. It uses genuine Supabase password authentication. Google remains disabled on this stack; the production Google flow is unchanged. See [the security/auth investigation](local-real-play-auth-2026-10-03.md) for the historical evidence and verification.
 
-Other possible explanations are a persisted session on that exact origin, a fixture URL, or environment variables inherited by a previously started server. The user's earlier browser/origin was not inspected, so its exact historical cause cannot be established. No existing browser storage/session was cleared. Servers inherited at ports 5173 and 5191 were left alone; neither is the canonical configured normal run below.
+A previously authenticated session on the exact browser origin can also legitimately skip Login. No existing browser storage/session was cleared. The normal workflow below uses your own browser, with normal resize/maximize/fullscreen controls.
 
 ## A. NORMAL LOCAL APP
 
@@ -23,7 +23,6 @@ Other possible explanations are a persisted session on that exact origin, a fixt
 - Node 22.12+ and npm; this checkout was verified with Node 26.6.0.
 - Dependencies in this worktree's own `node_modules` (already present). If missing, run `npm ci` here.
 - Docker Desktop running; Supabase CLI and `psql` on PATH.
-- Playwright Chromium installed. If missing: `npx playwright install chromium`.
 - The **already-provisioned disposable Milestone-S stack** at `/private/tmp/eq-live-hidden-security-20261001`, API `127.0.0.1:54521`, database `127.0.0.1:54522`, Studio `127.0.0.1:54523`. Its auth, database, REST, Realtime, storage and gateway containers were healthy during verification.
 - Existing protected files `status.private.json` and `private.env` in that disposable directory. The first contains local backend connection material; the second supplies the server-only `LIVE_BOT_SECRET`. Do not print or commit either file.
 - The compiled Edge bundles in that disposable stack are the existing Milestone-S bundles. This UI change does not require rebuilding or deploying Edge functions.
@@ -67,34 +66,32 @@ Local: http://127.0.0.1:5192/
 
 Open **http://127.0.0.1:5192/** in a fresh/private browser window. The first screen should be **Sign in required**. A previously authenticated session on this exact origin can legitimately skip that screen. Do not clear it automatically. The root route is the normal lobby; actual games use `/#/play/<real-game-UUID>`.
 
-The local Google button is present but its provider is not configured. Do not use production Google/account configuration to get around that. Use Terminal 3 for safe local authentication.
+Use **Sign in locally**, not the Google button, with the disposable accounts from Terminal 3. The password form is absent from production builds. If this exact origin already has a local session, Home can appear first; use the account Sign out control if you want to switch users.
 
-### Terminal 3 — real disposable login and real live game
+### Terminal 3 — create your manual local accounts (once)
 
 ```sh
 cd /Users/thitithat_tiankrajang/Desktop/EQ-Lab-live-sync
-node tools/phase-a/local.mjs demo
+node tools/phase-a/local.mjs accounts
 ```
 
-Expected: **Real local authentication succeeded in two isolated browser sessions**, a localhost game URL, and two headed Chromium windows. The helper creates two new `example.test` accounts, approves only those new disposable profiles, signs in through real local password authentication, creates a private real game, and opens its actual route. Credentials/tokens are not printed or written to a file. Each run creates fresh disposable accounts/game; they remain in the disposable database.
+Choose a **disposable password of at least 12 characters**, then confirm it. Input is hidden. This password is for both new local accounts; do not reuse a production password. The helper prints two **emails and display names**, never the password, service credentials or sessions. Keep those emails and the password you chose. Each run creates a new pair; it never changes an existing user.
 
-1. In **Local A**, click **Ready**.
-2. Wait until **Local B** shows **A ready · B not ready**, then click **Ready** there.
-3. In **Local A**, click **Launch game**. After the three-second countdown, both show the new shell. A is ACTIVE; B is THINKING.
-4. Play by selecting/dragging tiles or typing on the board; use Recall/Commit after placement. Pass requires confirmation. Exchange uses the selected rack tiles.
-5. Inspect Notes, Bag, Record and Tools. Resize the windows to inspect the responsive layouts. Reorder the rack on either turn, then refresh to check persistence.
-6. Use Match controls for pause, Coffee Break and surrender. After completing a game, Notes remain on Result; opening Replay/leaving deletes them.
+1. In normal Chrome/Safari/etc., open **http://127.0.0.1:5192/**. Enter Player A's printed email and your chosen password under **Local email / Local password**, then **Sign in locally**.
+2. In incognito/private browsing or another browser/profile, open the same URL and sign in as Player B with B's email and the same disposable password. Two tabs in one profile share one auth session; use separate profiles.
+3. In A, click **Create game → Play another player**. Keep the normal online/direct mode. Choose B's printed display name under **Opponent username**. Keep Public for this basic test, then click **Create room & get invite link**.
+4. In A's waiting room, click **Copy game link**. In B, click **Create game → Have a code? Join a game**, paste that link into **Room code or link**, then **Join room**.
+5. A clicks **Ready**. When B shows **A ready · B not ready**, B clicks **Ready**. A clicks **Launch game**. The countdown starts the Phase-A shell.
+6. Resize/maximize/fullscreen freely. Place rack tiles on the board, then **Commit**. **Pass → Confirm pass** and **Exchange → choose rack tiles → Exchange N tiles** are real authoritative turns. Refresh/reopen the same game link to continue; sessions and server state persist.
 
-The helper's automated verification (`PHASE_A_HEADLESS=1 node tools/phase-a/local.mjs demo`) exercised the same real login, both Ready commands, launch and both shell views. The wait in step 2 matters: commands use the latest authoritative revision. A stale command is rejected and refreshed rather than silently applied.
-
-Direct human games need no Authur worker. For existing local Authur/Stage tests only, the prebuilt `eq-milestone-s-authur-trusted-bot-1` worker container is available. This guide does not enable Stage, modify production flags, or provision Authur infrastructure. `security-gate.mjs` starts that exact local worker when running the gate and restores its previous running state.
+Direct human games need no Authur worker. Authur uses the existing trusted local worker; see the investigation for startup and account eligibility. No demo/fixture browser is required for this workflow. The older `demo` helper remains for automated inspection only.
 
 ### Stop only this run
 
-- Terminal 3: Ctrl+C closes only the helper's isolated Chromium browsers. It does not change the user's browser/session or delete the local game.
-- Terminal 2: Ctrl+C stops only its Vite child at 5192.
-- Terminal 1: Ctrl+C stops the function server started there. Do not stop an inherited/shared function server.
-- Leave the pre-existing Supabase/Docker stack and inherited 5173/5191 servers alone. Do not use broad `pkill`, `docker stop $(...)`, reset, clean or browser-storage clearing commands.
+- Terminal 3 exits after account creation; there is no browser/process to stop there.
+- Terminal 2: Ctrl+C stops its Vite child at 5192.
+- Terminal 1: Ctrl+C stops the function server you started there. Reuse an existing server rather than competing with it, and leave inherited servers alone.
+- Keep the shared disposable Supabase/Docker stack running. Do not use broad process/container stop commands or reset/clear browser storage. Local accounts and unfinished games remain available for the next run.
 
 ## B. PHASE-A VISUAL FIXTURE / SANDBOX
 

@@ -416,6 +416,11 @@ body:not([data-route="play"]) .overflow-menu-item:disabled {
   width: 100%;
 }
 
+.eq-local-sign-in {
+  display: grid;
+  gap: 14px;
+}
+
 .eq-google-button {
   border-color: var(--eq-line-strong);
   background: var(--eq-surface);
