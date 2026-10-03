@@ -40,7 +40,7 @@ it("uses the live shell board and rack while keeping an opponent replay rack clo
   const { container } = render(<RankedMatchPage matchId="match-id" />);
   await waitFor(() => expect(container.querySelectorAll(".lg-cell")).toHaveLength(225));
   expect(container.querySelectorAll(".lg-rack-tile[data-tile-id]")).toHaveLength(8);
-  expect(container.querySelectorAll(".lg-card")).toHaveLength(2);
+  expect(container.querySelectorAll(".lg-sb-row")).toHaveLength(2);
 
   await act(async () => {});
   fireEvent.click(

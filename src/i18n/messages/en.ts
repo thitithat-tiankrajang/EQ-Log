@@ -323,6 +323,30 @@ export const en = {
     },
   },
   live: {
+    picker: {
+      needed: "Tap the tile to choose its value",
+      blank: "Blank: choose its value",
+      choice: "Choose the sign",
+      close: "Close",
+      option: "Play as {face}",
+    },
+    glyph: {
+      plus: "plus",
+      minus: "minus",
+      times: "times",
+      divide: "divide",
+      equals: "equals",
+    },
+    score: {
+      label: "Score",
+      leads: "leads by {count}",
+      trails: "trails by {count}",
+      level: "level",
+    },
+    unseen: {
+      aria: "{total} tiles unseen: {digits} single digits, {heavy} from 10 to 20, {ops} operators, {equals} equals, {blank} blanks. {bag} in the bag. Open the full distribution.",
+      bag: "bag {count}",
+    },
     eyebrow: "Live game",
     loading: {
       title: "Opening the game",
@@ -345,6 +369,10 @@ export const en = {
       info: "Game information",
     },
     board: {
+      blankAs: "blank played as {face}",
+      blankOpen: "blank, value not chosen",
+      choiceAs: "{face}, chosen from {options}",
+      choiceOpen: "{options} tile, sign not chosen",
       label: "Board, 15 by 15. Arrow keys move.",
       cell: "Row {row}, column {col}",
       empty: "empty",
@@ -374,7 +402,7 @@ export const en = {
       closed: "The opponent's rack stays closed.",
       slot: "Slot {index}",
       empty: "empty",
-      onBoard: "{tile} is on the board",
+      onBoard: "on the board: {tile}",
       selected: "selected",
       marked: "marked to exchange",
       help: "Select two tiles to swap them, or press Alt with an arrow key to move the focused tile.",
@@ -553,6 +581,7 @@ export const en = {
       unmute: "Turn on your-turn sound",
     },
     more: {
+      openUnseen: "{count} unseen — open the tile bag, record, notes and tools",
       title: "Game",
       open: "Record, bag, notes and tools",
       short: "More",

@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { AlertTriangle, Pause, Repeat2, SkipForward, WifiOff } from "lucide-react";
 import { AMATH_TOKENS, type AmathToken, type Side, type TileInstance } from "../../game";
 import { useLocale } from "../../i18n/LocaleProvider";
@@ -6,6 +6,7 @@ import { Sheet } from "../../components/ui/Sheet";
 import type { LiveControl } from "../controls";
 import { TOKEN_ORDER, unseenPool, type LastMove } from "./derive";
 import { LiveTile } from "./LiveBoard";
+import { Expression, Glyph } from "./TileGlyph";
 import type { ShellModel } from "./model";
 import { NOTES_MAX } from "./workspace";
 import type { KeyNotice } from "./useTurnDraft";
@@ -229,7 +230,7 @@ export function LastMovePanel({
         ) : move.kind === "pass" ? (
           <SkipForward size={14} aria-hidden="true" />
         ) : null}
-        {what}
+        {move.kind === "place" && move.faces.length ? <Expression faces={move.faces} /> : what}
       </span>
       {move.kind === "place" && <span className="lg-last-score">+{move.score}</span>}
     </>
@@ -347,5 +348,94 @@ export function NotesPad({
         {readOnlyHint ?? (memoryOnly ? t("live.notes.memoryOnly") : t("live.notes.private"))}
       </small>
     </section>
+  );
+}
+
+type UnseenGroup = "digits" | "heavy" | "ops" | "equals" | "blank";
+const GROUP_OF: Record<string, UnseenGroup> = {
+  lightNumber: "digits",
+  heavyNumber: "heavy",
+  operator: "ops",
+  choice: "ops",
+  equals: "equals",
+  Blank: "blank",
+};
+
+/** Unseen counts grouped the way players think about them. Public by derivation only. */
+export function unseenSummary(model: ShellModel) {
+  const known: TileInstance[][] = model.hostRacks
+    ? [model.hostRacks.A, model.hostRacks.B]
+    : model.rackSide && model.role === "player"
+      ? [model.rack]
+      : [];
+  const pool = unseenPool(model.board, known);
+  const groups: Record<UnseenGroup, number> = { digits: 0, heavy: 0, ops: 0, equals: 0, blank: 0 };
+  for (const [token, count] of pool.counts) groups[GROUP_OF[AMATH_TOKENS[token].type]] += count;
+  return { total: pool.total, groups };
+}
+
+/**
+ * Always-visible Unseen: the total and the groups that decide plays, in one
+ * compact row. Tapping it opens the full per-tile distribution. Derived from
+ * the public board and the racks this viewer may see; never a bag order.
+ */
+export function UnseenStrip({ model, onOpen }: { model: ShellModel; onOpen?: () => void }) {
+  const { t } = useLocale();
+  const { total, groups } = unseenSummary(model);
+  const chips: { key: UnseenGroup; label: ReactNode }[] = [
+    { key: "digits", label: "0–9" },
+    { key: "heavy", label: "10–20" },
+    {
+      key: "ops",
+      label: (
+        <span className="lg-chip-ops">
+          <Glyph face="+" />
+          <Glyph face="×" />
+        </span>
+      ),
+    },
+    { key: "equals", label: <Glyph face="=" /> },
+    { key: "blank", label: <span className="lg-chip-blank" /> },
+  ];
+  const spoken = t("live.unseen.aria", {
+    total,
+    digits: groups.digits,
+    heavy: groups.heavy,
+    ops: groups.ops,
+    equals: groups.equals,
+    blank: groups.blank,
+    bag: model.bagCount,
+  });
+  const content = (
+    <>
+      <span className="lg-unseen-total">
+        <strong>{total}</strong>
+        <span className="lg-unseen-labels">
+          <small>{model.hostRacks ? t("live.bag.inBagShort") : t("live.bag.unseen")}</small>
+          {!model.hostRacks && (
+            <small className="lg-unseen-bag">
+              {t("live.unseen.bag", { count: model.bagCount })}
+            </small>
+          )}
+        </span>
+      </span>
+      <span className="lg-unseen-chips">
+        {chips.map((chip) => (
+          <span key={chip.key} className={`lg-chip${groups[chip.key] === 0 ? " is-out" : ""}`}>
+            <span className="lg-chip-label">{chip.label}</span>
+            <b>{groups[chip.key]}</b>
+          </span>
+        ))}
+      </span>
+    </>
+  );
+  return onOpen ? (
+    <button type="button" className="lg-unseen" aria-label={spoken} onClick={onOpen}>
+      {content}
+    </button>
+  ) : (
+    <div className="lg-unseen" role="group" aria-label={spoken}>
+      {content}
+    </div>
   );
 }

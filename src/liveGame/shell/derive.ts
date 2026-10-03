@@ -19,6 +19,8 @@ export type LastMove = {
   cells: { row: number; col: number }[];
   /** The main line the move made, e.g. "12=4×3". */
   expression: string | null;
+  /** The same line as tile faces, for glyph rendering. */
+  faces: string[];
 };
 
 function placedCells(log: RankedTurnView) {
@@ -36,8 +38,8 @@ function placedCells(log: RankedTurnView) {
   return cells;
 }
 
-function lineThrough(board: BoardSnapshot, cells: { row: number; col: number }[]) {
-  if (cells.length === 0) return null;
+function lineThrough(board: BoardSnapshot, cells: { row: number; col: number }[]): string[] {
+  if (cells.length === 0) return [];
   const run = (horizontal: boolean) => {
     const { row, col } = cells[0];
     const at = (offset: number) =>
@@ -55,7 +57,7 @@ function lineThrough(board: BoardSnapshot, cells: { row: number; col: number }[]
       ? cells.every((cell) => cell.row === cells[0].row)
       : run(true).length >= run(false).length;
   const tiles = run(horizontal);
-  return tiles.length > 1 ? tiles.join("") : null;
+  return tiles.length > 1 ? tiles : [];
 }
 
 /** One committed turn as the player reads it. */
@@ -63,6 +65,7 @@ export function moveOf(log: RankedTurnView): LastMove {
   const kind =
     log.action === "place_equation" ? "place" : log.action === "exchange" ? "exchange" : "pass";
   const cells = kind === "place" ? placedCells(log) : [];
+  const faces = kind === "place" ? lineThrough(log.boardAfter, cells) : [];
   return {
     id: log.id,
     turnNumber: log.turnNumber,
@@ -71,7 +74,8 @@ export function moveOf(log: RankedTurnView): LastMove {
     score: log.score,
     exchangedCount: log.exchangedCount,
     cells,
-    expression: kind === "place" ? lineThrough(log.boardAfter, cells) : null,
+    expression: faces.length ? faces.join("") : null,
+    faces,
   };
 }
 

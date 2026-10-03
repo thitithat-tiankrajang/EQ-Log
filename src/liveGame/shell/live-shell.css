@@ -158,26 +158,41 @@ body:has(> #root .lg-shell) {
 }
 
 /* ── Board ────────────────────────────────────────────────────────────── */
+/* Tile artwork tokens live on :root so the practice sheet and the docked
+   picker (portalled outside .lg-shell) share them. */
+:root {
+  --lg-tile-face: #151c2b;
+  --lg-tile-ink: #f6f8fb;
+  --lg-tile-edge: rgba(0, 0, 0, 0.45);
+  /* Blue means exactly one thing on a tile: the value an alternative is played as. */
+  --lg-chosen: #5cc8ff;
+  --lg-open-ink: #b9c4d7;
+}
 .lg-board-wrap {
   position: relative;
   width: var(--lg-board);
   height: var(--lg-board);
   flex: none;
-  border-radius: 6px;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--lg-move) 45%, transparent);
-  transition: box-shadow 260ms ease;
+  border-radius: 7px;
+  transition: box-shadow 220ms ease;
 }
+/* Turn awareness on the board is a thin edge and a soft glow in the mover's
+   colour, drawn OUTSIDE the frame: it takes no board area and never competes
+   with the tiles. The scoreboard carries the strong turn signal. */
 .lg-shell[data-turn="active"] .lg-board-wrap {
   box-shadow:
-    0 0 0 3px var(--lg-move),
-    0 10px 28px color-mix(in srgb, var(--lg-move) 18%, transparent);
+    0 0 0 1.5px var(--lg-move),
+    0 6px 20px color-mix(in srgb, var(--lg-move) 22%, transparent);
+}
+.lg-shell[data-turn="thinking"] .lg-board-wrap {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--lg-move) 40%, transparent);
 }
 .lg-shell[data-turn="paused"] .lg-board-wrap,
 .lg-shell[data-turn="finished"] .lg-board-wrap {
-  box-shadow: 0 0 0 2px var(--lg-line-strong);
+  box-shadow: 0 0 0 1px var(--lg-line-strong);
 }
 .lg-board-wrap.is-review {
-  box-shadow: 0 0 0 3px #7a5af8;
+  box-shadow: 0 0 0 2px #7a5af8 !important;
 }
 .lg-board {
   position: relative;
@@ -186,21 +201,25 @@ body:has(> #root .lg-shell) {
   grid-template-rows: var(--lg-label) auto;
   width: 100%;
   height: 100%;
-  border: 1px solid #3c4043;
-  border-radius: 6px;
-  background: var(--board-frame-bg, #dfe6ef);
+  border: 1px solid #8e99aa;
+  border-radius: 7px;
+  background: #e3e8ef;
   overflow: hidden;
 }
 .lg-board:not(.has-labels) {
   grid-template-columns: auto;
   grid-template-rows: auto;
 }
+/* Coordinates A–O / 1–15: legible, quiet, never inside the playing area. */
 .lg-board-cols,
 .lg-board-rows {
   display: flex;
-  color: #485165;
-  font-size: max(9px, calc(var(--lg-label) * 0.5));
+  color: #4d5769;
+  font-size: max(7px, calc(var(--lg-label) * 0.66));
+  font-weight: 650;
   font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  line-height: 1;
 }
 .lg-board-cols {
   grid-column: 2;
@@ -230,7 +249,7 @@ body:has(> #root .lg-shell) {
   flex-direction: column;
   gap: 1px;
   padding: 1px;
-  background: var(--board-cell-border, #cfd7e2);
+  background: #d2d9e3;
 }
 .lg-board.has-labels .lg-grid {
   grid-column: 2;
@@ -277,12 +296,12 @@ body:has(> #root .lg-shell) {
 .lg-cell.is-last,
 .lg-cell.is-tentative,
 .lg-cell.is-opponent-tentative {
-  background: #e8ecf2;
+  background: #e3e8ef;
   padding: 1px;
 }
 .lg-premium {
   color: #2b2f37;
-  font-size: max(8px, calc(var(--lg-cell) * 0.3));
+  font-size: max(7px, calc(var(--lg-cell) * 0.28));
   font-weight: 700;
   letter-spacing: -0.02em;
   pointer-events: none;
@@ -292,8 +311,8 @@ body:has(> #root .lg-shell) {
   font-size: calc(var(--lg-cell) * 0.5);
 }
 .lg-cursor-arrow {
-  width: 62%;
-  height: 62%;
+  width: 58%;
+  height: 58%;
   color: var(--lg-accent);
   pointer-events: none;
 }
@@ -304,177 +323,225 @@ body:has(> #root .lg-shell) {
 .lg-shell:not([data-turn="active"]) .lg-cell.is-cursor {
   box-shadow: inset 0 0 0 2px #7b8597;
 }
+/* A tentative tile under the cursor shows the tile, not a cursor frame. */
+.lg-cell.is-cursor.is-tentative {
+  box-shadow: none;
+}
 .lg-cell:focus-visible {
   z-index: 2;
   outline-offset: -1px;
 }
+/* A tentative tile is draggable: touch must not turn the drag into a pan. */
+.lg-cell[data-draft-tile-id] {
+  touch-action: none;
+}
 
-/* Tile faces: the physical tile, legible at every size. */
+/* ── Tiles and glyphs ─────────────────────────────────────────────────── */
+/* The tile's glyph is the most important object on screen. Size comes from
+   --tile (board cell, rack tile, picker option); every glyph is centred in the
+   same box, so digits and drawn operators share one optical centre. */
 .lg-tile {
+  --tile: var(--lg-cell);
   position: relative;
   display: grid;
   place-items: center;
   width: 100%;
   height: 100%;
-  border-radius: calc(var(--lg-cell) * 0.13);
-  background: var(--tile-face, #111827);
-  color: var(--tile-text, #f8fafc);
-  font-family: var(--tile-font, Arial, sans-serif);
+  border-radius: calc(var(--tile) * 0.14);
+  background: var(--lg-tile-face);
+  color: var(--lg-tile-ink);
+  font-family: var(--tile-font, Arial, "Helvetica Neue", sans-serif);
   line-height: 1;
   user-select: none;
-  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.35);
-}
-.lg-tile b {
-  font-size: calc(var(--lg-cell) * 0.52);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  transform: translateY(-4%);
-}
-.lg-tile.is-long b {
-  font-size: calc(var(--lg-cell) * 0.36);
-}
-.lg-tile small {
-  position: absolute;
-  right: 7%;
-  bottom: 5%;
-  font-size: max(7px, calc(var(--lg-cell) * 0.24));
-  font-weight: 700;
-  opacity: 0.92;
-}
-.lg-tile.is-assigned b,
-.lg-tile.lg-type-choice b {
-  color: var(--choice-assigned-text, #7dd3fc);
+  box-shadow: inset 0 -1.5px 0 var(--lg-tile-edge);
 }
 .lg-tile-rack {
-  border-radius: calc(var(--lg-rack-tile) * 0.14);
-}
-.lg-tile-rack b {
-  font-size: calc(var(--lg-rack-tile) * 0.48);
-}
-.lg-tile-rack.is-long b {
-  font-size: calc(var(--lg-rack-tile) * 0.34);
-}
-.lg-tile-rack small {
-  font-size: max(9px, calc(var(--lg-rack-tile) * 0.24));
+  --tile: var(--lg-rack-tile);
 }
 .lg-tile-mini {
+  --tile: 26px;
   width: 26px;
   height: 26px;
-  border-radius: 5px;
 }
-.lg-tile-mini b {
-  font-size: 12px;
+.lg-face {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding-bottom: calc(var(--tile) * 0.04);
 }
-.lg-tile-mini.is-long b {
-  font-size: 10px;
+.lg-glyph.lg-op {
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
-.lg-tile-mini small {
+.lg-glyph-dot {
+  fill: currentColor;
+  stroke: none;
+}
+.lg-tile .lg-glyph.lg-num,
+.lg-picker-option .lg-glyph.lg-num {
+  font-size: calc(var(--tile) * 0.54);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: lining-nums tabular-nums;
+}
+.lg-tile .lg-glyph.lg-num.is-wide,
+.lg-picker-option .lg-glyph.lg-num.is-wide {
+  font-size: calc(var(--tile) * 0.43);
+  letter-spacing: -0.06em;
+}
+/* Drawn operators: the same box and stroke for + − × ÷ =. */
+.lg-tile .lg-glyph.lg-op,
+.lg-picker-option .lg-glyph.lg-op {
+  width: calc(var(--tile) * 0.5);
+  height: calc(var(--tile) * 0.5);
+  stroke-width: 3.4;
+}
+.lg-point {
+  position: absolute;
+  right: 8%;
+  bottom: 5%;
+  font-size: max(7px, calc(var(--tile) * 0.22));
+  font-weight: 700;
+  opacity: 0.78;
+}
+.lg-tile-mini .lg-point,
+.lg-tile-mini .lg-alt-mark,
+.lg-tile-mini .lg-blank-mark {
   display: none;
 }
+/* Alternatives — neutral "either" until chosen, then the choice in blue. */
+.lg-pair {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--tile) * 0.05);
+  color: var(--lg-open-ink);
+}
+.lg-tile .lg-pair .lg-glyph.lg-op {
+  width: calc(var(--tile) * 0.33);
+  height: calc(var(--tile) * 0.33);
+  stroke-width: 3.8;
+}
+.lg-tile.is-chosen .lg-face {
+  color: var(--lg-chosen);
+}
+.lg-alt-mark {
+  position: absolute;
+  top: 7%;
+  left: 8%;
+  display: grid;
+  color: var(--lg-open-ink);
+  opacity: 0.85;
+}
+.lg-tile .lg-alt-mark .lg-glyph.lg-op {
+  width: calc(var(--tile) * 0.2);
+  height: calc(var(--tile) * 0.2);
+  stroke-width: 4.2;
+}
+.lg-blank-mark {
+  position: absolute;
+  top: 9%;
+  left: 9%;
+  width: calc(var(--tile) * 0.15);
+  height: calc(var(--tile) * 0.15);
+  border: max(1px, calc(var(--tile) * 0.03)) solid var(--lg-open-ink);
+  border-radius: 2px;
+  opacity: 0.85;
+}
+/* An unchosen blank placed on the board asks for its value. */
+.lg-cell.is-tentative .lg-tile.is-blank:not(.is-chosen) .lg-face::after {
+  content: "?";
+  color: var(--lg-open-ink);
+  font-size: calc(var(--tile) * 0.44);
+  font-weight: 700;
+}
 
-/* Committed (plain) · tentative (yours, raised, amber dashed ring) ·
-   opponent tentative (ghosted, dashed in their colour) · last move (side ring,
-   brief glow that settles into a persistent corner mark). Shape and style
-   differ, not only hue. */
-/* A tentative tile is draggable: touch must not turn the drag into a pan. */
-.lg-cell[data-draft-tile-id] {
-  touch-action: none;
-}
-.lg-cell.is-tentative {
-  background: var(--lg-tentative-soft);
-  box-shadow: inset 0 0 0 2px var(--lg-tentative);
-}
-.lg-cell.is-tentative .lg-tile {
-  transform: translateY(-1px);
-  box-shadow:
-    0 2px 5px rgba(0, 0, 0, 0.32),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.35);
-  outline: 2px dashed var(--lg-tentative);
-  outline-offset: -3px;
-}
-.lg-cell.is-tentative.is-selected {
-  box-shadow: inset 0 0 0 3px var(--lg-accent);
-}
-.lg-cell.is-opponent-tentative .lg-tile {
-  opacity: 0.72;
-  background: color-mix(in srgb, var(--tile-face, #111827) 78%, var(--lg-opp));
-  outline: 2px dashed var(--lg-opp);
-  outline-offset: -3px;
-}
-.lg-cell.is-last {
-  box-shadow: inset 0 0 0 2px var(--lg-a);
-  animation: lg-last-in 1500ms ease-out 1;
-}
-.lg-cell.is-last.side-b {
-  box-shadow: inset 0 0 0 2px var(--lg-b);
-}
-/* Settled last-move mark: a ring in the mover's colour on the tile itself, plus
-   a corner flag — readable without relying on hue alone. */
-.lg-cell.is-last .lg-tile {
-  box-shadow:
-    0 0 0 2px var(--lg-a),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.35);
-}
-.lg-cell.is-last.side-b .lg-tile {
-  box-shadow:
-    0 0 0 2px var(--lg-b),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.35);
-}
+/* ── Tile states ──────────────────────────────────────────────────────── */
+/* Committed: the plain tile.
+   Last move: a small dot in the mover's colour in the cell corner (top right,
+   away from the point value and the alternative mark), after a brief warm
+   flash that settles. Shape (a dot) as well as colour; nothing over the glyph.
+   Tentative (yours): a thin amber edge and a slight lift. Selected: a blue
+   edge. Rings sit at the tile edge, outside the glyph. */
 .lg-cell.is-last::after {
   content: "";
   position: absolute;
-  top: 1px;
-  left: 1px;
-  width: 0;
-  height: 0;
-  z-index: 1;
-  border-top: calc(var(--lg-cell) * 0.3) solid var(--lg-a);
-  border-right: calc(var(--lg-cell) * 0.3) solid transparent;
+  z-index: 2;
+  top: max(1px, calc(var(--lg-cell) * 0.04));
+  right: max(1px, calc(var(--lg-cell) * 0.04));
+  width: max(5px, calc(var(--lg-cell) * 0.15));
+  height: max(5px, calc(var(--lg-cell) * 0.15));
+  border-radius: 50%;
+  background: var(--lg-a);
+  box-shadow: 0 0 0 1px #fff;
   pointer-events: none;
 }
 .lg-cell.is-last.side-b::after {
-  border-top-color: var(--lg-b);
+  background: var(--lg-b);
+}
+.lg-cell.is-last .lg-tile {
+  animation: lg-last-in 1600ms ease-out 1;
 }
 @keyframes lg-last-in {
   0%,
   35% {
-    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--lg-move) 0%, #ffd54a));
-    background: #fff1b8;
+    box-shadow:
+      0 0 0 2px #ffcf3a,
+      0 0 10px 2px rgba(255, 207, 58, 0.65),
+      inset 0 -1.5px 0 var(--lg-tile-edge);
   }
   100% {
-    background: #e8ecf2;
+    box-shadow: inset 0 -1.5px 0 var(--lg-tile-edge);
   }
+}
+.lg-cell.is-tentative .lg-tile {
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 0 0 max(1.5px, calc(var(--lg-cell) * 0.06)) var(--lg-tentative),
+    0 2px 4px rgba(0, 0, 0, 0.3);
+}
+.lg-cell.is-tentative.is-selected .lg-tile {
+  box-shadow:
+    inset 0 0 0 max(1.5px, calc(var(--lg-cell) * 0.06)) var(--lg-accent),
+    0 0 0 2px var(--lg-accent),
+    0 2px 4px rgba(0, 0, 0, 0.3);
+}
+.lg-cell.is-opponent-tentative .lg-tile {
+  opacity: 0.72;
+  box-shadow: inset 0 0 0 1.5px var(--lg-opp);
 }
 .lg-score-badge {
   position: absolute;
   z-index: 3;
-  top: calc(var(--r) * var(--lg-cell) - var(--lg-cell) * 0.38);
-  left: calc((var(--c) + 1) * var(--lg-cell) - var(--lg-cell) * 0.3);
-  padding: 2px 6px;
+  top: calc(var(--r) * var(--lg-cell) - var(--lg-cell) * 0.34);
+  left: calc((var(--c) + 1) * var(--lg-cell) - var(--lg-cell) * 0.32);
+  padding: 1px 5px;
   border-radius: 999px;
   background: var(--lg-tentative);
   color: #fff;
-  font-size: max(11px, calc(var(--lg-cell) * 0.3));
+  font-size: max(10px, calc(var(--lg-cell) * 0.28));
   font-weight: 800;
   font-variant-numeric: tabular-nums;
   pointer-events: none;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
-
 /* Turn change: one sweep of the new mover's colour around the board. A newer
    change remounts it (no queue); reduced motion removes it. */
 .lg-turn-sweep {
   position: absolute;
-  inset: -4px;
-  border: 4px solid var(--lg-move);
+  inset: -3px;
+  border: 2px solid var(--lg-move);
   border-radius: 9px;
   pointer-events: none;
-  animation: lg-sweep 460ms ease-out 1 forwards;
+  animation: lg-sweep 420ms ease-out 1 forwards;
 }
 @keyframes lg-sweep {
   from {
     opacity: 1;
-    transform: scale(1.025);
+    transform: scale(1.02);
   }
   to {
     opacity: 0;
@@ -499,7 +566,123 @@ body:has(> #root .lg-shell) {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
 }
 
+/* ── Value picker (alternatives, blanks) ──────────────────────────────── */
+.lg-picker {
+  --opt: 40px;
+  --gap: 6px;
+  z-index: 40;
+  padding: 8px;
+  border: 1px solid var(--lg-line-strong, #b9c3d3);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--lg-text, #18202e);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.28);
+  font-family: var(--font-sans, system-ui, sans-serif);
+}
+.lg-picker.is-choice {
+  --opt: 56px;
+}
+.lg-picker-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 2px 8px 4px;
+  font-size: 13px;
+}
+.lg-picker-close {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid #dce2ec;
+  border-radius: 8px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+}
+.lg-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--cols), var(--opt));
+  justify-content: center;
+  gap: var(--gap);
+}
+.lg-picker-head strong {
+  white-space: nowrap;
+}
+.lg-picker-option {
+  --tile: var(--opt);
+  display: grid;
+  place-items: center;
+  width: var(--opt);
+  height: var(--opt);
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--opt) * 0.18);
+  background: var(--lg-tile-face);
+  color: var(--lg-tile-ink);
+  font-family: var(--tile-font, Arial, sans-serif);
+  line-height: 1;
+  box-shadow: inset 0 -2px 0 var(--lg-tile-edge);
+  cursor: pointer;
+}
+.lg-picker-option:hover {
+  background: #23304a;
+}
+.lg-picker-option[aria-pressed="true"] {
+  color: var(--lg-chosen);
+  box-shadow:
+    0 0 0 3px var(--lg-accent, #3157c8),
+    inset 0 -2px 0 var(--lg-tile-edge);
+}
+.lg-picker :focus-visible {
+  outline: 3px solid var(--lg-focus, #1b49d6);
+  outline-offset: 2px;
+}
+/* Desktop: beside the tile (below it, or above near the bottom edge). */
+.lg-picker.is-anchor {
+  --w: max(172px, calc(var(--cols) * var(--opt) + (var(--cols) - 1) * var(--gap) + 18px));
+  position: absolute;
+  width: var(--w);
+  left: clamp(
+    4px,
+    calc(var(--lg-label) + (var(--c) + 0.5) * var(--lg-cell) - var(--w) / 2),
+    calc(100% - var(--w) - 4px)
+  );
+}
+.lg-picker.is-anchor.is-below {
+  top: calc(var(--lg-label) + (var(--r) + 1) * var(--lg-cell) + 8px);
+}
+.lg-picker.is-anchor.is-above {
+  bottom: calc(100% - var(--lg-label) - var(--r) * var(--lg-cell) + 8px);
+}
+/* Phone: docked over the rack and actions, thumb-sized, the board left clear. */
+.lg-picker.is-dock {
+  position: fixed;
+  left: 8px;
+  right: 8px;
+  bottom: calc(8px + env(safe-area-inset-bottom));
+  z-index: 60;
+}
+.lg-picker.is-dock .lg-picker-grid,
+.lg-picker.is-inline .lg-picker-grid {
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+}
+.lg-picker.is-dock .lg-picker-option,
+.lg-picker.is-inline .lg-picker-option {
+  width: 100%;
+  height: var(--opt);
+}
+.lg-picker.is-dock.is-blank {
+  --opt: 44px;
+}
+.lg-picker.is-inline {
+  margin-top: 8px;
+}
+
 /* ── Rack ─────────────────────────────────────────────────────────────── */
+/* Tiles never move when selected: a selected or exchange-marked tile keeps
+   its slot and gets a quiet overlay. */
 .lg-rack-row {
   display: flex;
   justify-content: center;
@@ -507,17 +690,22 @@ body:has(> #root .lg-shell) {
 .lg-rack {
   display: flex;
   gap: max(4px, calc(var(--lg-rack-tile) * 0.1));
-  padding: 6px 8px;
+  padding: 6px;
   border: 1px solid var(--lg-line);
   border-radius: var(--lg-radius);
-  background: var(--rack-surface, #dce6f5);
-  transition: background-color 260ms ease;
+  background: #dde4ee;
+  transition: background-color 220ms ease;
 }
 .lg-shell[data-turn="active"] .lg-rack.is-active {
-  background: color-mix(in srgb, var(--lg-me) 14%, #eef2f8);
-  border-color: color-mix(in srgb, var(--lg-me) 40%, var(--lg-line));
+  background: color-mix(in srgb, var(--lg-me) 12%, #e8edf4);
+  border-color: color-mix(in srgb, var(--lg-me) 35%, var(--lg-line));
+}
+.lg-rack.is-exchange {
+  background: #e9ecf1;
+  border-color: #9aa4b4;
 }
 .lg-rack-slot {
+  position: relative;
   display: block;
   width: var(--lg-rack-tile);
   height: var(--lg-rack-tile);
@@ -533,63 +721,60 @@ body:has(> #root .lg-shell) {
   background: transparent;
   cursor: grab;
   touch-action: none;
-  transition: transform 140ms ease;
 }
-.lg-rack-tile .lg-tile {
-  --lg-cell: var(--lg-rack-tile);
-}
-.lg-rack-tile.is-empty,
-.lg-rack-tile.is-exposed {
-  border: 2px dashed var(--rack-slot-border, #9aacc3);
-  background: var(--rack-slot-surface, #cbd8ec);
+.lg-rack.is-exchange .lg-rack-tile {
   cursor: pointer;
 }
+.lg-rack-tile.is-empty {
+  background: rgba(100, 116, 139, 0.14);
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.12);
+  cursor: pointer;
+}
+/* The slot a tentative tile came from shows that tile faintly. */
 .lg-rack-tile.is-exposed {
-  border-color: var(--lg-tentative);
-  background: var(--lg-tentative-soft);
+  background: rgba(100, 116, 139, 0.1);
+  cursor: pointer;
 }
 .lg-exposed-ghost {
-  color: var(--lg-tentative);
-  font-family: var(--tile-font, Arial, sans-serif);
-  font-size: calc(var(--lg-rack-tile) * 0.36);
-  font-weight: 800;
-  opacity: 0.75;
+  display: block;
+  width: 100%;
+  height: 100%;
+  opacity: 0.32;
 }
-.lg-shell[data-turn="active"] .lg-rack.is-active .lg-rack-tile:not(.is-empty):not(.is-exposed) {
-  transform: translateY(-2px);
+.lg-rack-tile.is-selected::after,
+.lg-rack-tile.is-marked::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
 }
-.lg-shell[data-turn="active"] .lg-rack.is-active .lg-rack-tile .lg-tile {
-  box-shadow:
-    0 3px 6px rgba(0, 0, 0, 0.28),
-    inset 0 -2px 0 rgba(0, 0, 0, 0.35);
-}
-.lg-rack-tile.is-selected {
-  transform: translateY(-6px) !important;
-}
-.lg-rack-tile.is-selected .lg-tile {
-  outline: 3px solid var(--lg-accent);
-  outline-offset: 1px;
-}
-.lg-rack-tile.is-marked {
-  transform: translateY(5px) !important;
+/* Selected (to move or swap): a light inner ring. Marked for Exchange: a slate
+   face, the glyph kept white and readable, and a check. Neither moves. */
+.lg-rack-tile.is-selected::after {
+  box-shadow: inset 0 0 0 2.5px #cbd5e1;
 }
 .lg-rack-tile.is-marked .lg-tile {
-  outline: 3px solid #b42335;
-  outline-offset: 1px;
+  background: #59657b;
 }
 .lg-rack-tile.is-marked::after {
-  content: "⇄";
+  box-shadow: inset 0 0 0 2px #e2e8f0;
+}
+.lg-mark-check {
   position: absolute;
-  top: -10px;
-  right: -6px;
+  z-index: 1;
+  top: 2px;
+  right: 2px;
   display: grid;
-  width: 20px;
-  height: 20px;
   place-items: center;
+  width: max(14px, calc(var(--lg-rack-tile) * 0.3));
+  height: max(14px, calc(var(--lg-rack-tile) * 0.3));
   border-radius: 50%;
-  background: #b42335;
-  color: #fff;
-  font-size: 12px;
+  background: #fff;
+  color: #0f172a;
+  font-size: max(9px, calc(var(--lg-rack-tile) * 0.2));
+  font-weight: 900;
+  line-height: 1;
 }
 .lg-rack.is-closed .lg-rack-slot {
   border-radius: calc(var(--lg-rack-tile) * 0.14);
@@ -606,132 +791,140 @@ body:has(> #root .lg-shell) {
   opacity: 0.6;
 }
 
-/* ── Player cards ─────────────────────────────────────────────────────── */
-.lg-card {
-  --side: var(--lg-a);
-  --side-text: var(--lg-a-text);
-  --side-soft: var(--lg-a-soft);
-  position: relative;
+/* ── Scoreboard (game HUD) ────────────────────────────────────────────── */
+/* TURN = side colour (tint, thick bar, running mark, heavy clock).
+   LEAD = neutral (dark +N chip on the leader, muted −N on the other). */
+.lg-scoreboard {
   display: grid;
-  grid-template-columns: 6px minmax(0, 1fr) auto;
-  grid-template-areas:
-    "bar name score"
-    "bar status clock";
-  column-gap: 12px;
-  row-gap: 2px;
-  min-height: 84px;
-  padding: 12px 14px 12px 0;
+  gap: 3px;
+  padding: 4px;
   border: 1px solid var(--lg-line);
   border-radius: var(--lg-radius);
   background: var(--lg-surface);
-  transition:
-    background-color 260ms ease,
-    box-shadow 260ms ease,
-    border-color 260ms ease;
 }
-.lg-card.side-b {
-  --side: var(--lg-b);
-  --side-text: var(--lg-b-text);
-  --side-soft: var(--lg-b-soft);
-}
-.lg-card-identity {
-  grid-area: bar;
-  align-self: stretch;
-  width: 4px;
-  margin-left: 0;
-  border-radius: 0 4px 4px 0;
-  background: var(--side);
-  opacity: 0.55;
-  transition: width 260ms ease;
-}
-.lg-card-name {
-  grid-area: name;
+.lg-sb-row {
+  --side: var(--lg-a);
+  --side-soft: var(--lg-a-soft);
+  --side-text: var(--lg-a-text);
   display: grid;
+  grid-template-columns: 5px minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  column-gap: 10px;
+  min-height: 40px;
+  padding-right: 10px;
+  border-radius: 8px;
+  transition: background-color 220ms ease;
+}
+.lg-sb-row.side-b {
+  --side: var(--lg-b);
+  --side-soft: var(--lg-b-soft);
+  --side-text: var(--lg-b-text);
+}
+.lg-sb-bar {
+  align-self: stretch;
+  width: 3px;
+  margin: 6px 0;
+  border-radius: 0 3px 3px 0;
+  background: var(--side);
+  opacity: 0.5;
+}
+.lg-sb-name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
   min-width: 0;
 }
-.lg-card-name strong {
+.lg-sb-name strong {
   overflow: hidden;
-  font-size: 16px;
+  font-size: 15px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.lg-card-name small,
-.lg-card-status {
+.lg-sb-name em {
+  flex: none;
   color: var(--lg-muted);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.lg-sb-name svg {
+  flex: none;
+  align-self: center;
+  color: #b8860b;
+}
+.lg-sb-diff {
+  min-width: 40px;
+  padding: 2px 7px;
+  border-radius: 999px;
   font-size: 12px;
-}
-.lg-card-status {
-  grid-area: status;
-  align-self: end;
-  min-height: 16px;
-}
-.lg-card-score {
-  grid-area: score;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 4px;
-  font-size: 28px;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
-  line-height: 1;
+  text-align: center;
 }
-.lg-card-clock {
-  grid-area: clock;
+.lg-sb-diff.is-lead {
+  background: #111827;
+  color: #fff;
+}
+.lg-sb-diff.is-trail,
+.lg-sb-diff.is-level {
+  color: #5b6474;
+}
+.lg-sb-score {
+  min-width: 2.4ch;
+  font-size: 24px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+.lg-sb-clock {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 6px;
+  min-width: 68px;
   color: var(--lg-muted);
-  font-size: 16px;
+  font-size: 15px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  font-weight: 650;
 }
 .lg-run-dot {
   width: 8px;
   height: 8px;
+  border: 2px solid var(--lg-line-strong);
   border-radius: 50%;
   background: transparent;
-  border: 2px solid var(--lg-line-strong);
 }
-/* The side to move: raised, filled, the clock large and its mark pulsing. */
-.lg-card.is-to-move {
-  border-color: var(--side);
+.lg-sb-row.is-to-move {
   background: var(--side-soft);
-  box-shadow:
-    0 8px 22px color-mix(in srgb, var(--side) 22%, transparent),
-    0 0 0 1px var(--side);
 }
-.lg-card.is-to-move .lg-card-identity {
-  width: 6px;
+.lg-sb-row.is-to-move .lg-sb-bar {
+  width: 5px;
+  margin: 0;
   opacity: 1;
 }
-.lg-card.is-to-move .lg-card-status {
-  color: var(--side-text);
-  font-weight: 700;
-}
-.lg-card.is-to-move .lg-card-clock {
+.lg-sb-row.is-to-move .lg-sb-clock {
   color: var(--lg-text);
-  font-size: 22px;
+  font-size: 17px;
   font-weight: 800;
 }
-.lg-card.is-running .lg-run-dot {
+.lg-sb-row.is-running .lg-run-dot {
   border-color: var(--side);
   background: var(--side);
   animation: lg-pulse 1s ease-in-out infinite;
 }
-.lg-card-clock.is-low {
+.lg-sb-clock.is-low {
   color: #b42335 !important;
 }
-.lg-card-clock.is-over {
-  color: #fff !important;
-  background: #b42335;
-  border-radius: 6px;
+.lg-sb-clock.is-over {
   padding: 0 6px;
+  border-radius: 6px;
+  background: #b42335;
+  color: #fff !important;
 }
-.lg-card.is-winner {
-  border-color: #c99a06;
-  background: #fff8db;
+.lg-sb-row.is-winner {
+  background: #fff6d6;
 }
 @keyframes lg-pulse {
   50% {
@@ -739,32 +932,110 @@ body:has(> #root .lg-shell) {
     opacity: 0.55;
   }
 }
-.lg-card.is-compact {
-  grid-template-columns: 5px minmax(0, 1fr) auto auto;
-  grid-template-areas: "bar name score clock";
-  min-height: 0;
-  padding: 6px 10px 6px 0;
-  column-gap: 8px;
-  align-items: center;
+/* Desktop gutters have room: the scoreboard is the first thing read there. */
+.lg-shell[data-layout="duo"] .lg-sb-row,
+.lg-shell[data-layout="column"] .lg-sb-row {
+  min-height: 48px;
+  column-gap: 12px;
+  padding-right: 12px;
 }
-.lg-card.is-compact .lg-card-status {
+.lg-shell[data-layout="duo"] .lg-sb-name strong,
+.lg-shell[data-layout="column"] .lg-sb-name strong {
+  font-size: 16px;
+}
+.lg-shell[data-layout="duo"] .lg-sb-score,
+.lg-shell[data-layout="column"] .lg-sb-score {
+  font-size: 28px;
+}
+.lg-shell[data-layout="duo"] .lg-sb-diff {
+  font-size: 13px;
+}
+.lg-shell[data-layout="duo"] .lg-sb-row.is-to-move .lg-sb-clock {
+  font-size: 19px;
+}
+@media (min-width: 1800px) and (min-height: 900px) {
+  .lg-shell[data-layout="duo"] .lg-sb-row {
+    min-height: 56px;
+  }
+  .lg-shell[data-layout="duo"] .lg-sb-name strong {
+    font-size: 18px;
+  }
+  .lg-shell[data-layout="duo"] .lg-sb-score {
+    font-size: 34px;
+  }
+  .lg-shell[data-layout="duo"] .lg-sb-clock {
+    font-size: 17px;
+  }
+  .lg-shell[data-layout="duo"] .lg-sb-row.is-to-move .lg-sb-clock {
+    font-size: 22px;
+  }
+}
+/* Very short phones: the same two rows, in small type. */
+.lg-shell[data-layout="stack"] .lg-scoreboard.is-tight {
+  gap: 2px;
+  padding: 3px;
+}
+.lg-shell[data-layout="stack"] .lg-scoreboard.is-tight .lg-sb-row {
+  min-height: 18px;
+  column-gap: 6px;
+  padding-right: 6px;
+}
+.lg-shell[data-layout="stack"] .lg-scoreboard.is-tight .lg-sb-name strong {
+  font-size: 12px;
+}
+.lg-shell[data-layout="stack"] .lg-scoreboard.is-tight .lg-sb-name em {
   display: none;
 }
-.lg-card.is-compact .lg-card-name strong {
-  font-size: 14px;
+.lg-shell[data-layout="stack"] .lg-scoreboard.is-tight .lg-sb-diff {
+  min-width: 28px;
+  padding: 0 5px;
+  font-size: 10px;
 }
-.lg-card.is-compact .lg-card-name small {
-  font-size: 11px;
-}
-.lg-card.is-compact .lg-card-score {
-  font-size: 20px;
-}
-.lg-card.is-compact .lg-card-clock,
-.lg-card.is-compact.is-to-move .lg-card-clock {
+.lg-shell[data-layout="stack"] .lg-scoreboard.is-tight .lg-sb-score {
   font-size: 15px;
 }
-.lg-card.is-compact.is-to-move .lg-card-clock {
+.lg-shell[data-layout="stack"] .lg-scoreboard.is-tight .lg-sb-clock,
+.lg-shell[data-layout="stack"] .lg-scoreboard.is-tight .lg-sb-row.is-to-move .lg-sb-clock {
+  min-width: 44px;
+  gap: 4px;
+  font-size: 12px;
+}
+.lg-shell[data-density="tight"] .lg-hud-buttons .lg-icon-btn {
+  min-width: 34px;
+  padding: 0 6px;
+}
+/* One row, both players side by side (phone landscape). */
+.lg-scoreboard.is-compact {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 3px;
+  padding: 3px;
+}
+.lg-scoreboard.is-compact.is-solo {
+  grid-template-columns: minmax(0, 1fr);
+}
+.lg-scoreboard.is-compact .lg-sb-row {
+  grid-template-columns: 4px minmax(0, 1fr) auto auto;
+  column-gap: 5px;
+  min-height: 30px;
+  padding-right: 6px;
+}
+.lg-scoreboard.is-compact .lg-sb-diff {
+  display: none;
+}
+.lg-scoreboard.is-compact .lg-sb-name em {
+  display: none;
+}
+.lg-scoreboard.is-compact .lg-sb-name strong {
+  font-size: 12px;
+}
+.lg-scoreboard.is-compact .lg-sb-score {
   font-size: 17px;
+}
+.lg-scoreboard.is-compact .lg-sb-clock,
+.lg-scoreboard.is-compact .lg-sb-row.is-to-move .lg-sb-clock {
+  min-width: 0;
+  gap: 4px;
+  font-size: 13px;
 }
 
 /* ── Turn actions ─────────────────────────────────────────────────────── */
@@ -1053,8 +1324,14 @@ button.lg-last {
   align-items: center;
   gap: 4px;
 }
-.lg-bag-grid li.is-out {
-  opacity: 0.38;
+/* Sold out: a pale tile with dark ink (still legible), never just faded. */
+.lg-bag-grid li.is-out .lg-tile {
+  background: #d9dee6;
+  color: #3b4252;
+  box-shadow: none;
+}
+.lg-bag-grid li.is-out .lg-bag-count {
+  color: #5b6474;
 }
 .lg-bag-count {
   font-variant-numeric: tabular-nums;
@@ -1335,10 +1612,6 @@ button.lg-last {
   width: 100%;
   max-width: 480px;
 }
-.lg-duel {
-  display: grid;
-  gap: 6px;
-}
 .lg-rack-row.is-gutter {
   justify-content: flex-start;
 }
@@ -1347,51 +1620,102 @@ button.lg-last {
 }
 
 /* ── Layout: stack (phones, tablet portrait) ──────────────────────────── */
+/* Top to bottom: HUD · board · Last Move · Unseen · rack · actions. Every row
+   shares the board's width, so edges line up; gaps are small but real. */
 .lg-shell[data-layout="stack"] {
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: max(4px, env(safe-area-inset-top)) 4px max(4px, env(safe-area-inset-bottom));
+  gap: 6px;
+  padding: max(6px, env(safe-area-inset-top)) 8px max(6px, env(safe-area-inset-bottom));
 }
 .lg-shell[data-layout="stack"] > * {
-  width: min(100%, max(var(--lg-board), 720px));
-}
-.lg-shell[data-layout="stack"] > .lg-board-wrap {
-  width: var(--lg-board);
-}
-.lg-strip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
   flex: none;
+  width: var(--lg-board);
+  max-width: 100%;
 }
-.lg-strip > .lg-card,
-.lg-strip > .lg-title {
+.lg-hud {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+.lg-hud > .lg-scoreboard {
   flex: 1;
   min-width: 0;
 }
-.lg-strip-top {
-  min-height: 44px;
+.lg-hud-buttons {
+  display: flex;
+  gap: 6px;
 }
-.lg-strip-self {
+.lg-hud-buttons .lg-icon-btn {
+  min-width: 40px;
+  height: auto;
   min-height: 40px;
+  padding: 0 8px;
 }
-.lg-strip-self > .lg-card {
-  flex: 0 1 44%;
+.lg-hud-event {
+  position: absolute;
+  z-index: 6;
+  inset: 0;
 }
-.lg-strip-event {
+.lg-hud-event:empty {
+  display: none;
+}
+.lg-hud-event > * {
+  height: 100%;
+}
+.lg-shell[data-layout="stack"] .lg-match-label {
+  display: none;
+}
+.lg-shell[data-layout="stack"] .lg-sb-row {
+  min-height: 23px;
+  column-gap: 8px;
+  padding-right: 8px;
+}
+.lg-shell[data-layout="stack"] .lg-sb-name strong {
+  font-size: 13px;
+}
+.lg-shell[data-layout="stack"] .lg-sb-name em {
+  font-size: 10px;
+}
+.lg-shell[data-layout="stack"] .lg-sb-diff {
+  min-width: 34px;
+  padding: 1px 6px;
+  font-size: 11px;
+}
+.lg-shell[data-layout="stack"] .lg-sb-score {
+  font-size: 18px;
+}
+.lg-shell[data-layout="stack"] .lg-sb-clock {
+  min-width: 52px;
+  gap: 5px;
+  font-size: 13px;
+}
+.lg-shell[data-layout="stack"] .lg-sb-row.is-to-move .lg-sb-clock {
+  font-size: 14px;
+}
+.lg-info-row {
+  display: flex;
+  min-height: 30px;
+}
+.lg-info-row > *,
+.lg-info-cell {
   flex: 1;
   min-width: 0;
 }
-/* An incoming pause request needs the whole strip on a phone; the requester's
-   card already says "Asked to pause" and the board keeps its place. */
-@media (max-width: 599px) {
-  .lg-strip-self:has(.lg-event.is-request) > .lg-card {
-    display: none;
-  }
+.lg-info-row.is-wide {
+  gap: 8px;
+}
+.lg-info-row .lg-event,
+.lg-info-row .lg-last,
+.lg-info-row .lg-unseen {
+  min-height: 30px;
+  height: 100%;
+  padding-top: 2px;
+  padding-bottom: 2px;
 }
 .lg-event.is-request .lg-event-text {
   display: -webkit-box;
@@ -1401,44 +1725,15 @@ button.lg-last {
   line-height: 1.2;
   white-space: normal;
 }
-.lg-strip-event .lg-event,
-.lg-strip-event .lg-last {
-  min-height: 40px;
-  padding-top: 3px;
-  padding-bottom: 3px;
-}
-.lg-strip-event.is-compact {
-  position: absolute;
-  z-index: 6;
-  top: max(4px, env(safe-area-inset-top));
-  left: 4px;
-  right: 4px;
-  width: auto;
-}
-.lg-strip-event.is-compact:empty {
-  display: none;
-}
-.lg-shell[data-layout="stack"] .lg-match-label {
-  display: none;
-}
-.lg-shell[data-layout="stack"] .lg-icon-btn {
-  min-width: 40px;
-  min-height: 40px;
-  padding: 0 8px;
-}
 .lg-actionbar {
   display: flex;
   align-items: stretch;
   gap: 6px;
-  flex: none;
 }
 .lg-actionbar > .lg-actions,
 .lg-actionbar > .lg-result {
   flex: 1;
   min-width: 0;
-}
-.lg-actionbar > .lg-card {
-  flex: 0 0 auto;
 }
 .lg-more-btn {
   flex-direction: column;
@@ -1446,8 +1741,12 @@ button.lg-last {
   min-width: 52px !important;
   font-size: 11px;
 }
+.lg-more-btn.is-unseen strong {
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+}
 .lg-shell[data-layout="stack"] .lg-actions .lg-btn {
-  min-height: 48px;
+  min-height: 46px;
   padding: 0 10px;
 }
 .lg-shell[data-layout="stack"] .lg-actions-hint {
@@ -1462,26 +1761,170 @@ button.lg-last {
 }
 .lg-shell[data-layout="stack"] .lg-rack {
   gap: 4px;
-  padding: 4px 5px;
+  padding: 5px;
 }
-@media (min-width: 600px) {
-  .lg-shell[data-layout="stack"] .lg-rack {
-    gap: 6px;
-  }
+.lg-shell[data-layout="stack"] .lg-rack-row {
+  width: auto;
 }
-@media (max-width: 420px) {
-  .lg-strip .lg-last-label {
-    display: none;
-  }
+.lg-shell[data-layout="stack"] .lg-last-label {
+  display: none;
 }
 @media (min-width: 600px) {
   .lg-shell[data-layout="stack"] {
     gap: 8px;
-    padding: 12px 16px;
+    padding: 12px 20px;
   }
-  .lg-strip-top {
-    min-height: 56px;
+  .lg-shell[data-layout="stack"] .lg-rack {
+    gap: 6px;
   }
+  .lg-shell[data-layout="stack"] .lg-sb-row {
+    min-height: 28px;
+  }
+  .lg-shell[data-layout="stack"] .lg-sb-name strong {
+    font-size: 15px;
+  }
+  .lg-shell[data-layout="stack"] .lg-sb-score {
+    font-size: 22px;
+  }
+  .lg-shell[data-layout="stack"] .lg-sb-clock {
+    font-size: 15px;
+  }
+  .lg-info-row,
+  .lg-info-row .lg-event,
+  .lg-info-row .lg-last,
+  .lg-info-row .lg-unseen {
+    min-height: 40px;
+  }
+  .lg-shell[data-layout="stack"] .lg-last-label {
+    display: inline;
+  }
+}
+
+/* ── Unseen strip ─────────────────────────────────────────────────────── */
+.lg-unseen {
+  container-type: inline-size;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 32px;
+  padding: 3px 10px;
+  border: 1px solid var(--lg-line);
+  border-radius: 10px;
+  background: var(--lg-surface);
+  color: var(--lg-text);
+  font: inherit;
+  text-align: left;
+}
+button.lg-unseen {
+  cursor: pointer;
+}
+.lg-unseen-total {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 5px;
+}
+.lg-unseen-labels {
+  display: grid;
+  line-height: 1.05;
+}
+.lg-unseen-total strong {
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+}
+.lg-unseen-total small,
+.lg-unseen-bag {
+  color: var(--lg-muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+.lg-unseen-chips {
+  display: flex;
+  flex: 1;
+  gap: 5px;
+  min-width: 0;
+  overflow: hidden;
+}
+.lg-chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: #eef1f6;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.lg-chip-label {
+  display: inline-flex;
+  align-items: center;
+  color: var(--lg-muted);
+  font-weight: 650;
+}
+.lg-chip b {
+  font-variant-numeric: tabular-nums;
+}
+.lg-chip.is-out {
+  opacity: 0.45;
+}
+.lg-chip .lg-glyph.lg-op {
+  width: 11px;
+  height: 11px;
+  stroke-width: 3.6;
+}
+.lg-chip-ops {
+  display: inline-flex;
+  gap: 1px;
+}
+.lg-chip-blank {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+}
+/* Narrow strip (phones, short-desktop gutters): tighter chips, never clipped. */
+@container (max-width: 400px) {
+  .lg-unseen-chips {
+    gap: 3px;
+  }
+  .lg-chip {
+    gap: 3px;
+    padding: 1px 4px;
+    font-size: 11px;
+  }
+}
+@media (max-width: 420px) {
+  .lg-unseen {
+    gap: 6px;
+    padding: 3px 6px;
+  }
+  .lg-chip {
+    gap: 3px;
+    padding: 1px 4px;
+    font-size: 11px;
+  }
+  .lg-unseen-chips {
+    gap: 4px;
+  }
+}
+
+/* Equations drawn with tile glyphs (Last Move, Turn Log). */
+.lg-expr-glyphs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.06em;
+}
+.lg-expr .lg-glyph.lg-op {
+  width: 0.72em;
+  height: 0.72em;
+  stroke-width: 3.2;
+}
+.lg-expr .lg-glyph.lg-num {
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Layout: phone on its side ────────────────────────────────────────── */
@@ -1664,7 +2107,7 @@ button.lg-last {
     animation: none !important;
     transition: none !important;
   }
-  .lg-card.is-running .lg-run-dot {
+  .lg-sb-row.is-running .lg-run-dot {
     animation: none;
   }
 }

@@ -192,7 +192,10 @@ function build(state: string): Fixture {
       minutesAgo(at),
     ).game;
   };
-  if (state === "thinking") {
+  if (state === "alternatives") {
+    // A rack with every kind of alternative tile: +/−, ×/÷ and a blank.
+    give(game, "A", ["+/-", "x//", "?", "7", "5", "2", "=", "14"]);
+  } else if (state === "thinking") {
     game = applyRankedAction(game, "A", { kind: "pass" }, minutesAgo(0.5), "normal");
     game.currentTurnStartedAt = minutesAgo(0.4);
   } else if (state === "pause-request") {

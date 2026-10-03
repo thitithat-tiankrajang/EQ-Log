@@ -63,7 +63,11 @@ export function TurnActions({
     : "";
   const placed = draft.placements.length;
   const reason =
-    placed && draft.validation && !draft.validation.isValid ? draft.validation.errors[0] : null;
+    placed && draft.validation && !draft.validation.isValid
+      ? draft.unchosen
+        ? t("live.picker.needed")
+        : draft.validation.errors[0]
+      : null;
   return (
     <div
       className="lg-actions"

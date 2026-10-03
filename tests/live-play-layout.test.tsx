@@ -81,8 +81,10 @@ it("separates the host's controls: Physical console and Record tabs beside the b
   const { container } = renderHost();
   const info = await screen.findByRole("complementary", { name: "Game information" });
   // Mode-specific console, record tools and game tools are separate tabs, not one grab-bag.
-  for (const name of ["Record", /Bag/, "Tools", "Physical"])
+  for (const name of ["Record", "Tools", "Physical"])
     expect(within(info).getByRole("tab", { name })).toBeInTheDocument();
+  // The unseen distribution is always visible beside the board, not behind a tab.
+  expect(within(info).getByRole("region", { name: "Tile bag" })).toBeVisible();
   fireEvent.click(within(info).getByRole("tab", { name: "Physical" }));
   expect(within(info).getByRole("region", { name: "Physical game controls" })).toBeVisible();
   // Nothing sits between the gutters and the board; the board is the centre column.

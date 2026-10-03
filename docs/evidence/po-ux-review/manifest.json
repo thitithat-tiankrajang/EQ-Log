@@ -1,0 +1,198 @@
+[
+  {
+    "id": "01-phone-active",
+    "label": "390×844 · ACTIVE (your turn)",
+    "viewport": "390x844",
+    "layout": "stack",
+    "density": "full",
+    "state": "active",
+    "turn": "active",
+    "board": 372
+  },
+  {
+    "id": "02-phone-thinking",
+    "label": "390×844 · THINKING (opponent's turn)",
+    "viewport": "390x844",
+    "layout": "stack",
+    "density": "full",
+    "state": "thinking",
+    "turn": "thinking",
+    "board": 372
+  },
+  {
+    "id": "03-phone-operator-chooser",
+    "label": "390×844 · +/− placed → direct sign chooser",
+    "viewport": "390x844",
+    "layout": "stack",
+    "density": "full",
+    "state": "alternatives",
+    "turn": "active",
+    "board": 372
+  },
+  {
+    "id": "04-phone-blank-chooser",
+    "label": "390×844 · blank placed → direct value chooser (0–20, operators)",
+    "viewport": "390x844",
+    "layout": "stack",
+    "density": "full",
+    "state": "alternatives",
+    "turn": "active",
+    "board": 372
+  },
+  {
+    "id": "05-phone-exchange-selection",
+    "label": "390×844 · Exchange: 3 tiles selected by drag-across (stationary)",
+    "viewport": "390x844",
+    "layout": "stack",
+    "density": "full",
+    "state": "active",
+    "turn": "active",
+    "board": 372
+  },
+  {
+    "id": "06-phone-tentative",
+    "label": "390×844 · tentative 7=5+2 (the + is a chosen +/− tile), Commit +12",
+    "viewport": "390x844",
+    "layout": "stack",
+    "density": "full",
+    "state": "alternatives",
+    "turn": "active",
+    "board": 372
+  },
+  {
+    "id": "09-phone-320",
+    "label": "320×568 · normal gameplay",
+    "viewport": "320x568",
+    "layout": "stack",
+    "density": "full",
+    "state": "active",
+    "turn": "active",
+    "board": 297
+  },
+  {
+    "id": "09b-phone-320-short",
+    "label": "320×460 · very short phone (tight HUD, Unseen total in the action bar)",
+    "viewport": "320x460",
+    "layout": "stack",
+    "density": "tight",
+    "state": "active",
+    "turn": "active",
+    "board": 282
+  },
+  {
+    "id": "10-tablet",
+    "label": "Tablet 768×1024 · ACTIVE",
+    "viewport": "768x1024",
+    "layout": "stack",
+    "density": "full",
+    "state": "active",
+    "turn": "active",
+    "board": 725
+  },
+  {
+    "id": "11-laptop-13",
+    "label": "13-inch laptop 1440×790 · ACTIVE",
+    "viewport": "1440x790",
+    "layout": "duo",
+    "density": "full",
+    "state": "active",
+    "turn": "active",
+    "board": 680
+  },
+  {
+    "id": "12-desktop-1080p",
+    "label": "1080p desktop 1920×960 · THINKING",
+    "viewport": "1920x960",
+    "layout": "duo",
+    "density": "full",
+    "state": "thinking",
+    "turn": "thinking",
+    "board": 845
+  },
+  {
+    "id": "13-short-1280x560",
+    "label": "Short desktop 1280×560 · ACTIVE",
+    "viewport": "1280x560",
+    "layout": "duo",
+    "density": "full",
+    "state": "active",
+    "turn": "active",
+    "board": 526
+  },
+  {
+    "id": "13b-desktop-chooser",
+    "label": "Desktop 1440×790 · ×/÷ chooser anchored to the tile",
+    "viewport": "1440x790",
+    "layout": "duo",
+    "density": "full",
+    "state": "alternatives",
+    "turn": "active",
+    "board": 680
+  },
+  {
+    "id": "07-hud-score-lead-clocks",
+    "label": "HUD: both players, lead +15/−15, clocks, turn tint",
+    "viewport": "390x844 @3x",
+    "closeup": true
+  },
+  {
+    "id": "08-unseen-strip",
+    "label": "Unseen strip: total, bag, groups (always visible)",
+    "viewport": "390x844 @3x",
+    "closeup": true
+  },
+  {
+    "id": "14-number-tile",
+    "label": "Number tile (committed H8 = 4)",
+    "viewport": "390x844 @3x",
+    "closeup": true
+  },
+  {
+    "id": "15-plus-minus-open",
+    "label": "+/− tile, sign not chosen (rack)",
+    "viewport": "390x844 @3x",
+    "closeup": true
+  },
+  {
+    "id": "16-times-divide-open",
+    "label": "×/÷ tile, sign not chosen (rack)",
+    "viewport": "390x844 @3x",
+    "closeup": true
+  },
+  {
+    "id": "19-last-move-tile",
+    "label": "Last-move tile (F4 = 1): corner dot, glyph untouched",
+    "viewport": "390x844 @3x",
+    "closeup": true
+  },
+  {
+    "id": "14b-operator-tiles",
+    "label": "Drawn operators on the board: +, ×, =, −",
+    "viewport": "390x844 @3x",
+    "closeup": true
+  },
+  {
+    "id": "17-selected-alternative",
+    "label": "Chosen alternative: + from a +/− tile (blue), − mark",
+    "viewport": "390x844 @3x",
+    "closeup": true
+  },
+  {
+    "id": "18-tentative-tile",
+    "label": "Tentative tile (G9 = 5): thin amber edge, slight lift",
+    "viewport": "390x844 @3x",
+    "closeup": true
+  },
+  {
+    "id": "18b-tentative-column",
+    "label": "Tentative play 7=5+2 with Commit score badge",
+    "viewport": "390x844 @3x",
+    "closeup": true
+  },
+  {
+    "id": "20-exchange-selected-rack",
+    "label": "Exchange-selected rack tiles: stationary, overlay + check",
+    "viewport": "390x844 @3x",
+    "closeup": true
+  }
+]

@@ -32,8 +32,13 @@ export type LiveLayout = {
   rackTile: number;
   /** Width of the side gutter(s) in px (0 in stack). */
   gutter: number;
-  /** Stack only: the self strip folds into the action row to give the board height. */
+  /** Stack only: a height-bound phone drops the Last Move row (still in Record). */
   compact: boolean;
+  /**
+   * Stack only. full: HUD, Last Move, Unseen rows. compact: no Last Move row.
+   * tight (very short phones): one-row HUD and the Unseen total in the action bar.
+   */
+  density: "full" | "compact" | "tight";
 };
 
 export type LayoutInput = { width: number; height: number };
@@ -52,10 +57,19 @@ const RACK_CHROME = 12;
 /** A rack row under the board is kept unless it would push cells below this. */
 const SHORT_CELL = 36;
 
-const LABEL_RATIO = 0.55;
+/**
+ * Coordinates (A–O, 1–15) sit in a thin band subordinate to the tiles: about
+ * 0.4 of a cell, never more than 18 px, and a fixed 10 px on phones.
+ */
+const LABEL_RATIO = 0.4;
+const PHONE_LABEL = 10;
 
-function frame(cell: number, labels: boolean) {
-  const label = labels ? Math.round(cell * LABEL_RATIO) : 0;
+function labelFor(cell: number, phone = false) {
+  return phone ? PHONE_LABEL : Math.max(10, Math.min(18, Math.round(cell * LABEL_RATIO)));
+}
+
+function frame(cell: number, labels: boolean, phone = false) {
+  const label = labels ? labelFor(cell, phone) : 0;
   return { label, board: cell * 15 + label + BORDER };
 }
 
@@ -93,6 +107,7 @@ function desktopCandidates({ width, height }: LayoutInput): Candidate[] {
       rackTile,
       gutter,
       compact: false,
+      density: "full",
       score: board,
       rank,
     });
@@ -116,6 +131,7 @@ function desktopCandidates({ width, height }: LayoutInput): Candidate[] {
         rackTile: tile,
         gutter: movedGutter,
         compact: false,
+        density: "full",
         score: moved.board,
         rank: rank + 0.5,
       });
@@ -123,28 +139,71 @@ function desktopCandidates({ width, height }: LayoutInput): Candidate[] {
   return out;
 }
 
+/**
+ * Portrait stack (phones, tablet portrait), top to bottom:
+ *   HUD (both players) · board · Last Move · Unseen · rack · actions
+ * with real margins and gaps. The board is the largest square that leaves
+ * that rhythm intact — a few px smaller than edge-to-edge, by design: a board
+ * jammed against everything around it reads as cramped, not big.
+ */
+export const STACK = {
+  phone: {
+    margin: 8,
+    gap: 6,
+    hud: 54,
+    hudTight: 44,
+    last: 32,
+    unseen: 30,
+    actions: 48,
+    pad: 6,
+    tileGap: 4,
+  },
+  // Tablets put Last Move and Unseen side by side in one info row (last: 0).
+  tablet: {
+    margin: 20,
+    gap: 8,
+    hud: 56,
+    hudTight: 56,
+    last: 0,
+    unseen: 40,
+    actions: 52,
+    pad: 12,
+    tileGap: 6,
+  },
+} as const;
+
 function stackCandidate({ width, height }: LayoutInput): Candidate {
   const phone = width < 600;
-  const margin = phone ? 4 : 16;
-  const labels = !phone;
-  const tileGap = phone ? 4 : 6;
+  const m = phone ? STACK.phone : STACK.tablet;
   const rackTile = Math.max(
     30,
-    Math.min(phone ? 52 : 64, Math.floor((width - 2 * margin - 7 * tileGap - RACK_CHROME) / 8)),
+    Math.min(phone ? 46 : 56, Math.floor((width - 2 * m.margin - 7 * m.tileGap - RACK_CHROME) / 8)),
   );
-  const opp = phone ? 44 : 56;
-  const self = phone ? 40 : 48;
-  const actions = phone ? 52 : 56;
-  const rackRow = rackTile + 10;
-  const gaps = phone ? 12 : 24;
-  const perCell = 15 + (labels ? LABEL_RATIO : 0);
-  const widthCell = clampCell((width - 2 * margin - BORDER) / perCell);
-  const fullCell = clampCell((height - (opp + self + rackRow + actions + gaps) - BORDER) / perCell);
-  // Height-bound: fold the self strip into the action row instead of shrinking the board.
-  const compactCell = clampCell((height - (opp + rackRow + actions + gaps) - BORDER) / perCell);
-  const compact = fullCell < widthCell && phone;
-  const cell = Math.min(widthCell, compact ? compactCell : fullCell);
-  const { label, board } = frame(cell, labels);
+  const rackRow = rackTile + RACK_CHROME;
+  const label = labelFor(Math.floor(width / 16), phone);
+  // Rows around the board and the gaps between them, per density.
+  const rows = {
+    full: [m.hud, m.last, m.unseen, rackRow, m.actions],
+    compact: [m.hud, m.unseen, rackRow, m.actions],
+    tight: [m.hudTight, rackRow, m.actions],
+  } as const;
+  const cellFor = (density: keyof typeof rows) => {
+    const list = rows[density].filter((value) => value > 0);
+    const around = list.reduce((sum, value) => sum + value, 0) + list.length * m.gap + 2 * m.pad;
+    return clampCell((height - around - label - BORDER) / 15);
+  };
+  const widthCell = clampCell((width - 2 * m.margin - label - BORDER) / 15);
+  // The fullest rhythm whose board is within a cell of the width-bound board.
+  const density: "full" | "compact" | "tight" = !phone
+    ? "full"
+    : cellFor("full") >= widthCell - 1
+      ? "full"
+      : cellFor("compact") >= widthCell - 1
+        ? "compact"
+        : "tight";
+  const cell = Math.min(widthCell, cellFor(density));
+  const compact = density !== "full";
+  const board = cell * 15 + label + BORDER;
   return {
     mode: "stack",
     rack: "below",
@@ -154,6 +213,7 @@ function stackCandidate({ width, height }: LayoutInput): Candidate {
     rackTile,
     gutter: 0,
     compact,
+    density,
     score: board,
     rank: 2,
   };
@@ -175,6 +235,7 @@ function landscapePhoneCandidate({ width, height }: LayoutInput): Candidate | nu
     rackTile,
     gutter,
     compact: false,
+    density: "full",
     score: board,
     rank: 3,
   };
@@ -205,5 +266,6 @@ export function computeLiveLayout(input: LayoutInput): LiveLayout {
     rackTile: usable.rackTile,
     gutter: usable.gutter,
     compact: usable.compact,
+    density: usable.density,
   };
 }

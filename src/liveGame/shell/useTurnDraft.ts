@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { RACK_SIZE } from "../../constants/gameRules";
 import {
-  getAssignmentOptions,
+  tileNeedsAssignment,
   validateMove,
   type BoardSnapshot,
   type PendingPlacement,
@@ -87,6 +87,8 @@ export function useTurnDraft({
   const [exchangeIds, setExchangeIds] = useState<string[]>([]);
   const [mode, setMode] = useState<DraftMode>("none");
   const [keyNotice, setKeyNotice] = useState<KeyNotice | null>(null);
+  /** The tentative tile whose alternative value is being chosen (FacePicker). */
+  const [pickerId, setPickerId] = useState<string | null>(null);
   const blankArmed = useRef(false);
 
   const reset = useCallback(() => {
@@ -96,6 +98,7 @@ export function useTurnDraft({
     setExchangeIds([]);
     setMode("none");
     setKeyNotice(null);
+    setPickerId(null);
     blankArmed.current = false;
   }, []);
 
@@ -139,18 +142,22 @@ export function useTurnDraft({
         livePlacements.some((p) => p.tile.id === tile.id || (p.row === at.row && p.col === at.col))
       )
         return;
-      const options = getAssignmentOptions(tile.token);
+      // No silent default value: a tile with alternatives that was placed by
+      // hand opens the picker; a typed face (keyboard) is already the choice.
       const placement: PendingPlacement = {
         tile,
         row: at.row,
         col: at.col,
-        ...(assignedToken || options.length ? { assignedToken: assignedToken ?? options[0] } : {}),
+        ...(assignedToken ? { assignedToken } : {}),
         cursorDir: at.dir,
       };
       const next = [...livePlacements, placement];
       setPlacements(next);
       setSelectedTileId(null);
+      // Opening the picker does not select the tile: dismissing the picker by
+      // tapping elsewhere must never move it.
       setSelectedPendingId(null);
+      setPickerId(!assignedToken && tileNeedsAssignment(tile.token) ? tile.id : null);
       setCursor(advance(at, board, next) ?? at);
     },
     [board, canPlay, mode, livePlacements],
@@ -168,12 +175,27 @@ export function useTurnDraft({
   const slotOf = (id: string) => order.indexOf(id);
 
   const recallTile = useCallback((id: string) => {
+    setPickerId((current) => (current === id ? null : current));
     setPlacements((items) => items.filter((item) => item.tile.id !== id));
     setSelectedPendingId(null);
   }, []);
 
   function onCellClick(row: number, col: number) {
     if (!board) return;
+    if (pickerId) {
+      // Light dismiss: with the value picker open, a tap elsewhere only closes
+      // it — unless it is on another tentative alternative tile, which switches.
+      const other = livePlacements.find(
+        (item) =>
+          item.row === row &&
+          item.col === col &&
+          item.tile.id !== pickerId &&
+          tileNeedsAssignment(item.tile.token),
+      );
+      setSelectedPendingId(null);
+      setPickerId(other && canPlay ? other.tile.id : null);
+      return;
+    }
     if (!canPlay || mode !== "none") {
       // THINKING and modes: the board is for looking. The cursor marks the square.
       setCursor((current) => ({ row, col, dir: current?.dir ?? "right" }));
@@ -199,16 +221,15 @@ export function useTurnDraft({
       if (replacement) {
         setPlacements((items) =>
           items.map((item) =>
-            item === pending
-              ? {
-                  ...item,
-                  tile: replacement,
-                  assignedToken: getAssignmentOptions(replacement.token)[0],
-                }
-              : item,
+            item === pending ? { ...item, tile: replacement, assignedToken: undefined } : item,
           ),
         );
         setSelectedTileId(null);
+        if (tileNeedsAssignment(replacement.token)) setPickerId(replacement.id);
+      } else if (tileNeedsAssignment(pending.tile.token)) {
+        // One tap on an alternative tile opens its value picker. (Drag moves it.)
+        setSelectedPendingId(null);
+        setPickerId(pending.tile.id);
       } else setSelectedPendingId((id) => (id === pending.tile.id ? null : pending.tile.id));
       return;
     }
@@ -236,6 +257,10 @@ export function useTurnDraft({
 
   function onTileClick(tile: TileInstance) {
     if (mode === "pass") return;
+    if (pickerId) {
+      setPickerId(null);
+      return;
+    }
     if (mode === "exchange") {
       if (!canPlay) return;
       setExchangeIds((ids) =>
@@ -262,6 +287,7 @@ export function useTurnDraft({
   }
 
   function onSlotClick(index: number) {
+    setPickerId(null);
     const slot = slots[index];
     if (slot?.exposed) {
       recallTile(slot.exposed.id);
@@ -290,6 +316,7 @@ export function useTurnDraft({
       return;
     }
     if (!board || !canPlay || mode !== "none" || board[target.row]?.[target.col]) return;
+    setPickerId(null);
     const moving = livePlacements.find((p) => p.tile.id === id);
     const occupant = livePlacements.find((p) => p.row === target.row && p.col === target.col);
     if (moving)
@@ -302,26 +329,46 @@ export function useTurnDraft({
               : p,
         ),
       );
-    else if (occupant)
+    else if (occupant) {
       setPlacements((items) =>
-        items.map((p) =>
-          p === occupant ? { ...p, tile, assignedToken: getAssignmentOptions(tile.token)[0] } : p,
-        ),
+        items.map((p) => (p === occupant ? { ...p, tile, assignedToken: undefined } : p)),
       );
-    else placeTileAt(tile, { ...target, dir: cursor?.dir ?? "right" });
+      if (tileNeedsAssignment(tile.token)) setPickerId(tile.id);
+    } else placeTileAt(tile, { ...target, dir: cursor?.dir ?? "right" });
   }
 
-  const editFace = useCallback((tileId: string) => {
+  /** Open the direct value picker for a tentative alternative tile (E, or a tap). */
+  const editFace = useCallback(
+    (tileId: string) => {
+      const target = livePlacements.find((item) => item.tile.id === tileId);
+      if (!target || !tileNeedsAssignment(target.tile.token)) return;
+      setPickerId(tileId);
+    },
+    [livePlacements],
+  );
+  /** One choice sets the value: no cycling through options. */
+  const chooseFace = useCallback((tileId: string, face: string) => {
     setPlacements((items) =>
-      items.map((item) => {
-        if (item.tile.id !== tileId) return item;
-        const options = getAssignmentOptions(item.tile.token);
-        if (options.length < 2) return item;
-        const next = options[(options.indexOf(item.assignedToken ?? "") + 1) % options.length];
-        return { ...item, assignedToken: next, tile: { ...item.tile, assignedToken: next } };
-      }),
+      items.map((item) =>
+        item.tile.id === tileId
+          ? { ...item, assignedToken: face, tile: { ...item.tile, assignedToken: face } }
+          : item,
+      ),
     );
+    setPickerId(null);
+    setSelectedPendingId(null);
   }, []);
+  const closePicker = useCallback(() => setPickerId(null), []);
+  /** Exchange selection by tap or by dragging across the rack. */
+  const markExchange = useCallback(
+    (ids: string[], value: boolean) => {
+      if (!canPlay) return;
+      setExchangeIds((current) =>
+        value ? [...new Set([...current, ...ids])] : current.filter((id) => !ids.includes(id)),
+      );
+    },
+    [canPlay],
+  );
 
   const placeAction = (): RankedAction => ({
     kind: "place",
@@ -344,6 +391,7 @@ export function useTurnDraft({
     if (canPlay && mode === "pass") onSubmit({ kind: "pass" });
   }
   function recallAll() {
+    setPickerId(null);
     setPlacements([]);
     setSelectedPendingId(null);
     setKeyNotice(null);
@@ -368,6 +416,8 @@ export function useTurnDraft({
   keyRef.current = (event: KeyboardEvent) => {
     if (!board || inEditable(event.target) || event.metaKey || event.ctrlKey || event.altKey)
       return;
+    // The value picker handles its own keys (arrows, Enter, Escape).
+    if ((event.target as HTMLElement | null)?.closest?.("[data-face-picker]")) return;
     const consumed = () => {
       event.preventDefault();
       // Keep focus inside the board grid so screen readers follow the cursor.
@@ -396,9 +446,14 @@ export function useTurnDraft({
       setCursor({ row: last.row, col: last.col, dir: last.cursorDir ?? cursor?.dir ?? "right" });
       return;
     }
-    if ((event.key === "e" || event.key === "E") && selectedPendingId) {
+    // E (or Enter on an alternative tile under the cursor) opens its value picker.
+    const atCursor = livePlacements.find(
+      (item) => item.row === cursor?.row && item.col === cursor?.col,
+    );
+    const faceTarget = selectedPendingId ?? atCursor?.tile.id ?? null;
+    if ((event.key === "e" || event.key === "E") && faceTarget) {
       consumed();
-      editFace(selectedPendingId);
+      editFace(faceTarget);
       return;
     }
     if (!action) return;
@@ -418,6 +473,7 @@ export function useTurnDraft({
     if (action.kind === "cancel") {
       consumed();
       if (blankArmed.current) blankArmed.current = false;
+      else if (pickerId) setPickerId(null);
       else if (mode !== "none") cancelMode();
       else if (livePlacements.length) recallAll();
       else setCursor(null);
@@ -487,6 +543,17 @@ export function useTurnDraft({
     onSlotClick,
     onDrop,
     editFace,
+    pickerId,
+    /** A placed alternative tile still has no chosen value. */
+    unchosen: livePlacements.some(
+      (item) => tileNeedsAssignment(item.tile.token) && !item.assignedToken,
+    ),
+    pickerTile: pickerId
+      ? (livePlacements.find((item) => item.tile.id === pickerId) ?? null)
+      : null,
+    chooseFace,
+    closePicker,
+    markExchange,
     swapSlots,
     recallAll,
     commit,

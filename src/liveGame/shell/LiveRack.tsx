@@ -1,8 +1,13 @@
-import { useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import {
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { RACK_SIZE } from "../../constants/gameRules";
-import { displayToken, tilePoint, type TileInstance } from "../../game";
+import { tilePoint, type TileInstance } from "../../game";
 import { useLocale } from "../../i18n/LocaleProvider";
-import { LiveTile } from "./LiveBoard";
+import { LiveTile, spokenTile } from "./LiveBoard";
 import type { DraftMode, RackSlot } from "./useTurnDraft";
 
 /**
@@ -10,6 +15,11 @@ import type { DraftMode, RackSlot } from "./useTurnDraft";
  * Reordering works in every seated state — ACTIVE, THINKING, paused — by drag,
  * by selecting two tiles, or with Alt+← / Alt+→ on a focused tile. Only placing
  * a tile on the board, Exchange and Pass need the turn.
+ *
+ * Selection never moves a tile: a selected or exchange-marked tile stays in its
+ * slot with a quiet overlay, so a player scanning or reordering fast never sees
+ * the rack jump. During Exchange selection, a press that drags across the rack
+ * marks (or unmarks) every tile it crosses — the first tile decides which.
  */
 export function LiveRack({
   slots,
@@ -22,6 +32,7 @@ export function LiveRack({
   onTileClick,
   onSlotClick,
   onMove,
+  onPaint,
 }: {
   slots: RackSlot[];
   /** ACTIVE: tiles may go to the board. */
@@ -35,10 +46,38 @@ export function LiveRack({
   onTileClick(tile: TileInstance): void;
   onSlotClick(index: number): void;
   onMove(from: number, to: number): void;
+  /** Exchange selection: mark or unmark these tiles. */
+  onPaint?: (ids: string[], value: boolean) => void;
 }) {
   const { t } = useLocale();
   const [focus, setFocus] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
+  const paint = useRef<{ pointer: number; value: boolean; seen: Set<string> } | null>(null);
+  const exchanging = mode === "exchange" && Boolean(onPaint);
+  const tileAt = (x: number, y: number) =>
+    document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-tile-id]")?.dataset.tileId;
+  const paintStart = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!exchanging || event.button !== 0) return;
+    const id = (event.target as HTMLElement).closest<HTMLElement>("[data-tile-id]")?.dataset.tileId;
+    if (!id) return;
+    const value = !exchangeIds.includes(id);
+    paint.current = { pointer: event.pointerId, value, seen: new Set([id]) };
+    onPaint!([id], value);
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {}
+  };
+  const paintMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const current = paint.current;
+    if (!current || current.pointer !== event.pointerId) return;
+    const id = tileAt(event.clientX, event.clientY);
+    if (!id || current.seen.has(id)) return;
+    current.seen.add(id);
+    onPaint!([id], current.value);
+  };
+  const paintEnd = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (paint.current?.pointer === event.pointerId) paint.current = null;
+  };
   const tileCount = hiddenCount ?? slots.filter((slot) => slot.tile || slot.exposed).length;
   const focusSlot = (index: number) =>
     window.requestAnimationFrame?.(() =>
@@ -76,20 +115,24 @@ export function LiveRack({
       aria-label={`${label} · ${tileCount}/${RACK_SIZE}`}
       aria-describedby="lg-rack-help"
       ref={listRef}
+      onPointerDown={paintStart}
+      onPointerMove={paintMove}
+      onPointerUp={paintEnd}
+      onPointerCancel={paintEnd}
     >
       {slots.map((slot, index) => {
         const tile = slot.tile;
         const marked = tile ? exchangeIds.includes(tile.id) : false;
         const selected = tile?.id === selectedTileId;
         const name = tile
-          ? `${t("live.rack.slot", { index: index + 1 })}: ${displayToken(tile)}, ${t(
+          ? `${t("live.rack.slot", { index: index + 1 })}: ${spokenTile(tile, t)}, ${t(
               "live.board.points",
               {
                 count: tilePoint(tile),
               },
             )}${selected ? `, ${t("live.rack.selected")}` : ""}${marked ? `, ${t("live.rack.marked")}` : ""}`
           : slot.exposed
-            ? `${t("live.rack.slot", { index: index + 1 })}: ${t("live.rack.onBoard", { tile: displayToken(slot.exposed) })}`
+            ? `${t("live.rack.slot", { index: index + 1 })}: ${t("live.rack.onBoard", { tile: spokenTile(slot.exposed, t) })}`
             : `${t("live.rack.slot", { index: index + 1 })}: ${t("live.rack.empty")}`;
         return (
           <span key={tile?.id ?? slot.exposed?.id ?? `slot-${index}`} className="lg-rack-slot">
@@ -106,15 +149,26 @@ export function LiveRack({
               data-draft-tile-id={tile && mode !== "exchange" ? tile.id : undefined}
               onFocus={() => setFocus(index)}
               onKeyDown={(event) => onKeyDown(event, index)}
-              onClick={() => (tile ? onTileClick(tile) : onSlotClick(index))}
+              onClick={(event) => {
+                // In Exchange selection a pointer press already marked the tile
+                // (painting); only keyboard activation (detail 0) toggles here.
+                if (exchanging && event.detail !== 0) return;
+                if (tile) onTileClick(tile);
+                else onSlotClick(index);
+              }}
             >
               {tile ? (
                 <LiveTile tile={tile} size="rack" />
               ) : slot.exposed ? (
                 <span className="lg-exposed-ghost" aria-hidden="true">
-                  {displayToken(slot.exposed)}
+                  <LiveTile tile={slot.exposed} size="rack" />
                 </span>
               ) : null}
+              {marked && (
+                <span className="lg-mark-check" aria-hidden="true">
+                  ✓
+                </span>
+              )}
             </button>
           </span>
         );

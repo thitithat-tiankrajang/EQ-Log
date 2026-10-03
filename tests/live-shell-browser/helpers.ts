@@ -18,7 +18,7 @@ export async function open(
 
 /** Type tiles along the board cursor the way a player does (Space turns it down). */
 export async function placeSevenEqualsFivePlusTwo(page: Page) {
-  await page.getByRole("button", { name: /^Row 7, column 7,/ }).click();
+  await page.getByRole("button", { name: /^G7,/ }).click();
   await page.keyboard.press("Space");
   for (const key of ["7", "5", "p", "2"]) await page.keyboard.press(key);
 }
@@ -90,7 +90,8 @@ export function expectSoundGeometry(geometry: Geometry) {
       // Desktop: the rack sits right under the board. Stack: your strip sits between.
       const gap = rackBox.y - (board.y + board.height);
       expect(gap).toBeGreaterThanOrEqual(0);
-      expect(gap).toBeLessThanOrEqual(geometry.layout === "stack" ? 72 : 24);
+      // Stack: Last Move and Unseen rows sit between board and rack.
+      expect(gap).toBeLessThanOrEqual(geometry.layout === "stack" ? 96 : 24);
     }
   }
 }

@@ -10,6 +10,7 @@ import type { HostedAction } from "../hostedAdmin";
 import type { LiveControl } from "../controls";
 import type { PhysicalAction } from "../physical";
 import { moveOf } from "./derive";
+import { Expression } from "./TileGlyph";
 import type { ShellModel } from "./model";
 import { ToolSection } from "../ToolSection";
 
@@ -123,7 +124,7 @@ export function RecordTools({
               const what = !move
                 ? t("live.record.ended")
                 : move.kind === "place"
-                  ? `${move.expression ?? t("live.last.placed")} · +${move.score}`
+                  ? null
                   : move.kind === "exchange"
                     ? t("live.last.exchanged", { count: move.exchangedCount })
                     : t("live.last.passed");
@@ -135,10 +136,23 @@ export function RecordTools({
                     aria-current={review.log?.id === log.id ? "true" : undefined}
                     onClick={() => onSelectLog(review.log?.id === log.id ? null : log.id)}
                   >
-                    <span className="lg-log-turn">T{log.turnNumber}</span>
+                    <span className="lg-log-turn">T{log.turnNumber} </span>
                     <i className="lg-side-dot" aria-hidden="true" />
-                    <span className="lg-log-who">{model.players[log.side]}</span>
-                    <span className="lg-log-what">{what}</span>
+                    <span className="lg-log-who">{model.players[log.side]} </span>
+                    <span className="lg-log-what">
+                      {move?.kind === "place" ? (
+                        <>
+                          {move.faces.length ? (
+                            <Expression faces={move.faces} />
+                          ) : (
+                            t("live.last.placed")
+                          )}
+                          <span className="lg-log-score"> +{move.score}</span>
+                        </>
+                      ) : (
+                        what
+                      )}
+                    </span>
                   </button>
                 </li>
               );

@@ -1,0 +1,14 @@
+{
+  "base": "http://127.0.0.1:5192",
+  "backend": "http://127.0.0.1:54521",
+  "phone": {
+    "width": 390,
+    "height": 844
+  },
+  "steps": [
+    "real login, UI create/join, ready, launch",
+    "1 real touch drag-across Exchange(s) of 4, each answered by a real Pass",
+    "real blank tile: one tap on \"Play as equals\"",
+    "no forbidden keys in either recipient's responses"
+  ]
+}

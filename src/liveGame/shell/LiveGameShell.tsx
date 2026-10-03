@@ -1,7 +1,7 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { LayoutGrid, Trophy } from "lucide-react";
 import { RACK_SIZE } from "../../constants/gameRules";
-import type { BoardSnapshot, Side } from "../../game";
+import type { BoardSnapshot } from "../../game";
 import { rankTier } from "../../features/ranked/rating";
 import { useLocale } from "../../i18n/LocaleProvider";
 import { Sheet } from "../../components/ui/Sheet";
@@ -14,8 +14,16 @@ import { LiveBoard, type OpponentTentative } from "./LiveBoard";
 import { LiveRack } from "./LiveRack";
 import { MatchControls, SoundToggle } from "./MatchControls";
 import type { ShellModel } from "./model";
-import { EventLine, LastMovePanel, NotesPad, TileBagPanel } from "./panels";
-import { PlayerCard } from "./PlayerCard";
+import {
+  EventLine,
+  LastMovePanel,
+  NotesPad,
+  TileBagPanel,
+  UnseenStrip,
+  unseenSummary,
+} from "./panels";
+import { Scoreboard } from "./Scoreboard";
+import { FacePicker } from "./FacePicker";
 import {
   GameTools,
   PanelTabs,
@@ -44,7 +52,6 @@ export type ShellHandlers = {
   onRetryBot?: () => void;
   onCellClick(row: number, col: number): void;
   onCellFocus(row: number, col: number): void;
-  onEditFace(tileId: string): void;
 };
 
 function ResultPanel({
@@ -133,7 +140,6 @@ export function LiveGameShell({
   const [tab, setTab] = useState("record");
   const stack = layout.mode === "stack" || layout.mode === "stack-landscape";
   const reviewing = Boolean(review.log);
-  const top = model.perspective.top;
   const bottom = model.perspective.bottom;
 
   const lastMoveKeys = useMemo(
@@ -150,6 +156,17 @@ export function LiveGameShell({
       : null;
   }, [draft.placements, draft.validation]);
 
+  const pickerTile = !reviewing && canPlay ? draft.pickerTile : null;
+  const picker = pickerTile ? (
+    <FacePicker
+      tile={{ ...pickerTile.tile, assignedToken: pickerTile.assignedToken }}
+      placement={stack ? "dock" : "anchor"}
+      anchor={{ row: pickerTile.row, col: pickerTile.col }}
+      boardCells={shownBoard.length}
+      onChoose={(face) => draft.chooseFace(pickerTile.tile.id, face)}
+      onClose={draft.closePicker}
+    />
+  ) : null;
   const board = (
     <div className={`lg-board-wrap${reviewing ? " is-review" : ""}`}>
       <LiveBoard
@@ -167,8 +184,8 @@ export function LiveGameShell({
         labels={layout.label > 0}
         onCellClick={handlers.onCellClick}
         onCellFocus={handlers.onCellFocus}
-        onEditFace={handlers.onEditFace}
       />
+      {picker && !stack && picker}
       {transitionKey > 0 && (
         <span key={transitionKey} className="lg-turn-sweep" aria-hidden="true" />
       )}
@@ -236,6 +253,7 @@ export function LiveGameShell({
         onTileClick={draft.onTileClick}
         onSlotClick={draft.onSlotClick}
         onMove={draft.swapSlots}
+        onPaint={draft.markExchange}
       />
     );
 
@@ -272,6 +290,17 @@ export function LiveGameShell({
       }}
     />
   );
+  const fullBag = layout.mode === "duo" && layout.board >= 640;
+  const openBag = () => {
+    setTab("bag");
+    setMoreOpen(true);
+  };
+  const unseen = (
+    <UnseenStrip
+      model={model}
+      onOpen={stack ? openBag : !fullBag ? () => setTab("bag") : undefined}
+    />
+  );
   const event = (
     <EventLine
       model={model}
@@ -279,12 +308,24 @@ export function LiveGameShell({
       error={error}
       keyNotice={draft.keyNotice}
       moveHint={
-        stack && draft.placements.length && draft.validation && !draft.validation.isValid
-          ? draft.validation.errors[0]
-          : null
+        stack && draft.mode === "exchange"
+          ? t("live.actions.exchangeHint")
+          : stack && draft.placements.length && draft.validation && !draft.validation.isValid
+            ? draft.unchosen
+              ? t("live.picker.needed")
+              : draft.validation.errors[0]
+            : null
       }
       onControl={handlers.onControl}
-      fallback={stack && !layout.compact ? lastMove : undefined}
+      fallback={
+        stack
+          ? layout.density === "full"
+            ? lastMove
+            : layout.density === "compact"
+              ? unseen
+              : undefined
+          : undefined
+      }
     />
   );
   const notes = model.caps.workspace.notes ? (
@@ -317,12 +358,18 @@ export function LiveGameShell({
         />
       ),
     },
-    {
-      id: "bag",
-      label: t("live.tabs.bag"),
-      badge: String(model.bagCount),
-      content: <TileBagPanel model={model} />,
-    },
+    // Where the gutter is tall enough the full Unseen distribution is always
+    // visible instead; short windows show the compact strip and keep this tab.
+    ...(fullBag
+      ? []
+      : [
+          {
+            id: "bag",
+            label: t("live.tabs.bag"),
+            badge: String(unseenSummary(model).total),
+            content: <TileBagPanel model={model} />,
+          },
+        ]),
     {
       id: "tools",
       label: t("live.tabs.tools"),
@@ -371,9 +418,6 @@ export function LiveGameShell({
       />
     </div>
   );
-  const card = (side: Side | null, position: "top" | "bottom", compact = false): ReactNode =>
-    side ? <PlayerCard model={model} side={side} position={position} compact={compact} /> : null;
-
   const style = {
     "--lg-cell": `${layout.cell}px`,
     "--lg-label": `${layout.label}px`,
@@ -386,6 +430,7 @@ export function LiveGameShell({
     "data-layout": layout.mode,
     "data-rack": layout.rack,
     "data-compact": layout.compact || undefined,
+    "data-density": layout.density,
     "data-turn": model.finished ? "finished" : model.paused ? "paused" : model.turnRole,
     "data-to-move": model.activeSide.toLowerCase(),
     "data-perspective": bottom.toLowerCase(),
@@ -402,9 +447,8 @@ export function LiveGameShell({
       <main {...shellProps}>
         <aside className="lg-gutter lg-left" aria-label={t("live.regions.players")}>
           {matchBar}
-          {card(top, "top")}
+          <Scoreboard model={model} />
           <div className="lg-left-fill">{notes}</div>
-          {card(bottom, "bottom")}
         </aside>
         <section className="lg-center" aria-label={t("live.regions.board")}>
           {board}
@@ -413,6 +457,7 @@ export function LiveGameShell({
         <aside className="lg-gutter lg-right" aria-label={t("live.regions.info")}>
           {event}
           {lastMove}
+          {fullBag ? <TileBagPanel model={model} /> : unseen}
           <div className="lg-right-fill">
             <PanelTabs
               tabs={tabsWithNotes}
@@ -437,12 +482,10 @@ export function LiveGameShell({
         </section>
         <aside className="lg-gutter lg-right" aria-label={t("live.regions.info")}>
           {matchBar}
-          <div className="lg-duel">
-            {card(top, "top", true)}
-            {card(bottom, "bottom", true)}
-          </div>
+          <Scoreboard model={model} />
           {event}
           {lastMove}
+          {unseen}
           <div className="lg-right-fill">
             <PanelTabs
               tabs={tabsWithNotes}
@@ -486,8 +529,8 @@ export function LiveGameShell({
       <main {...shellProps}>
         <aside className="lg-gutter lg-left">
           {matchBar}
-          {card(top, "top", true)}
-          {card(bottom, "bottom", true)}
+          <Scoreboard model={model} compact />
+          {unseen}
           {event}
         </aside>
         <section className="lg-center">{board}</section>
@@ -498,39 +541,64 @@ export function LiveGameShell({
             {actions}
           </div>
         </aside>
+        {picker}
         {more}
         {live}
       </main>
     );
 
+  const tight = layout.density === "tight";
   return (
     <main {...shellProps}>
-      <header className="lg-strip lg-strip-top">
-        {card(top, "top", true) ?? <div className="lg-title">{model.name}</div>}
-        <SoundToggle on={sound.on} onToggle={sound.toggle} />
-        <MatchControls
-          model={model}
-          busy={busy}
-          onControl={handlers.onControl}
-          onHosted={handlers.onHosted}
-          onSurrender={handlers.onSurrender}
-          onLeave={handlers.onLeave}
-        />
+      <header className="lg-hud">
+        <Scoreboard model={model} tight={tight} />
+        <div className="lg-hud-buttons">
+          <SoundToggle on={sound.on} onToggle={sound.toggle} />
+          <MatchControls
+            model={model}
+            busy={busy}
+            onControl={handlers.onControl}
+            onHosted={handlers.onHosted}
+            onSurrender={handlers.onSurrender}
+            onLeave={handlers.onLeave}
+          />
+        </div>
+        {tight && <div className="lg-hud-event">{event}</div>}
       </header>
       {board}
-      {!layout.compact && (
-        <div className="lg-strip lg-strip-self">
-          {card(bottom, "bottom", true)}
-          <div className="lg-strip-event">{event}</div>
+      {layout.density === "full" && layout.board >= 560 ? (
+        // Tablet portrait: Last Move (or an event) and Unseen share one row.
+        <div className="lg-info-row is-wide">
+          <div className="lg-info-cell">{event}</div>
+          {unseen}
         </div>
-      )}
-      {layout.compact && <div className="lg-strip-event is-compact">{event}</div>}
+      ) : layout.density === "full" ? (
+        <>
+          <div className="lg-info-row">{event}</div>
+          <div className="lg-info-row">{unseen}</div>
+        </>
+      ) : layout.density === "compact" ? (
+        <div className="lg-info-row">{event}</div>
+      ) : null}
       {rack && <div className="lg-rack-row">{rack}</div>}
       <div className="lg-actionbar">
-        {moreButton}
-        {layout.compact && card(bottom, "bottom", true)}
+        {tight ? (
+          <button
+            type="button"
+            className="lg-icon-btn lg-more-btn is-unseen"
+            aria-haspopup="dialog"
+            aria-label={t("live.more.openUnseen", { count: unseenSummary(model).total })}
+            onClick={openBag}
+          >
+            <strong>{unseenSummary(model).total}</strong>
+            <span>{t("live.bag.unseen")}</span>
+          </button>
+        ) : (
+          moreButton
+        )}
         {actions}
       </div>
+      {picker}
       {more}
       {live}
     </main>

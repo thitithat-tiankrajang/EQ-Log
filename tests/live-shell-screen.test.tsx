@@ -55,7 +55,7 @@ const rackLabels = () =>
     tile.getAttribute("aria-label"),
   );
 const cell = (row: number, col: number) =>
-  screen.getByRole("button", { name: new RegExp(`^Row ${row}, column ${col},`) });
+  screen.getByRole("button", { name: new RegExp(`^${"ABCDEFGHIJKLMNO"[col - 1]}${row},`) });
 const key = (k: string, code = k) => fireEvent.keyDown(window, { key: k, code });
 
 function setViewport(width: number, height: number) {
@@ -153,7 +153,9 @@ describe("THINKING turn", () => {
       first!.replace("Slot 1", "Slot 1").replace(/: .*/, ": ") + second!.split(": ")[1],
     );
     // Bag and record and notes are all there.
-    expect(screen.getByRole("tab", { name: /Bag/ })).toBeInTheDocument();
+    // Unseen is always visible on desktop: no tab to open.
+    expect(screen.queryByRole("tab", { name: /Bag/ })).toBeNull();
+    expect(screen.getByRole("region", { name: "Tile bag" })).toBeVisible();
     expect(screen.getByLabelText("Private notes")).toBeEnabled();
     // Clicking the board only moves the cursor; nothing is placed.
     fireEvent.click(cell(10, 3));
@@ -402,11 +404,11 @@ describe("accessibility", () => {
     expect(within(grid).getAllByRole("gridcell")).toHaveLength(225);
     expect(
       within(grid).getByRole("button", {
-        name: /^Row 4, column 6, 1, 1 point, played by Pim, last move$/,
+        name: /^F4, 1, 1 point, played by Pim, last move$/,
       }),
     ).toBeInTheDocument();
     expect(
-      within(grid).getByRole("button", { name: /^Row 1, column 4, double piece, empty$/ }),
+      within(grid).getByRole("button", { name: /^D1, double piece, empty$/ }),
     ).toBeInTheDocument();
     expect(grid.querySelectorAll('[tabindex="0"]')).toHaveLength(1);
   });
@@ -432,5 +434,97 @@ describe("legacy frozen game", () => {
         name: /Surrender/,
       }),
     ).toBeNull();
+  });
+});
+
+describe("alternative tiles: direct choice, never cycling", () => {
+  const rackTile = (name: RegExp) =>
+    [...document.querySelectorAll<HTMLButtonElement>(".lg-rack-tile")].find((tile) =>
+      name.test(tile.getAttribute("aria-label") ?? ""),
+    )!;
+
+  it("a placed blank has no silent value; one tap on 20 chooses it", async () => {
+    renderScreen(createFixtureSession("alternatives"));
+    await screen.findByRole("button", { name: "Exchange" });
+    fireEvent.click(rackTile(/blank, value not chosen/));
+    fireEvent.click(cell(7, 7));
+    // The picker opens at once with every legal value; nothing was assumed.
+    const picker = screen.getByRole("dialog", { name: "Blank: choose its value" });
+    expect(within(picker).getAllByRole("button", { name: /^Play as / })).toHaveLength(26);
+    expect(cell(7, 7)).toHaveAccessibleName(/^G7, blank, value not chosen, your tentative tile$/);
+    expect(screen.getByRole("button", { name: "Commit" })).toBeDisabled();
+    fireEvent.click(within(picker).getByRole("button", { name: "Play as 20" }));
+    expect(screen.queryByRole("dialog", { name: /Blank/ })).toBeNull();
+    expect(cell(7, 7)).toHaveAccessibleName(/^G7, blank played as 20, your tentative tile$/);
+  });
+
+  it("+/− and ×/÷ offer exactly their two signs; the choice is shown as chosen", async () => {
+    renderScreen(createFixtureSession("alternatives"));
+    await screen.findByRole("button", { name: "Exchange" });
+    fireEvent.click(rackTile(/\+ \/ - tile/));
+    fireEvent.click(cell(7, 7));
+    const picker = screen.getByRole("dialog", { name: "Choose the sign" });
+    const options = within(picker).getAllByRole("button", { name: /^Play as / });
+    expect(options.map((option) => option.getAttribute("aria-label"))).toEqual([
+      "Play as plus",
+      "Play as minus",
+    ]);
+    fireEvent.click(within(picker).getByRole("button", { name: "Play as minus" }));
+    expect(cell(7, 7)).toHaveAccessibleName(/^G7, -, chosen from \+ \/ -, your tentative tile$/);
+    // Tapping the tile again reopens the picker with the current choice marked;
+    // it does not cycle the value.
+    fireEvent.click(cell(7, 7));
+    const again = screen.getByRole("dialog", { name: "Choose the sign" });
+    expect(within(again).getByRole("button", { name: "Play as minus" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(cell(7, 7)).toHaveAccessibleName(/^G7, -, chosen from/);
+  });
+
+  it("dismisses on an outside tap without moving the tile; E reopens it from the keyboard", async () => {
+    renderScreen(createFixtureSession("alternatives"));
+    await screen.findByRole("button", { name: "Exchange" });
+    fireEvent.click(rackTile(/× \/ ÷ tile/));
+    fireEvent.click(cell(7, 7));
+    expect(screen.getByRole("dialog", { name: "Choose the sign" })).toBeInTheDocument();
+    fireEvent.click(cell(10, 3));
+    expect(screen.queryByRole("dialog", { name: "Choose the sign" })).toBeNull();
+    expect(cell(7, 7)).toHaveAccessibleName(/your tentative tile/);
+    expect(cell(10, 3)).toHaveAccessibleName(/empty$/);
+    expect(screen.getAllByText("Tap the tile to choose its value").length).toBeGreaterThan(0);
+    fireEvent.click(cell(7, 7));
+    fireEvent.keyDown(screen.getByRole("dialog", { name: "Choose the sign" }), { key: "Escape" });
+    expect(screen.queryByRole("dialog", { name: "Choose the sign" })).toBeNull();
+    // The cursor advanced past the tile; arrow back to it, then E.
+    key("ArrowLeft");
+    key("e", "KeyE");
+    expect(screen.getByRole("dialog", { name: "Choose the sign" })).toBeInTheDocument();
+  });
+});
+
+describe("game HUD", () => {
+  it("shows both players' score, lead and clock in one scoreboard; turn and lead are separate", async () => {
+    renderScreen(createFixtureSession("thinking"));
+    const board = await screen.findByRole("region", { name: "Score" });
+    const rows = within(board).getAllByRole("group");
+    expect(rows).toHaveLength(2);
+    // Nok (A) leads 25–10; Pim (B) is to move.
+    expect(rows[0]).toHaveAccessibleName(/^Nok, You, 25 points, leads by 15, .* left$/);
+    expect(rows[1]).toHaveAccessibleName(/^Pim, 10 points, trails by 15, .* left, To move$/);
+    expect(rows[0].querySelector(".lg-sb-diff.is-lead")).toHaveTextContent("+15");
+    expect(rows[1].querySelector(".lg-sb-diff.is-trail")).toHaveTextContent("−15");
+    expect(rows[1]).toHaveAttribute("data-to-move", "true");
+    expect(rows[0]).not.toHaveAttribute("data-to-move");
+  });
+
+  it("keeps Unseen visible on a phone without opening anything", async () => {
+    setViewport(390, 844);
+    renderScreen(createFixtureSession("active"));
+    const unseen = await screen.findByRole("button", { name: /tiles unseen/ });
+    expect(unseen).toHaveAccessibleName(/^79 tiles unseen: .* 71 in the bag/);
+    expect(unseen).toHaveTextContent("79");
+    fireEvent.click(unseen);
+    expect(screen.getByRole("tab", { name: /Bag/ })).toHaveAttribute("aria-selected", "true");
   });
 });

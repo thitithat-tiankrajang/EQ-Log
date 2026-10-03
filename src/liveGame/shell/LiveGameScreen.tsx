@@ -364,7 +364,6 @@ export function LiveGameScreen({
       ),
     [],
   );
-  const onEditFace = useCallback((id: string) => draftRef.current.editFace(id), []);
 
   if (!match)
     return (
@@ -541,7 +540,6 @@ export function LiveGameScreen({
       : undefined,
     onCellClick,
     onCellFocus,
-    onEditFace,
   };
 
   return (

@@ -301,6 +301,30 @@ export const th: Catalog = {
     },
   },
   live: {
+    picker: {
+      needed: "แตะเบี้ยเพื่อเลือกค่า",
+      blank: "Blank: เลือกค่าที่จะใช้",
+      choice: "เลือกเครื่องหมาย",
+      close: "ปิด",
+      option: "ใช้เป็น {face}",
+    },
+    glyph: {
+      plus: "บวก",
+      minus: "ลบ",
+      times: "คูณ",
+      divide: "หาร",
+      equals: "เท่ากับ",
+    },
+    score: {
+      label: "คะแนน",
+      leads: "นำ {count}",
+      trails: "ตาม {count}",
+      level: "เท่ากัน",
+    },
+    unseen: {
+      aria: "เบี้ยที่ยังไม่เห็น {total} ตัว: เลขหลักเดียว {digits} ตัว เลข 10–20 {heavy} ตัว เครื่องหมาย {ops} ตัว เท่ากับ {equals} ตัว Blank {blank} ตัว ในถุง {bag} ตัว เปิดดูทั้งหมด",
+      bag: "ในถุง {count}",
+    },
     eyebrow: "เกมสด",
     loading: {
       title: "กำลังเปิดเกม",
@@ -323,6 +347,10 @@ export const th: Catalog = {
       info: "ข้อมูลเกม",
     },
     board: {
+      blankAs: "Blank ใช้เป็น {face}",
+      blankOpen: "Blank ยังไม่เลือกค่า",
+      choiceAs: "{face} เลือกจาก {options}",
+      choiceOpen: "เบี้ย {options} ยังไม่เลือกเครื่องหมาย",
       label: "กระดาน 15 × 15 ใช้ปุ่มลูกศรเพื่อเลื่อน",
       cell: "แถว {row} คอลัมน์ {col}",
       empty: "ว่าง",
@@ -349,7 +377,7 @@ export const th: Catalog = {
       closed: "เบี้ยคู่แข่งยังปิดอยู่",
       slot: "ช่อง {index}",
       empty: "ว่าง",
-      onBoard: "{tile} อยู่บนกระดาน",
+      onBoard: "อยู่บนกระดาน: {tile}",
       selected: "เลือกอยู่",
       marked: "เลือกไว้เพื่อเปลี่ยน",
       help: "เลือกเบี้ยสองตัวเพื่อสลับกัน หรือกด Alt พร้อมลูกศรเพื่อย้ายเบี้ยที่โฟกัสอยู่",
@@ -511,6 +539,7 @@ export const th: Catalog = {
       unmute: "เปิดเสียงแจ้งตาของคุณ",
     },
     more: {
+      openUnseen: "ยังไม่เห็น {count} ตัว — เปิดถุงเบี้ย บันทึก โน้ต และเครื่องมือ",
       title: "เกม",
       open: "บันทึก ถุง โน้ต และเครื่องมือ",
       short: "เพิ่มเติม",

@@ -9,7 +9,6 @@ import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from "lucide-react";
 import { BOARD_SIZE } from "../../constants/gameRules";
 import {
   displayToken,
-  getTileType,
   slotTypeAt,
   tileNeedsAssignment,
   tilePoint,
@@ -21,6 +20,11 @@ import {
 } from "../../game";
 import { useLocale } from "../../i18n/LocaleProvider";
 import type { Cursor } from "./useTurnDraft";
+import { TileFace, tileClass, tileState } from "./TileGlyph";
+
+/** Standard board coordinates: columns A–O, rows 1–15 (e.g. H8 is the centre). */
+export const COLUMN_LETTERS = "ABCDEFGHIJKLMNO";
+export const cellName = (row: number, col: number) => `${COLUMN_LETTERS[col]}${row + 1}`;
 
 /**
  * Public tentative tiles an opponent is showing on the table. Phase B fills this
@@ -57,19 +61,24 @@ export function LiveTile({
   tile: Pick<TileInstance, "token" | "assignedToken">;
   size?: "board" | "rack" | "mini";
 }) {
-  const bare = tile.token === "?" && !tile.assignedToken;
-  const shown = bare ? "" : displayToken(tile as TileInstance);
   return (
-    <span
-      className={`lg-tile lg-tile-${size} lg-type-${getTileType(tile as TileInstance)}${
-        tile.assignedToken ? " is-assigned" : ""
-      }${shown.length > 2 ? " is-long" : ""}`}
-      aria-hidden="true"
-    >
-      <b>{shown}</b>
-      <small>{tilePoint(tile as TileInstance)}</small>
+    <span className={`lg-tile lg-tile-${size} ${tileClass(tile)}`} aria-hidden="true">
+      <TileFace tile={tile} />
     </span>
   );
+}
+
+/** What a screen reader hears for a tile: its value, and its alternatives if it has them. */
+export function spokenTile(
+  tile: Pick<TileInstance, "token" | "assignedToken">,
+  t: ReturnType<typeof useLocale>["t"],
+) {
+  const { alternative, blank, chosen, options } = tileState(tile);
+  if (!alternative) return displayToken(tile as TileInstance);
+  if (blank) return chosen ? t("live.board.blankAs", { face: chosen }) : t("live.board.blankOpen");
+  return chosen
+    ? t("live.board.choiceAs", { face: chosen, options: options.join(" / ") })
+    : t("live.board.choiceOpen", { options: options.join(" / ") });
 }
 
 type BoardProps = {
@@ -89,7 +98,6 @@ type BoardProps = {
   /** Stable callbacks only (the board is memoized). */
   onCellClick(row: number, col: number): void;
   onCellFocus(row: number, col: number): void;
-  onEditFace(tileId: string): void;
 };
 
 const ARROWS = { right: ArrowRight, down: ArrowDown, left: ArrowLeft, up: ArrowUp };
@@ -109,7 +117,6 @@ export const LiveBoard = memo(function LiveBoard({
   labels,
   onCellClick,
   onCellFocus,
-  onEditFace,
 }: BoardProps) {
   const { t } = useLocale();
   const gridRef = useRef<HTMLDivElement>(null);
@@ -130,19 +137,14 @@ export const LiveBoard = memo(function LiveBoard({
   // Focus that comes from a pointer press is followed by a click, which places
   // the cursor itself; only keyboard focus (Tab) moves the cursor on focus.
   const pointerFocus = useRef(false);
-  const holdTimer = useRef<number | null>(null);
-  const clearHold = () => {
-    if (holdTimer.current !== null) window.clearTimeout(holdTimer.current);
-    holdTimer.current = null;
-  };
 
   const describe = (row: number, col: number) => {
-    const where = t("live.board.cell", { row: row + 1, col: col + 1 });
+    const where = cellName(row, col);
     const slot = slotTypeAt(row, col);
     const premium = slot === "px1" ? "" : `, ${t(`live.board.slot.${SLOT_KEY[slot]}`)}`;
     const mine = pending.get(`${row}:${col}`);
     if (mine)
-      return `${where}, ${displayToken({ ...mine.tile, assignedToken: mine.assignedToken })}, ${t("live.board.yourTentative")}`;
+      return `${where}, ${spokenTile({ ...mine.tile, assignedToken: mine.assignedToken }, t)}, ${t("live.board.yourTentative")}`;
     const shown = remote.get(`${row}:${col}`);
     if (shown)
       return `${where}, ${displayToken(shown.tile as TileInstance)}, ${t("live.board.opponentTentative")}`;
@@ -153,7 +155,7 @@ export const LiveBoard = memo(function LiveBoard({
         ? t("live.board.byYou")
         : t("live.board.by", { name: players[cell.side] });
     const last = lastMove.has(`${row}:${col}`) ? `, ${t("live.board.lastMove")}` : "";
-    return `${where}, ${displayToken(cell.tile)}, ${t("live.board.points", { count: tilePoint(cell.tile) })}, ${who}${last}`;
+    return `${where}, ${spokenTile(cell.tile, t)}, ${t("live.board.points", { count: tilePoint(cell.tile) })}, ${who}${last}`;
   };
 
   const onKeyDown = (event: ReactKeyboardEvent) => {
@@ -172,7 +174,7 @@ export const LiveBoard = memo(function LiveBoard({
         <>
           <div className="lg-board-cols" aria-hidden="true">
             {Array.from({ length: BOARD_SIZE }, (_, index) => (
-              <span key={index}>{index + 1}</span>
+              <span key={index}>{COLUMN_LETTERS[index]}</span>
             ))}
           </div>
           <div className="lg-board-rows" aria-hidden="true">
@@ -238,18 +240,12 @@ export const LiveBoard = memo(function LiveBoard({
                     onFocus={() => {
                       if (!isCursor && !pointerFocus.current) onCellFocus(r, c);
                     }}
-                    onDoubleClick={() =>
-                      mine && tileNeedsAssignment(mine.tile.token) && onEditFace(mine.tile.id)
+                    aria-haspopup={
+                      mine && tileNeedsAssignment(mine.tile.token) ? "dialog" : undefined
                     }
                     onPointerDown={() => {
                       pointerFocus.current = true;
-                      clearHold();
-                      if (mine && tileNeedsAssignment(mine.tile.token))
-                        holdTimer.current = window.setTimeout(() => onEditFace(mine.tile.id), 520);
                     }}
-                    onPointerUp={clearHold}
-                    onPointerLeave={clearHold}
-                    onPointerCancel={clearHold}
                   >
                     {mine ? (
                       <LiveTile tile={{ ...mine.tile, assignedToken: mine.assignedToken }} />

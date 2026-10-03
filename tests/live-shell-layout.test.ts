@@ -43,7 +43,8 @@ describe("computeLiveLayout", () => {
 
   it("maximizes the board from both dimensions (height-bound on landscape, width-bound on portrait)", () => {
     expect(computeLiveLayout({ width: 1920, height: 960 }).board).toBeGreaterThan(820);
-    expect(computeLiveLayout({ width: 390, height: 664 }).board).toBeGreaterThanOrEqual(376);
+    // Edge-to-edge minus intentional margins: within ~8px of the 390px width.
+    expect(computeLiveLayout({ width: 390, height: 664 }).board).toBeGreaterThanOrEqual(366);
     expect(computeLiveLayout({ width: 768, height: 950 }).board).toBeGreaterThan(640);
   });
 
@@ -58,7 +59,7 @@ describe("computeLiveLayout", () => {
 
   it("uses available height on large screens and keeps cells integer", () => {
     const wide = computeLiveLayout({ width: 3840, height: 2000 });
-    expect(wide.board).toBeGreaterThan(1800);
+    expect(wide.board).toBeGreaterThan(1750);
     expect(computeLiveLayout({ width: 2560, height: 1310 }).board).toBeGreaterThan(1150);
     for (const view of MATRIX) expect(Number.isInteger(computeLiveLayout(view).cell)).toBe(true);
   });

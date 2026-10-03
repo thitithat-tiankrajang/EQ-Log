@@ -63,7 +63,7 @@ test("THINKING: drag reorders the rack, the board takes no tile, order survives 
   expect(after[3]).toBe(before[0]);
   expect(after[0]).toBe(before[3]);
   // Dragging onto the board during THINKING places nothing.
-  await tiles.nth(1).dragTo(page.getByRole("button", { name: /^Row 12, column 4,/ }));
+  await tiles.nth(1).dragTo(page.getByRole("button", { name: /^D12,/ }));
   await expect(page.locator(".lg-cell.is-tentative")).toHaveCount(0);
   await page.waitForTimeout(300);
   await page.reload();
@@ -79,7 +79,7 @@ test("an incoming pause request leaves the game playable and is answered in plac
   await expect(alert).toContainText("Pim asks to pause");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   // Not inert: the board and rack still respond.
-  await page.getByRole("button", { name: /^Row 7, column 7,/ }).click();
+  await page.getByRole("button", { name: /^G7,/ }).click();
   await page.keyboard.press("7");
   await expect(page.locator(".lg-cell.is-tentative")).toHaveCount(1);
   await alert.getByRole("button", { name: "Pause" }).click();
@@ -109,10 +109,10 @@ test("reduced motion removes the sweep and pulses; state is still distinct", asy
   });
   expect(sweep).toBe("none");
   const dot = await page
-    .locator(".lg-card.is-running .lg-run-dot")
+    .locator(".lg-sb-row.is-running .lg-run-dot")
     .evaluate((el) => getComputedStyle(el).animationName);
   expect(dot).toBe("none");
-  await expect(page.locator(".lg-card.is-to-move")).toHaveCount(1);
+  await expect(page.locator(".lg-sb-row.is-to-move")).toHaveCount(1);
 });
 
 test("turn actions and rack tiles meet the touch-target size on a phone", async ({ page }) => {
