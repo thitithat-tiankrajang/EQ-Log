@@ -4259,3 +4259,30 @@ span.eq-home-row[aria-disabled="true"] {
   margin: 0;
   font-size: 13px;
 }
+
+/* Private notes kept for a player who was away when their live game finished
+   (src/liveGame/shell/LeftoverNotes.tsx). Local to this browser; never Replay data. */
+.eq-leftover-notes {
+  display: grid;
+  gap: 8px;
+  margin-block-end: 16px;
+  padding: 14px 16px;
+  border: 1px solid #e6d9a6;
+  border-radius: var(--eq-radius-md, 12px);
+  background: #fffdf2;
+}
+.eq-leftover-notes h3 {
+  margin: 0;
+  font-size: 14px;
+}
+.eq-leftover-notes pre {
+  margin: 0;
+  font: 14px/1.5 var(--font-mono, ui-monospace, monospace);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.eq-leftover-notes p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 12px;
+}

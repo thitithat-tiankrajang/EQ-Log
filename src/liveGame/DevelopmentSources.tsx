@@ -7,12 +7,16 @@ import { survivalPlaytestSource } from "../features/survivalPlay/api";
 import { survivalGameFromView } from "../features/survivalPlay/projection";
 import { rankedPublicView, type RankedTurnView } from "../features/ranked/publicView";
 import { RankedMatchPage } from "../components/pages/ranked/RankedMatchPage";
+import { parseShellFixtureRoomId } from "./shell/fixtureRoute";
+import ShellFixture from "./shell/dev/ShellFixture";
 import { LivePractice } from "./LivePractice";
 import { navigate } from "../router";
 
 /** Development-only recipient sources. This module never imports the legacy
  * live App, remoteRooms, canonical decoding, or browser game persistence. */
 export default function DevelopmentSources({ roomId }: { roomId: string }) {
+  const fixture = parseShellFixtureRoomId(roomId);
+  if (fixture) return <ShellFixture state={fixture.state} viewer={fixture.viewer} />;
   const study = parseStudyPuzzleRoomId(roomId);
   return study ? (
     <StudyPreview setId={study.setId} puzzleId={study.puzzleId} />

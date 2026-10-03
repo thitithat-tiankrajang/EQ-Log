@@ -780,7 +780,7 @@ export default function NonPlayApplication() {
           <Coffee size={19} />
         </span>
         <span className="eq-coffee-return-copy">
-          <small>Board left open</small>
+          <small>Game continues · your clock runs on your turn</small>
           <strong>Return to game</strong>
         </span>
       </button>

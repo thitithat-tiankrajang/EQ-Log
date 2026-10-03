@@ -1,0 +1,248 @@
+
+ RUN  v3.2.7 /Users/thitithat_tiankrajang/Desktop/EQ-Lab-live-sync
+
+ ❯ tests/engine-in-browser.test.ts (14 tests | 1 failed) 510ms
+   ✓ the production bundle > keeps the engine out of the first load 4ms
+   ✓ the production bundle > instantiates and runs from the built chunk, not just from source  424ms
+   ✓ the production bundle > ships the engine as its own chunk 10ms
+   ✓ the application module graph > lets only the worker reach the engine module 46ms
+   ✓ the application module graph > reaches the engine module by dynamic import only 0ms
+   ✓ the application module graph > keeps the single-threaded module reachable as the floor 0ms
+   ✓ the application module graph > sizes the pthread pool from the same number it sends the engine 0ms
+   ✓ the application module graph > constructs one worker per distinct bot engine 7ms
+   ✓ the application module graph > never calls the engine from the UI thread 12ms
+   ✓ the application module graph > cancels a local search by terminating the worker 0ms
+   ✓ the backend engine path > is still reachable, because it is the fallback 0ms
+   ✓ the backend engine path > asks the server to check the legality of a device-computed move 0ms
+   × the engine still builds both ways > keeps a wasm build target that deploys into the bundled source tree 5ms
+     → expected 'CXX ?= clang++\nCXXFLAGS ?= -std=c++2…' to match /^wasm-mt:/m
+   ✓ the engine still builds both ways > keeps the native CLI, benchmarks and golden corpus generator 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/engine-in-browser.test.ts > the engine still builds both ways > keeps a wasm build target that deploys into the bundled source tree
+AssertionError: expected 'CXX ?= clang++\nCXXFLAGS ?= -std=c++2…' to match /^wasm-mt:/m
+
+- Expected:
+/^wasm-mt:/m
+
++ Received:
+"CXX ?= clang++
+CXXFLAGS ?= -std=c++20 -O2 -Wall -Wextra
+EMCC ?= emcc
+
+SRC = src/rules.cpp src/movegen.cpp src/eval.cpp src/space_map.cpp src/decision_search.cpp \\
+	src/opponent_search.cpp src/paired_race.cpp src/reply_index.cpp src/root_catalogue.cpp src/state_transition.cpp \\
+	src/world_deck.cpp src/engine.cpp
+HDR = $(wildcard src/*.hpp)
+
+build:
+	mkdir -p build
+
+test: build $(SRC) $(HDR) tests/test_engine.cpp
+	$(CXX) $(CXXFLAGS) -o build/test_engine tests/test_engine.cpp src/rules.cpp src/movegen.cpp
+	./build/test_engine
+
+test-bot: build $(SRC) $(HDR) tests/test_bot.cpp
+	$(CXX) $(CXXFLAGS) -o build/test_bot tests/test_bot.cpp $(SRC)
+	./build/test_bot
+
+# Phase 2: incremental board state — make/unmake vs full-rebuild equality + bench.
+test-inc: build $(SRC) $(HDR) tests/test_inc_board.cpp
+	$(CXX) $(CXXFLAGS) -o build/test_inc_board tests/test_inc_board.cpp $(SRC)
+	./build/test_inc_board
+
+# Regression: the rules and complete generation must agree, in both directions,
+# on every ONE-TILE placement. Written for the leading-operator defect.
+test-movegen-singles: build $(SRC) $(HDR) tests/test_movegen_singles.cpp
+	$(CXX) $(CXXFLAGS) -o build/test_movegen_singles tests/test_movegen_singles.cpp $(SRC)
+	./build/test_movegen_singles
+
+# Phase 0: SpaceMap must be the generator's own view of the board. Every field
+# is checked against COMPLETE move generation from one-tile racks, plus a
+# coverage census that fails when an edge class was never reached.
+test-space-map: build $(SRC) $(HDR) tests/test_space_map.cpp
+	$(CXX) $(CXXFLAGS) -o build/test_space_map tests/test_space_map.cpp $(SRC)
+	./build/test_space_map
+
+# Level-1 static path: generation-call bound, determinism, legality, endgame
+# precedence, root-generation completeness.
+test-static: build $(SRC) $(HDR) tests/test_static_l1.cpp
+	$(CXX) $(CXXFLAGS) -o build/test_static_l1 tests/test_static_l1.cpp $(SRC)
+	./build/test_static_l1
+
+# End-game objective: FORCED_WIN > CONDITIONAL_WIN > best margin.
+test-endgame-outcome: build $(SRC) $(HDR) tests/test_endgame_outcome.cpp
+	$(CXX) $(CXXFLAGS) -o build/test_endgame_outcome tests/test_endgame_outcome.cpp $(SRC)
+	./build/test_endgame_outcome
+
+# A move that plays out the last tile settles the game; price it exactly.
+test-immediate-out: build $(SRC) $(HDR) tests/test_immediate_out.cpp
+	$(CXX) $(CXXFLAGS) -o build/test_immediate_out tests/test_immediate_out.cpp $(SRC)
+	./build/test_immediate_out
+
+# Dedup collapses choice-tile faces; admitted footprints must be re-expanded.
+# ── Authur: the STRONG port. Each target gates one ported piece against the
+# TypeScript original on cases dumped from real positions. Regenerate the cases
+# from amath-bot-lab (scratchpad/authur/) when the original changes.
+test-strong-forest: build tests/test_strong_forest.cpp src/strong/forest.hpp
+	$(CXX) $(CXXFLAGS) -o build/test_strong_forest tests/test_strong_forest.cpp
+	./build/test_strong_forest
+
+test-strong-keep: build tests/test_strong_keep.cpp src/strong/keep_quality.hpp
+	$(CXX) $(CXXFLAGS) -o build/test_strong_keep tests/test_strong_keep.cpp
+	./build/test_strong_keep
+
+test-strong-features: build tests/test_strong_features.cpp src/strong/features.hpp src/strong/forest.hpp
+	$(CXX) $(CXXFLAGS) -o build/test_strong_features tests/test_strong_features.cpp
+	./build/test_strong_features
+
+test-strong-worlds: build tests/test_strong_worlds.cpp src/strong/worlds.hpp
+	$(CXX) $(CXXFLAGS) -o build/test_strong_worlds tests/test_strong_worlds.cpp
+	./build/test_strong_worlds
+
+test-strong: test-strong-forest test-strong-keep test-strong-features test-strong-worlds
+
+# Test-only complete root dump for the cross-repo Authur move-set gate. Never in SRC/WASM.
+authur-move-dump: build tests/authur_move_dump.cpp src/rules.cpp src/movegen.cpp
+	$(CXX) $(CXXFLAGS) -o build/authur_move_dump tests/authur_move_dump.cpp src/rules.cpp src/movegen.cpp
+
+test-assignment-expansion: build $(SRC) $(HDR) tests/test_assignment_expansion.cpp
+	$(CXX) $(CXXFLAGS) -o build/test_assignment_expansion tests/test_assignment_expansion.cpp $(SRC)
+	./build/test_assignment_expansion
+
+# Risk aversion: λ must go negative when behind, and stay bounded.
+test-risk-aversion: build $(SRC) $(HDR) tests/test_risk_aversion.cpp
+	$(CXX) $(CXXFLAGS) -o build/test_risk_aversion tests/test_risk_aversion.cpp \\
+		src/rules.cpp src/movegen.cpp src/eval.cpp
+	./build/test_risk_aversion
+
+# Revision 2 request-local work accounting.
+test-work-ledger: build $(SRC) $(HDR) tests/test_work_ledger.cpp
+	$(CXX) $(CXXFLAGS) -o build/test_work_ledger tests/test_work_ledger.cpp
+	./build/test_work_ledger
+
+# Revision 2 production-rule state transitions and rollback.
+test-transition: build $(SRC) $(HDR) tests/test_state_transition.cpp
+	$(CXX) $(CXXFLAGS) -o build/test_state_transition tests/test_state_transition.cpp \\
+		src/rules.cpp src/state_transition.cpp
+	./build/test_state_transition
+
+# Revision 2 immutable, assignment-aware root catalogue.
+test-root-catalogue: build $(SRC) $(HDR) tests/test_root_catalogue.cpp
+	$(CXX) $(CXXFLAGS) -o build/test_root_catalogue tests/test_root_catalogue.cpp \\
+		src/rules.cpp src/movegen.cpp src/root_catalogue.cpp
+	./build/test_root_catalogue
+
+# Revision 2 deterministic shared hidden-world schedule.
+test-world-deck: build $(SRC) $(HDR) tests/test_world_deck.cpp
+	$(CXX) $(CXXFLAGS) -o build/test_world_deck tests/test_world_deck.cpp src/world_deck.cpp
+	./build/test_world_deck
+
+# Revision 2 symmetric endpoint and non-clairvoyant opponent policy.
+test-opponent-search: build $(SRC) $(HDR) tests/test_opponent_search.cpp
+	$(CXX) $(CXXFLAGS) -o build/test_opponent_search tests/test_opponent_search.cpp \\
+		src/rules.cpp src/movegen.cpp src/eval.cpp src/root_catalogue.cpp \\
+		src/state_transition.cpp src/opponent_search.cpp
+	./build/test_opponent_search
+
+# Revision 2 benchmark reference composed through the DecisionSearch seam.
+test-decision-search: build $(SRC) $(HDR) tests/test_decision_search.cpp
+	$(CXX) $(CXXFLAGS) -o build/test_decision_search tests/test_decision_search.cpp \\
+		src/rules.cpp src/movegen.cpp src/eval.cpp src/root_catalogue.cpp \\
+		src/state_transition.cpp src/world_deck.cpp src/opponent_search.cpp src/paired_race.cpp src/reply_index.cpp \\
+		src/decision_search.cpp
+	./build/test_decision_search
+
+# Revision 2 exact base reply index plus candidate-local delta generation.
+test-reply-index: build $(SRC) $(HDR) tests/test_reply_index.cpp
+	$(CXX) $(CXXFLAGS) -o build/test_reply_index tests/test_reply_index.cpp \\
+		src/rules.cpp src/movegen.cpp src/eval.cpp src/root_catalogue.cpp src/reply_index.cpp \\
+		src/state_transition.cpp src/opponent_search.cpp
+	./build/test_reply_index
+
+# Long G5 exactness gate. Kept separate from the fast suite so local iteration
+# stays cheap; CI/release qualification runs the required 10,000 triples.
+verify-reply-index: build $(SRC) $(HDR) tests/test_reply_index.cpp
+	$(CXX) $(CXXFLAGS) -o build/test_reply_index tests/test_reply_index.cpp \\
+		src/rules.cpp src/movegen.cpp src/eval.cpp src/root_catalogue.cpp src/reply_index.cpp \\
+		src/state_transition.cpp src/opponent_search.cpp
+	./build/test_reply_index 10000 20260813
+
+# Revision 2 common-world paired elimination.
+test-paired-race: build $(SRC) $(HDR) tests/test_paired_race.cpp
+	$(CXX) $(CXXFLAGS) -o build/test_paired_race tests/test_paired_race.cpp src/paired_race.cpp
+	./build/test_paired_race
+
+test-v2: test-work-ledger test-transition test-immediate-out test-assignment-expansion test-endgame-outcome test-risk-aversion test-root-catalogue test-world-deck \\
+	test-opponent-search test-decision-search test-reply-index test-paired-race
+
+# Measurement-only translation unit: linked into the CLI, deliberately kept out
+# of SRC so it never reaches the WASM bundle or the test binaries.
+BENCH = src/deep_bench.cpp
+
+cli: build $(SRC) $(HDR) src/cli.cpp $(BENCH)
+	$(CXX) $(CXXFLAGS) -o build/amath_cli src/cli.cpp $(BENCH) $(SRC)
+
+# Deep/Max compute-allocation experiments. Long-running measurement, not tests:
+# each prints a table and none of them can change production routing.
+# Results and interpretation live in docs/deep-compute-allocation-report.md.
+deep-bench: cli
+	./build/amath_cli deep-bench 24
+
+deep-credit-curve: cli
+	./build/amath_cli deep-credit-curve 12
+
+# G6 admission recall/regret and G7 uniform-vs-paired at equal credits.
+gate6: cli
+	./build/amath_cli g6 24
+
+gate7: cli
+	./build/amath_cli g7 16
+
+# WASM build: single-file ES module, no threads, deterministic and easy to
+# bundle from Vite (import in a Web Worker).
+# -DNDEBUG selects the fast incremental cross/contact path (Phase 3); the
+# per-node equality asserts are a dev/test-only correctness gate.
+wasm: build $(SRC) $(HDR) src/wasm_api.cpp
+	$(EMCC) -std=c++20 -O3 -DNDEBUG -o build/amath_engine.mjs src/wasm_api.cpp $(SRC) \\
+		-s MODULARIZE=1 -s EXPORT_ES6=1 -s SINGLE_FILE=1 \\
+		-s ENVIRONMENT=worker,web -s ALLOW_MEMORY_GROWTH=1 \\
+		-s EXPORTED_FUNCTIONS=_engine_handle,_engine_alloc,_engine_free \\
+		-s EXPORTED_RUNTIME_METHODS=UTF8ToString,stringToUTF8,lengthBytesUTF8 \\
+		-s STACK_SIZE=4MB
+
+.PHONY: build test test-bot test-inc test-movegen-singles test-space-map test-static test-immediate-out test-assignment-expansion test-endgame-outcome test-risk-aversion test-work-ledger test-transition test-root-catalogue test-world-deck test-opponent-search test-decision-search test-reply-index verify-reply-index test-paired-race test-v2 cli deep-bench deep-credit-curve gate6 gate7 wasm deploy-ui
+
+# The browser build is production again: the Super bot runs on the player's
+# device, so this artifact ships. It lands inside EQ-Lab's bundled source tree
+# (src/bot/engine/) rather than in tools/, because Vite has to resolve it —
+# and it is reached ONLY through a dynamic import inside a Web Worker, so it
+# stays a lazily fetched chunk rather than part of the app's first load.
+# tests/engine-in-browser.test.ts is what holds that line.
+# The browser also runs the TOP ANALYSIS LEVEL now, and an analysis is a search
+# plus a description of it. The search is the artifact above; the description is
+# service/src/analysisReport.ts, which imports nothing precisely so it can be
+# copied. One source, mechanically vendored — the alternative is two copies of
+# the prose drifting until two analysis levels explain the same position
+# differently and nothing catches it.
+deploy-ui: wasm
+	cp build/amath_engine.mjs ../EQ-Lab/src/bot/engine/amath_engine.mjs
+	cp service/src/analysisReport.ts ../EQ-Lab/src/bot/engine/analysisReport.ts
+"
+
+ ❯ tests/engine-in-browser.test.ts:239:20
+    237|     const source = readFileSync(makefile, "utf8");
+    238|     expect(source).toMatch(/^wasm:/m);
+    239|     expect(source).toMatch(/^wasm-mt:/m);
+       |                    ^
+    240|     expect(source).toContain("src/bot/engine/amath_engine.mjs");
+    241|     expect(source).toContain("src/bot/engine/amath_engine_mt.mjs");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 13 passed (14)
+   Start at  08:31:52
+   Duration  1.71s (transform 127ms, setup 76ms, collect 26ms, tests 510ms, environment 547ms, prepare 99ms)

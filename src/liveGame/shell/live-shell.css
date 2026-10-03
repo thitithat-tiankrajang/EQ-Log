@@ -1,0 +1,1812 @@
+/*
+ * Unified Live Game Shell.
+ *
+ * Self-contained: the live route no longer loads the 16-layer legacy Play
+ * cascade (play-styles.css). Shared identity comes from tokens.css (premium
+ * square colours, tile face, side A red / side B blue) and the application
+ * tokens; everything else is scoped to `lg-` classes so a legacy stylesheet
+ * loaded elsewhere in the session cannot reach in.
+ *
+ * Geometry comes from computeLiveLayout() as custom properties on .lg-shell:
+ *   --lg-cell  --lg-label  --lg-board  --lg-rack-tile  --lg-gutter
+ */
+@import "../../styles/tokens.css" layer(legacy);
+
+/* The legacy Play cascade used to reset the page; the shell owns the viewport. */
+body:has(> #root .lg-shell) {
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background: #eef1f6;
+}
+
+.lg-shell {
+  --lg-a: #c5221f;
+  --lg-a-text: #a50e0e;
+  --lg-a-soft: #fdecea;
+  --lg-a-wash: #fff6f5;
+  --lg-b: #1a64d6;
+  --lg-b-text: #0b4fb3;
+  --lg-b-soft: #e5eeff;
+  --lg-b-wash: #f4f8ff;
+  --lg-bg: #eef1f6;
+  --lg-surface: #ffffff;
+  --lg-surface-2: #f6f8fb;
+  --lg-line: #dce2ec;
+  --lg-line-strong: #b9c3d3;
+  --lg-text: #18202e;
+  --lg-muted: #566176;
+  --lg-accent: #3157c8;
+  --lg-accent-strong: #2446aa;
+  --lg-focus: #1b49d6;
+  --lg-tentative: #c77700;
+  --lg-tentative-soft: #fff4dc;
+  --lg-radius: 12px;
+  --lg-radius-sm: 8px;
+  --lg-move: var(--lg-a);
+  --lg-move-soft: var(--lg-a-soft);
+  --lg-me: var(--lg-a);
+  --lg-opp: var(--lg-b);
+  box-sizing: border-box;
+  height: 100dvh;
+  width: 100%;
+  overflow: hidden;
+  padding: 12px;
+  background: var(--lg-bg);
+  color: var(--lg-text);
+  font-family: var(--font-sans, Inter, system-ui, sans-serif);
+  font-size: 14px;
+  line-height: 1.35;
+}
+.lg-shell *,
+.lg-shell *::before,
+.lg-shell *::after {
+  box-sizing: border-box;
+}
+.lg-shell[data-to-move="b"] {
+  --lg-move: var(--lg-b);
+  --lg-move-soft: var(--lg-b-soft);
+}
+.lg-shell[data-perspective="b"] {
+  --lg-me: var(--lg-b);
+  --lg-opp: var(--lg-a);
+}
+.lg-visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ── Controls ─────────────────────────────────────────────────────────── */
+.lg-shell button,
+.lg-practice button {
+  font: inherit;
+}
+.lg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--lg-line-strong);
+  border-radius: var(--lg-radius-sm);
+  background: var(--lg-surface);
+  color: var(--lg-text);
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background-color 120ms,
+    border-color 120ms,
+    transform 80ms;
+}
+.lg-btn:hover:not(:disabled) {
+  background: var(--lg-surface-2);
+}
+.lg-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.lg-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.lg-btn-primary {
+  border-color: var(--lg-accent);
+  background: var(--lg-accent);
+  color: #fff;
+}
+.lg-btn-primary:hover:not(:disabled) {
+  background: var(--lg-accent-strong);
+}
+.lg-btn-quiet {
+  border-color: transparent;
+  background: transparent;
+  color: var(--lg-muted);
+}
+.lg-btn-small {
+  min-height: 34px;
+  padding: 0 11px;
+  font-size: 13px;
+}
+.lg-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--lg-line);
+  border-radius: var(--lg-radius-sm);
+  background: var(--lg-surface);
+  color: var(--lg-text);
+  cursor: pointer;
+}
+.lg-icon-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.lg-shell :focus-visible,
+.lg-practice :focus-visible {
+  outline: 3px solid var(--lg-focus);
+  outline-offset: 2px;
+}
+
+/* ── Board ────────────────────────────────────────────────────────────── */
+.lg-board-wrap {
+  position: relative;
+  width: var(--lg-board);
+  height: var(--lg-board);
+  flex: none;
+  border-radius: 6px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--lg-move) 45%, transparent);
+  transition: box-shadow 260ms ease;
+}
+.lg-shell[data-turn="active"] .lg-board-wrap {
+  box-shadow:
+    0 0 0 3px var(--lg-move),
+    0 10px 28px color-mix(in srgb, var(--lg-move) 18%, transparent);
+}
+.lg-shell[data-turn="paused"] .lg-board-wrap,
+.lg-shell[data-turn="finished"] .lg-board-wrap {
+  box-shadow: 0 0 0 2px var(--lg-line-strong);
+}
+.lg-board-wrap.is-review {
+  box-shadow: 0 0 0 3px #7a5af8;
+}
+.lg-board {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--lg-label) auto;
+  grid-template-rows: var(--lg-label) auto;
+  width: 100%;
+  height: 100%;
+  border: 1px solid #3c4043;
+  border-radius: 6px;
+  background: var(--board-frame-bg, #dfe6ef);
+  overflow: hidden;
+}
+.lg-board:not(.has-labels) {
+  grid-template-columns: auto;
+  grid-template-rows: auto;
+}
+.lg-board-cols,
+.lg-board-rows {
+  display: flex;
+  color: #485165;
+  font-size: max(9px, calc(var(--lg-label) * 0.5));
+  font-variant-numeric: tabular-nums;
+}
+.lg-board-cols {
+  grid-column: 2;
+  grid-row: 1;
+  padding-left: 1px;
+}
+.lg-board-rows {
+  grid-column: 1;
+  grid-row: 2;
+  flex-direction: column;
+  padding-top: 1px;
+}
+.lg-board-cols span,
+.lg-board-rows span {
+  display: grid;
+  place-items: center;
+  width: var(--lg-cell);
+  height: var(--lg-label);
+}
+.lg-board-rows span {
+  width: var(--lg-label);
+  height: var(--lg-cell);
+}
+.lg-grid {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 1px;
+  background: var(--board-cell-border, #cfd7e2);
+}
+.lg-board.has-labels .lg-grid {
+  grid-column: 2;
+  grid-row: 2;
+}
+.lg-row {
+  display: flex;
+  gap: 1px;
+}
+.lg-gridcell {
+  display: block;
+  width: calc(var(--lg-cell) - 1px);
+  height: calc(var(--lg-cell) - 1px);
+}
+.lg-cell {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--board-slot-px1-bg, #fff);
+  color: var(--lg-text);
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.lg-slot-px2 {
+  background: var(--board-slot-px2-bg, #f4cf9b);
+}
+.lg-slot-px3,
+.lg-slot-star {
+  background: var(--board-slot-px3-bg, #b9d9ee);
+}
+.lg-slot-ex2 {
+  background: var(--board-slot-ex2-bg, #f3df8f);
+}
+.lg-slot-ex3 {
+  background: var(--board-slot-ex3-bg, #efb0a2);
+}
+.lg-cell.is-committed,
+.lg-cell.is-last,
+.lg-cell.is-tentative,
+.lg-cell.is-opponent-tentative {
+  background: #e8ecf2;
+  padding: 1px;
+}
+.lg-premium {
+  color: #2b2f37;
+  font-size: max(8px, calc(var(--lg-cell) * 0.3));
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  pointer-events: none;
+}
+.lg-slot-star .lg-premium {
+  color: #0b4f8a;
+  font-size: calc(var(--lg-cell) * 0.5);
+}
+.lg-cursor-arrow {
+  width: 62%;
+  height: 62%;
+  color: var(--lg-accent);
+  pointer-events: none;
+}
+.lg-cell.is-cursor {
+  z-index: 1;
+  box-shadow: inset 0 0 0 2px var(--lg-accent);
+}
+.lg-shell:not([data-turn="active"]) .lg-cell.is-cursor {
+  box-shadow: inset 0 0 0 2px #7b8597;
+}
+.lg-cell:focus-visible {
+  z-index: 2;
+  outline-offset: -1px;
+}
+
+/* Tile faces: the physical tile, legible at every size. */
+.lg-tile {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: calc(var(--lg-cell) * 0.13);
+  background: var(--tile-face, #111827);
+  color: var(--tile-text, #f8fafc);
+  font-family: var(--tile-font, Arial, sans-serif);
+  line-height: 1;
+  user-select: none;
+  box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.35);
+}
+.lg-tile b {
+  font-size: calc(var(--lg-cell) * 0.52);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  transform: translateY(-4%);
+}
+.lg-tile.is-long b {
+  font-size: calc(var(--lg-cell) * 0.36);
+}
+.lg-tile small {
+  position: absolute;
+  right: 7%;
+  bottom: 5%;
+  font-size: max(7px, calc(var(--lg-cell) * 0.24));
+  font-weight: 700;
+  opacity: 0.92;
+}
+.lg-tile.is-assigned b,
+.lg-tile.lg-type-choice b {
+  color: var(--choice-assigned-text, #7dd3fc);
+}
+.lg-tile-rack {
+  border-radius: calc(var(--lg-rack-tile) * 0.14);
+}
+.lg-tile-rack b {
+  font-size: calc(var(--lg-rack-tile) * 0.48);
+}
+.lg-tile-rack.is-long b {
+  font-size: calc(var(--lg-rack-tile) * 0.34);
+}
+.lg-tile-rack small {
+  font-size: max(9px, calc(var(--lg-rack-tile) * 0.24));
+}
+.lg-tile-mini {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+}
+.lg-tile-mini b {
+  font-size: 12px;
+}
+.lg-tile-mini.is-long b {
+  font-size: 10px;
+}
+.lg-tile-mini small {
+  display: none;
+}
+
+/* Committed (plain) · tentative (yours, raised, amber dashed ring) ·
+   opponent tentative (ghosted, dashed in their colour) · last move (side ring,
+   brief glow that settles into a persistent corner mark). Shape and style
+   differ, not only hue. */
+/* A tentative tile is draggable: touch must not turn the drag into a pan. */
+.lg-cell[data-draft-tile-id] {
+  touch-action: none;
+}
+.lg-cell.is-tentative {
+  background: var(--lg-tentative-soft);
+  box-shadow: inset 0 0 0 2px var(--lg-tentative);
+}
+.lg-cell.is-tentative .lg-tile {
+  transform: translateY(-1px);
+  box-shadow:
+    0 2px 5px rgba(0, 0, 0, 0.32),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.35);
+  outline: 2px dashed var(--lg-tentative);
+  outline-offset: -3px;
+}
+.lg-cell.is-tentative.is-selected {
+  box-shadow: inset 0 0 0 3px var(--lg-accent);
+}
+.lg-cell.is-opponent-tentative .lg-tile {
+  opacity: 0.72;
+  background: color-mix(in srgb, var(--tile-face, #111827) 78%, var(--lg-opp));
+  outline: 2px dashed var(--lg-opp);
+  outline-offset: -3px;
+}
+.lg-cell.is-last {
+  box-shadow: inset 0 0 0 2px var(--lg-a);
+  animation: lg-last-in 1500ms ease-out 1;
+}
+.lg-cell.is-last.side-b {
+  box-shadow: inset 0 0 0 2px var(--lg-b);
+}
+/* Settled last-move mark: a ring in the mover's colour on the tile itself, plus
+   a corner flag — readable without relying on hue alone. */
+.lg-cell.is-last .lg-tile {
+  box-shadow:
+    0 0 0 2px var(--lg-a),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.35);
+}
+.lg-cell.is-last.side-b .lg-tile {
+  box-shadow:
+    0 0 0 2px var(--lg-b),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.35);
+}
+.lg-cell.is-last::after {
+  content: "";
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 0;
+  height: 0;
+  z-index: 1;
+  border-top: calc(var(--lg-cell) * 0.3) solid var(--lg-a);
+  border-right: calc(var(--lg-cell) * 0.3) solid transparent;
+  pointer-events: none;
+}
+.lg-cell.is-last.side-b::after {
+  border-top-color: var(--lg-b);
+}
+@keyframes lg-last-in {
+  0%,
+  35% {
+    filter: drop-shadow(0 0 6px color-mix(in srgb, var(--lg-move) 0%, #ffd54a));
+    background: #fff1b8;
+  }
+  100% {
+    background: #e8ecf2;
+  }
+}
+.lg-score-badge {
+  position: absolute;
+  z-index: 3;
+  top: calc(var(--r) * var(--lg-cell) - var(--lg-cell) * 0.38);
+  left: calc((var(--c) + 1) * var(--lg-cell) - var(--lg-cell) * 0.3);
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--lg-tentative);
+  color: #fff;
+  font-size: max(11px, calc(var(--lg-cell) * 0.3));
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+/* Turn change: one sweep of the new mover's colour around the board. A newer
+   change remounts it (no queue); reduced motion removes it. */
+.lg-turn-sweep {
+  position: absolute;
+  inset: -4px;
+  border: 4px solid var(--lg-move);
+  border-radius: 9px;
+  pointer-events: none;
+  animation: lg-sweep 460ms ease-out 1 forwards;
+}
+@keyframes lg-sweep {
+  from {
+    opacity: 1;
+    transform: scale(1.025);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1);
+  }
+}
+.lg-review-banner {
+  position: absolute;
+  z-index: 4;
+  top: 8px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 16px);
+  padding: 4px 4px 4px 12px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: #3b2a8a;
+  color: #fff;
+  font-weight: 650;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+/* ── Rack ─────────────────────────────────────────────────────────────── */
+.lg-rack-row {
+  display: flex;
+  justify-content: center;
+}
+.lg-rack {
+  display: flex;
+  gap: max(4px, calc(var(--lg-rack-tile) * 0.1));
+  padding: 6px 8px;
+  border: 1px solid var(--lg-line);
+  border-radius: var(--lg-radius);
+  background: var(--rack-surface, #dce6f5);
+  transition: background-color 260ms ease;
+}
+.lg-shell[data-turn="active"] .lg-rack.is-active {
+  background: color-mix(in srgb, var(--lg-me) 14%, #eef2f8);
+  border-color: color-mix(in srgb, var(--lg-me) 40%, var(--lg-line));
+}
+.lg-rack-slot {
+  display: block;
+  width: var(--lg-rack-tile);
+  height: var(--lg-rack-tile);
+}
+.lg-rack-tile {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--lg-rack-tile) * 0.14);
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+  transition: transform 140ms ease;
+}
+.lg-rack-tile .lg-tile {
+  --lg-cell: var(--lg-rack-tile);
+}
+.lg-rack-tile.is-empty,
+.lg-rack-tile.is-exposed {
+  border: 2px dashed var(--rack-slot-border, #9aacc3);
+  background: var(--rack-slot-surface, #cbd8ec);
+  cursor: pointer;
+}
+.lg-rack-tile.is-exposed {
+  border-color: var(--lg-tentative);
+  background: var(--lg-tentative-soft);
+}
+.lg-exposed-ghost {
+  color: var(--lg-tentative);
+  font-family: var(--tile-font, Arial, sans-serif);
+  font-size: calc(var(--lg-rack-tile) * 0.36);
+  font-weight: 800;
+  opacity: 0.75;
+}
+.lg-shell[data-turn="active"] .lg-rack.is-active .lg-rack-tile:not(.is-empty):not(.is-exposed) {
+  transform: translateY(-2px);
+}
+.lg-shell[data-turn="active"] .lg-rack.is-active .lg-rack-tile .lg-tile {
+  box-shadow:
+    0 3px 6px rgba(0, 0, 0, 0.28),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.35);
+}
+.lg-rack-tile.is-selected {
+  transform: translateY(-6px) !important;
+}
+.lg-rack-tile.is-selected .lg-tile {
+  outline: 3px solid var(--lg-accent);
+  outline-offset: 1px;
+}
+.lg-rack-tile.is-marked {
+  transform: translateY(5px) !important;
+}
+.lg-rack-tile.is-marked .lg-tile {
+  outline: 3px solid #b42335;
+  outline-offset: 1px;
+}
+.lg-rack-tile.is-marked::after {
+  content: "⇄";
+  position: absolute;
+  top: -10px;
+  right: -6px;
+  display: grid;
+  width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 50%;
+  background: #b42335;
+  color: #fff;
+  font-size: 12px;
+}
+.lg-rack.is-closed .lg-rack-slot {
+  border-radius: calc(var(--lg-rack-tile) * 0.14);
+  background: var(--rack-slot-surface, #cbd8ec);
+}
+.lg-tile-back {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: repeating-linear-gradient(45deg, #2a3446, #2a3446 5px, #354055 5px, #354055 10px);
+}
+[data-dragging] {
+  opacity: 0.6;
+}
+
+/* ── Player cards ─────────────────────────────────────────────────────── */
+.lg-card {
+  --side: var(--lg-a);
+  --side-text: var(--lg-a-text);
+  --side-soft: var(--lg-a-soft);
+  position: relative;
+  display: grid;
+  grid-template-columns: 6px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "bar name score"
+    "bar status clock";
+  column-gap: 12px;
+  row-gap: 2px;
+  min-height: 84px;
+  padding: 12px 14px 12px 0;
+  border: 1px solid var(--lg-line);
+  border-radius: var(--lg-radius);
+  background: var(--lg-surface);
+  transition:
+    background-color 260ms ease,
+    box-shadow 260ms ease,
+    border-color 260ms ease;
+}
+.lg-card.side-b {
+  --side: var(--lg-b);
+  --side-text: var(--lg-b-text);
+  --side-soft: var(--lg-b-soft);
+}
+.lg-card-identity {
+  grid-area: bar;
+  align-self: stretch;
+  width: 4px;
+  margin-left: 0;
+  border-radius: 0 4px 4px 0;
+  background: var(--side);
+  opacity: 0.55;
+  transition: width 260ms ease;
+}
+.lg-card-name {
+  grid-area: name;
+  display: grid;
+  min-width: 0;
+}
+.lg-card-name strong {
+  overflow: hidden;
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lg-card-name small,
+.lg-card-status {
+  color: var(--lg-muted);
+  font-size: 12px;
+}
+.lg-card-status {
+  grid-area: status;
+  align-self: end;
+  min-height: 16px;
+}
+.lg-card-score {
+  grid-area: score;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  font-size: 28px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.lg-card-clock {
+  grid-area: clock;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  color: var(--lg-muted);
+  font-size: 16px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+.lg-run-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: transparent;
+  border: 2px solid var(--lg-line-strong);
+}
+/* The side to move: raised, filled, the clock large and its mark pulsing. */
+.lg-card.is-to-move {
+  border-color: var(--side);
+  background: var(--side-soft);
+  box-shadow:
+    0 8px 22px color-mix(in srgb, var(--side) 22%, transparent),
+    0 0 0 1px var(--side);
+}
+.lg-card.is-to-move .lg-card-identity {
+  width: 6px;
+  opacity: 1;
+}
+.lg-card.is-to-move .lg-card-status {
+  color: var(--side-text);
+  font-weight: 700;
+}
+.lg-card.is-to-move .lg-card-clock {
+  color: var(--lg-text);
+  font-size: 22px;
+  font-weight: 800;
+}
+.lg-card.is-running .lg-run-dot {
+  border-color: var(--side);
+  background: var(--side);
+  animation: lg-pulse 1s ease-in-out infinite;
+}
+.lg-card-clock.is-low {
+  color: #b42335 !important;
+}
+.lg-card-clock.is-over {
+  color: #fff !important;
+  background: #b42335;
+  border-radius: 6px;
+  padding: 0 6px;
+}
+.lg-card.is-winner {
+  border-color: #c99a06;
+  background: #fff8db;
+}
+@keyframes lg-pulse {
+  50% {
+    transform: scale(0.6);
+    opacity: 0.55;
+  }
+}
+.lg-card.is-compact {
+  grid-template-columns: 5px minmax(0, 1fr) auto auto;
+  grid-template-areas: "bar name score clock";
+  min-height: 0;
+  padding: 6px 10px 6px 0;
+  column-gap: 8px;
+  align-items: center;
+}
+.lg-card.is-compact .lg-card-status {
+  display: none;
+}
+.lg-card.is-compact .lg-card-name strong {
+  font-size: 14px;
+}
+.lg-card.is-compact .lg-card-name small {
+  font-size: 11px;
+}
+.lg-card.is-compact .lg-card-score {
+  font-size: 20px;
+}
+.lg-card.is-compact .lg-card-clock,
+.lg-card.is-compact.is-to-move .lg-card-clock {
+  font-size: 15px;
+}
+.lg-card.is-compact.is-to-move .lg-card-clock {
+  font-size: 17px;
+}
+
+/* ── Turn actions ─────────────────────────────────────────────────────── */
+.lg-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+}
+.lg-actions .lg-btn {
+  min-height: 48px;
+  font-size: 15px;
+}
+.lg-btn-commit {
+  font-size: 16px !important;
+}
+.lg-actions-hint {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: var(--lg-muted);
+  font-size: 12px;
+  text-align: center;
+}
+.lg-actions-hint.is-invalid {
+  color: #9c2a12;
+}
+.lg-actions.is-waiting {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 14px;
+  border: 1px dashed color-mix(in srgb, var(--lg-move) 45%, var(--lg-line));
+  border-radius: var(--lg-radius-sm);
+  background: color-mix(in srgb, var(--lg-move) 6%, var(--lg-surface));
+  color: var(--lg-text);
+  font-weight: 650;
+}
+.lg-waiting-dots {
+  display: inline-flex;
+  gap: 4px;
+}
+.lg-waiting-dots i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--lg-move);
+  animation: lg-dots 1.2s ease-in-out infinite;
+}
+.lg-waiting-dots i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.lg-waiting-dots i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes lg-dots {
+  0%,
+  80%,
+  100% {
+    opacity: 0.25;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+/* ── Event line, Last Move ────────────────────────────────────────────── */
+.lg-event {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 8px 6px 12px;
+  border: 1px solid var(--lg-line);
+  border-radius: var(--lg-radius-sm);
+  background: var(--lg-surface);
+}
+.lg-event-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+.lg-event-actions {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+.lg-event.is-request {
+  border-color: #c77700;
+  background: #fff4dc;
+}
+.lg-event.is-paused {
+  border-color: var(--lg-line-strong);
+  background: #eef0f4;
+}
+.lg-event.is-error {
+  border-color: #e3a0a8;
+  background: #fff1f2;
+  color: #8c1d2b;
+}
+.lg-event.is-hint {
+  background: var(--lg-surface-2);
+  color: var(--lg-muted);
+}
+.lg-last {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    "label label label"
+    "who what score";
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 4px;
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--lg-line);
+  border-radius: var(--lg-radius);
+  background: var(--lg-surface);
+  color: var(--lg-text);
+  text-align: left;
+  font: inherit;
+}
+button.lg-last {
+  cursor: pointer;
+}
+.lg-last.side-a {
+  border-left: 4px solid var(--lg-a);
+}
+.lg-last.side-b {
+  border-left: 4px solid var(--lg-b);
+}
+.lg-last-label {
+  grid-area: label;
+  color: var(--lg-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.lg-last-who {
+  grid-area: who;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 650;
+}
+.lg-last-what {
+  grid-area: what;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--tile-font, Arial, sans-serif);
+  font-size: 18px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lg-last.kind-exchange .lg-last-what,
+.lg-last.kind-pass .lg-last-what,
+.lg-last.is-none .lg-last-what {
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 650;
+}
+.lg-last-score {
+  grid-area: score;
+  font-size: 20px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.lg-last.side-a .lg-last-score {
+  color: var(--lg-a-text);
+}
+.lg-last.side-b .lg-last-score {
+  color: var(--lg-b-text);
+}
+.lg-last.is-compact {
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  grid-template-areas: "label who what score";
+  min-height: 40px;
+  padding: 4px 10px;
+}
+.lg-last.is-compact .lg-last-what {
+  font-size: 15px;
+}
+.lg-last.is-compact .lg-last-score {
+  font-size: 15px;
+}
+.lg-side-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--lg-a);
+}
+.side-b .lg-side-dot,
+.side-b > .lg-side-dot {
+  background: var(--lg-b);
+}
+
+/* ── Panels: tabs, bag, record, tools, notes ──────────────────────────── */
+.lg-tabs {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  border: 1px solid var(--lg-line);
+  border-radius: var(--lg-radius);
+  background: var(--lg-surface);
+  overflow: hidden;
+}
+.lg-tablist {
+  display: flex;
+  flex: none;
+  border-bottom: 1px solid var(--lg-line);
+  overflow-x: auto;
+}
+.lg-tablist [role="tab"] {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--lg-muted);
+  font-weight: 650;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.lg-tablist [role="tab"][aria-selected="true"] {
+  border-bottom-color: var(--lg-accent);
+  color: var(--lg-text);
+}
+.lg-tab-badge {
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--lg-surface-2);
+  border: 1px solid var(--lg-line);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.lg-tabpanel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 12px;
+}
+.lg-bag-counts {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--lg-muted);
+}
+.lg-bag-counts strong {
+  color: var(--lg-text);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.lg-bag-note,
+.lg-empty,
+.lg-review-note {
+  margin: 4px 0 10px;
+  color: var(--lg-muted);
+  font-size: 12px;
+}
+.lg-bag-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 6px;
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+.lg-bag-grid li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.lg-bag-grid li.is-out {
+  opacity: 0.38;
+}
+.lg-bag-count {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 13px;
+}
+.lg-section-title {
+  display: flex;
+  justify-content: space-between;
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+.lg-section-title small {
+  color: var(--lg-muted);
+  font-weight: 500;
+}
+.lg-record {
+  display: grid;
+  gap: 14px;
+}
+.lg-log-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lg-log-row {
+  display: grid;
+  grid-template-columns: 34px 10px minmax(0, 0.9fr) minmax(0, 1.4fr);
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 36px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--lg-text);
+  text-align: left;
+  cursor: pointer;
+}
+.lg-log-row:hover {
+  background: var(--lg-surface-2);
+}
+.lg-log-row[aria-current="true"] {
+  background: #ece8ff;
+  box-shadow: inset 3px 0 0 #7a5af8;
+}
+.lg-log-turn {
+  color: var(--lg-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+}
+.lg-log-who,
+.lg-log-what {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lg-log-what {
+  font-weight: 650;
+}
+.lg-review {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #c9bdfd;
+  border-radius: var(--lg-radius-sm);
+  background: #f6f3ff;
+}
+.lg-review-head,
+.lg-review-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.lg-segmented {
+  display: inline-flex;
+  border: 1px solid var(--lg-line-strong);
+  border-radius: var(--lg-radius-sm);
+  overflow: hidden;
+}
+.lg-segmented button {
+  min-height: 36px;
+  padding: 0 12px;
+  border: 0;
+  background: var(--lg-surface);
+  cursor: pointer;
+}
+.lg-segmented button[aria-pressed="true"] {
+  background: var(--lg-accent);
+  color: #fff;
+}
+.lg-tools {
+  display: grid;
+  gap: 14px;
+}
+.lg-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  min-height: 0;
+}
+.lg-notes-label {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--lg-muted);
+}
+.lg-notes textarea {
+  flex: 1;
+  min-height: 120px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--lg-line);
+  border-radius: var(--lg-radius-sm);
+  background: #fffdf5;
+  color: var(--lg-text);
+  font: 15px/1.5 var(--font-mono, ui-monospace, monospace);
+  resize: none;
+  background-image: linear-gradient(transparent 21.5px, #efe8cf 22.5px);
+  background-size: 100% 22.5px;
+  background-attachment: local;
+}
+.lg-notes-hint {
+  color: var(--lg-muted);
+  font-size: 11px;
+}
+
+/* ── Match bar, menu, result ──────────────────────────────────────────── */
+.lg-matchbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lg-title {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+.lg-title strong {
+  overflow: hidden;
+  font-size: 15px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lg-title small {
+  color: var(--lg-muted);
+  font-size: 12px;
+}
+.lg-menu {
+  display: grid;
+  gap: 6px;
+}
+.lg-menu-item {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 12px;
+  border: 1px solid #dfe3eb;
+  border-radius: 10px;
+  background: #fff;
+  color: #172033;
+  text-align: start;
+  font: inherit;
+  cursor: pointer;
+}
+.lg-menu-item span {
+  display: grid;
+}
+.lg-menu-item small {
+  color: #667085;
+  font-size: 12px;
+}
+.lg-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.lg-menu-danger {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eadfe1;
+}
+.lg-menu-item.is-danger {
+  border-color: #efb8c1;
+  color: #b42335;
+}
+.lg-result {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 8px 12px;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid #e6c766;
+  border-radius: var(--lg-radius);
+  background: #fff8db;
+  color: #6b4e00;
+}
+.lg-result.is-blocked {
+  grid-template-columns: minmax(0, 1fr);
+  border-color: #c9ced8;
+  background: #f1f3f7;
+  color: var(--lg-text);
+}
+.lg-blocked-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.lg-result-head {
+  display: grid;
+  color: var(--lg-text);
+}
+.lg-result-head strong {
+  font-size: 17px;
+}
+.lg-result-head small {
+  color: var(--lg-muted);
+}
+.lg-result-actions {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-auto-flow: column;
+  gap: 8px;
+}
+
+/* ── Layout: duo (two gutters) ────────────────────────────────────────── */
+.lg-shell[data-layout="duo"] {
+  display: grid;
+  grid-template-columns: calc(var(--lg-gutter) - 12px) var(--lg-board) calc(var(--lg-gutter) - 12px);
+  justify-content: center;
+  align-content: center;
+  column-gap: 12px;
+}
+.lg-shell[data-layout="column"] {
+  display: grid;
+  grid-template-columns: var(--lg-board) calc(var(--lg-gutter));
+  justify-content: center;
+  align-content: center;
+  column-gap: 12px;
+}
+.lg-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.lg-gutter {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+}
+.lg-shell[data-layout="duo"] .lg-left {
+  justify-self: end;
+  width: min(100%, 440px);
+}
+.lg-shell[data-layout="duo"] .lg-right,
+.lg-shell[data-layout="column"] .lg-right {
+  justify-self: start;
+  width: min(100%, 460px);
+}
+.lg-left-fill,
+.lg-right-fill {
+  flex: 1;
+  min-height: 0;
+}
+.lg-shell[data-layout="column"] .lg-right {
+  width: 100%;
+  max-width: 480px;
+}
+.lg-duel {
+  display: grid;
+  gap: 6px;
+}
+.lg-rack-row.is-gutter {
+  justify-content: flex-start;
+}
+.lg-shell[data-rack="gutter"] .lg-rack {
+  padding: 5px 6px;
+}
+
+/* ── Layout: stack (phones, tablet portrait) ──────────────────────────── */
+.lg-shell[data-layout="stack"] {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: max(4px, env(safe-area-inset-top)) 4px max(4px, env(safe-area-inset-bottom));
+}
+.lg-shell[data-layout="stack"] > * {
+  width: min(100%, max(var(--lg-board), 720px));
+}
+.lg-shell[data-layout="stack"] > .lg-board-wrap {
+  width: var(--lg-board);
+}
+.lg-strip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.lg-strip > .lg-card,
+.lg-strip > .lg-title {
+  flex: 1;
+  min-width: 0;
+}
+.lg-strip-top {
+  min-height: 44px;
+}
+.lg-strip-self {
+  min-height: 40px;
+}
+.lg-strip-self > .lg-card {
+  flex: 0 1 44%;
+}
+.lg-strip-event {
+  flex: 1;
+  min-width: 0;
+}
+/* An incoming pause request needs the whole strip on a phone; the requester's
+   card already says "Asked to pause" and the board keeps its place. */
+@media (max-width: 599px) {
+  .lg-strip-self:has(.lg-event.is-request) > .lg-card {
+    display: none;
+  }
+}
+.lg-event.is-request .lg-event-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 13px;
+  line-height: 1.2;
+  white-space: normal;
+}
+.lg-strip-event .lg-event,
+.lg-strip-event .lg-last {
+  min-height: 40px;
+  padding-top: 3px;
+  padding-bottom: 3px;
+}
+.lg-strip-event.is-compact {
+  position: absolute;
+  z-index: 6;
+  top: max(4px, env(safe-area-inset-top));
+  left: 4px;
+  right: 4px;
+  width: auto;
+}
+.lg-strip-event.is-compact:empty {
+  display: none;
+}
+.lg-shell[data-layout="stack"] .lg-match-label {
+  display: none;
+}
+.lg-shell[data-layout="stack"] .lg-icon-btn {
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0 8px;
+}
+.lg-actionbar {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  flex: none;
+}
+.lg-actionbar > .lg-actions,
+.lg-actionbar > .lg-result {
+  flex: 1;
+  min-width: 0;
+}
+.lg-actionbar > .lg-card {
+  flex: 0 0 auto;
+}
+.lg-more-btn {
+  flex-direction: column;
+  gap: 1px;
+  min-width: 52px !important;
+  font-size: 11px;
+}
+.lg-shell[data-layout="stack"] .lg-actions .lg-btn {
+  min-height: 48px;
+  padding: 0 10px;
+}
+.lg-shell[data-layout="stack"] .lg-actions-hint {
+  display: none;
+}
+.lg-shell[data-layout="stack"] .lg-result {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  padding: 6px 10px;
+}
+.lg-shell[data-layout="stack"] .lg-result-actions {
+  grid-column: auto;
+}
+.lg-shell[data-layout="stack"] .lg-rack {
+  gap: 4px;
+  padding: 4px 5px;
+}
+@media (min-width: 600px) {
+  .lg-shell[data-layout="stack"] .lg-rack {
+    gap: 6px;
+  }
+}
+@media (max-width: 420px) {
+  .lg-strip .lg-last-label {
+    display: none;
+  }
+}
+@media (min-width: 600px) {
+  .lg-shell[data-layout="stack"] {
+    gap: 8px;
+    padding: 12px 16px;
+  }
+  .lg-strip-top {
+    min-height: 56px;
+  }
+}
+
+/* ── Layout: phone on its side ────────────────────────────────────────── */
+.lg-shell[data-layout="stack-landscape"] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--lg-board) minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 4px max(8px, env(safe-area-inset-right)) 4px max(8px, env(safe-area-inset-left));
+}
+.lg-shell[data-layout="stack-landscape"] .lg-gutter {
+  height: 100%;
+  justify-content: center;
+}
+.lg-shell[data-layout="stack-landscape"] .lg-rack {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.lg-shell[data-layout="stack-landscape"] .lg-match-label {
+  display: none;
+}
+
+/* ── Practice overlay ─────────────────────────────────────────────────── */
+.lg-practice {
+  --lg-cell: clamp(
+    14px,
+    min(calc((min(100vw, 560px) - 64px) / 15), calc((100dvh - 300px) / 15)),
+    32px
+  );
+  --lg-label: 0px;
+  --lg-board: calc(var(--lg-cell) * 15 + 2px);
+  --lg-rack-tile: clamp(32px, calc(var(--lg-cell) * 1.15), 48px);
+  --lg-tentative: #c77700;
+  --lg-tentative-soft: #fff4dc;
+  --lg-accent: #3157c8;
+  --lg-focus: #1b49d6;
+  display: grid;
+  gap: 10px;
+  max-height: 100%;
+  overflow: auto;
+  padding: 0;
+  border-radius: 14px;
+  background: #fff;
+  color: #18202e;
+  font-family: var(--font-sans, system-ui, sans-serif);
+}
+.lg-practice-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.lg-practice-head h2 {
+  margin: 0;
+}
+.lg-practice-board {
+  width: var(--lg-board);
+  height: var(--lg-board);
+}
+
+/* ── Live tool sections (History, Physical, corrections, waiting room) ─ */
+.live-tool {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.live-tool + .live-tool {
+  padding-top: 12px;
+  border-top: 1px solid var(--lg-line, #dce2ec);
+}
+.live-tool-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+}
+.live-tool-note,
+.live-tool-rack {
+  margin: 0;
+  color: var(--lg-muted, #566176);
+  font-size: 13px;
+  line-height: 1.45;
+}
+.live-tool-rack {
+  color: var(--lg-text, #18202e);
+  font-weight: 650;
+}
+.live-tool-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.live-tool-form {
+  display: grid;
+  gap: 10px;
+}
+.live-tool-form textarea {
+  width: 100%;
+  min-height: 72px;
+  padding: 9px 11px;
+  border: 1px solid var(--lg-line-strong, #b9c3d3);
+  border-radius: 8px;
+  font: inherit;
+  resize: vertical;
+}
+.live-tool-line,
+.live-config-side {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid #dce2ec;
+  border-radius: 10px;
+}
+.live-tool-line legend,
+.live-config-side legend {
+  padding: 0 4px;
+  font-size: 12px;
+  font-weight: 800;
+}
+.live-tile-palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(44px, 1fr));
+  gap: 6px;
+}
+.eq-button.live-tile-pick {
+  min-height: 40px;
+  padding: 4px 6px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+}
+.lg-shell .eq-field {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--lg-muted);
+}
+.lg-shell .eq-field :is(select, input) {
+  min-height: 40px;
+  padding: 0 10px;
+  border: 1px solid var(--lg-line-strong);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--lg-text);
+  font: inherit;
+}
+.live-waiting-card,
+.live-handoff-card,
+.live-waiting-controls,
+.live-config-form {
+  display: grid;
+  gap: 14px;
+}
+.live-waiting-card .eq-section-heading,
+.live-handoff-card .eq-section-heading {
+  margin: 0;
+}
+.live-waiting-card .eq-section-heading p + p,
+.live-handoff-card .eq-section-heading p + p {
+  margin-top: 6px;
+}
+.live-config-form {
+  padding: 14px;
+  border: 1px solid #dce2ec;
+  border-radius: 12px;
+}
+.live-config-sides {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 12px;
+}
+
+/* ── Motion preferences ───────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .lg-turn-sweep {
+    display: none;
+  }
+  .lg-shell *,
+  .lg-practice * {
+    animation: none !important;
+    transition: none !important;
+  }
+  .lg-card.is-running .lg-run-dot {
+    animation: none;
+  }
+}
+
+/* ── Sheets on the play route ─────────────────────────────────────────────
+   The application styles Sheets everywhere except the play route, where the
+   legacy Play cascade used to. The shell no longer loads that cascade, so it
+   carries the same Sheet rules for the play route (mirrored from
+   application.css). */
+body[data-route="play"] .ui-sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(14, 20, 34, 0.56);
+  padding: 20px;
+}
+
+body[data-route="play"] .ui-sheet-dismiss,
+body[data-route="play"] .modal-backdrop-dismiss {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: default;
+}
+
+body[data-route="play"] .ui-sheet {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: min(560px, 100%);
+  max-height: min(82dvh, 760px);
+  overflow: hidden;
+  border: 1px solid #c6ccd8;
+  border-radius: 16px;
+  background: #fff;
+  color: #172033;
+  box-shadow: 0 26px 70px rgba(14, 20, 34, 0.24);
+}
+
+body[data-route="play"] .modal-backdrop > :not(.modal-backdrop-dismiss) {
+  position: relative;
+  z-index: 1;
+}
+
+body[data-route="play"] .ui-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid #dfe3eb;
+}
+
+body[data-route="play"] .ui-sheet-head h2 {
+  margin: 0;
+  font-size: 17px;
+}
+
+body[data-route="play"] .ui-sheet-close,
+body[data-route="play"] .overflow-menu-trigger {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  place-items: center;
+  border: 1px solid #dfe3eb;
+  border-radius: 8px;
+  background: #fff;
+  color: #5c667a;
+}
+
+body[data-route="play"] .ui-sheet-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px;
+}
+
+body[data-route="play"] .ui-sheet-actions,
+body[data-route="play"] .overflow-menu-items {
+  display: grid;
+  gap: 8px;
+  margin-block-start: 14px;
+}
+
+body[data-route="play"] .overflow-menu-items {
+  margin: 0;
+}
+
+body[data-route="play"] .overflow-menu-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid #dfe3eb;
+  border-radius: 8px;
+  background: #fff;
+  color: #172033;
+  padding: 9px 11px;
+  text-align: start;
+}
+
+body[data-route="play"] .overflow-menu-copy {
+  display: grid;
+  font-weight: 700;
+}
+
+body[data-route="play"] .overflow-menu-copy em {
+  color: #7b8598;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 500;
+}
+
+body[data-route="play"] .overflow-menu-item.danger {
+  border-color: #efb8c1;
+  color: #b42335;
+}
+
+body[data-route="play"] .overflow-menu-item:disabled {
+  opacity: 0.52;
+}
+
+@media (max-width: 640px) {
+  body[data-route="play"] .ui-sheet-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+  body[data-route="play"] .ui-sheet {
+    width: 100%;
+    max-height: 88dvh;
+    border-width: 1px 0 0;
+    border-radius: 18px 18px 0 0;
+    padding-block-end: env(safe-area-inset-bottom);
+  }
+}

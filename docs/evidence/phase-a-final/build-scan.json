@@ -1,0 +1,18 @@
+{
+  "dist": {
+    "files": 42,
+    "sourceMaps": [],
+    "secretValues": [],
+    "credentialPatterns": [],
+    "authurArtifacts": [],
+    "fixtureOrExecutorCode": []
+  },
+  "test-results/phase-a-build": {
+    "files": 42,
+    "sourceMaps": [],
+    "secretValues": [],
+    "credentialPatterns": [],
+    "authurArtifacts": [],
+    "fixtureOrExecutorCode": []
+  }
+}

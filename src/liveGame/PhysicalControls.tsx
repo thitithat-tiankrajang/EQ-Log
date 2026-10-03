@@ -2,7 +2,7 @@ import { useState } from "react";
 import { AMATH_TOKENS, type Side } from "../game";
 import type { LiveGameView } from "./projection";
 import type { PhysicalAction } from "./physical";
-import { ToolSection } from "./ContextTools";
+import { ToolSection } from "./ToolSection";
 
 export function PhysicalControls({
   match,

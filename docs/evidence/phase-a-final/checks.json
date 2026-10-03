@@ -1,0 +1,44 @@
+[
+  {
+    "name": "format",
+    "command": "npm run format:check",
+    "exit": 0,
+    "log": "test-results/phase-a-gate/format.log"
+  },
+  {
+    "name": "shell-format",
+    "command": "npx prettier --check src/liveGame/**/*.{ts,tsx,css} playwright.live-shell.config.ts tools/phase-a/*.mjs",
+    "exit": 0,
+    "log": "test-results/phase-a-gate/shell-format.log"
+  },
+  {
+    "name": "lint",
+    "command": "npm run lint",
+    "exit": 0,
+    "log": "test-results/phase-a-gate/lint.log"
+  },
+  {
+    "name": "typecheck",
+    "command": "npm run typecheck",
+    "exit": 0,
+    "log": "test-results/phase-a-gate/typecheck.log"
+  },
+  {
+    "name": "focused-tests",
+    "command": "npx vitest run tests/live-shell-screen.test.tsx tests/live-shell-units.test.tsx tests/live-shell-layout.test.ts tests/live-play-layout.test.tsx tests/ranked-play-ui.test.tsx tests/live-hidden-boundary.test.ts tests/live-hidden-information-repro.test.ts tests/live-capabilities.test.ts tests/live-milestone-s.test.ts tests/live-projection-client.test.ts tests/live-history-replay-secrecy.test.ts tests/live-own-analysis.test.ts tests/live-hosted-administration.test.ts tests/live-offline-boundary.test.tsx",
+    "exit": 0,
+    "log": "test-results/phase-a-gate/focused-tests.log"
+  },
+  {
+    "name": "production-build",
+    "command": "npm run build",
+    "exit": 0,
+    "log": "test-results/phase-a-gate/production-build.log"
+  },
+  {
+    "name": "build-scan",
+    "command": "/opt/homebrew/Cellar/node/26.6.0/bin/node tools/phase-a/scan-build.mjs",
+    "exit": 0,
+    "log": "test-results/phase-a-gate/build-scan.log"
+  }
+]

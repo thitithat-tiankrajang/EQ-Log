@@ -121,7 +121,7 @@ async function safe(page: Page, who: Player, id: string, seen: ReturnType<typeof
 }
 async function pass(page: Page) {
   await page.getByRole("button", { name: "Pass", exact: true }).click();
-  await page.getByRole("button", { name: "Submit Pass", exact: true }).click();
+  await page.getByRole("button", { name: "Confirm pass", exact: true }).click();
 }
 async function finish(page: Page, who: Player, id: string, name = "live-game") {
   const read = await browserCall(page, who, { operation: "read", id }, name);
@@ -170,7 +170,7 @@ test("two browsers: public/private Normal, exchange, reconnect/reload/second tab
       ob = observe(pb);
     await Promise.all([pa.goto(`/#/play/${id}`), pb.goto(`/#/play/${id}`)]);
     await pa.getByRole("button", { name: "Ready", exact: true }).click();
-    await expect(pb.getByText("A พร้อม · B ยังไม่พร้อม", { exact: true })).toBeVisible();
+    await expect(pb.getByText("A ready · B not ready", { exact: true })).toBeVisible();
     await pb.getByRole("button", { name: "Ready", exact: true }).click();
     await expect(pa.getByRole("button", { name: "Launch game", exact: true })).toBeEnabled();
     await pa.getByRole("button", { name: "Launch game", exact: true }).click();
@@ -435,6 +435,8 @@ test("full-strength trusted Authur and Stage: real bot move, concurrent retry, r
     os = observe(pa);
   await pa.goto(`/#/play/${stageId}`);
   await expect(pa.getByRole("button", { name: "Pass", exact: true })).toBeEnabled();
+  // Analysis is a Game Tool: its own tab beside the board.
+  await pa.getByRole("tab", { name: "Tools", exact: true }).click();
   await pa.getByRole("button", { name: "Analyze my turn", exact: true }).click();
   await expect(pa.getByText(/^Own-rack analysis:/)).toBeVisible({ timeout: 120_000 });
   await pass(pa);

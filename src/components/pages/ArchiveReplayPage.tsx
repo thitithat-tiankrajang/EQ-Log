@@ -7,6 +7,7 @@ import { readSafeArchiveReplay } from "../../completedGame/client";
 import type { SafeArchiveReplay } from "../../completedGame/archiveRead";
 import type { PublicBoardCell } from "../../completedGame/projection";
 import { navigate, returnDestinationFor, useRoute } from "../../router";
+import { LeftoverNotes } from "../../liveGame/shell/LeftoverNotes";
 
 const NO_CELL_CLICK = () => {};
 
@@ -100,6 +101,7 @@ export default function ArchiveReplayPage({
       onBack={() => navigate(destination)}
       backLabel="Back"
     >
+      {gameId ? <LeftoverNotes key={gameId} gameId={gameId} /> : null}
       {error ? <p role="alert">{error}</p> : null}
       {!stored && !error ? <p role="status">Opening replay…</p> : null}
       {stored && replay && selected ? (

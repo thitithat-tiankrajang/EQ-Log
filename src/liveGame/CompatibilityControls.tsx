@@ -2,9 +2,8 @@ import { useState, type ReactNode } from "react";
 import type { LiveGameView } from "./projection";
 import type { LiveControl, WaitingConfiguration } from "./controls";
 import { useRegisteredPlayersCatalog } from "../components/pages/lobby/useRegisteredPlayersCatalog";
-import { Sheet } from "../components/ui/Sheet";
 import type { RankedTurnView } from "../features/ranked/publicView";
-import { ToolSection } from "./ContextTools";
+import { ToolSection } from "./ToolSection";
 
 export function WaitingControls({
   match,
@@ -183,103 +182,6 @@ export function WaitingControls({
         </form>
       )}
     </section>
-  );
-}
-
-/** Direct-game pause requests and answers, as the legacy stop-request sheets. */
-export function PauseSheets({
-  match,
-  busy,
-  onAction,
-}: {
-  match: LiveGameView;
-  busy: boolean;
-  onAction(action: LiveControl): void;
-}) {
-  // Closing the answer only hides it here; Acknowledge clears it for good.
-  const [hiddenResponseId, setHiddenResponseId] = useState<string | null>(null);
-  const request = match.matchControl?.stopRequest,
-    response = match.matchControl?.stopResponse;
-  const incoming = Boolean(match.directPause && request && request.requestedBy !== match.yourSide);
-  const answered = Boolean(
-    match.directPause &&
-    response &&
-    response.requestedBy === match.yourSide &&
-    response.id !== hiddenResponseId,
-  );
-  return (
-    <>
-      <Sheet dismissible={false} open={incoming} title="Pause request" onClose={() => undefined}>
-        {request && (
-          <>
-            <p className="ui-confirm-consequence" role="status">
-              {match.players[request.requestedBy]} requested a pause.
-            </p>
-            <div className="ui-sheet-actions stop-request-actions">
-              <button
-                type="button"
-                className="ui-button-primary"
-                disabled={busy}
-                onClick={() =>
-                  onAction({ kind: "respond-pause", requestId: request.id, accept: true })
-                }
-              >
-                Accept pause
-              </button>
-              <button
-                type="button"
-                className="ui-button-ghost"
-                disabled={busy}
-                onClick={() =>
-                  onAction({ kind: "respond-pause", requestId: request.id, accept: false })
-                }
-              >
-                Decline pause
-              </button>
-              <button
-                type="button"
-                className="ui-button-danger"
-                disabled={busy}
-                onClick={() =>
-                  onAction({
-                    kind: "respond-pause",
-                    requestId: request.id,
-                    accept: false,
-                    blockFiveMinutes: true,
-                  })
-                }
-              >
-                Decline and block for 5 minutes
-              </button>
-            </div>
-          </>
-        )}
-      </Sheet>
-      <Sheet
-        open={answered}
-        title={response?.accepted ? "Pause accepted" : "Pause declined"}
-        onClose={() => setHiddenResponseId(response?.id ?? null)}
-      >
-        {response && (
-          <>
-            <p className="ui-confirm-consequence" role="status">
-              Pause {response.accepted ? "accepted" : "declined"}
-              {response.blockedForMs ? " · requests blocked for 5 minutes" : ""}.
-            </p>
-            <div className="ui-sheet-actions">
-              <button
-                type="button"
-                className="ui-button-primary"
-                disabled={busy}
-                onClick={() => onAction({ kind: "acknowledge-pause", responseId: response.id })}
-              >
-                Acknowledge response
-              </button>
-            </div>
-          </>
-        )}
-      </Sheet>
-    </>
   );
 }
 

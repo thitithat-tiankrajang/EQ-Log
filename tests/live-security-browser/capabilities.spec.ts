@@ -43,6 +43,7 @@ for (const seat of ["host", "A+host", "B+host"])
       await signIn(pp, ordinary);
       await hp.goto(`/#/play/${id}`, { waitUntil: "domcontentloaded" });
       await pp.goto(`/#/play/${id}`, { waitUntil: "domcontentloaded" });
+      await hp.getByRole("tab", { name: "Physical", exact: true }).click();
       const controls = hp.getByRole("region", { name: "Physical game controls" });
       await expect(controls).toBeVisible();
       for (const side of ["A", "B"]) {
@@ -54,6 +55,7 @@ for (const seat of ["host", "A+host", "B+host"])
         );
       }
       await expect(pp.getByRole("region", { name: "Physical game controls" })).toHaveCount(0);
+      await expect(pp.getByRole("tab", { name: "Physical", exact: true })).toHaveCount(0);
       const hostView = await browserCall(hp, host, { operation: "read", id });
       expect(hostView.body.match.hostRacks.A).toHaveLength(8);
       expect(hostView.body.match.hostRacks.B).toHaveLength(8);
@@ -78,8 +80,13 @@ for (const seat of ["host", "A+host", "B+host"])
       for (const tile of otherRack) expect(playerTraffic).not.toContain(`"${tile.id}"`);
       for (const tile of privateState.tilebag)
         expect(hostTraffic + playerTraffic).not.toContain(`"${tile.id}"`);
-      hp.on("dialog", (d) => d.accept());
-      await hp.getByRole("button", { name: "Finish game", exact: true }).click();
+      // Finish is a match control behind a confirmation sheet (no native dialog).
+      await hp.getByRole("button", { name: "Match controls", exact: true }).click();
+      await hp.getByRole("button", { name: /^Finish game/ }).click();
+      await hp
+        .getByRole("dialog", { name: "Finish game" })
+        .getByRole("button", { name: "Finish game", exact: true })
+        .click();
       await expect
         .poll(async () => (await call(a, { gameId: id }, "archive-replay")).status)
         .toBe(200);
@@ -122,11 +129,11 @@ test("Pass & Play UI conceals outgoing rack before confirmation, clears drafts a
     await page.getByRole("button", { name: "A — confirm handoff", exact: true }).click();
     await expect(page.getByRole("button", { name: "Pass", exact: true })).toBeEnabled();
     await page.getByRole("button", { name: "Pass", exact: true }).click();
-    await page.getByRole("button", { name: "Submit Pass", exact: true }).click();
+    await page.getByRole("button", { name: "Confirm pass", exact: true }).click();
     await expect(
       page.getByRole("button", { name: "B — confirm handoff", exact: true }),
     ).toBeVisible();
-    await expect(page.locator(".rack-slots")).toHaveCount(0);
+    await expect(page.locator(".lg-rack")).toHaveCount(0);
     const plain = await browserCall(page, owner, { operation: "read", id });
     expect(plain.body.match.yourRack).toEqual([]);
     await page.getByRole("button", { name: "B — confirm handoff", exact: true }).click();
@@ -143,7 +150,7 @@ test("Pass & Play UI conceals outgoing rack before confirmation, clears drafts a
     ).toBeVisible();
     await page.getByRole("button", { name: "B — confirm handoff", exact: true }).click();
     await page.getByRole("button", { name: "Pass", exact: true }).click();
-    await page.getByRole("button", { name: "Submit Pass", exact: true }).click();
+    await page.getByRole("button", { name: "Confirm pass", exact: true }).click();
     await expect(
       page.getByRole("button", { name: "A — confirm handoff", exact: true }),
     ).toBeVisible();
@@ -209,7 +216,7 @@ test("ArchBot browser Stage5B64 completes a real practice turn, with only the ex
     await page.goto(`/#/play/${id}`, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("button", { name: "Pass", exact: true })).toBeEnabled();
     await page.getByRole("button", { name: "Pass", exact: true }).click();
-    await page.getByRole("button", { name: "Submit Pass", exact: true }).click();
+    await page.getByRole("button", { name: "Confirm pass", exact: true }).click();
     await expect
       .poll(
         async () =>

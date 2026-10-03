@@ -45,7 +45,10 @@ test("Hosted public administration works across host and two player browsers wit
         await page.goto(`/#/play/${id}`);
       }),
     );
-    await expect(ph!.getByRole("button", { name: "Pause game", exact: true })).toBeVisible();
+    // Host lifecycle lives in Match controls.
+    await ph!.getByRole("button", { name: "Match controls", exact: true }).click();
+    await expect(ph!.getByRole("button", { name: /^Pause game/ })).toBeVisible();
+    await ph!.getByRole("button", { name: "Close", exact: true }).click();
     expect(
       (
         await browserCall(pa!, a, {
@@ -69,12 +72,13 @@ test("Hosted public administration works across host and two player browsers wit
         })
       ).status,
     ).toBe(200);
-    await expect(ph!.locator(".topbar-status")).toContainText("ตา 2");
-    await ph!.getByRole("button", { name: "Pause game", exact: true }).click();
-    await expect(
-      ph!.getByRole("status", { name: "" }).filter({ hasText: "Game paused" }),
-    ).toBeVisible();
-    await expect(pb!.getByRole("button", { name: "Pass", exact: true })).toBeDisabled();
+    await expect(ph!.locator(".lg-title small")).toContainText("Turn 2");
+    await ph!.getByRole("button", { name: "Match controls", exact: true }).click();
+    await ph!.getByRole("button", { name: /^Pause game/ }).click();
+    await expect(ph!.getByRole("status").filter({ hasText: "Paused by the host" })).toBeVisible();
+    // Paused: no game-changing turn action is offered to the player.
+    await expect(pb!.getByText("Paused by the host")).toBeVisible();
+    await expect(pb!.getByRole("button", { name: "Pass", exact: true })).toHaveCount(0);
     await ph!.getByLabel("Public turn to correct").selectOption({ index: 1 });
     await ph!.getByLabel("Corrected score").fill("7");
     await ph!.getByRole("button", { name: "Correct score", exact: true }).click();
@@ -94,7 +98,8 @@ test("Hosted public administration works across host and two player browsers wit
       ).status,
     ).toBe(409);
     await ph!.reload();
-    await ph!.getByRole("button", { name: "Resume game", exact: true }).click();
+    await ph!.getByRole("button", { name: "Match controls", exact: true }).click();
+    await ph!.getByRole("button", { name: /^Resume game/ }).click();
     await expect(pb!.getByRole("button", { name: "Pass", exact: true })).toBeEnabled();
     for (let index = 0; index < pages.length; index++) {
       await seen[index]!.flush();
@@ -115,8 +120,12 @@ test("Hosted public administration works across host and two player browsers wit
         expect(view.logs.every((log: any) => !log.rackBefore && !log.rackAfter)).toBe(true);
       }
     }
-    ph!.on("dialog", (dialog) => dialog.accept());
-    await ph!.getByRole("button", { name: "Finish game", exact: true }).click();
+    await ph!.getByRole("button", { name: "Match controls", exact: true }).click();
+    await ph!.getByRole("button", { name: /^Finish game/ }).click();
+    await ph!
+      .getByRole("dialog", { name: "Finish game" })
+      .getByRole("button", { name: "Finish game", exact: true })
+      .click();
     await expect
       .poll(() => sql(`select count(*) from public.game_history where source_id='${id}'`))
       .toBe("2");

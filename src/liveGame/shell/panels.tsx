@@ -1,0 +1,351 @@
+import { useId, useState } from "react";
+import { AlertTriangle, Pause, Repeat2, SkipForward, WifiOff } from "lucide-react";
+import { AMATH_TOKENS, type AmathToken, type Side, type TileInstance } from "../../game";
+import { useLocale } from "../../i18n/LocaleProvider";
+import { Sheet } from "../../components/ui/Sheet";
+import type { LiveControl } from "../controls";
+import { TOKEN_ORDER, unseenPool, type LastMove } from "./derive";
+import { LiveTile } from "./LiveBoard";
+import type { ShellModel } from "./model";
+import { NOTES_MAX } from "./workspace";
+import type { KeyNotice } from "./useTurnDraft";
+
+/**
+ * One fixed-size slot for the most important transient event. It replaces its
+ * content and never pushes the board. Priority: incoming pause request, paused,
+ * a pause answer, an error, a typing hint. An incoming request is announced
+ * (role=alert) without taking focus, and the game keeps running underneath it.
+ */
+export function EventLine({
+  model,
+  busy,
+  error,
+  keyNotice,
+  onControl,
+  fallback,
+  moveHint,
+}: {
+  model: ShellModel;
+  busy: boolean;
+  error: string | null;
+  keyNotice: KeyNotice | null;
+  /** Why the tentative tiles cannot be committed yet. */
+  moveHint?: string | null;
+  onControl(action: LiveControl): void;
+  fallback?: React.ReactNode;
+}) {
+  const { t } = useLocale();
+  const [blockOpen, setBlockOpen] = useState(false);
+  const { incoming, answer } = model.pause;
+  if (incoming && model.caps.match.respondPause)
+    return (
+      <div className="lg-event is-request" role="alert">
+        <Pause size={16} aria-hidden="true" />
+        <span className="lg-event-text">
+          {t("live.pause.incoming", { name: model.players[incoming.by] })}
+        </span>
+        <span className="lg-event-actions">
+          <button
+            type="button"
+            className="lg-btn lg-btn-small lg-btn-primary"
+            disabled={busy}
+            onClick={() =>
+              onControl({ kind: "respond-pause", requestId: incoming.id, accept: true })
+            }
+          >
+            {t("live.pause.accept")}
+          </button>
+          <button
+            type="button"
+            className="lg-btn lg-btn-small"
+            disabled={busy}
+            onClick={() =>
+              onControl({ kind: "respond-pause", requestId: incoming.id, accept: false })
+            }
+          >
+            {t("live.pause.decline")}
+          </button>
+          <button
+            type="button"
+            className="lg-btn lg-btn-small lg-btn-quiet"
+            aria-label={t("live.pause.more")}
+            disabled={busy}
+            onClick={() => setBlockOpen(true)}
+          >
+            ⋯
+          </button>
+        </span>
+        <Sheet
+          open={blockOpen}
+          title={t("live.pause.blockTitle")}
+          onClose={() => setBlockOpen(false)}
+        >
+          <p className="ui-confirm-consequence">{t("live.pause.blockConsequence")}</p>
+          <div className="ui-sheet-actions">
+            <button
+              type="button"
+              className="ui-button-danger"
+              disabled={busy}
+              onClick={() => {
+                setBlockOpen(false);
+                onControl({
+                  kind: "respond-pause",
+                  requestId: incoming.id,
+                  accept: false,
+                  blockFiveMinutes: true,
+                });
+              }}
+            >
+              {t("live.pause.block")}
+            </button>
+            <button type="button" className="ui-button-ghost" onClick={() => setBlockOpen(false)}>
+              {t("live.actions.cancel")}
+            </button>
+          </div>
+        </Sheet>
+      </div>
+    );
+  if (model.paused && !model.finished)
+    return (
+      <div className="lg-event is-paused" role="status">
+        <Pause size={16} aria-hidden="true" />
+        <span className="lg-event-text">{t(`live.pause.by.${model.paused}`)}</span>
+        {model.caps.match.resumeDirect && (
+          <span className="lg-event-actions">
+            <button
+              type="button"
+              className="lg-btn lg-btn-small lg-btn-primary"
+              disabled={busy}
+              onClick={() => onControl({ kind: "resume-direct" })}
+            >
+              {t("live.pause.resume")}
+            </button>
+          </span>
+        )}
+      </div>
+    );
+  if (answer)
+    return (
+      <div className="lg-event" role="status">
+        <Pause size={16} aria-hidden="true" />
+        <span className="lg-event-text">
+          {answer.accepted
+            ? t("live.pause.accepted")
+            : answer.blocked
+              ? t("live.pause.declinedBlocked")
+              : t("live.pause.declined")}
+        </span>
+        <span className="lg-event-actions">
+          <button
+            type="button"
+            className="lg-btn lg-btn-small"
+            disabled={busy}
+            onClick={() => onControl({ kind: "acknowledge-pause", responseId: answer.id })}
+          >
+            {t("live.pause.ok")}
+          </button>
+        </span>
+      </div>
+    );
+  if (model.pause.outgoing)
+    return (
+      <div className="lg-event" role="status">
+        <Pause size={16} aria-hidden="true" />
+        <span className="lg-event-text">{t("live.pause.waiting")}</span>
+      </div>
+    );
+  if (error)
+    return (
+      <div className="lg-event is-error" role="alert">
+        {/offline|network|fetch/i.test(error) ? (
+          <WifiOff size={16} aria-hidden="true" />
+        ) : (
+          <AlertTriangle size={16} aria-hidden="true" />
+        )}
+        <span className="lg-event-text">{error}</span>
+      </div>
+    );
+  if (keyNotice)
+    return (
+      <div className="lg-event is-hint" role="status">
+        <span className="lg-event-text">
+          {keyNotice.kind === "blank"
+            ? t("live.keys.blank")
+            : keyNotice.kind === "missing"
+              ? t("live.keys.missing", { face: keyNotice.face })
+              : keyNotice.kind === "viaBlank"
+                ? t("live.keys.viaBlank", { face: keyNotice.face })
+                : t("live.keys.viaChoice", { face: keyNotice.face })}
+        </span>
+      </div>
+    );
+  if (moveHint)
+    return (
+      <div className="lg-event is-hint is-move" role="status">
+        <span className="lg-event-text">{moveHint}</span>
+      </div>
+    );
+  return fallback ? <>{fallback}</> : null;
+}
+
+/** The previous committed action, readable at a glance. Never a tentative tile. */
+export function LastMovePanel({
+  move,
+  players,
+  yourSide,
+  compact = false,
+  onOpen,
+}: {
+  move: LastMove | null;
+  players: Record<Side, string>;
+  yourSide: Side | null;
+  compact?: boolean;
+  onOpen?(logId: string): void;
+}) {
+  const { t } = useLocale();
+  if (!move)
+    return (
+      <div className={`lg-last${compact ? " is-compact" : ""} is-none`}>
+        <span className="lg-last-what">{t("live.last.none")}</span>
+      </div>
+    );
+  const who = move.side === yourSide ? t("live.last.you") : players[move.side];
+  const what =
+    move.kind === "place"
+      ? (move.expression ?? t("live.last.placed"))
+      : move.kind === "exchange"
+        ? t("live.last.exchanged", { count: move.exchangedCount })
+        : t("live.last.passed");
+  const content = (
+    <>
+      <span className="lg-last-label">{compact ? t("live.last.short") : t("live.last.title")}</span>
+      <span className="lg-last-who">
+        <i className="lg-side-dot" aria-hidden="true" />
+        {who}
+      </span>
+      <span className="lg-last-what">
+        {move.kind === "exchange" ? (
+          <Repeat2 size={14} aria-hidden="true" />
+        ) : move.kind === "pass" ? (
+          <SkipForward size={14} aria-hidden="true" />
+        ) : null}
+        {what}
+      </span>
+      {move.kind === "place" && <span className="lg-last-score">+{move.score}</span>}
+    </>
+  );
+  const className = `lg-last side-${move.side.toLowerCase()} kind-${move.kind}${compact ? " is-compact" : ""}`;
+  return onOpen ? (
+    <button
+      type="button"
+      className={className}
+      aria-label={t("live.last.aria", { who, what, turn: move.turnNumber, score: move.score })}
+      onClick={() => onOpen(move.id)}
+    >
+      {content}
+    </button>
+  ) : (
+    <div
+      className={className}
+      aria-label={t("live.last.aria", { who, what, turn: move.turnNumber, score: move.score })}
+    >
+      {content}
+    </div>
+  );
+}
+
+const GROUPS: { key: "light" | "heavy" | "ops"; tokens: AmathToken[] }[] = [
+  {
+    key: "light",
+    tokens: TOKEN_ORDER.filter((token) => AMATH_TOKENS[token].type === "lightNumber"),
+  },
+  {
+    key: "heavy",
+    tokens: TOKEN_ORDER.filter((token) => AMATH_TOKENS[token].type === "heavyNumber"),
+  },
+  {
+    key: "ops",
+    tokens: TOKEN_ORDER.filter(
+      (token) => !["lightNumber", "heavyNumber"].includes(AMATH_TOKENS[token].type),
+    ),
+  },
+];
+
+/**
+ * Bag count from the server, and the unseen distribution derived locally from
+ * the public board and the racks this viewer may see. Never an order.
+ */
+export function TileBagPanel({ model }: { model: ShellModel }) {
+  const { t } = useLocale();
+  const known: TileInstance[][] = model.hostRacks
+    ? [model.hostRacks.A, model.hostRacks.B]
+    : model.rackSide && model.role === "player"
+      ? [model.rack]
+      : [];
+  const pool = unseenPool(model.board, known);
+  const label = model.hostRacks ? t("live.bag.inBag") : t("live.bag.unseen");
+  return (
+    <section className="lg-bag" aria-label={t("live.bag.title")}>
+      <div className="lg-bag-counts">
+        <span>
+          <strong>{model.bagCount}</strong> {t("live.bag.inBagShort")}
+        </span>
+        <span>
+          <strong>{pool.total}</strong> {label}
+        </span>
+      </div>
+      <p className="lg-bag-note">{model.hostRacks ? t("live.bag.hostNote") : t("live.bag.note")}</p>
+      {GROUPS.map((group) => (
+        <ul className="lg-bag-grid" key={group.key} aria-label={t(`live.bag.group.${group.key}`)}>
+          {group.tokens.map((token) => {
+            const count = pool.counts.get(token) ?? 0;
+            return (
+              <li key={token} className={count === 0 ? "is-out" : undefined}>
+                <LiveTile tile={{ token }} size="mini" />
+                <span className="lg-bag-count">
+                  <span className="lg-visually-hidden">{AMATH_TOKENS[token].token}: </span>
+                  {count}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      ))}
+    </section>
+  );
+}
+
+/** Private scratch paper. Local to this browser; never sent to anyone. */
+export function NotesPad({
+  notes,
+  onChange,
+  memoryOnly,
+  readOnlyHint,
+}: {
+  notes: string;
+  onChange(value: string): void;
+  memoryOnly: boolean;
+  readOnlyHint?: string;
+}) {
+  const { t } = useLocale();
+  const id = useId();
+  return (
+    <section className="lg-notes">
+      <label htmlFor={id} className="lg-notes-label">
+        {t("live.notes.title")}
+      </label>
+      <textarea
+        id={id}
+        value={notes}
+        maxLength={NOTES_MAX}
+        spellCheck={false}
+        placeholder={t("live.notes.placeholder")}
+        aria-describedby={`${id}-hint`}
+        onChange={(event) => onChange(event.target.value)}
+      />
+      <small id={`${id}-hint`} className="lg-notes-hint">
+        {readOnlyHint ?? (memoryOnly ? t("live.notes.memoryOnly") : t("live.notes.private"))}
+      </small>
+    </section>
+  );
+}

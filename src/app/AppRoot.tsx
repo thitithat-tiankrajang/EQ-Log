@@ -12,11 +12,16 @@ import { supabase } from "../supabaseClient";
 import type { SafeArchiveReplay } from "../completedGame/archiveRead";
 import { parseStudyPuzzleRoomId } from "../features/studyPuzzles/play";
 import { parseSurvivalRoomId } from "../features/survivalPlay/route";
+import { parseShellFixtureRoomId } from "../liveGame/shell/fixtureRoute";
+import { heldTerminals, OPEN_ARCHIVE_REPLAY } from "../liveGame/shell/terminalHold";
 
 const NonPlayApplication = lazy(() => import("./NonPlayApplication"));
 const SafeLiveApplication = lazy(() => import("../liveGame/LivePage"));
 const ArchiveReplayPage = lazy(() => import("../components/pages/ArchiveReplayPage"));
-const DevelopmentSources = lazy(() => import("../liveGame/DevelopmentSources"));
+// Development-only sources are not part of a production build.
+const DevelopmentSources = import.meta.env.DEV
+  ? lazy(() => import("../liveGame/DevelopmentSources"))
+  : () => null;
 
 function PlayApplication() {
   const route = useRoute();
@@ -31,9 +36,18 @@ function PlayApplication() {
     let active = true;
     const onArchiveReady = (event: Event) => {
       const replay = (event as CustomEvent<SafeArchiveReplay>).detail;
-      if (active && replay?.archive.gameId === roomId) setRoom({ id: roomId, live: false, replay });
+      // A Result on screen stays until the player leaves it or opens the Replay.
+      if (active && replay?.archive.gameId === roomId && !heldTerminals.has(roomId))
+        setRoom({ id: roomId, live: false, replay });
+    };
+    const onOpenReplay = (event: Event) => {
+      if (active && (event as CustomEvent<string>).detail === roomId) {
+        heldTerminals.delete(roomId);
+        setRoom({ id: roomId, live: false });
+      }
     };
     window.addEventListener("eq-lab:archive-replay-ready", onArchiveReady);
+    window.addEventListener(OPEN_ARCHIVE_REPLAY, onOpenReplay);
     void (async () => {
       try {
         const { data, error } = await supabase
@@ -54,6 +68,7 @@ function PlayApplication() {
     return () => {
       active = false;
       window.removeEventListener("eq-lab:archive-replay-ready", onArchiveReady);
+      window.removeEventListener(OPEN_ARCHIVE_REPLAY, onOpenReplay);
     };
   }, [roomId]);
   if (!supabase) return <OnlinePlayRequired />;
@@ -85,7 +100,9 @@ export function AppRoot() {
           )
         ) : route.kind === "play" &&
           import.meta.env.DEV &&
-          (parseStudyPuzzleRoomId(route.roomId) || parseSurvivalRoomId(route.roomId)) ? (
+          (parseStudyPuzzleRoomId(route.roomId) ||
+            parseSurvivalRoomId(route.roomId) ||
+            parseShellFixtureRoomId(route.roomId)) ? (
           <DevelopmentSources key={route.roomId} roomId={route.roomId} />
         ) : (
           <Application />

@@ -52,7 +52,7 @@ for (const hosted of [false, true])
       expect(
         (await browserCall(pages[0]!, a, { ...command, commandId: crypto.randomUUID() })).status,
       ).toBe(409);
-      await expect(pages[1]!.locator(".topbar-status")).toContainText(`ตา ${moved.turnNumber}`);
+      await expect(pages[1]!.locator(".lg-title small")).toContainText(`Turn ${moved.turnNumber}`);
       await contexts[0]!.setOffline(true);
       await contexts[0]!.setOffline(false);
       await pages[0]!.reload();
@@ -63,10 +63,12 @@ for (const hosted of [false, true])
       const hostView = (await browserCall(pages[1]!, host, { operation: "read", id })).body.match;
       expect(hostView.canAdminister).toBe(true);
       if (hosted) expect(hostView.yourRack).toEqual([]);
-      await pages[1]!.getByRole("button", { name: "Pause game", exact: true }).click();
-      await expect(pages[0]!.getByRole("button", { name: "Pass", exact: true })).toBeDisabled();
+      await pages[1]!.getByRole("button", { name: "Match controls", exact: true }).click();
+      await pages[1]!.getByRole("button", { name: /^Pause game/ }).click();
+      await expect(pages[0]!.getByRole("button", { name: "Pass", exact: true })).toHaveCount(0);
       await pages[1]!.reload();
-      await pages[1]!.getByRole("button", { name: "Resume game", exact: true }).click();
+      await pages[1]!.getByRole("button", { name: "Match controls", exact: true }).click();
+      await pages[1]!.getByRole("button", { name: /^Resume game/ }).click();
       await expect(pages[0]!.getByRole("button", { name: "Pass", exact: true })).toBeEnabled();
       for (let i = 0; i < pages.length; i++) {
         await seen[i]!.flush();
@@ -78,8 +80,12 @@ for (const hosted of [false, true])
           /"(?:rackA|rackB|tilebag|canonical|history|seed|rngStep)"\s*:/,
         );
       }
-      pages[1]!.on("dialog", (dialog) => dialog.accept());
-      await pages[1]!.getByRole("button", { name: "Finish game", exact: true }).click();
+      await pages[1]!.getByRole("button", { name: "Match controls", exact: true }).click();
+      await pages[1]!.getByRole("button", { name: /^Finish game/ }).click();
+      await pages[1]!
+        .getByRole("dialog", { name: "Finish game" })
+        .getByRole("button", { name: "Finish game", exact: true })
+        .click();
       await expect
         .poll(() => sql(`select count(*) from public.room_live where room_id='${id}'`))
         .toBe("0");

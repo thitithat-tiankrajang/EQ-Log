@@ -1,0 +1,282 @@
+[
+  {
+    "id": "01-390-active",
+    "label": "390px phone · ACTIVE (your turn)",
+    "viewport": "390x664",
+    "layout": "stack",
+    "rack": "below",
+    "state": "active",
+    "turn": "active",
+    "board": 377
+  },
+  {
+    "id": "02-390-thinking",
+    "label": "390px phone · THINKING (opponent's turn, last move Pass)",
+    "viewport": "390x664",
+    "layout": "stack",
+    "rack": "below",
+    "state": "thinking",
+    "turn": "thinking",
+    "board": 377
+  },
+  {
+    "id": "03-390-tentative",
+    "label": "390px phone · tentative placement 7=5+2 (local only)",
+    "viewport": "390x664",
+    "layout": "stack",
+    "rack": "below",
+    "state": "active",
+    "turn": "active",
+    "board": 377
+  },
+  {
+    "id": "04-390-pause-request",
+    "label": "390px phone · incoming pause request (non-blocking)",
+    "viewport": "390x664",
+    "layout": "stack",
+    "rack": "below",
+    "state": "pause-request",
+    "turn": "active",
+    "board": 377
+  },
+  {
+    "id": "05-320-active",
+    "label": "320px phone · ACTIVE (compact)",
+    "viewport": "320x460",
+    "layout": "stack",
+    "rack": "below",
+    "state": "active",
+    "turn": "active",
+    "board": 302
+  },
+  {
+    "id": "06-390-more-sheet",
+    "label": "390px phone · secondary tools (More → Record)",
+    "viewport": "390x664",
+    "layout": "stack",
+    "rack": "below",
+    "state": "active",
+    "turn": "active",
+    "board": 377
+  },
+  {
+    "id": "07-390-more-bag",
+    "label": "390px phone · secondary tools (More → Bag, unseen distribution)",
+    "viewport": "390x664",
+    "layout": "stack",
+    "rack": "below",
+    "state": "active",
+    "turn": "active",
+    "board": 377
+  },
+  {
+    "id": "08-390-match-menu",
+    "label": "390px phone · Match controls (Coffee Break, pause, Surrender last)",
+    "viewport": "390x664",
+    "layout": "stack",
+    "rack": "below",
+    "state": "active",
+    "turn": "active",
+    "board": 377
+  },
+  {
+    "id": "09-tablet-portrait",
+    "label": "Tablet portrait 768×950 · ACTIVE",
+    "viewport": "768x950",
+    "layout": "stack",
+    "rack": "below",
+    "state": "active",
+    "turn": "active",
+    "board": 686
+  },
+  {
+    "id": "10-tablet-landscape",
+    "label": "Tablet landscape 1024×700 · THINKING",
+    "viewport": "1024x700",
+    "layout": "column",
+    "rack": "below",
+    "state": "thinking",
+    "turn": "thinking",
+    "board": 608
+  },
+  {
+    "id": "11-laptop-13",
+    "label": "13-inch laptop 1440×790 · ACTIVE",
+    "viewport": "1440x790",
+    "layout": "duo",
+    "rack": "below",
+    "state": "active",
+    "turn": "active",
+    "board": 686
+  },
+  {
+    "id": "12-laptop-tentative",
+    "label": "13-inch laptop 1440×790 · tentative placement, Commit +score",
+    "viewport": "1440x790",
+    "layout": "duo",
+    "rack": "below",
+    "state": "active",
+    "turn": "active",
+    "board": 686
+  },
+  {
+    "id": "13-desktop-1080p",
+    "label": "1080p desktop 1920×960 · ACTIVE",
+    "viewport": "1920x960",
+    "layout": "duo",
+    "rack": "below",
+    "state": "active",
+    "turn": "active",
+    "board": 842
+  },
+  {
+    "id": "14-desktop-wide",
+    "label": "Wide desktop 2560×1310 · THINKING",
+    "viewport": "2560x1310",
+    "layout": "duo",
+    "rack": "below",
+    "state": "thinking",
+    "turn": "thinking",
+    "board": 1168
+  },
+  {
+    "id": "15-short-1280x560",
+    "label": "Short desktop window 1280×560 · ACTIVE (rack in gutter)",
+    "viewport": "1280x560",
+    "layout": "duo",
+    "rack": "gutter",
+    "state": "active",
+    "turn": "active",
+    "board": 531
+  },
+  {
+    "id": "16-desktop-notes",
+    "label": "Desktop 1440×790 · private Notes in the lower-left gutter",
+    "viewport": "1440x790",
+    "layout": "duo",
+    "rack": "below",
+    "state": "thinking",
+    "turn": "thinking",
+    "board": 686
+  },
+  {
+    "id": "17-desktop-last-exchange",
+    "label": "Desktop 1440×790 · Last Move: Exchanged 4 tiles",
+    "viewport": "1440x790",
+    "layout": "duo",
+    "rack": "below",
+    "state": "exchanged",
+    "turn": "active",
+    "board": 686
+  },
+  {
+    "id": "18-desktop-last-place",
+    "label": "Desktop 1440×790 · Last Move: placement 1+8=9 +score",
+    "viewport": "1440x790",
+    "layout": "duo",
+    "rack": "below",
+    "state": "active",
+    "turn": "active",
+    "board": 686
+  },
+  {
+    "id": "19-desktop-pause-request",
+    "label": "Desktop 1440×790 · incoming pause request (game continues)",
+    "viewport": "1440x790",
+    "layout": "duo",
+    "rack": "below",
+    "state": "pause-request",
+    "turn": "active",
+    "board": 686
+  },
+  {
+    "id": "20-desktop-paused",
+    "label": "Desktop 1440×790 · PAUSED by agreement",
+    "viewport": "1440x790",
+    "layout": "duo",
+    "rack": "below",
+    "state": "paused",
+    "turn": "paused",
+    "board": 686
+  },
+  {
+    "id": "21-desktop-result",
+    "label": "Desktop 1440×790 · terminal Result (Notes kept for this visit)",
+    "viewport": "1440x790",
+    "layout": "duo",
+    "rack": "below",
+    "state": "finished",
+    "turn": "finished",
+    "board": 686
+  },
+  {
+    "id": "22-390-result",
+    "label": "390px phone · terminal Result",
+    "viewport": "390x664",
+    "layout": "stack",
+    "rack": "below",
+    "state": "finished",
+    "turn": "finished",
+    "board": 377
+  },
+  {
+    "id": "23-physical-host",
+    "label": "Desktop 1440×790 · Physical Hosted host (Physical console tab)",
+    "viewport": "1440x790",
+    "layout": "duo",
+    "rack": "below",
+    "state": "physical",
+    "turn": "active",
+    "board": 686
+  },
+  {
+    "id": "24-phone-landscape",
+    "label": "Phone landscape 750×340 · ACTIVE",
+    "viewport": "750x340",
+    "layout": "stack-landscape",
+    "rack": "side",
+    "state": "active",
+    "turn": "active",
+    "board": 332
+  },
+  {
+    "id": "25-375-active",
+    "label": "375px phone 375×548 · ACTIVE",
+    "viewport": "375x548",
+    "layout": "stack",
+    "rack": "below",
+    "state": "active",
+    "turn": "active",
+    "board": 362
+  },
+  {
+    "id": "26-tablet-large",
+    "label": "Large tablet portrait 820×1100 · ACTIVE",
+    "viewport": "820x1100",
+    "layout": "stack",
+    "rack": "below",
+    "state": "active",
+    "turn": "active",
+    "board": 780
+  },
+  {
+    "id": "27-laptop-1280",
+    "label": "13-inch laptop 1280×690 · ACTIVE",
+    "viewport": "1280x690",
+    "layout": "duo",
+    "rack": "below",
+    "state": "active",
+    "turn": "active",
+    "board": 593
+  },
+  {
+    "id": "28-390-practice",
+    "label": "390px phone · own-rack practice (separate dialog)",
+    "viewport": "390x664",
+    "layout": "stack",
+    "rack": "below",
+    "state": "thinking",
+    "turn": "thinking",
+    "board": 377
+  }
+]

@@ -1,0 +1,23 @@
+
+Running 16 tests using 1 worker
+
+(node:32433) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓   1 [chromium] › tests/live-security-browser/capabilities.spec.ts:7:3 › Physical host: authorized two-rack browser view, ordinary-player payload denial and no predictive bag (7.8s)
+  ✓   2 [chromium] › tests/live-security-browser/capabilities.spec.ts:7:3 › Physical A+host: authorized two-rack browser view, ordinary-player payload denial and no predictive bag (7.9s)
+  ✓   3 [chromium] › tests/live-security-browser/capabilities.spec.ts:7:3 › Physical B+host: authorized two-rack browser view, ordinary-player payload denial and no predictive bag (8.3s)
+  ✓   4 [chromium] › tests/live-security-browser/capabilities.spec.ts:99:1 › Pass & Play UI conceals outgoing rack before confirmation, clears drafts and requires reload/second-tab handoff (10.8s)
+  ✓   5 [chromium] › tests/live-security-browser/capabilities.spec.ts:186:1 › ArchBot browser Stage5B64 completes a real practice turn, with only the explicit current-bot-rack exception (6.4s)
+  ✓   6 [chromium] › tests/live-security-browser/compatibility.spec.ts:6:3 › draft drag, reorder, swap, return, own Replay/practice and Coffee Return (mouse) (9.6s)
+  ✓   7 [chromium] › tests/live-security-browser/compatibility.spec.ts:6:3 › draft drag, reorder, swap, return, own Replay/practice and Coffee Return (touch) (9.0s)
+  ✓   8 [chromium] › tests/live-security-browser/economy.spec.ts:19:1 › Edge funding: Free/Plus/Pro exactly once, conflicts, no fallback, board limits and safe retries (7.5s)
+  ✓   9 [chromium] › tests/live-security-browser/release.spec.ts:21:1 › Hosted public administration works across host and two player browsers without hidden state (10.5s)
+  ✓  10 [chromium] › tests/live-security-browser/release.spec.ts:148:1 › legacy v2 and v3 games load/reconnect safely, freeze all writers and preserve stored state (11.0s)
+  ✓  11 [chromium] › tests/live-security-browser/result.spec.ts:6:1 › terminal Result holds private Notes through archive notification until explicit Replay (6.4s)
+  ✓  12 [chromium] › tests/live-security-browser/security.spec.ts:148:1 › two browsers: public/private Normal, exchange, reconnect/reload/second tab/stale and completion (26.3s)
+  ✓  13 [chromium] › tests/live-security-browser/security.spec.ts:260:1 › full-strength trusted Authur and Stage: real bot move, concurrent retry, reload and terminal Replay (17.2s)
+  ✓  14 [chromium] › tests/live-security-browser/security.spec.ts:484:1 › Ranked two-client authority and Hosted automatic projection; physical creation uses its dedicated capability path (9.2s)
+  ✓  15 [chromium] › tests/live-security-browser/solo.spec.ts:6:3 › self-directed Solo: two browsers, one-seat start, reload/tab/stale/duplicate, private lifecycle and Replay (11.2s)
+  ✓  16 [chromium] › tests/live-security-browser/solo.spec.ts:6:3 › Hosted Solo: two browsers, one-seat start, reload/tab/stale/duplicate, private lifecycle and Replay (10.3s)
+
+  16 passed (2.8m)

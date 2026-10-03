@@ -1,0 +1,8 @@
+
+Running 1 test using 1 worker
+
+(node:31888) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › tests/live-security-browser/result.spec.ts:6:1 › terminal Result holds private Notes through archive notification until explicit Replay (7.8s)
+
+  1 passed (8.6s)

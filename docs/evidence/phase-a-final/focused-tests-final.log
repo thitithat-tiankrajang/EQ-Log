@@ -1,0 +1,60 @@
+
+ RUN  v3.2.7 /Users/thitithat_tiankrajang/Desktop/EQ-Lab-live-sync
+
+ ✓ tests/live-offline-boundary.test.tsx (2 tests) 40ms
+ ✓ tests/live-hosted-administration.test.ts (8 tests) 55ms
+ ✓ tests/live-history-replay-secrecy.test.ts (10 tests) 124ms
+ ✓ tests/live-capabilities.test.ts (9 tests) 18ms
+stdout | tests/live-hidden-boundary.test.ts > completed Replay lifecycle and full rack fidelity > measures legal early/middle/late body sizes only as a secondary observation
+LIVE_PROJECTION_BODY_BYTES [{"turns":0,"legacyBytes":2107,"liveABytes":2317},{"turns":12,"legacyBytes":52056,"liveABytes":58587},{"turns":30,"legacyBytes":150666,"liveABytes":202971}]
+
+ ✓ tests/live-hidden-boundary.test.ts (24 tests) 825ms
+ ✓ tests/live-own-analysis.test.ts (1 test) 8ms
+ ✓ tests/live-milestone-s.test.ts (6 tests) 34ms
+ ✓ tests/live-projection-client.test.ts (4 tests) 7ms
+ ✓ tests/live-hidden-information-repro.test.ts (1 test) 33ms
+stdout | tests/live-shell-layout.test.ts > computeLiveLayout > prints the matrix
+320px phone                320x460    stack            rack=below  board=302 cell=20 tile=34 gutter=0 compact
+375px phone                375x548    stack            rack=below  board=362 cell=24 tile=40 gutter=0 compact
+390px phone                390x664    stack            rack=below  board=377 cell=25 tile=42 gutter=0
+tablet portrait            768x950    stack            rack=below  board=686 cell=44 tile=64 gutter=0
+tablet portrait (large)    820x1100   stack            rack=below  board=780 cell=50 tile=64 gutter=0
+tablet landscape           1024x700   column           rack=below  board=608 cell=39 tile=45 gutter=380
+13-inch laptop             1280x690   duo              rack=below  board=593 cell=38 tile=44 gutter=331
+13-inch laptop (1440)      1440x790   duo              rack=below  board=686 cell=44 tile=51 gutter=365
+1080p desktop              1920x960   duo              rack=below  board=842 cell=54 tile=62 gutter=527
+wide desktop               2560x1310  duo              rack=below  board=1168 cell=75 tile=64 gutter=684
+1280x560 short window      1280x560   duo              rack=gutter board=531 cell=34 tile=38 gutter=362
+phone landscape            750x340    stack-landscape  rack=side   board=332 cell=22 tile=44 gutter=201
+
+ ✓ tests/live-shell-layout.test.ts (17 tests) 7ms
+ ✓ tests/live-play-layout.test.tsx (2 tests) 2278ms
+   ✓ separates the host's controls: Physical console and Record tabs beside the board, lifecycle in Match controls  1787ms
+   ✓ keeps every capability on a phone, behind More and Match, with nothing above the board  490ms
+ ✓ tests/live-shell-units.test.tsx (11 tests) 723ms
+   ✓ workspace lifecycle > local mode persists; memory mode (Pass & Play) never touches storage  414ms
+ ✓ tests/ranked-play-ui.test.tsx (6 tests) 3540ms
+   ✓ uses the live shell board and rack while keeping an opponent replay rack closed  692ms
+   ✓ moves a selected rack tile onto the board without duplicating it in the rack  449ms
+   ✓ types rack tiles along the arrow and submits the selected valid place action with Enter  555ms
+   ✓ uses Enter for the chosen pass or exchange action and ignores an incomplete place  1405ms
+ ✓ tests/live-shell-screen.test.tsx (19 tests) 13469ms
+   ✓ ACTIVE turn > offers Exchange and Pass, switches to Recall and Commit once a tile is placed, and commits the typed move  3089ms
+   ✓ ACTIVE turn > Recall returns every tentative tile to its slot  858ms
+   ✓ ACTIVE turn > keeps tentative tiles when a revision is not a new turn (a pause request arrives)  663ms
+   ✓ THINKING turn > keeps the whole game usable: board, own rack, reorder, bag, record and notes; no game-changing action  755ms
+   ✓ THINKING turn > rack order survives the turn change and reopening the game; Alt+arrow moves a tile  798ms
+   ✓ turn transitions > converge to the newest state at once: no queued overlay, no stale turn, no delay before acting  996ms
+   ✓ turn transitions > plays the your-turn cue once when the turn arrives, and never when muted; announces without moving focus  1190ms
+   ✓ pause > an incoming request is visible and actionable without blocking the game  671ms
+   ✓ Last Move > never records a tentative placement  741ms
+   ✓ Notes > does not resurrect Notes when Replay renders before the Result unmount cleanup  464ms
+   ✓ Notes > stay on this device, survive reopening, never reach the client, and leave with the Result  734ms
+   ✓ Match controls > Surrender sits in Match controls behind a confirmation sheet, never window.confirm  388ms
+   ✓ accessibility > names every board cell and exposes one tab stop in the grid  460ms
+   ✓ legacy frozen game > explains that it is read-only and offers no game-changing action  465ms
+
+ Test Files  14 passed (14)
+      Tests  120 passed (120)
+   Start at  08:38:39
+   Duration  15.84s (transform 1.70s, setup 1.38s, collect 6.32s, tests 21.16s, environment 10.10s, prepare 1.36s)

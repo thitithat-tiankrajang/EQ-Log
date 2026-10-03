@@ -36,8 +36,12 @@ for (const mobile of [false, true])
         seen = observe(page);
       await signIn(page, a);
       await page.goto(`/#/play/${id}`);
-      // Phones keep the game tools in a Sheet opened from below the board.
-      if (mobile) await page.getByRole("button", { name: "Game tools", exact: true }).click();
+      // The Physical console is its own tab; phones reach it through More.
+      if (mobile)
+        await page
+          .getByRole("button", { name: "Record, bag, notes and tools", exact: true })
+          .click();
+      await page.getByRole("tab", { name: "Physical", exact: true }).click();
       for (const side of ["A", "B"]) {
         await page.getByLabel("Physical player", { exact: true }).selectOption(side);
         await page.getByLabel("Physical tiles", { exact: true }).fill("1 + 2 = 3 4 5 6");
@@ -47,7 +51,7 @@ for (const mobile of [false, true])
         );
       }
       if (mobile) await page.getByRole("button", { name: "Close", exact: true }).click();
-      const tiles = page.locator(".rack-tiles [data-draft-tile-id]");
+      const tiles = page.locator(".lg-rack [data-draft-tile-id]");
       await expect(page.getByRole("button", { name: "Pass", exact: true })).toBeEnabled();
       const first = await tiles.first().getAttribute("data-draft-tile-id");
       async function drag(
@@ -89,28 +93,32 @@ for (const mobile of [false, true])
       await drag(cell(8), cell(7));
       await expect(cell(7)).toHaveAttribute("data-draft-tile-id", first!);
       await expect(cell(8)).toHaveAttribute("data-draft-tile-id", second!);
-      await drag(cell(7), page.locator('.rack-tiles [data-rack-slot="0"]'));
+      await drag(cell(7), page.locator('.lg-rack [data-rack-slot="0"]'));
       await expect(cell(7)).not.toHaveAttribute("data-draft-tile-id", first!);
-      await page
-        .getByRole("button", { name: mobile ? "Cancel placement" : "Cancel", exact: true })
-        .first()
-        .click();
+      await page.getByRole("button", { name: "Recall", exact: true }).click();
       await page.getByRole("button", { name: "Pass", exact: true }).click();
-      await page
-        .getByRole("button", { name: mobile ? "Confirm pass" : "Submit Pass", exact: true })
-        .click();
-      await expect(page.locator(".turn-record-summary")).toHaveCount(1);
-      await page.locator(".turn-record-summary").click();
-      await page.getByRole("button", { name: "Before this turn", exact: true }).click();
+      await page.getByRole("button", { name: "Confirm pass", exact: true }).click();
+      if (mobile)
+        await page
+          .getByRole("button", { name: "Record, bag, notes and tools", exact: true })
+          .click();
+      await page.getByRole("tab", { name: "Record", exact: true }).click();
+      await expect(page.locator(".lg-log-row")).toHaveCount(1);
+      await page.locator(".lg-log-row").click();
+      await page.getByRole("button", { name: "Before", exact: true }).click();
       await page.getByRole("button", { name: "Practice this position", exact: true }).click();
-      await expect(page.getByRole("region", { name: "Own-rack live practice" })).toBeVisible();
-      await page.getByRole("button", { name: "Close practice", exact: true }).click();
-      await page.getByRole("button", { name: "Game menu", exact: true }).click();
-      await page.getByRole("button", { name: "Coffee Break", exact: true }).click();
+      await expect(page.getByRole("dialog", { name: "Own-rack live practice" })).toBeVisible();
+      await page
+        .getByRole("dialog", { name: "Own-rack live practice" })
+        .getByRole("button", { name: "Close practice", exact: true })
+        .click();
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+      await page.getByRole("button", { name: "Match controls", exact: true }).click();
+      await page.getByRole("button", { name: /^Coffee Break/ }).click();
       await expect(page.getByRole("button", { name: "Return to game", exact: true })).toBeVisible();
       expect((await call(a, { operation: "read", id })).body.match.paused).toBe(false);
       await page.getByRole("button", { name: "Return to game", exact: true }).click();
-      await expect(page.locator(".topbar-status")).toBeVisible({ timeout: 20000 });
+      await expect(page.locator(".lg-shell")).toBeVisible({ timeout: 20000 });
       await seen.flush();
       expect(JSON.stringify(seen.responses)).not.toMatch(
         /"(?:tilebag|canonical|history|rngStep)"\s*:/,

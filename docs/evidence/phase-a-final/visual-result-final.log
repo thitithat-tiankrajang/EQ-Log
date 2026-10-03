@@ -1,0 +1,13 @@
+[WebServer] (node:32325) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] (node:32365) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 2 tests using 1 worker
+
+(node:32383) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ✓  1 [chromium] › tests/live-shell-browser/visual.spec.ts:236:3 › 21-desktop-result Desktop 1440×790 · terminal Result (Notes kept for this visit) (3.5s)
+  ✓  2 [chromium] › tests/live-shell-browser/visual.spec.ts:236:3 › 22-390-result 390px phone · terminal Result (2.7s)
+
+  2 passed (7.4s)
