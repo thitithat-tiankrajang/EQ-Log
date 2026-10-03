@@ -1,0 +1,31 @@
+{
+  "candidate": "a76c8c0b0907a7c515552246f430d2c753af8278",
+  "decision": "READY FOR CONTROLLED DEPLOYMENT; creation OFF",
+  "buildExit": 0,
+  "focusedTests": 64,
+  "focusedFailures": 0,
+  "migrationDoubleApplyExit": 0,
+  "guardRegressionCases": 7,
+  "productionBoundaryGateExit": 0,
+  "targetedFormatExit": 0,
+  "targetedLintExit": 0,
+  "runtimeChangedDuringAudit": false,
+  "existingEvidenceReused": [
+    "Phase A 16-spec security browser gate",
+    "Phase A.5 mode matrix",
+    "Phase B boundary/local/LAN/convergence/impairment"
+  ],
+  "pendingEnablementGates": [
+    "Production Authur/security/PWA smoke",
+    "Approved Online production canary procedure and canary",
+    "Separate Stage catalog/approval/smoke"
+  ],
+  "localAuditChanges": [
+    "tools/live-security/production-deploy-check.sql",
+    "tools/live-security/legacy-preservation-check.test.mjs",
+    "docs/evidence/release-readiness/"
+  ],
+  "pushes": 0,
+  "deployments": 0,
+  "featureFlagChanges": 0
+}

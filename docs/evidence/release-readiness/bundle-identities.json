@@ -1,0 +1,8 @@
+{
+  "baseline": "e8b3305c76e8757737da4c04a6eb26817b4c3d2b683d7b448c77679ac4f50194",
+  "production": "e8b3305c76e8757737da4c04a6eb26817b4c3d2b683d7b448c77679ac4f50194",
+  "candidate": "e00ce901ef1ee61a1855ce724b0db56cf35a77fae4cf4aa8a46e1ce3b5ff97be",
+  "rebuild": "e00ce901ef1ee61a1855ce724b0db56cf35a77fae4cf4aa8a46e1ce3b5ff97be",
+  "productionMatchesBaseline": true,
+  "candidateMatchesRebuild": true
+}

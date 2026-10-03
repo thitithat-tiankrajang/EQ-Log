@@ -1,0 +1,8 @@
+58667ceca7b9b70734af04c2f4ee7f1474d34c9d fix(live-ui): keep live game tools beside the board and restyle live controls
+ed40e61e2bfe999e6a32e5c661b8cc89ff686d25 feat(live-ui): complete Phase A unified live game shell
+7dbbae206eef2cea7f339f21588c49e1cf13ff20 feat(dev-auth): enable genuine disposable local manual play
+d2c42491e74e2578f58699aa7e6c0400af1cebb6 feat(live-ui): product-owner mobile and gameplay UX pass
+3dc8ec7ec3ced09a2a596b9f5030d9f10b866c9a feat(dev-lan): real phone local play over the same Wi-Fi
+4ce7c0f66439513e81ee81b99825ab2b217be1a3 feat(live-ui): physical-phone review round 2 — interaction model and game UI
+12b12ce923832387216c19e9863b2e6acb33593d feat(live-modes): Phase A.5 — every game mode playable in the approved shell
+a76c8c0b0907a7c515552246f430d2c753af8278 feat(live-sync): Phase B — trusted tentative live sync for Online Match

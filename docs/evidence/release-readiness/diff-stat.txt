@@ -1,0 +1,234 @@
+ docs/evidence/local-real-play/checks.json          |   33 +
+ docs/evidence/local-real-play/local-sign-in.png    |  Bin 0 -> 311422 bytes
+ .../local-real-play/production-isolation.json      |   13 +
+ .../local-real-play/real-live-short-desktop.png    |  Bin 0 -> 72769 bytes
+ .../local-real-play/real-live-thinking-mobile.png  |  Bin 0 -> 33371 bytes
+ docs/evidence/local-real-play/verification.json    |   31 +
+ docs/evidence/modes/modes-verification.json        |   88 +
+ docs/evidence/phase-a-final/01-390-active.png      |  Bin 0 -> 35621 bytes
+ docs/evidence/phase-a-final/02-390-thinking.png    |  Bin 0 -> 32979 bytes
+ docs/evidence/phase-a-final/03-390-tentative.png   |  Bin 0 -> 40417 bytes
+ .../phase-a-final/04-390-pause-request.png         |  Bin 0 -> 34095 bytes
+ docs/evidence/phase-a-final/05-320-active.png      |  Bin 0 -> 28409 bytes
+ docs/evidence/phase-a-final/06-390-more-sheet.png  |  Bin 0 -> 29401 bytes
+ docs/evidence/phase-a-final/07-390-more-bag.png    |  Bin 0 -> 36810 bytes
+ docs/evidence/phase-a-final/08-390-match-menu.png  |  Bin 0 -> 36021 bytes
+ docs/evidence/phase-a-final/09-tablet-portrait.png |  Bin 0 -> 60341 bytes
+ .../evidence/phase-a-final/10-tablet-landscape.png |  Bin 0 -> 72683 bytes
+ docs/evidence/phase-a-final/11-laptop-13.png       |  Bin 0 -> 96110 bytes
+ .../evidence/phase-a-final/12-laptop-tentative.png |  Bin 0 -> 104095 bytes
+ docs/evidence/phase-a-final/13-desktop-1080p.png   |  Bin 0 -> 107240 bytes
+ docs/evidence/phase-a-final/14-desktop-wide.png    |  Bin 0 -> 121674 bytes
+ docs/evidence/phase-a-final/15-short-1280x560.png  |  Bin 0 -> 83631 bytes
+ docs/evidence/phase-a-final/16-desktop-notes.png   |  Bin 0 -> 98101 bytes
+ .../phase-a-final/17-desktop-last-exchange.png     |  Bin 0 -> 87424 bytes
+ .../phase-a-final/18-desktop-last-place.png        |  Bin 0 -> 96114 bytes
+ .../phase-a-final/19-desktop-pause-request.png     |  Bin 0 -> 104049 bytes
+ docs/evidence/phase-a-final/20-desktop-paused.png  |  Bin 0 -> 96520 bytes
+ docs/evidence/phase-a-final/21-desktop-result.png  |  Bin 0 -> 91125 bytes
+ docs/evidence/phase-a-final/22-390-result.png      |  Bin 0 -> 34121 bytes
+ docs/evidence/phase-a-final/23-physical-host.png   |  Bin 0 -> 109525 bytes
+ docs/evidence/phase-a-final/24-phone-landscape.png |  Bin 0 -> 43675 bytes
+ docs/evidence/phase-a-final/25-375-active.png      |  Bin 0 -> 31860 bytes
+ docs/evidence/phase-a-final/26-tablet-large.png    |  Bin 0 -> 64799 bytes
+ docs/evidence/phase-a-final/27-laptop-1280.png     |  Bin 0 -> 90361 bytes
+ docs/evidence/phase-a-final/28-390-practice.png    |  Bin 0 -> 36227 bytes
+ docs/evidence/phase-a-final/build-scan.json        |   18 +
+ docs/evidence/phase-a-final/checks.json            |   44 +
+ .../phase-a-final/contact-desktop-layout.png       |  Bin 0 -> 326986 bytes
+ .../phase-a-final/contact-desktop-workspace.png    |  Bin 0 -> 311825 bytes
+ .../phase-a-final/contact-phone-states.png         |  Bin 0 -> 235913 bytes
+ .../evidence/phase-a-final/contact-phone-tools.png |  Bin 0 -> 177931 bytes
+ docs/evidence/phase-a-final/engine-unrelated.log   |  248 ++
+ .../evidence/phase-a-final/focused-tests-final.log |   60 +
+ docs/evidence/phase-a-final/index.html             |    1 +
+ docs/evidence/phase-a-final/manifest.json          |  282 +++
+ docs/evidence/phase-a-final/normal-local-login.png |  Bin 0 -> 219277 bytes
+ .../phase-a-final/security-browser-final.log       |   23 +
+ .../phase-a-final/security-result-lifecycle.log    |    8 +
+ .../phase-a-final/shell-browser-38-specs.log       |   49 +
+ .../evidence/phase-a-final/shell-browser-final.log |   50 +
+ .../evidence/phase-a-final/visual-result-final.log |   13 +
+ docs/evidence/phase-b/baseline-lan.json            |  109 +
+ docs/evidence/phase-b/baseline-local.json          |  109 +
+ docs/evidence/phase-b/boundary.json                |   26 +
+ docs/evidence/phase-b/impairment-lan.json          |    5 +
+ docs/evidence/phase-b/impairment-local.json        |    5 +
+ docs/evidence/phase-b/two-client-lan.json          |    9 +
+ docs/evidence/phase-b/two-client-local.json        |    9 +
+ docs/evidence/phone-round2/01-phone-live.png       |  Bin 0 -> 102166 bytes
+ docs/evidence/phone-round2/02-tiny-board.png       |  Bin 0 -> 116409 bytes
+ .../evidence/phone-round2/03-two-digit-closeup.png |  Bin 0 -> 13888 bytes
+ .../evidence/phone-round2/04-tiny-board-points.png |  Bin 0 -> 13858 bytes
+ .../phone-round2/05-selected-rack-tile.png         |  Bin 0 -> 13186 bytes
+ .../phone-round2/06-selected-board-tile.png        |  Bin 0 -> 112699 bytes
+ .../phone-round2/07-alternative-selected.png       |  Bin 0 -> 37704 bytes
+ .../phone-round2/08-alternative-picker-edit.png    |  Bin 0 -> 122057 bytes
+ docs/evidence/phone-round2/09a-return-holding.png  |  Bin 0 -> 112310 bytes
+ .../evidence/phone-round2/09b-returned-to-slot.png |  Bin 0 -> 107257 bytes
+ docs/evidence/phone-round2/10-arrow-right.png      |  Bin 0 -> 31878 bytes
+ docs/evidence/phone-round2/11-arrow-down.png       |  Bin 0 -> 31947 bytes
+ docs/evidence/phone-round2/12-arrow-escaped.png    |  Bin 0 -> 33604 bytes
+ docs/evidence/phone-round2/13-timerless-hud.png    |  Bin 0 -> 13833 bytes
+ docs/evidence/phone-round2/13b-timerless-full.png  |  Bin 0 -> 97767 bytes
+ .../phone-round2/14-my-perspective-lead.png        |  Bin 0 -> 12572 bytes
+ docs/evidence/phone-round2/15-controls.png         |  Bin 0 -> 15816 bytes
+ docs/evidence/phone-round2/15b-hud-controls.png    |  Bin 0 -> 17643 bytes
+ docs/evidence/phone-round2/16-more-expanded.png    |  Bin 0 -> 130583 bytes
+ docs/evidence/phone-round2/17-more-peek.png        |  Bin 0 -> 112273 bytes
+ docs/evidence/phone-round2/18-turn-log-many.png    |  Bin 0 -> 130583 bytes
+ docs/evidence/phone-round2/18b-view-position.png   |  Bin 0 -> 131218 bytes
+ docs/evidence/phone-round2/19-long-expression.png  |  Bin 0 -> 11628 bytes
+ docs/evidence/phone-round2/20-notes-focused.png    |  Bin 0 -> 83622 bytes
+ docs/evidence/phone-round2/21-desktop-long.png     |  Bin 0 -> 124457 bytes
+ .../evidence/phone-round2/22-desktop-selection.png |  Bin 0 -> 128279 bytes
+ docs/evidence/phone-round2/23-desktop-short.png    |  Bin 0 -> 117075 bytes
+ docs/evidence/phone-round2/manifest.json           |  214 ++
+ docs/evidence/phone-round2/real-01-phone-live.png  |  Bin 0 -> 98427 bytes
+ .../phone-round2/real-02-holding-board-tile.png    |  Bin 0 -> 109008 bytes
+ docs/evidence/phone-round2/real-03-arrow.png       |  Bin 0 -> 103440 bytes
+ .../phone-round2/real-04-notes-focused.png         |  Bin 0 -> 82537 bytes
+ docs/evidence/phone-round2/real-05-sheet-peek.png  |  Bin 0 -> 105346 bytes
+ .../phone-round2/real-06-view-position.png         |  Bin 0 -> 130183 bytes
+ docs/evidence/phone-round2/real-verification.json  |   17 +
+ docs/evidence/po-ux-review/01-phone-active.png     |  Bin 0 -> 40034 bytes
+ docs/evidence/po-ux-review/02-phone-thinking.png   |  Bin 0 -> 37621 bytes
+ .../po-ux-review/03-phone-operator-chooser.png     |  Bin 0 -> 47663 bytes
+ .../po-ux-review/04-phone-blank-chooser.png        |  Bin 0 -> 46018 bytes
+ .../po-ux-review/05-phone-exchange-selection.png   |  Bin 0 -> 43485 bytes
+ docs/evidence/po-ux-review/06-phone-tentative.png  |  Bin 0 -> 43578 bytes
+ .../po-ux-review/07-hud-score-lead-clocks.png      |  Bin 0 -> 24686 bytes
+ docs/evidence/po-ux-review/08-unseen-strip.png     |  Bin 0 -> 17308 bytes
+ docs/evidence/po-ux-review/09-phone-320.png        |  Bin 0 -> 36351 bytes
+ docs/evidence/po-ux-review/09b-phone-320-short.png |  Bin 0 -> 27701 bytes
+ docs/evidence/po-ux-review/10-tablet.png           |  Bin 0 -> 60384 bytes
+ docs/evidence/po-ux-review/11-laptop-13.png        |  Bin 0 -> 111006 bytes
+ docs/evidence/po-ux-review/12-desktop-1080p.png    |  Bin 0 -> 119273 bytes
+ docs/evidence/po-ux-review/13-short-1280x560.png   |  Bin 0 -> 82264 bytes
+ docs/evidence/po-ux-review/13b-desktop-chooser.png |  Bin 0 -> 124838 bytes
+ docs/evidence/po-ux-review/14-number-tile.png      |  Bin 0 -> 1481 bytes
+ docs/evidence/po-ux-review/14b-operator-tiles.png  |  Bin 0 -> 38735 bytes
+ docs/evidence/po-ux-review/15-plus-minus-open.png  |  Bin 0 -> 1841 bytes
+ .../evidence/po-ux-review/16-times-divide-open.png |  Bin 0 -> 2558 bytes
+ .../po-ux-review/17-selected-alternative.png       |  Bin 0 -> 2243 bytes
+ docs/evidence/po-ux-review/18-tentative-tile.png   |  Bin 0 -> 2518 bytes
+ .../evidence/po-ux-review/18b-tentative-column.png |  Bin 0 -> 63531 bytes
+ docs/evidence/po-ux-review/19-last-move-tile.png   |  Bin 0 -> 1617 bytes
+ .../po-ux-review/20-exchange-selected-rack.png     |  Bin 0 -> 15496 bytes
+ docs/evidence/po-ux-review/index.html              |    1 +
+ docs/evidence/po-ux-review/manifest.json           |  198 ++
+ .../evidence/po-ux-review/real-01-phone-active.png |  Bin 0 -> 88513 bytes
+ .../po-ux-review/real-02-phone-thinking.png        |  Bin 0 -> 86113 bytes
+ .../po-ux-review/real-03-phone-exchange-drag.png   |  Bin 0 -> 96296 bytes
+ .../real-04-phone-alternative-chooser.png          |  Bin 0 -> 102636 bytes
+ .../real-05-phone-tentative-chosen.png             |  Bin 0 -> 94705 bytes
+ docs/evidence/po-ux-review/real-verification.json  |   14 +
+ .../evidence/po-ux-review/sheet-1-phone-states.png |  Bin 0 -> 350972 bytes
+ docs/evidence/po-ux-review/sheet-2-devices.png     |  Bin 0 -> 370401 bytes
+ docs/evidence/po-ux-review/sheet-3-closeups.png    |  Bin 0 -> 344435 bytes
+ docs/evidence/po-ux-review/sheet-4-real-app.png    |  Bin 0 -> 152578 bytes
+ docs/local-real-play-auth-2026-10-03.md            |  187 ++
+ docs/mode-matrix-2026-10-03.md                     |   69 +
+ docs/phase-a-local-run-2026-10-03.md               |  182 ++
+ docs/phase-a-takeover-2026-10-03.md                |  153 ++
+ docs/phase-b-baseline-2026-10-03.md                |   50 +
+ docs/phase-b-tentative-sync-protocol.md            |  103 +
+ docs/phone-review-round2-2026-10-03.md             |   50 +
+ docs/po-ux-review-2026-10-03.md                    |   29 +
+ docs/unified-live-game-ux-design-2026-10-03.md     |  677 +++++
+ playwright.live-shell.config.ts                    |   27 +
+ playwright.local-realplay.config.ts                |   14 +
+ src/app/AppRoot.tsx                                |   33 +-
+ src/app/NonPlayApplication.tsx                     |    2 +-
+ src/auth.tsx                                       |   30 +-
+ src/components/pages/ArchiveReplayPage.tsx         |    2 +
+ src/components/pages/ranked/RankedMatchPage.tsx    | 1357 +---------
+ src/components/ui/OverflowMenu.tsx                 |   17 +-
+ src/components/ui/Sheet.tsx                        |    8 +-
+ src/dev/LocalPasswordSignIn.tsx                    |   67 +
+ src/i18n/messages/en.ts                            |  332 +++
+ src/i18n/messages/th.ts                            |  302 +++
+ src/liveGame/CompatibilityControls.tsx             |  490 ++--
+ src/liveGame/DevelopmentSources.tsx                |    4 +
+ src/liveGame/HostedControls.tsx                    |  100 +-
+ src/liveGame/LivePage.tsx                          |   16 +-
+ src/liveGame/LivePractice.tsx                      |  212 +-
+ src/liveGame/PhysicalControls.tsx                  |   71 +-
+ src/liveGame/ToolSection.tsx                       |   11 +
+ src/liveGame/client.ts                             |   21 +
+ src/liveGame/projection.ts                         |   19 +
+ src/liveGame/shell/BottomSheet.tsx                 |  431 ++++
+ src/liveGame/shell/FacePicker.tsx                  |  182 ++
+ src/liveGame/shell/GuardedButton.tsx               |   57 +
+ src/liveGame/shell/LeftoverNotes.tsx               |   30 +
+ src/liveGame/shell/LiveBoard.tsx                   |  298 +++
+ src/liveGame/shell/LiveGameScreen.tsx              |  646 +++++
+ src/liveGame/shell/LiveGameShell.tsx               |  638 +++++
+ src/liveGame/shell/LiveRack.tsx                    |  184 ++
+ src/liveGame/shell/MatchControls.tsx               |  251 ++
+ src/liveGame/shell/Scoreboard.tsx                  |  127 +
+ src/liveGame/shell/TileGlyph.tsx                   |  224 ++
+ src/liveGame/shell/TurnActions.tsx                 |  160 ++
+ src/liveGame/shell/attention.ts                    |  176 ++
+ src/liveGame/shell/completion.ts                   |   74 +
+ src/liveGame/shell/derive.ts                       |  105 +
+ src/liveGame/shell/dev/ShellFixture.tsx            |  510 ++++
+ src/liveGame/shell/fixtureRoute.ts                 |    5 +
+ src/liveGame/shell/layout.ts                       |  271 ++
+ src/liveGame/shell/live-shell.css                  | 2592 ++++++++++++++++++++
+ src/liveGame/shell/model.ts                        |  318 +++
+ src/liveGame/shell/panels.tsx                      |  430 ++++
+ src/liveGame/shell/terminalHold.ts                 |   19 +
+ src/liveGame/shell/tools.tsx                       |  376 +++
+ src/liveGame/shell/useLiveMatch.ts                 |   61 +
+ src/liveGame/shell/useTentativeSync.ts             |  132 +
+ src/liveGame/shell/useTurnDraft.ts                 |  659 +++++
+ src/liveGame/shell/workspace.ts                    |  289 +++
+ src/liveGame/shell/workspaceUser.ts                |   15 +
+ src/liveGame/tentative.ts                          |  240 ++
+ src/main.tsx                                       |   22 +
+ src/play-styles.css                                |  190 +-
+ src/styles/application.css                         |   32 +
+ src/vite-env.d.ts                                  |    2 +
+ supabase/functions/live-game/handler.ts            |   46 +
+ supabase/functions/live-game/index.js              |  212 +-
+ supabase/functions/live-game/index.ts              |   93 +-
+ .../20261003120000_live_tentative_relay.sql        |   39 +
+ tests/live-play-layout.test.tsx                    |  124 +
+ tests/live-security-browser/capabilities.spec.ts   |   19 +-
+ tests/live-security-browser/compatibility.spec.ts  |   44 +-
+ tests/live-security-browser/release.spec.ts        |   29 +-
+ tests/live-security-browser/result.spec.ts         |   66 +
+ tests/live-security-browser/security.spec.ts       |    6 +-
+ tests/live-security-browser/solo.spec.ts           |   18 +-
+ tests/live-shell-browser/behaviour.spec.ts         |  145 ++
+ tests/live-shell-browser/helpers.ts                |   97 +
+ tests/live-shell-browser/round2.spec.ts            |  447 ++++
+ tests/live-shell-browser/ux-review.spec.ts         |  397 +++
+ tests/live-shell-browser/visual.spec.ts            |  275 +++
+ tests/live-shell-interaction.test.tsx              |  336 +++
+ tests/live-shell-layout.test.ts                    |   79 +
+ tests/live-shell-modes.test.tsx                    |  162 ++
+ tests/live-shell-screen.test.tsx                   |  545 ++++
+ tests/live-shell-units.test.tsx                    |  258 ++
+ tests/live-tentative-convergence.test.tsx          |  296 +++
+ tests/live-tentative-protocol.test.ts              |  372 +++
+ tests/local-password-sign-in.test.tsx              |   47 +
+ tests/local-realplay/lan.spec.ts                   |  124 +
+ tests/local-realplay/manual.spec.ts                |  260 ++
+ tests/local-realplay/modes-kit.ts                  |  409 +++
+ tests/local-realplay/modes.spec.ts                 |  774 ++++++
+ tests/local-realplay/po-ux.spec.ts                 |  173 ++
+ tests/local-realplay/round2.spec.ts                |  247 ++
+ tests/local-realplay/tentative-boundary.spec.ts    |  243 ++
+ tests/local-realplay/tentative.spec.ts             |  536 ++++
+ tests/ranked-play-ui.test.tsx                      |  109 +-
+ tools/phase-a/contact-sheets.mjs                   |   55 +
+ tools/phase-a/final-checks.mjs                     |   58 +
+ tools/phase-a/local-accounts.mjs                   |  166 ++
+ tools/phase-a/local-production-check.mjs           |   78 +
+ tools/phase-a/local.mjs                            |  239 ++
+ tools/phase-a/scan-build.mjs                       |   70 +
+ tools/phase-a/security-gate.mjs                    |  116 +
+ vite.config.ts                                     |   25 +-
+ 233 files changed, 21985 insertions(+), 1907 deletions(-)

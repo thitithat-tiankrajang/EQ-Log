@@ -27,7 +27,7 @@ select schemaname,tablename from pg_publication_tables where pubname='supabase_r
 -- Expected preserved=true for every legacy room, with zero omitted.
 select count(*) as legacy_live,
  count(*) filter(where q.room_id is not null and q.room_row->'state'=l.state
- and q.room_row->'canonical' is not distinct from l.canonical) as preserved
+ and q.room_row->'canonical' is not distinct from coalesce(l.canonical,'null'::jsonb)) as preserved
  from public.room_live l left join private.live_legacy_quarantine q on q.room_id=l.room_id
  where l.authority_protocol='legacy-client';
 -- These counts must match the signed PRE plan. Protocol is a stored fact.
@@ -87,9 +87,11 @@ begin
    'ranked_matches','public_game_snapshots','region_game_snapshots','private_library_items')) then
   raise exception 'private relation remains in Realtime publication';
  end if;
+ -- Quarantine uses to_jsonb(row), which represents SQL NULL as JSON null.
+ -- Compare the same representation while still refusing a missing key/copy.
  if exists(select 1 from public.room_live l left join private.live_legacy_quarantine q on q.room_id=l.room_id
   where l.authority_protocol='legacy-client' and (q.room_id is null or q.room_row->'state' is distinct from l.state
-   or q.room_row->'canonical' is distinct from l.canonical)) then
+   or q.room_row->'canonical' is distinct from coalesce(l.canonical,'null'::jsonb))) then
   raise exception 'legacy private preservation mismatch';
  end if;
  if exists(select 1 from public.live_bot_jobs j join public.room_live l on l.room_id=j.room_id

@@ -1,0 +1,34 @@
+{
+  "observedAt": "2026-10-03T17:03:03.393Z",
+  "deployment": {
+    "id": "dpl_FmmU1c4rJnUCcpYN7n3hBFbcPBmu",
+    "sha": "4e1fcdc95b6305ee3ae017c2fdd8118f16088ca0",
+    "branch": "main",
+    "state": "READY",
+    "target": "production",
+    "alias": "eq-log.vercel.app",
+    "project": "prj_kivE4ulotuxx7gMxnQrcFcih0KRO",
+    "node": "24.x"
+  },
+  "environment": [
+    {
+      "key": "VITE_ENGINE_API_URL",
+      "target": ["preview", "production"],
+      "type": "sensitive",
+      "decrypted": false
+    },
+    {
+      "key": "VITE_SUPABASE_URL",
+      "target": ["production", "preview"],
+      "type": "sensitive",
+      "decrypted": false
+    },
+    {
+      "key": "VITE_SUPABASE_ANON_KEY",
+      "target": ["production", "preview"],
+      "type": "sensitive",
+      "decrypted": false
+    }
+  ],
+  "hiddenProductionEnvCount": 0
+}

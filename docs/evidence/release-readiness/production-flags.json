@@ -1,0 +1,15 @@
+{
+  "method": "Compare secret digests to SHA256(false); no decrypted values retrieved",
+  "flags": [
+    {
+      "name": "LIVE_GAME_CREATION_ENABLED",
+      "isFalse": true,
+      "updated_at": "2026-10-02T19:24:45.038Z"
+    },
+    {
+      "name": "STAGE_CREATION_ENABLED",
+      "isFalse": true,
+      "updated_at": "2026-10-02T13:00:37.576Z"
+    }
+  ]
+}

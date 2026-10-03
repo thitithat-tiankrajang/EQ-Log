@@ -1,0 +1,6 @@
+{
+  "normalGoogleLogin": true,
+  "devLocalFormAbsent": true,
+  "fixtureDoesNotBypassAuth": true,
+  "fixtureRequests": []
+}

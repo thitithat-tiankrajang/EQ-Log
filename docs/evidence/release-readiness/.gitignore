@@ -1,0 +1,2 @@
+# Raw command output is retained locally, not in the release candidate.
+*.log

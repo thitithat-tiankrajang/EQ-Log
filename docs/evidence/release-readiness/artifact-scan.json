@@ -1,0 +1,15 @@
+{
+  "head": "a76c8c0b0907a7c515552246f430d2c753af8278",
+  "build": "production mode, disposable public VITE configuration, LAN flags deliberately provided",
+  "files": 42,
+  "knownLocalSecretsChecked": 9,
+  "findings": {
+    "sourceMaps": [],
+    "secretValues": [],
+    "credentialPatterns": [],
+    "authurArtifacts": [],
+    "devAuth": [],
+    "fixtureOrTestNetwork": [],
+    "serverExecutor": []
+  }
+}

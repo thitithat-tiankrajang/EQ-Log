@@ -1,0 +1,132 @@
+{
+  "observedAt": "2026-10-03T17:03:03.951Z",
+  "project": "ilhtcsnndlcsyfdznoow",
+  "audit": {
+    "bot_jobs": [],
+    "legacy_preservation": {
+      "legacy_count": 26,
+      "missing_quarantine": 0,
+      "normalized_canonical_mismatch": 0,
+      "raw_canonical_mismatch": 1,
+      "state_mismatch": 0
+    },
+    "policies": [
+      {
+        "check": null,
+        "command": "SELECT",
+        "name": "live_game_broadcast_read",
+        "roles": [
+          "authenticated"
+        ],
+        "using": "((extension = 'broadcast'::text) AND (topic ~~ 'game:%'::text) AND can_read_live_game((NULLIF(split_part(topic, ':'::text, 2), ''::text))::uuid))"
+      }
+    ],
+    "private_history_select": false,
+    "publication": [
+      "members"
+    ],
+    "raw_live_select": false,
+    "realtime_messages_rls": true,
+    "rooms": [
+      {
+        "authority_protocol": "legacy-client",
+        "count": 1,
+        "mode_key": "aether_hard",
+        "room_purpose": "normal"
+      },
+      {
+        "authority_protocol": "legacy-client",
+        "count": 10,
+        "mode_key": "local_versus",
+        "room_purpose": "normal"
+      },
+      {
+        "authority_protocol": "legacy-client",
+        "count": 1,
+        "mode_key": "stage5b_standard",
+        "room_purpose": "normal"
+      },
+      {
+        "authority_protocol": "legacy-client",
+        "count": 2,
+        "mode_key": "aether_medium",
+        "room_purpose": "normal"
+      },
+      {
+        "authority_protocol": "legacy-client",
+        "count": 3,
+        "mode_key": "aether_super",
+        "room_purpose": "normal"
+      },
+      {
+        "authority_protocol": "server-v1",
+        "count": 1,
+        "mode_key": "stage5b_standard",
+        "room_purpose": "normal"
+      },
+      {
+        "authority_protocol": "legacy-client",
+        "count": 3,
+        "mode_key": "solo_practice",
+        "room_purpose": "normal"
+      },
+      {
+        "authority_protocol": "legacy-client",
+        "count": 1,
+        "mode_key": "online_versus",
+        "room_purpose": "normal"
+      },
+      {
+        "authority_protocol": "legacy-client",
+        "count": 5,
+        "mode_key": "aether_max",
+        "room_purpose": "normal"
+      },
+      {
+        "authority_protocol": "server-v1",
+        "count": 2,
+        "mode_key": "authur_strong",
+        "room_purpose": "normal"
+      }
+    ],
+    "server_rooms": [
+      {
+        "bot_engine": "authur",
+        "count": 1,
+        "log_count": 0,
+        "mode_key": "authur_strong",
+        "revision": 0,
+        "room_stage": "waiting",
+        "status": "draft",
+        "turn_number": 1
+      },
+      {
+        "bot_engine": "authur",
+        "count": 1,
+        "log_count": 0,
+        "mode_key": "authur_strong",
+        "revision": 3,
+        "room_stage": "playing",
+        "status": "playing",
+        "turn_number": 1
+      },
+      {
+        "bot_engine": "stage5b",
+        "count": 1,
+        "log_count": 0,
+        "mode_key": "stage5b_standard",
+        "revision": 0,
+        "room_stage": "waiting",
+        "status": "draft",
+        "turn_number": 1
+      }
+    ],
+    "stage_catalog": [
+      {
+        "count": 10,
+        "status": "draft"
+      }
+    ],
+    "tentative_helper_exists": false
+  }
+}
