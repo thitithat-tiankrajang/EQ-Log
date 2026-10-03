@@ -153,7 +153,7 @@ export const LiveBoard = memo(function LiveBoard({
     const mine = pending.get(`${row}:${col}`);
     if (mine)
       return `${where}, ${spokenTile({ ...mine.tile, assignedToken: mine.assignedToken }, t)}, ${t("live.board.yourTentative")}`;
-    const shown = remote.get(`${row}:${col}`);
+    const shown = board[row][col] ? undefined : remote.get(`${row}:${col}`);
     if (shown)
       return `${where}, ${displayToken(shown.tile as TileInstance)}, ${t("live.board.opponentTentative")}`;
     const cell = board[row][col];
@@ -220,7 +220,8 @@ export const LiveBoard = memo(function LiveBoard({
               const key = `${r}:${c}`;
               const slot = slotTypeAt(r, c);
               const mine = pending.get(key);
-              const shown = remote.get(key);
+              // Committed tiles are canonical: an overlay never covers one.
+              const shown = cell ? undefined : remote.get(key);
               const isCursor = arrow !== "none" && cursor?.row === r && cursor.col === c;
               const focusable = r === focusRow && c === focusCol;
               const ArrowIcon = isCursor && !cell && !mine ? ARROWS[cursor!.dir] : null;

@@ -1,0 +1,5 @@
+[
+  "latency 150 ms + jitter 0–400 ms, 12 rapid moves: opponent saw 7 intermediate states, settled on the final square, never rolled back",
+  "opponent offline while the mover moved twice; after reconnect it showed 5:7 (no replay), then the current square on the next update",
+  "Pass under latency: overlay cleared by the new epoch"
+]

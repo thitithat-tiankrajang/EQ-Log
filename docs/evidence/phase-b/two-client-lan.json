@@ -1,0 +1,9 @@
+[
+  "first mover → opponent: no alternative tile in this deal (covered by unit tests)",
+  "first mover → opponent: real Commit +12 by the mover — opponent: overlay → 5 committed tiles in one render, no gap, no duplicate",
+  "first mover → opponent: place / move / recall / several tiles converged on the opponent",
+  "reverse direction: no alternative tile in this deal (covered by unit tests)",
+  "reverse direction: Pass — overlay cleared by the new epoch",
+  "reverse direction: place / move / recall / several tiles converged on the opponent",
+  "payload audit: 21 proposals (own tile ids only, strict keys); 21 relayed frames with no tile id, rack, bag or RNG"
+]

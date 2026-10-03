@@ -8,6 +8,7 @@ import type { HostedAction } from "./hostedAdmin";
 import type { LiveGameView } from "./projection";
 import type { PhysicalAction } from "./physical";
 import type { LiveControl } from "./controls";
+import type { TentativeMessage, TentativeProposal } from "./tentative";
 
 async function call<T>(body: Record<string, unknown>): Promise<T> {
   if (!supabase) throw new Error("An online account is required.");
@@ -86,6 +87,26 @@ export function concealLocalView(view: LiveGameView): LiveGameView {
 }
 
 export const liveGameClient = {
+  /**
+   * Phase B. Proposals go to the trusted relay; the opponent's validated public
+   * set arrives on this viewer's own private topic (joinable only by this seat).
+   */
+  tentative: {
+    publish: async (proposal: TentativeProposal) => {
+      await call<{ accepted: true }>({ operation: "tentative", ...proposal });
+    },
+    subscribe: (id: string, userId: string, onMessage: (message: TentativeMessage) => void) => {
+      const channel = supabase
+        ?.channel(`tentative:${id}:${userId}`, { config: { private: true } })
+        .on("broadcast", { event: "tentative" }, ({ payload }) =>
+          onMessage(payload as TentativeMessage),
+        )
+        .subscribe();
+      return () => {
+        if (channel) void supabase?.removeChannel(channel);
+      };
+    },
+  },
   subscribe: (id: string, refresh: () => void) => {
     const channel = supabase
       ?.channel(`game:${id}`, { config: { private: true } })

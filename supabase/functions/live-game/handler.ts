@@ -20,6 +20,13 @@ import {
   type Multiverse,
 } from "../../../src/gameplay/multiverse";
 import { botActionFor, type TrustedBotMove } from "../../../src/liveGame/botAction";
+import {
+  parseTentativeProposal,
+  TENTATIVE_LIMITS,
+  validateTentative,
+  type TentativeFacts,
+  type TentativeMessage,
+} from "../../../src/liveGame/tentative";
 
 export type LiveCommand =
   | RankedAction
@@ -311,3 +318,42 @@ export async function handleLiveGame(
 }
 
 export { encodeGame };
+
+// ── Phase B: trusted tentative relay ────────────────────────────────────────
+
+export type TentativeStore = {
+  authenticate(token: string): Promise<string | null>;
+  /** The authoritative row: facts and state. Never request-supplied. */
+  readFacts(id: string): Promise<{ facts: TentativeFacts; state: EncodedGame } | null>;
+  /** Ephemeral delivery to one recipient. No durable write. */
+  broadcast(recipient: string, message: TentativeMessage): Promise<void>;
+  /** Per-sender rate limit. */
+  allow(key: string, now: number): boolean;
+};
+
+/**
+ * Validate a tentative proposal against the authoritative game and forward the
+ * public message to the opponent only. Nothing is stored. The reply carries no
+ * game data: the sender already has its own draft.
+ */
+export async function handleTentativeRelay(
+  request: { authorization: string | null; body: unknown; bytes: number },
+  store: TentativeStore,
+  now = Date.now(),
+): Promise<{ status: number; body: { accepted?: true; error?: string } }> {
+  if (request.bytes > TENTATIVE_LIMITS.maxBodyBytes)
+    return { status: 413, body: { error: "Proposal too large." } };
+  const token = request.authorization?.match(/^Bearer (.+)$/i)?.[1];
+  const actorId = token ? await store.authenticate(token) : null;
+  if (!actorId) return { status: 401, body: { error: "Sign in required." } };
+  const proposal = parseTentativeProposal(request.body);
+  if (!proposal) return { status: 400, body: { error: "Invalid tentative proposal." } };
+  if (!store.allow(`${actorId}:${proposal.id}`, now))
+    return { status: 429, body: { error: "Too many updates." } };
+  const source = await store.readFacts(proposal.id);
+  if (!source) return { status: 404, body: { error: "Live game unavailable." } };
+  const verdict = validateTentative(actorId, source.facts, decodeGame(source.state), proposal, now);
+  if (!verdict.ok) return { status: verdict.status, body: { error: verdict.error } };
+  await store.broadcast(verdict.recipient, verdict.message);
+  return { status: 200, body: { accepted: true } };
+}

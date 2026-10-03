@@ -32,11 +32,13 @@ export async function signedIn(
   account: Account,
   password: string,
   viewport = PHONE,
+  baseURL?: string,
 ) {
   const context = await browser.newContext({
     viewport,
     hasTouch: true,
     isMobile: viewport.width < 600,
+    ...(baseURL ? { baseURL } : {}),
   });
   const page = await context.newPage();
   await page.goto("/");
@@ -375,4 +377,33 @@ export async function launch(page: Page) {
   const button = page.getByRole("button", { name: "Launch game", exact: true });
   await expect(button).toBeEnabled({ timeout: 30_000 });
   await button.click();
+}
+
+/** A real Online Match created and launched through the UI; returns its URL. */
+export async function startOnlineMatch(
+  a: Page,
+  b: Page,
+  opponentName: string,
+  timer: "22" | "No timer" = "No timer",
+) {
+  await a.getByRole("link", { name: "Create game", exact: true }).click();
+  await a.locator('[data-choice="match"] a').click();
+  await a.getByRole("radio", { name: new RegExp(`^${timer}`) }).click();
+  await a.getByRole("combobox", { name: "Opponent username", exact: true }).click();
+  await a.getByRole("option", { name: opponentName, exact: true }).click();
+  await a.getByRole("button", { name: "Create room & get invite link", exact: true }).click();
+  await expect(a.getByRole("button", { name: "Ready", exact: true })).toBeVisible();
+  const url = a.url();
+  await b.getByRole("link", { name: "Create game", exact: true }).click();
+  await b.getByRole("link", { name: "Have a code? Join a game", exact: true }).click();
+  await b.getByLabel("Room code or link").fill(url);
+  await b.getByRole("button", { name: "Join room", exact: true }).click();
+  await expect(b.getByRole("button", { name: "Ready", exact: true })).toBeVisible();
+  await a.getByRole("button", { name: "Ready", exact: true }).click();
+  await expect(b.getByText("A ready · B not ready", { exact: true })).toBeVisible();
+  await b.getByRole("button", { name: "Ready", exact: true }).click();
+  await a.getByRole("button", { name: "Launch game", exact: true }).click();
+  await expect(a.locator(".lg-shell")).toBeVisible({ timeout: 20_000 });
+  await expect(b.locator(".lg-shell")).toBeVisible({ timeout: 20_000 });
+  return url;
 }

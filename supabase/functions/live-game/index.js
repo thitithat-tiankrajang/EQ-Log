@@ -2821,6 +2821,114 @@ function buildArchBotRequest(game, roomId, revision) {
   };
 }
 
+// src/liveGame/tentative.ts
+var TENTATIVE_LIMITS = {
+  /** Largest proposal body accepted, in bytes. */
+  maxBodyBytes: 2048,
+  /** seq is a microsecond-scale timestamp: not older than this, not ahead of the server by more. */
+  maxSeqAgeMs: 10 * 60 * 1e3,
+  maxSeqLeadMs: 60 * 1e3,
+  /** Per sender and game: token bucket. */
+  burst: 20,
+  perSecond: 10
+};
+function tentativeSyncAllowed(facts2, game) {
+  return facts2.authorityProtocol === "server-v1" && facts2.purpose === "normal" && facts2.mode === "online_versus" && game.emailPlayMode === "direct" && game.gameMode !== "solo" && !game.botSide && Boolean(facts2.seats.A && facts2.seats.B && facts2.seats.A !== facts2.seats.B);
+}
+var UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+var PROPOSAL_KEYS = /* @__PURE__ */ new Set(["operation", "id", "revision", "seq", "tiles"]);
+var TILE_KEYS = /* @__PURE__ */ new Set(["tileId", "row", "col", "face"]);
+var fail2 = (status, error) => ({ ok: false, status, error });
+function parseTentativeProposal(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+  const raw = body;
+  if (!Object.keys(raw).every((key) => PROPOSAL_KEYS.has(key))) return null;
+  const { id, revision, seq, tiles } = raw;
+  if (typeof id !== "string" || !UUID.test(id)) return null;
+  if (!Number.isSafeInteger(revision) || revision < 0) return null;
+  if (!Number.isSafeInteger(seq) || seq <= 0) return null;
+  if (!Array.isArray(tiles) || tiles.length > RACK_SIZE) return null;
+  const parsed = [];
+  for (const item of tiles) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+    const tile = item;
+    if (!Object.keys(tile).every((key) => TILE_KEYS.has(key))) return null;
+    if (typeof tile.tileId !== "string" || tile.tileId.length > 32) return null;
+    if (!Number.isInteger(tile.row) || !Number.isInteger(tile.col)) return null;
+    if (tile.face !== void 0 && (typeof tile.face !== "string" || tile.face.length > 4))
+      return null;
+    parsed.push({
+      tileId: tile.tileId,
+      row: tile.row,
+      col: tile.col,
+      ...tile.face !== void 0 ? { face: tile.face } : {}
+    });
+  }
+  return { id, revision, seq, tiles: parsed };
+}
+function validateTentative(actorId, facts2, game, proposal, now) {
+  const seated = facts2.seats.A === actorId ? "A" : facts2.seats.B === actorId ? "B" : null;
+  if (!seated) return fail2(403, "Not a seated player.");
+  if (!tentativeSyncAllowed(facts2, game)) return fail2(403, "Tentative sync is off for this game.");
+  if (game.status !== "playing" || game.roomStage !== "playing" || game.timers.paused)
+    return fail2(409, "The game is not in play.");
+  if (proposal.revision !== facts2.revision) return fail2(409, "Stale revision.");
+  if (game.activeSide !== seated) return fail2(409, "Not your turn.");
+  if (game.phase !== "choose_action") return fail2(409, "Not your turn.");
+  const seqMs = proposal.seq / 1e3;
+  if (seqMs < now - TENTATIVE_LIMITS.maxSeqAgeMs || seqMs > now + TENTATIVE_LIMITS.maxSeqLeadMs)
+    return fail2(400, "Invalid sequence.");
+  const rack = new Map(getRack(game, seated).map((tile) => [tile.id, tile]));
+  const ids = /* @__PURE__ */ new Set();
+  const squares = /* @__PURE__ */ new Set();
+  const tiles = [];
+  for (const item of proposal.tiles) {
+    const tile = rack.get(item.tileId);
+    if (!tile) return fail2(400, "A tile is not in your rack.");
+    if (ids.has(item.tileId)) return fail2(400, "A tile is used twice.");
+    ids.add(item.tileId);
+    if (item.row < 0 || item.col < 0 || item.row >= BOARD_SIZE || item.col >= BOARD_SIZE)
+      return fail2(400, "Invalid square.");
+    const square = `${item.row}:${item.col}`;
+    if (squares.has(square) || game.board[item.row]?.[item.col])
+      return fail2(400, "Square is not free.");
+    squares.add(square);
+    if (item.face !== void 0) {
+      if (!tileNeedsAssignment(tile.token)) return fail2(400, "This tile has no face to choose.");
+      if (!getAssignmentOptions(tile.token).includes(item.face))
+        return fail2(400, "Invalid face for this tile.");
+    }
+    tiles.push({
+      row: item.row,
+      col: item.col,
+      kind: tile.token,
+      ...item.face !== void 0 ? { face: item.face } : {}
+    });
+  }
+  const recipient = facts2.seats[seated === "A" ? "B" : "A"];
+  return {
+    ok: true,
+    recipient,
+    message: { gameId: facts2.id, revision: facts2.revision, seq: proposal.seq, side: seated, tiles }
+  };
+}
+function createRateLimiter(limits = TENTATIVE_LIMITS) {
+  const buckets = /* @__PURE__ */ new Map();
+  return (key, now) => {
+    const bucket = buckets.get(key) ?? { tokens: limits.burst, at: now };
+    bucket.tokens = Math.min(
+      limits.burst,
+      bucket.tokens + (now - bucket.at) / 1e3 * limits.perSecond
+    );
+    bucket.at = now;
+    buckets.set(key, bucket);
+    if (buckets.size > 1e4) buckets.delete(buckets.keys().next().value);
+    if (bucket.tokens < 1) return false;
+    bucket.tokens -= 1;
+    return true;
+  };
+}
+
 // src/liveGame/projection.ts
 function projectLiveGame(id, revision, game, viewerSide, mode, canAdminister = false, continuationBlocked = false, capabilities, timeline, facts2) {
   const viewer = viewerSide ? `seat:${viewerSide}` : "spectator";
@@ -2885,6 +2993,19 @@ function projectLiveGame(id, revision, game, viewerSide, mode, canAdminister = f
     canSaveExit: Boolean(capabilities?.administer && !game.emailPlayMode),
     directPause: Boolean(
       game.emailPlayMode === "direct" && !game.botSide && viewerSide && !continuationBlocked
+    ),
+    tentativeSync: Boolean(
+      viewerSide && facts2 && !continuationBlocked && tentativeSyncAllowed(
+        {
+          id,
+          revision,
+          mode,
+          purpose: facts2.purpose,
+          authorityProtocol: facts2.authorityProtocol,
+          seats: facts2.seats
+        },
+        game
+      )
     ),
     matchControl: game.matchControl ? {
       stopRequest: game.matchControl.stopRequest,
@@ -3284,6 +3405,23 @@ async function handleLiveGame(request, store, trustedBot = false) {
   } catch {
     return { status: 400, body: { error: "Move refused. Reload and check your move." } };
   }
+}
+async function handleTentativeRelay(request, store, now = Date.now()) {
+  if (request.bytes > TENTATIVE_LIMITS.maxBodyBytes)
+    return { status: 413, body: { error: "Proposal too large." } };
+  const token = request.authorization?.match(/^Bearer (.+)$/i)?.[1];
+  const actorId = token ? await store.authenticate(token) : null;
+  if (!actorId) return { status: 401, body: { error: "Sign in required." } };
+  const proposal = parseTentativeProposal(request.body);
+  if (!proposal) return { status: 400, body: { error: "Invalid tentative proposal." } };
+  if (!store.allow(`${actorId}:${proposal.id}`, now))
+    return { status: 429, body: { error: "Too many updates." } };
+  const source = await store.readFacts(proposal.id);
+  if (!source) return { status: 404, body: { error: "Live game unavailable." } };
+  const verdict = validateTentative(actorId, source.facts, decodeGame(source.state), proposal, now);
+  if (!verdict.ok) return { status: verdict.status, body: { error: verdict.error } };
+  await store.broadcast(verdict.recipient, verdict.message);
+  return { status: 200, body: { accepted: true } };
 }
 
 // src/gameplay/multiverseCodec.ts
@@ -10521,11 +10659,34 @@ var cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
-function respond(body, status = 200) {
+function respond(body, status = 200, extra = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" }
+    headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store", ...extra }
   });
+}
+var allowTentative = createRateLimiter();
+var serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+async function broadcastTentative(recipient, message) {
+  const sent = await fetch(`${url}/realtime/v1/api/broadcast`, {
+    method: "POST",
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      messages: [
+        {
+          topic: `tentative:${message.gameId}:${recipient}`,
+          event: "tentative",
+          payload: message,
+          private: true
+        }
+      ]
+    })
+  });
+  if (!sent.ok) throw new Error("Tentative broadcast failed");
 }
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response(null, { headers: cors });
@@ -10536,7 +10697,52 @@ Deno.serve(async (request) => {
     global: { headers: { Authorization: authorization ?? "" } }
   });
   try {
-    let body = await request.json();
+    const text = await request.text();
+    let body = JSON.parse(text);
+    if (body?.operation === "tentative") {
+      const timings = {};
+      const timed = async (name, task) => {
+        const start = performance.now();
+        try {
+          return await task();
+        } finally {
+          timings[name] = performance.now() - start;
+        }
+      };
+      const total = performance.now();
+      const result2 = await handleTentativeRelay(
+        { authorization, body, bytes: text.length },
+        {
+          authenticate: (token) => timed("auth", async () => {
+            const { data, error } = await userClient.auth.getUser(token);
+            return error ? null : data.user?.id ?? null;
+          }),
+          readFacts: (id) => timed("read", async () => {
+            const { data, error } = await db.from("room_live").select(
+              "room_id,player_a_user_id,player_b_user_id,revision,mode_key,room_purpose,authority_protocol,state"
+            ).eq("room_id", id).maybeSingle();
+            if (error) throw error;
+            return data ? {
+              facts: {
+                id: data.room_id,
+                revision: data.revision,
+                mode: data.mode_key,
+                purpose: data.room_purpose,
+                authorityProtocol: data.authority_protocol,
+                seats: { A: data.player_a_user_id, B: data.player_b_user_id }
+              },
+              state: data.state
+            } : null;
+          }),
+          broadcast: (recipient, message) => timed("broadcast", () => broadcastTentative(recipient, message)),
+          allow: allowTentative
+        }
+      );
+      timings.total = performance.now() - total;
+      return respond(result2.body, result2.status, {
+        "Server-Timing": Object.entries(timings).map(([name, ms]) => `${name};dur=${ms.toFixed(1)}`).join(", ")
+      });
+    }
     let trustedActor = null;
     let jobLeaseToken = null;
     let trustedJob = null;

@@ -119,6 +119,7 @@ export function LiveGameShell({
   sound,
   transitionKey,
   announcement,
+  opponentTentative = NO_OPPONENT_TENTATIVE,
   handlers,
 }: {
   model: ShellModel;
@@ -135,6 +136,8 @@ export function LiveGameShell({
   sound: { on: boolean; toggle(): void };
   transitionKey: number;
   announcement: string;
+  /** Phase B: the opponent's validated public tentative tiles (current epoch only). */
+  opponentTentative?: OpponentTentative[];
   handlers: ShellHandlers;
 }) {
   const { t } = useLocale();
@@ -180,7 +183,7 @@ export function LiveGameShell({
       <LiveBoard
         board={shownBoard}
         placements={reviewing ? [] : draft.placements}
-        opponentTentative={NO_OPPONENT_TENTATIVE}
+        opponentTentative={reviewing ? NO_OPPONENT_TENTATIVE : opponentTentative}
         lastMove={lastMoveKeys}
         lastMoveSide={reviewing ? null : (model.lastMove?.side ?? null)}
         cursor={reviewing ? null : draft.cursor}

@@ -1,5 +1,6 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { handleLiveGame, type LiveSource } from "./handler.ts";
+import { handleLiveGame, handleTentativeRelay, type LiveSource } from "./handler.ts";
+import { createRateLimiter, type TentativeMessage } from "../../../src/liveGame/tentative.ts";
 import { decodeGame, encodeGame } from "../../../src/codec.ts";
 import { canonicalFromSnapshot, encodeCanonical } from "../../../src/domain/projection.ts";
 import { buildCompletedGameRecord } from "../../../src/completedGame/record.ts";
@@ -27,11 +28,37 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
-function respond(body: unknown, status = 200) {
+function respond(body: unknown, status = 200, extra: Record<string, string> = {}) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store" },
+    headers: { ...cors, "Content-Type": "application/json", "Cache-Control": "no-store", ...extra },
   });
+}
+
+// Phase B relay. One limiter per function instance (best effort per instance).
+const allowTentative = createRateLimiter();
+const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+/** Ephemeral delivery through the Realtime broadcast API: nothing is written to the database. */
+async function broadcastTentative(recipient: string, message: TentativeMessage) {
+  const sent = await fetch(`${url}/realtime/v1/api/broadcast`, {
+    method: "POST",
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      messages: [
+        {
+          topic: `tentative:${message.gameId}:${recipient}`,
+          event: "tentative",
+          payload: message,
+          private: true,
+        },
+      ],
+    }),
+  });
+  if (!sent.ok) throw new Error("Tentative broadcast failed");
 }
 
 Deno.serve(async (request) => {
@@ -43,7 +70,65 @@ Deno.serve(async (request) => {
     global: { headers: { Authorization: authorization ?? "" } },
   });
   try {
-    let body = (await request.json()) as Record<string, unknown>;
+    const text = await request.text();
+    let body = JSON.parse(text) as Record<string, unknown>;
+    if (body?.operation === "tentative") {
+      // Trusted tentative relay: validate against the authoritative row, then
+      // deliver a server-built public message to the opponent only.
+      const timings: Record<string, number> = {};
+      const timed = async <T>(name: string, task: () => Promise<T>) => {
+        const start = performance.now();
+        try {
+          return await task();
+        } finally {
+          timings[name] = performance.now() - start;
+        }
+      };
+      const total = performance.now();
+      const result = await handleTentativeRelay(
+        { authorization, body, bytes: text.length },
+        {
+          authenticate: (token) =>
+            timed("auth", async () => {
+              const { data, error } = await userClient.auth.getUser(token);
+              return error ? null : (data.user?.id ?? null);
+            }),
+          readFacts: (id) =>
+            timed("read", async () => {
+              const { data, error } = await db
+                .from("room_live")
+                .select(
+                  "room_id,player_a_user_id,player_b_user_id,revision,mode_key,room_purpose,authority_protocol,state",
+                )
+                .eq("room_id", id)
+                .maybeSingle();
+              if (error) throw error;
+              return data
+                ? {
+                    facts: {
+                      id: data.room_id,
+                      revision: data.revision,
+                      mode: data.mode_key,
+                      purpose: data.room_purpose,
+                      authorityProtocol: data.authority_protocol,
+                      seats: { A: data.player_a_user_id, B: data.player_b_user_id },
+                    },
+                    state: data.state,
+                  }
+                : null;
+            }),
+          broadcast: (recipient, message) =>
+            timed("broadcast", () => broadcastTentative(recipient, message)),
+          allow: allowTentative,
+        },
+      );
+      timings.total = performance.now() - total;
+      return respond(result.body, result.status, {
+        "Server-Timing": Object.entries(timings)
+          .map(([name, ms]) => `${name};dur=${ms.toFixed(1)}`)
+          .join(", "),
+      });
+    }
     let trustedActor: string | null = null;
     let jobLeaseToken: unknown = null;
     let trustedJob: { id: string; room_id: string; revision: number; actor_id: string } | null =

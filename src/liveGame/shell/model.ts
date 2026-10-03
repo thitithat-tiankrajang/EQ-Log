@@ -8,6 +8,7 @@ import type { LiveControl } from "../controls";
 import type { PhysicalAction } from "../physical";
 import type { LiveGameView } from "../projection";
 import { deriveLastMove, type LastMove } from "./derive";
+import type { TentativeMessage, TentativeProposal } from "../tentative";
 
 /** The transport a match screen talks to: the live client, Ranked, or a dev source. */
 export type MatchClient = {
@@ -44,6 +45,15 @@ export type MatchClient = {
     move: RankedAction,
   ) => Promise<{ match: RankedMatchView }>;
   handoff?: (id: string, revision: number, side: Side) => Promise<{ match: RankedMatchView }>;
+  /** Phase B: trusted tentative relay (publish a proposal; receive the opponent's public set). */
+  tentative?: {
+    publish(proposal: TentativeProposal): Promise<void>;
+    subscribe(
+      id: string,
+      userId: string,
+      onMessage: (message: TentativeMessage) => void,
+    ): () => void;
+  };
 };
 
 /**

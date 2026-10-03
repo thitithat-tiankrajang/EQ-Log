@@ -16,6 +16,7 @@ import { applyLiveControl, type LiveControl } from "../../controls";
 import { applyHostedAction, type HostedAction } from "../../hostedAdmin";
 import { applyPhysicalAction, type PhysicalAction } from "../../physical";
 import { projectLiveGame } from "../../projection";
+import { validateTentative, type TentativeMessage, type TentativeProposal } from "../../tentative";
 import { EMPTY_MULTIVERSE } from "../../../gameplay/multiverse";
 import { LiveGameScreen } from "../LiveGameScreen";
 import type { MatchClient } from "../model";
@@ -405,7 +406,45 @@ export function createFixtureSession(state: string) {
     commit(applyLiveControl(game, EMPTY_MULTIVERSE, facts, caps, action, now()).game);
   };
   const seatOf = (viewer: string): Side => (viewer === "b" ? "B" : "A");
+  // Phase B: the same trusted validator as the Edge relay, with a test network
+  // that can delay, drop, duplicate or hold messages for deterministic tests.
+  const tentativeListeners = new Map<string, Set<(message: TentativeMessage) => void>>();
+  const network = {
+    mode: "immediate" as "immediate" | "manual",
+    held: [] as { recipient: string; message: TentativeMessage }[],
+    rejected: [] as { status: number; error: string }[],
+    deliver(index = 0) {
+      const [item] = network.held.splice(index, 1);
+      if (item)
+        tentativeListeners.get(item.recipient)?.forEach((listener) => listener(item.message));
+    },
+    deliverAll(order?: number[]) {
+      const items = order ? order.map((i) => network.held[i]!) : [...network.held];
+      network.held = [];
+      for (const item of items)
+        tentativeListeners.get(item.recipient)?.forEach((listener) => listener(item.message));
+    },
+  };
+  const relay = (viewer: string, proposal: TentativeProposal) => {
+    const verdict = validateTentative(
+      ACTORS[viewer] ?? A,
+      { ...facts, id: `live-shell-fixture:${state}:${viewer}`, revision },
+      game,
+      proposal,
+      Date.now(),
+    );
+    if (!verdict.ok) {
+      network.rejected.push({ status: verdict.status, error: verdict.error });
+      throw new Error(verdict.error);
+    }
+    if (network.mode === "manual") network.held.push(verdict);
+    else
+      queueMicrotask(() =>
+        tentativeListeners.get(verdict.recipient)?.forEach((listener) => listener(verdict.message)),
+      );
+  };
   return {
+    network,
     get game() {
       return game;
     },
@@ -445,6 +484,15 @@ export function createFixtureSession(state: string) {
         },
         ready: async () => project(viewer),
         cancel: async () => ({}),
+        tentative: {
+          publish: async (proposal: TentativeProposal) => relay(viewer, proposal),
+          subscribe: (_id: string, userId: string, onMessage: (m: TentativeMessage) => void) => {
+            const set = tentativeListeners.get(userId) ?? new Set();
+            set.add(onMessage);
+            tentativeListeners.set(userId, set);
+            return () => set.delete(onMessage);
+          },
+        },
       };
     },
   };

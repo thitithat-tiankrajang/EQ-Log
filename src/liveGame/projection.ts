@@ -41,9 +41,12 @@ export type LiveGameView = RankedMatchView & {
     lines: { id: string; from: string | null; logs: RankedTurnView[] }[];
   };
   practiceBot?: { side: Side; request: ArchBotRequest };
+  /** Phase B: this viewer is a seat in a game where tentative tiles are relayed (server-derived). */
+  tentativeSync?: boolean;
 };
 
 import { visibleBoard, ownTiles } from "../gameplay/publicTiles";
+import { tentativeSyncAllowed } from "./tentative";
 
 /** viewerSide is resolved from frozen server seats, never request JSON. */
 export function projectLiveGame(
@@ -149,6 +152,22 @@ export function projectLiveGame(
     canSaveExit: Boolean(capabilities?.administer && !game.emailPlayMode),
     directPause: Boolean(
       game.emailPlayMode === "direct" && !game.botSide && viewerSide && !continuationBlocked,
+    ),
+    tentativeSync: Boolean(
+      viewerSide &&
+      facts &&
+      !continuationBlocked &&
+      tentativeSyncAllowed(
+        {
+          id,
+          revision,
+          mode,
+          purpose: facts.purpose,
+          authorityProtocol: facts.authorityProtocol,
+          seats: facts.seats,
+        },
+        game,
+      ),
     ),
     matchControl: game.matchControl
       ? {

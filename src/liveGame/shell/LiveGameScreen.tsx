@@ -29,6 +29,7 @@ import { LiveGameShell, type ShellHandlers } from "./LiveGameShell";
 import { toShellModel, type MatchClient, type ShellModel } from "./model";
 import { useLiveMatch } from "./useLiveMatch";
 import { useTurnDraft } from "./useTurnDraft";
+import { useTentativeSync } from "./useTentativeSync";
 import { sweepWorkspaces, useLiveWorkspace, type WorkspaceSlot } from "./workspace";
 import { useWorkspaceUser } from "./workspaceUser";
 import { activeLiveScreens } from "./terminalHold";
@@ -311,6 +312,13 @@ export function LiveGameScreen({
     onPlace: sound.on ? playPlaceSound : undefined,
   });
   useLiveTileDrag(Boolean(model?.rackSide && !busy && !reviewing && !model.finished), draft.onDrop);
+  // Phase B: relay this seat's public tentative tiles; show the opponent's.
+  const opponentTentative = useTentativeSync({
+    client,
+    model,
+    placements: draft.placements,
+    active: Boolean(model?.caps.turn.act && !reviewing),
+  });
 
   // ── Turn transitions: derived from the newest state only; never queued. ──
   const [transitionKey, setTransitionKey] = useState(0);
@@ -620,6 +628,7 @@ export function LiveGameScreen({
         sound={sound}
         transitionKey={transitionKey}
         announcement={announcement}
+        opponentTentative={opponentTentative}
         handlers={handlers}
       />
       {practice &&
