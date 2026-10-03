@@ -8,5 +8,12 @@
  */
 export const heldTerminals = new Set<string>();
 
+/**
+ * Games whose live screen is mounted with a loaded game. Such a screen turns a
+ * completion it did not receive into its own Result (see completion.ts), so
+ * the route must not swap it for the Replay underneath the player.
+ */
+export const activeLiveScreens = new Set<string>();
+
 /** Dispatched with the game ID when the player opens the Replay from a Result. */
 export const OPEN_ARCHIVE_REPLAY = "eq-lab:open-archive-replay";

@@ -71,11 +71,13 @@ function ResultPanel({
       <Trophy size={20} aria-hidden="true" />
       <div className="lg-result-head">
         <strong>
-          {winner
-            ? winner === model.yourSide && model.role === "player"
-              ? t("live.result.youWon")
-              : t("live.result.won", { name: model.players[winner] })
-            : t("live.result.draw")}
+          {!model.result
+            ? t("live.result.over")
+            : winner
+              ? winner === model.yourSide && model.role === "player"
+                ? t("live.result.youWon")
+                : t("live.result.won", { name: model.players[winner] })
+              : t("live.result.draw")}
         </strong>
         <small>
           {model.scores.A} – {model.scores.B}
@@ -287,7 +289,14 @@ export function LiveGameShell({
       onOpenReplay={handlers.onOpenReplay}
     />
   ) : (
-    <TurnActions model={model} draft={draft} canPlay={canPlay} busy={busy} reviewing={reviewing} />
+    <TurnActions
+      model={model}
+      draft={draft}
+      canPlay={canPlay}
+      busy={busy}
+      reviewing={reviewing}
+      onOpenRecorder={() => (stack ? openMore("physical") : setTab("physical"))}
+    />
   );
   const lastMove = (
     <LastMovePanel

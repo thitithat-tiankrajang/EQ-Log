@@ -74,5 +74,93 @@ export async function provisionManualPlayers(env) {
     console.log(`Player ${i === 0 ? "A" : "B"}: ${players[i].email} · ${players[i].name}`);
   }
   console.log("Use the password you chose at http://127.0.0.1:5192/ in your own browser.");
+  console.log(
+    `To test Authur, make Player A Pro (Player B stays Free): node tools/phase-a/local.mjs pro ${players[0].email}`,
+  );
   console.log("Keep these emails. Accounts and sessions persist in the disposable stack/browser.");
+}
+
+/** Accounts made by `accounts` (and the tests' disposable players): never anyone else. */
+const DISPOSABLE_EMAIL = /^(local-[ab]-[0-9a-f]{8}|live-[a-z]+-[0-9a-f-]{36})@example\.test$/;
+const LOCAL_ADMIN = "local-admin@example.test";
+const PRO_MONTHS = 12;
+const PRO_CREDITS = 200;
+
+function psql(env, query) {
+  return execFileSync("psql", [env.DB_URL, "-v", "ON_ERROR_STOP=1", "-Atc", query], {
+    encoding: "utf8",
+  }).trim();
+}
+
+/**
+ * LOCAL ONLY — make one disposable account pass the REAL Pro/funding gate.
+ *
+ * Nothing is bypassed or special-cased: the grant goes through the same admin
+ * RPCs an operator uses (`admin_grant_plan`, `admin_grant_credits`), executed
+ * as a disposable local admin identity, so the account holds exactly the
+ * backend state the real gate reads: an active Pro plan (regenerating Pro-Bot
+ * allowance) and permanent Pro-Bot Credits. Room creation still reserves and
+ * consumes through `probot_charge`; refunds and ledger rules are untouched.
+ *
+ * Fails closed unless the backend is the disposable stack and the email is a
+ * disposable local account. Idempotent: the request ids are derived from the
+ * account, so a second run replays the same grants instead of adding more.
+ * No secret ever reaches a browser; this runs in Node/psql only.
+ */
+export async function provisionPro(env, email) {
+  if (env.API_URL !== "http://127.0.0.1:54521" || !env.DB_URL?.includes("127.0.0.1:54522/"))
+    throw new Error("Refusing a backend other than the disposable Milestone-S stack.");
+  if (!DISPOSABLE_EMAIL.test(String(email ?? "")))
+    throw new Error(
+      "Pass the email of a disposable local account (from `node tools/phase-a/local.mjs accounts`).",
+    );
+  const userId = psql(
+    env,
+    `select u.id from auth.users u join public.profiles p on p.id=u.id
+      where u.email='${email}' and p.status='approved'`,
+  );
+  if (!/^[0-9a-f-]{36}$/.test(userId))
+    throw new Error("No approved disposable account has that email.");
+
+  // The disposable operator identity whose auth.uid() the admin RPCs check.
+  let adminId = psql(env, `select id from auth.users where email='${LOCAL_ADMIN}'`);
+  if (!adminId) {
+    const admin = createClient(env.API_URL, env.SERVICE_ROLE_KEY, {
+      auth: { persistSession: false },
+    });
+    // A random password nobody is told: this identity never signs in.
+    const created = await admin.auth.admin.createUser({
+      email: LOCAL_ADMIN,
+      password: `Unused-${randomUUID()}`,
+      email_confirm: true,
+    });
+    if (created.error || !created.data.user) throw new Error("Local admin identity setup failed.");
+    adminId = created.data.user.id;
+  }
+  psql(
+    env,
+    `update public.profiles set status='approved', is_admin=true,
+       display_name='Local admin (disposable)' where id='${adminId}'`,
+  );
+  const grant = psql(
+    env,
+    `begin;
+     select set_config('request.jwt.claims',
+       json_build_object('sub','${adminId}','role','authenticated')::text, true);
+     set local role authenticated;
+     select 'plan:' || replayed from public.admin_grant_plan('${userId}'::uuid, 'pro', ${PRO_MONTHS},
+       'Local disposable Pro for manual Authur testing', md5('eq-local-pro-plan:${userId}')::uuid);
+     select 'credits:' || replayed from public.admin_grant_credits('${userId}'::uuid, ${PRO_CREDITS},
+       'Local disposable credits for manual Authur testing', md5('eq-local-pro-credit:${userId}')::uuid);
+     commit;`,
+  );
+  const status = JSON.parse(psql(env, `select public.probot_status_for('${userId}')::text`));
+  return {
+    userId,
+    replayed: !/plan:false|credits:false/.test(grant),
+    plan: status.plan_key ?? status.plan?.plan_key ?? null,
+    credits: status.credits,
+    allowance: status.allowance,
+    boards: status.boards,
+  };
 }

@@ -1,0 +1,88 @@
+{
+  "online_versus": [
+    "UI create (22 min) → join → ready → launch",
+    "clock shown and running (22:00 / 22:00)",
+    "draft model: place/move/return-to-slot/arrow/recall + alternative edit",
+    "real Commit +4 after 3 real exchange(s); the other seat's projection updated over Realtime",
+    "real touch Exchange 2, then Passes: six non-scoring turns",
+    "6 non-scoring turns → Result on both: \"Local B 5e591f18 won 0 – 11\" / \"You won 0 – 11 · by score\"",
+    "Open Replay → completed-game page",
+    "no hidden-information keys in either recipient's responses"
+  ],
+  "online_versus_untimed": [
+    "untimed: no clock element, no dash, on both seats"
+  ],
+  "local_versus": [
+    "UI create (untimed, app draws) → launch",
+    "Ann commits → concealed → explicit handoff → only Ben's rack (no shared ids)",
+    "Back/forward on the handoff screen shows no rack",
+    "reload on the handoff screen shows no rack (handoff required again)",
+    "6 non-scoring turns → Result \"Ben won 5 – 8 · by score\""
+  ],
+  "solo_practice": [
+    "UI create (22 min) → launch; one seat, one clock",
+    "real Commit +5",
+    "3 non-scoring turns → solo Result \"You won 5 – 0 · by score\""
+  ],
+  "physical_hosted": [
+    "UI create: host + two registered players, host enters tiles, untimed",
+    "host records both physical draws",
+    "host records A's move 1+2=3 for +9",
+    "refill recorded; turn passes to B (host plays B's rack)",
+    "host reload: same game, B's current rack, host controls intact",
+    "host Finish game → Result \"Local B 16ea4ebf won 9 – 0 · by score\"",
+    "hostRacks only in the host's projection; no bag/RNG/history keys anywhere"
+  ],
+  "hosted_versus": [
+    "UI create: host + two registered players (app draws, 22 min) → ready → host launch",
+    "host view: no rack, no turn actions (referee)",
+    "real Commit +5",
+    "host Pause → both players paused → Resume",
+    "host Finish → Result: \"Local A 858614f7 won 0 – 5 · by score\" / A: \"Local A 858614f7 won 0 – 5\"",
+    "no hidden keys; no current-rack view for an app-draw host"
+  ],
+  "hosted_solo": [
+    "UI create (hosted solo, untimed) → player ready → host launch; no timer UI",
+    "player real Commit +5",
+    "3 non-scoring turns → Result: \"You won 5 – 0 · by score\""
+  ],
+  "local_versus_recorded": [
+    "recorded Pass & Play: empty rack until the physical draw is entered",
+    "tapping the draw prompt opens the Physical recorder",
+    "clocked Pass & Play (22 min): both clocks shown",
+    "Ann records her draw and plays 1+2=3 for +9",
+    "Ann's refill recorded → concealed → Ben: his own (empty) rack, his draw next",
+    "Ben records his draw; six Passes with a handoff each → Result \"Ann won 10 – 0 · by score\""
+  ],
+  "archbot": [
+    "UI create (private) → launch → playing; ArchBot seat B; untimed, no clock UI",
+    "human Pass → ArchBot moved on this device → human's turn (\"Last move, turn 2: ArchBot, Exchanged 7 tiles. Open in the record.\")",
+    "human Exchange 2 → ArchBot → human's turn",
+    "Surrender → Result \"ArchBot won 0 – 121 · by surrender\""
+  ],
+  "authur": [
+    "local pro helper: plan pro, credits 200",
+    "Free account: Start disabled in the UI; server refused (400)",
+    "UI create with 1 credit → playing; credits 200 → 199",
+    "human Pass (no opening in the deal)",
+    "trusted Authur moved: \"Last move, turn 2: Authur, 2=2. Open in the record.\"",
+    "reload mid-game: same game, my turn",
+    "human Exchange 2 → Authur → human's turn",
+    "Surrender → Result \"Authur won 0 – 25 · by surrender\"",
+    "exactly one credit consumed for the room (no extra charge per move)",
+    "no bot rack / bag / RNG keys reached the browser"
+  ],
+  "stage": [
+    "Stage list → Play → sealed start on the board",
+    "human Pass → trusted Authur: \"Last move, turn 18: Authur, Passed. Open in the record.\"",
+    "Surrender → Result \"Authur won 481 – 500 · by surrender\""
+  ],
+  "ranked": [
+    "A creates a 15-min Ranked room; B joins after the stakes sheet",
+    "both confirm the rating at stake → playing, 15-min clocks",
+    "real Commit +4",
+    "real Exchange 2",
+    "Surrender → Result \"You won 0 – 4 · by surrender Silver · 1000 → 1020\"",
+    "no hidden-information keys (Ranked: opponent rack closed)"
+  ]
+}

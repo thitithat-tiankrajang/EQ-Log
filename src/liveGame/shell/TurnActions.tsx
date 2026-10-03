@@ -24,12 +24,15 @@ export function TurnActions({
   canPlay,
   busy,
   reviewing,
+  onOpenRecorder,
 }: {
   model: ShellModel;
   draft: TurnDraft;
   canPlay: boolean;
   busy: boolean;
   reviewing: boolean;
+  /** A physical draw is due and this viewer records it: the prompt opens the recorder. */
+  onOpenRecorder?: () => void;
 }) {
   const { t } = useLocale();
   if (model.finished || model.blocked) return null;
@@ -47,6 +50,14 @@ export function TurnActions({
               : busy && model.caps.turn.act
                 ? t("live.actions.sending")
                 : t("live.actions.thinking", { name });
+    if (model.awaitingRefill && model.caps.record.physicalIntake && onOpenRecorder)
+      return (
+        <div className="lg-actions" role="group" aria-label={t("live.actions.label")}>
+          <GuardedButton className="lg-btn lg-btn-primary lg-btn-record" onPress={onOpenRecorder}>
+            {text}
+          </GuardedButton>
+        </div>
+      );
     return (
       <div className={`lg-actions is-waiting side-${model.activeSide.toLowerCase()}`} role="status">
         <span className="lg-waiting-dots" aria-hidden="true">

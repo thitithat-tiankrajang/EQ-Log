@@ -602,6 +602,7 @@ export const en = {
       youWon: "You won",
       won: "{name} won",
       draw: "Draw",
+      over: "Game over",
       reason: {
         score: "by score",
         resign: "by surrender",

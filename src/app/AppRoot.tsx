@@ -13,7 +13,11 @@ import type { SafeArchiveReplay } from "../completedGame/archiveRead";
 import { parseStudyPuzzleRoomId } from "../features/studyPuzzles/play";
 import { parseSurvivalRoomId } from "../features/survivalPlay/route";
 import { parseShellFixtureRoomId } from "../liveGame/shell/fixtureRoute";
-import { heldTerminals, OPEN_ARCHIVE_REPLAY } from "../liveGame/shell/terminalHold";
+import {
+  activeLiveScreens,
+  heldTerminals,
+  OPEN_ARCHIVE_REPLAY,
+} from "../liveGame/shell/terminalHold";
 
 const NonPlayApplication = lazy(() => import("./NonPlayApplication"));
 const SafeLiveApplication = lazy(() => import("../liveGame/LivePage"));
@@ -36,8 +40,14 @@ function PlayApplication() {
     let active = true;
     const onArchiveReady = (event: Event) => {
       const replay = (event as CustomEvent<SafeArchiveReplay>).detail;
-      // A Result on screen stays until the player leaves it or opens the Replay.
-      if (active && replay?.archive.gameId === roomId && !heldTerminals.has(roomId))
+      // A Result on screen stays until the player leaves it or opens the Replay;
+      // a live screen on screen shows the Result itself first.
+      if (
+        active &&
+        replay?.archive.gameId === roomId &&
+        !heldTerminals.has(roomId) &&
+        !activeLiveScreens.has(roomId)
+      )
         setRoom({ id: roomId, live: false, replay });
     };
     const onOpenReplay = (event: Event) => {

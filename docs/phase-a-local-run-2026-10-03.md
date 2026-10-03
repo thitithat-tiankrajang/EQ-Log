@@ -86,6 +86,23 @@ Choose a **disposable password of at least 12 characters**, then confirm it. Inp
 
 Direct human games need no Authur worker. Authur uses the existing trusted local worker; see the investigation for startup and account eligibility. No demo/fixture browser is required for this workflow. The older `demo` helper remains for automated inspection only.
 
+### Authur (Pro) — make one account Pro, and start the trusted worker
+
+Disposable accounts are Free, and Authur is a Pro-Bot. Make Player A Pro through the real admin grants (Player B stays Free, so the refusal can be checked too):
+
+```sh
+node tools/phase-a/local.mjs pro <Player A email>
+```
+
+It prints the plan, allowance and credits (Pro: allowance 10, 200 credits, 3 active Pro boards). Running it again changes nothing. Authur moves come from the trusted worker container; start it before an Authur or Stage game and stop it afterwards:
+
+```sh
+docker start eq-milestone-s-authur-trusted-bot-1
+docker stop eq-milestone-s-authur-trusted-bot-1
+```
+
+Every mode, what to click and what to expect: [mode matrix](mode-matrix-2026-10-03.md).
+
 ### Stop only this run
 
 - Terminal 3 exits after account creation; there is no browser/process to stop there.

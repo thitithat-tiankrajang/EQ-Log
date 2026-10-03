@@ -31,6 +31,10 @@ import { useLiveMatch } from "./useLiveMatch";
 import { useTurnDraft } from "./useTurnDraft";
 import { sweepWorkspaces, useLiveWorkspace, type WorkspaceSlot } from "./workspace";
 import { useWorkspaceUser } from "./workspaceUser";
+import { activeLiveScreens } from "./terminalHold";
+import { finishedFromArchive } from "./completion";
+import { listMyHistory } from "../../features/gameRecords/history";
+import type { SafeArchiveReplay } from "../../completedGame/archiveRead";
 
 const NO_TOOLS: ReadonlySet<PlayTool> = new Set();
 
@@ -137,6 +141,35 @@ export function LiveGameScreen({
   const live = !ranked && match && "mode" in match ? (match as LiveGameView) : null;
 
   useEffect(() => sweepWorkspaces(), []);
+
+  // A completion this screen did not receive (the opponent's final move, or a
+  // refresh that raced this seat's own final command): show the Result here
+  // from the safe completed board and the viewer's own History row, instead of
+  // swapping the board for the Replay. See completion.ts.
+  const loaded = Boolean(match);
+  useEffect(() => {
+    if (!loaded) return;
+    activeLiveScreens.add(matchId);
+    const onArchive = (event: Event) => {
+      const replay = (event as CustomEvent<SafeArchiveReplay>).detail;
+      if (replay?.archive.gameId !== matchId) return;
+      void listMyHistory(null, 10)
+        .then((page) => page.items.find((item) => item.sourceId === matchId) ?? null)
+        .catch(() => null)
+        .then((row) =>
+          setMatch((current) =>
+            current && current.status !== "finished"
+              ? finishedFromArchive(current, replay, row)
+              : current,
+          ),
+        );
+    };
+    window.addEventListener("eq-lab:archive-replay-ready", onArchive);
+    return () => {
+      activeLiveScreens.delete(matchId);
+      window.removeEventListener("eq-lab:archive-replay-ready", onArchive);
+    };
+  }, [loaded, matchId, setMatch]);
 
   const toolMode = live ? String(live.mode) : "";
   useEffect(() => {

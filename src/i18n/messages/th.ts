@@ -560,6 +560,7 @@ export const th: Catalog = {
       youWon: "คุณชนะ",
       won: "{name} ชนะ",
       draw: "เสมอ",
+      over: "จบเกม",
       reason: {
         score: "ด้วยคะแนน",
         resign: "คู่แข่งยอมแพ้",

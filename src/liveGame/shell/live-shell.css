@@ -2585,3 +2585,8 @@ body[data-route="play"] .overflow-menu-item:disabled {
   background: transparent;
   cursor: default;
 }
+/* A due physical draw: the prompt is the way to the recorder. */
+.lg-actions .lg-btn-record {
+  grid-column: 1 / -1;
+  white-space: normal;
+}

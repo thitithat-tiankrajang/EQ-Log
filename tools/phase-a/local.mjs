@@ -217,8 +217,21 @@ if (process.argv[1]?.endsWith("/phase-a/local.mjs")) {
     } else if (process.argv[2] === "accounts") {
       const { provisionManualPlayers } = await import("./local-accounts.mjs");
       await provisionManualPlayers(localEnvironment());
+    } else if (process.argv[2] === "pro") {
+      const { provisionPro } = await import("./local-accounts.mjs");
+      const email = process.argv[3];
+      const result = await provisionPro(localEnvironment(), email);
+      console.log(`${email}: EQ ${String(result.plan).toUpperCase()} (local, disposable)`);
+      console.log(
+        `  Pro-Bot allowance ${result.allowance?.available}/${result.allowance?.capacity} · credits ${result.credits} · boards ${result.boards?.active}/${result.boards?.limit ?? "–"}`,
+      );
+      console.log(
+        result.replayed
+          ? "  Already provisioned — nothing added (idempotent)."
+          : "  Granted through the real admin RPCs. Other accounts stay Free.",
+      );
     } else if (process.argv[2] === "demo") await demo();
-    else throw new Error("Usage: node tools/phase-a/local.mjs app|phone|accounts|demo");
+    else throw new Error("Usage: node tools/phase-a/local.mjs app|phone|accounts|pro <email>|demo");
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;
