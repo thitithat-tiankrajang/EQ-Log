@@ -135,6 +135,29 @@ const studyPuzzles = localToolApi({
   factory: "createStudyPuzzleApi",
 });
 
+/**
+ * DEV ONLY — physical-phone play on the trusted LAN (`node tools/phase-a/local.mjs
+ * phone`). That helper points the browser's Supabase URL at this dev server's
+ * own LAN origin and sets EQ_LAN_PROXY_TARGET; these paths are then forwarded to
+ * the disposable stack on the Mac's loopback. Headers (Authorization, apikey)
+ * pass through untouched, so Auth, RLS, Edge authority and Realtime channel
+ * policies are exactly the stack's own. Only the disposable API is accepted as
+ * a target, and `server.proxy` never affects `vite build`.
+ */
+const lanTarget = process.env.EQ_LAN_PROXY_TARGET;
+if (lanTarget && lanTarget !== "http://127.0.0.1:54521")
+  throw new Error(
+    "EQ_LAN_PROXY_TARGET must be the disposable local stack (http://127.0.0.1:54521).",
+  );
+const lanProxy = lanTarget
+  ? Object.fromEntries(
+      ["/auth/v1", "/rest/v1", "/functions/v1", "/storage/v1", "/realtime/v1"].map((path) => [
+        path,
+        { target: lanTarget, changeOrigin: true, ws: path === "/realtime/v1" },
+      ]),
+    )
+  : undefined;
+
 export default defineConfig({
   plugins: [survivalPlaytest, studyPuzzles],
   worker: { format: "es" },
@@ -143,6 +166,6 @@ export default defineConfig({
   // first recognition, re-optimise, and RELOAD the page mid-import. Declaring
   // it up front avoids that; production builds are unaffected.
   optimizeDeps: { include: ["onnxruntime-web/wasm"] },
-  server: { headers: crossOriginIsolation },
+  server: { headers: crossOriginIsolation, ...(lanProxy ? { proxy: lanProxy } : {}) },
   preview: { headers: crossOriginIsolation },
 });

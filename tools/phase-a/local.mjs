@@ -1,5 +1,6 @@
 // Explicit disposable-local helpers. Never read production configuration.
 import { readFileSync } from "node:fs";
+import { networkInterfaces } from "node:os";
 import { spawn, execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
@@ -16,6 +17,47 @@ export function localEnvironment() {
 
 export function frontendEnvironment(env) {
   return { ...process.env, VITE_SUPABASE_URL: env.API_URL, VITE_SUPABASE_ANON_KEY: env.ANON_KEY };
+}
+
+/**
+ * DEV ONLY — physical-phone play on the same trusted Wi-Fi/LAN.
+ *
+ * From a phone, 127.0.0.1 is the phone itself, so the browser must never be
+ * given a loopback URL. The dev server binds ONLY the Mac's private LAN address
+ * and reverse-proxies the Supabase paths (Auth, REST, Edge Functions, Realtime
+ * websockets, Storage) to the disposable stack on the Mac's loopback, so the
+ * phone talks to exactly one origin: http://<LAN-IP>:<port>. Authentication is
+ * the stack's genuine password Auth; nothing is injected or bypassed.
+ */
+export const PHONE_PORT = 5196;
+const PRIVATE_LAN = /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/;
+export function lanAddress() {
+  const candidates = Object.entries(networkInterfaces()).flatMap(([name, entries]) =>
+    (entries ?? [])
+      .filter(
+        (entry) => entry.family === "IPv4" && !entry.internal && PRIVATE_LAN.test(entry.address),
+      )
+      .map((entry) => ({ name, address: entry.address })),
+  );
+  // Prefer the usual Wi-Fi/Ethernet interface; never a public address.
+  const chosen = candidates.find((item) => item.name === "en0") ?? candidates[0];
+  if (!chosen)
+    throw new Error(
+      "No private LAN IPv4 address found. Connect the Mac to the same Wi-Fi as the phone.",
+    );
+  return chosen.address;
+}
+export function phoneEnvironment(env, address, port = PHONE_PORT) {
+  const origin = `http://${address}:${port}`;
+  return {
+    ...process.env,
+    // Same-origin: the browser only ever sees the LAN origin.
+    VITE_SUPABASE_URL: origin,
+    VITE_SUPABASE_ANON_KEY: env.ANON_KEY,
+    VITE_EQ_LAN_DEV: "1",
+    // Read only by vite.config.ts (server proxy); never exposed to the browser.
+    EQ_LAN_PROXY_TARGET: env.API_URL,
+  };
 }
 
 async function demo() {
@@ -138,11 +180,45 @@ if (process.argv[1]?.endsWith("/phase-a/local.mjs")) {
       child.once("exit", (code) => {
         process.exitCode = code ?? 0;
       });
+    } else if (process.argv[2] === "phone") {
+      const env = localEnvironment();
+      const address = lanAddress();
+      const functions = await fetch(`${env.API_URL}/functions/v1/live-game`, { method: "OPTIONS" })
+        .then((response) => response.ok)
+        .catch(() => false);
+      const url = `http://${address}:${PHONE_PORT}/`;
+      console.log("");
+      console.log("EQ Lab — phone mode (DEV ONLY, trusted local network)");
+      console.log(`  Open on your phone (same Wi-Fi):  ${url}`);
+      console.log(
+        `  Bound to ${address}:${PHONE_PORT} only; Supabase paths are proxied to the disposable stack.`,
+      );
+      if (!functions)
+        console.log(
+          "  WARNING: local Edge functions are not responding — start them first (see docs/phase-a-local-run).",
+        );
+      console.log("  Ctrl+C stops phone mode.\n");
+      const child = spawn(
+        process.execPath,
+        [
+          "node_modules/vite/bin/vite.js",
+          "--host",
+          address,
+          "--port",
+          String(PHONE_PORT),
+          "--strictPort",
+        ],
+        { stdio: "inherit", env: phoneEnvironment(env, address) },
+      );
+      for (const signal of ["SIGINT", "SIGTERM"]) process.once(signal, () => child.kill(signal));
+      child.once("exit", (code) => {
+        process.exitCode = code ?? 0;
+      });
     } else if (process.argv[2] === "accounts") {
       const { provisionManualPlayers } = await import("./local-accounts.mjs");
       await provisionManualPlayers(localEnvironment());
     } else if (process.argv[2] === "demo") await demo();
-    else throw new Error("Usage: node tools/phase-a/local.mjs app|accounts|demo");
+    else throw new Error("Usage: node tools/phase-a/local.mjs app|phone|accounts|demo");
   } catch (error) {
     console.error(error.message);
     process.exitCode = 1;

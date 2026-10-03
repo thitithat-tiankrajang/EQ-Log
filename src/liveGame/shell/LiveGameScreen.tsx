@@ -382,7 +382,7 @@ export function LiveGameScreen({
         <button
           className="eq-button eq-button-secondary"
           type="button"
-          onClick={() => void navigator.clipboard.writeText(window.location.href)}
+          onClick={() => void navigator.clipboard?.writeText(window.location.href)}
         >
           {t("live.waiting.copyLink")}
         </button>

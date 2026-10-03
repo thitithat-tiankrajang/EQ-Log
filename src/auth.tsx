@@ -15,10 +15,16 @@ import { PROFILE_LOAD_TIMEOUT_MS } from "./constants/network";
 import { useLocale } from "./i18n/LocaleProvider";
 
 // This import is eliminated from production builds, even when built with local env.
+// Development only, against the disposable stack: either the desktop loopback
+// app, or LAN phone mode (tools/phase-a/local.mjs phone), where the Supabase URL
+// is this page's own private-LAN origin proxied to that stack.
 const LocalPasswordSignIn =
   import.meta.env.DEV &&
-  import.meta.env.VITE_SUPABASE_URL === "http://127.0.0.1:54521" &&
-  ["127.0.0.1", "localhost", "[::1]"].includes(window.location.hostname)
+  ((import.meta.env.VITE_SUPABASE_URL === "http://127.0.0.1:54521" &&
+    ["127.0.0.1", "localhost", "[::1]"].includes(window.location.hostname)) ||
+    (import.meta.env.VITE_EQ_LAN_DEV === "1" &&
+      import.meta.env.VITE_SUPABASE_URL === window.location.origin &&
+      /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(window.location.hostname)))
     ? lazy(() => import("./dev/LocalPasswordSignIn"))
     : null;
 

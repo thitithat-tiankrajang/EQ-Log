@@ -93,6 +93,21 @@ Direct human games need no Authur worker. Authur uses the existing trusted local
 - Terminal 1: Ctrl+C stops the function server you started there. Reuse an existing server rather than competing with it, and leave inherited servers alone.
 - Keep the shared disposable Supabase/Docker stack running. Do not use broad process/container stop commands or reset/clear browser storage. Local accounts and unfinished games remain available for the next run.
 
+## A2. REAL PHONE ON THE SAME WI-FI (DEV ONLY)
+
+Use this instead of Terminal 2 when reviewing from a physical phone. Terminal 1 (local Edge functions) is still required.
+
+```sh
+cd /Users/thitithat_tiankrajang/Desktop/EQ-Lab-live-sync
+node tools/phase-a/local.mjs phone
+```
+
+It prints the exact address, e.g. `Open on your phone (same Wi-Fi):  http://192.168.1.36:5196/`. Type it into the phone's browser, then use **Sign in locally** with the accounts from Terminal 3 (one account per device; a desktop browser on `http://127.0.0.1:5192/` or the same LAN address can be the other player).
+
+How it works: the dev server binds only the Mac's private LAN address (port 5196) and reverse-proxies `/auth/v1`, `/rest/v1`, `/functions/v1`, `/storage/v1` and `/realtime/v1` (websockets) to the disposable stack on the Mac's loopback. The phone talks to one origin and never to `127.0.0.1`. Authentication, RLS, Edge authority and Realtime policies are the stack's own. Plain `http` on a LAN address is not a browser "secure context", so phone mode supplies `crypto.randomUUID` from `crypto.getRandomValues` (dev-only); Copy link is unavailable there — paste or type the room link/code instead. Nothing of phone mode is in a production build.
+
+Ctrl+C stops it. The desktop `app` command is unchanged and can run at the same time.
+
 ## B. PHASE-A VISUAL FIXTURE / SANDBOX
 
 Use a separate terminal, independently of the normal app:
